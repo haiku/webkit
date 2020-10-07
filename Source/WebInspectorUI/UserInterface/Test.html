@@ -43,6 +43,7 @@
     <script src="Base/ListMultimap.js"></script>
     <script src="Base/Multimap.js"></script>
     <script src="Base/Object.js"></script>
+    <script src="Base/ReferencePage.js"></script>
     <script src="Base/TargetType.js"></script>
     <script src="Base/Throttler.js"></script>
 
@@ -86,6 +87,7 @@
     <script src="Protocol/InspectorObserver.js"></script>
     <script src="Protocol/AnimationObserver.js"></script>
     <script src="Protocol/ApplicationCacheObserver.js"></script>
+    <script src="Protocol/BrowserObserver.js"></script>
     <script src="Protocol/CPUProfilerObserver.js"></script>
     <script src="Protocol/CSSObserver.js"></script>
     <script src="Protocol/CanvasObserver.js"></script>
@@ -107,7 +109,9 @@
     <script src="Protocol/TimelineObserver.js"></script>
     <script src="Protocol/WorkerObserver.js"></script>
 
+    <script src="Models/Breakpoint.js"></script>
     <script src="Models/BreakpointAction.js"></script>
+    <script src="Models/Collection.js"></script>
     <script src="Models/ConsoleMessage.js"></script>
     <script src="Models/Instrument.js"></script>
     <script src="Models/SourceCode.js"></script>
@@ -121,7 +125,9 @@
     <script src="Models/Script.js"></script>
     <script src="Models/LocalScript.js"></script>
 
-    <script src="Models/Breakpoint.js"></script>
+    <script src="Models/Animation.js"></script>
+    <script src="Models/AnimationCollection.js"></script>
+    <script src="Models/BoxShadow.js"></script>
     <script src="Models/CPUInstrument.js"></script>
     <script src="Models/CPUTimeline.js"></script>
     <script src="Models/CPUTimelineRecord.js"></script>
@@ -137,7 +143,6 @@
     <script src="Models/CallingContextTree.js"></script>
     <script src="Models/CallingContextTreeNode.js"></script>
     <script src="Models/Canvas.js"></script>
-    <script src="Models/Collection.js"></script>
     <script src="Models/CollectionEntry.js"></script>
     <script src="Models/CollectionEntryPreview.js"></script>
     <script src="Models/CollectionTypes.js"></script>
@@ -165,6 +170,7 @@
     <script src="Models/IndexedDatabaseObjectStore.js"></script>
     <script src="Models/IndexedDatabaseObjectStoreIndex.js"></script>
     <script src="Models/IssueMessage.js"></script>
+    <script src="Models/JavaScriptBreakpoint.js"></script>
     <script src="Models/Layer.js"></script>
     <script src="Models/LayoutInstrument.js"></script>
     <script src="Models/LayoutTimelineRecord.js"></script>
@@ -238,9 +244,11 @@
     <script src="Proxies/HeapSnapshotProxy.js"></script>
     <script src="Proxies/HeapSnapshotWorkerProxy.js"></script>
 
+    <script src="Controllers/AnimationManager.js"></script>
     <script src="Controllers/AuditManager.js"></script>
     <script src="Controllers/ApplicationCacheManager.js"></script>
     <script src="Controllers/BreakpointLogMessageLexer.js"></script>
+    <script src="Controllers/BrowserManager.js"></script>
     <script src="Controllers/CSSManager.js"></script>
     <script src="Controllers/CanvasManager.js"></script>
     <script src="Controllers/ConsoleManager.js"></script>
@@ -267,6 +275,9 @@
     <script src="Views/CodeMirrorAdditions.js"></script>
     <script src="Views/EditingSupport.js"></script>
     <script src="Views/View.js"></script>
+
+    <script src="Controllers/DiagnosticController.js"></script>
+    <script src="Controllers/DiagnosticEventRecorder.js"></script>
 
     <script src="Views/Resizer.js"></script>
     <script src="Views/Table.js"></script>

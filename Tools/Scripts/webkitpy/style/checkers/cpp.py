@@ -2,7 +2,7 @@
 #
 # Copyright (C) 2009, 2010, 2012 Google Inc. All rights reserved.
 # Copyright (C) 2009 Torch Mobile Inc.
-# Copyright (C) 2009-2019 Apple Inc. All rights reserved.
+# Copyright (C) 2009-2020 Apple Inc. All rights reserved.
 # Copyright (C) 2010 Chris Jerdonek (cjerdonek@webkit.org)
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,15 +37,17 @@
 """Support for check-webkit-style."""
 
 import codecs
+import functools
 import math  # for log
 import os
 import os.path
 import re
 import string
-import sys
 import unicodedata
 
-from common import match, search, sub, subn
+from webkitcorepy import unicode
+
+from webkitpy.style.checkers.common import match, search, sub, subn
 from webkitpy.common.memoized import memoized
 
 # The key to use to provide a class to fake loading a header file.
@@ -135,6 +137,25 @@ _AUTO_GENERATED_FILES = [
 # for faking a header file.
 _unit_test_config = {}
 
+
+_NO_CONFIG_H_PATH_PATTERNS = [
+    '^Source/bmalloc/',
+    '^Source/WebKitLegacy/',
+]
+
+_EXPORT_MACRO_SPEC = {
+    'BEXPORT': 'Source/bmalloc',
+    'JS_EXPORT': 'Source/JavaScriptCore/API',
+    'JS_EXPORT_PRIVATE': 'Source/JavaScriptCore',
+    'PAL_EXPORT': 'Source/WebCore/PAL',
+    'WEBCORE_TESTSUPPORT_EXPORT': 'Source/WebCore/testing',
+    # Excludes PAL and testing directories
+    'WEBCORE_EXPORT': 'Source/WebCore/(?!(PAL|testing))',
+    'WK_EXPORT': 'Source/WebKit',
+    'WTF_EXPORT_PRIVATE': 'Source/WTF',
+}
+
+_EXPORT_MACROS = sorted(_EXPORT_MACRO_SPEC.keys())
 
 def iteratively_replace_matches_with_char(pattern, char_replacement, s):
     """Returns the string with replacement done.
@@ -293,7 +314,7 @@ class _IncludeState(dict):
     def visited_soft_link_section(self):
         return self._visited_soft_link_section
 
-    def check_next_include_order(self, header_type, filename, file_is_header, primary_header_exists):
+    def check_next_include_order(self, header_type, filename, file_is_header, primary_header_exists, has_config_header):
         """Returns a non-empty error message if the next header is out of order.
 
         This function also updates the internal state to be ready to check
@@ -304,6 +325,7 @@ class _IncludeState(dict):
           filename: The name of the current file.
           file_is_header: Whether the file that owns this _IncludeState is itself a header
           primary_header_exists: Whether the primary header file actually exists on disk
+          has_config_header: Whether project uses config.h or not.
 
         Returns:
           The empty string if the header is in the right order, or an
@@ -333,7 +355,7 @@ class _IncludeState(dict):
         elif header_type == _PRIMARY_HEADER:
             if self._section >= self._PRIMARY_SECTION:
                 error_message = after_error_message
-            elif self._section < self._CONFIG_SECTION:
+            elif has_config_header and self._section < self._CONFIG_SECTION:
                 error_message = before_error_message
             self._section = self._PRIMARY_SECTION
             self._visited_primary_section = True
@@ -366,7 +388,25 @@ class Position(object):
         return '(%s, %s)' % (self.row, self.column)
 
     def __cmp__(self, other):
-        return self.row.__cmp__(other.row) or self.column.__cmp__(other.column)
+        return (self.row - other.row) or (self.column - other.column)
+
+    def __eq__(self, other):
+        return self.__cmp__(other) == 0
+
+    def __ne__(self, other):
+        return self.__cmp__(other) != 0
+
+    def __lt__(self, other):
+        return self.__cmp__(other) < 0
+
+    def __le__(self, other):
+        return self.__cmp__(other) <= 0
+
+    def __gt__(self, other):
+        return self.__cmp__(other) > 0
+
+    def __ge__(self, other):
+        return self.__cmp__(other) >= 0
 
 
 class Parameter(object):
@@ -459,7 +499,7 @@ def create_skeleton_parameters(all_parameters):
 
 
 def find_parameter_name_index(skeleton_parameter):
-    """Determines where the parametere name starts given the skeleton parameter."""
+    """Determines where the parameter name starts given the skeleton parameter."""
     # The first space from the right in the simplified parameter is where the parameter
     # name starts unless the first space is before any content in the simplified parameter.
     before_name_index = skeleton_parameter.rstrip().rfind(' ')
@@ -552,13 +592,34 @@ class _FunctionState(object):
         start_modifiers = _rfind_in_lines(r';|\{|\}|((private|public|protected):)|(#.*)', elided, self.parameter_start_position, Position(0, 0))
         return SingleLineView(elided, start_modifiers, self.function_name_start_position).single_line.strip()
 
+    def post_modifiers(self):
+        """Returns the modifiers after the function declaration such as attributes."""
+        elided = self._clean_lines.elided
+        return SingleLineView(elided, self.parameter_end_position, self.body_start_position).single_line.strip()
+
+    def attributes_after_definition(self, attribute_regex):
+        return re.findall(attribute_regex, self.post_modifiers())
+
+    def has_attribute(self, attribute_regex):
+        regex = r'\b{attribute_regex}\b'.format(attribute_regex=attribute_regex)
+        return bool(search(regex, self.modifiers_and_return_type())) or bool(search(regex, self.post_modifiers()))
+
+    def has_return_type(self, return_type_regex):
+        regex = r'\b{return_type_regex}$'.format(return_type_regex=return_type_regex)
+        return bool(search(regex, self.modifiers_and_return_type()))
+
+    def is_static(self):
+        return bool(search(r'\bstatic\b', self.modifiers_and_return_type()))
+
     def is_virtual(self):
         return bool(search(r'\bvirtual\b', self.modifiers_and_return_type()))
 
     def export_macro(self):
-        export_match = match(
-            r'\b(WTF_EXPORT|WTF_EXPORT_PRIVATE|PAL_EXPORT|JS_EXPORT_PRIVATE|WEBCORE_EXPORT)\b', self.modifiers_and_return_type())
-        return export_match.group(1) if export_match else None
+        for m in _EXPORT_MACROS:
+            export_match = match(r'\b' + m + r'\b', self.modifiers_and_return_type())
+            if export_match:
+                return export_match.group(0)
+        return None
 
     def parameter_list(self):
         if not self._parameter_list:
@@ -897,7 +958,7 @@ def check_for_copyright(lines, error):
 
     # We'll say it should occur by line 10. Don't forget there's a
     # dummy line at the front.
-    for line in xrange(1, min(len(lines), 11)):
+    for line in range(1, min(len(lines), 11)):
         if re.search(r'Copyright', lines[line], re.I):
             break
     else:                       # means no copyright line was found
@@ -906,30 +967,59 @@ def check_for_copyright(lines, error):
               'You should have a line: "Copyright [year] <Copyright Owner>"')
 
 
-def check_for_header_guard(lines, error):
+def check_for_header_guard(file_path, lines, error):
     """Checks that the file contains a header guard.
 
     Logs an error if there was an #ifndef guard in a header
-    that should be a #pragma once guard.
+    that should be a #pragma once guard, or if there is a missing
+    #pragma once guard.
 
     Args:
+      file_path: Path to the header file that is being processed.
       lines: An array of strings, each representing a line of the file.
       error: The function to call with any errors found.
     """
 
+    filename = os.path.split(file_path)[-1]
+    if filename == 'config.h' or filename.endswith('Prefix.h'):
+        return
+
+    first_blank_line_number = 0
+    has_import_statement = False
+    has_objc_check = False
+    has_objc_keywords = False
     for line_number, line in enumerate(lines):
+        if line == '' and first_blank_line_number == 0:
+            first_blank_line_number = line_number
         if line.startswith('#pragma once'):
             return
+        if line.startswith('#import '):
+            has_import_statement = True
+        if '__OBJC__' in line:
+            has_objc_check = True
+        if functools.reduce(lambda x, y: x or y, map(lambda x: x in line, ['@class', '@interface', '@protocol'])):
+            has_objc_keywords = True
+
+    if (has_import_statement or has_objc_keywords) and not has_objc_check:
+        return  # Objective-C-only headers don't need guards.
 
     # If there is no #pragma once, but there is an #ifndef, warn only if it was modified.
     ifndef_line_number = 0
+    previous_line = None
     for line_number, line in enumerate(lines):
-        line_split = line.split()
-        if len(line_split) >= 2:
-            if line_split[0] == '#ifndef' and line_split[1].endswith('_h'):
-                error(line_number, 'build/header_guard', 5,
-                    'Use #pragma once instead of #ifndef for header guard.')
-                return
+        if previous_line is not None:
+            previous_line_split = previous_line.split()
+            line_split = line.split()
+            if len(previous_line_split) >= 2 and len(line_split) >= 2:
+                if previous_line_split[0] == '#ifndef' and line_split[0] == '#define' \
+                        and previous_line_split[1] == line_split[1]:
+                    error(line_number, 'build/header_guard', 5,
+                          'Use #pragma once instead of #ifndef for header guard.')
+                    return
+        previous_line = line
+
+    error(first_blank_line_number + 1, 'build/header_guard_missing', 5,
+          'Missing #pragma once for header guard.')
 
 
 def check_for_unicode_replacement_characters(lines, error):
@@ -1100,13 +1190,16 @@ _RE_PATTERN_XCODE_VERSION_MACRO = re.compile(
 _RE_PATTERN_XCODE_MIN_REQUIRED_MACRO = re.compile(
     r'.+?([A-Z_]+)_VERSION_MIN_REQUIRED [><=]+ (\d+)')
 
+_RE_PATTERN_PLATFORM_HEADER = re.compile(
+    r'Source/WTF/wtf/Platform[a-zA-Z]+\.h')
+
 
 def check_os_version_checks(filename, clean_lines, line_number, error):
     """ Checks for mistakes using VERSION_MIN_REQUIRED and VERSION_MAX_ALLOWED macros:
     1. These should only be used centrally to defined named HAVE, USE or ENABLE style macros.
     2. VERSION_MIN_REQUIRED never changes for a minor OS version.
 
-    These should be centralized in wtf/Platform.h and wtf/FeatureDefines.h.
+    These should be centralized in the wtf/Platform*.h suite of files.
 
     Args:
       filename: Name of the file that is being processed.
@@ -1124,11 +1217,11 @@ def check_os_version_checks(filename, clean_lines, line_number, error):
             error(line_number, 'build/version_check', 5, 'Incorrect OS version check. VERSION_MIN_REQUIRED values never include a minor version. You may be looking for a combination of VERSION_MIN_REQUIRED for target OS version check and VERSION_MAX_ALLOWED for SDK check.')
             break
 
-    if filename == 'Source/WTF/wtf/Platform.h' or filename == 'Source/WTF/wtf/FeatureDefines.h':
+    if _RE_PATTERN_PLATFORM_HEADER.match(filename):
         return
 
     if _RE_PATTERN_XCODE_VERSION_MACRO.match(line):
-        error(line_number, 'build/version_check', 5, 'Misplaced OS version check. Please use a named macro in wtf/Platform.h, wtf/FeatureDefines.h, or an appropriate internal file.')
+        error(line_number, 'build/version_check', 5, 'Misplaced OS version check. Please use a named macro in one of headers in the wtf/Platform.h suite of files or an appropriate internal file.')
 
 class _ClassInfo(object):
     """Stores information about a class."""
@@ -1596,7 +1689,7 @@ def detect_functions(clean_lines, line_number, function_state, error):
         return
 
     joined_line = ''
-    for start_line_number in xrange(line_number, clean_lines.num_lines()):
+    for start_line_number in range(line_number, clean_lines.num_lines()):
         start_line = clean_lines.elided[start_line_number]
         joined_line += ' ' + start_line.lstrip()
         body_match = search(r'{|;', start_line)
@@ -1684,6 +1777,8 @@ def _check_parameter_name_against_text(parameter, text, error):
     # case insensitive while still retaining word breaks. (This ensures that
     # 'elate' doesn't look like it is duplicating of 'NateLate'.)
     canonical_parameter_name = parameter.lower_with_underscores_name()
+    if canonical_parameter_name == "]":
+        return True  # Work around a bug parsing some Objective-C code.
 
     # Appends "object" to all text to catch variables that did the same (but only
     # do this when the parameter name is more than a single character to avoid
@@ -1698,6 +1793,163 @@ def _check_parameter_name_against_text(parameter, text, error):
         error(parameter.row, 'readability/parameter_name', 5,
               'The parameter name "%s" adds no information, so it should be removed.' % parameter.name)
         return False
+    return True
+
+
+def _split_identifier_into_words(identifier):
+    words = []
+    if not identifier:
+        return words
+
+    # Remove prefixes that aren't part of the identifier name.
+    identifier = re.sub(r'^[gms]?_', '', identifier)
+    # Remove bitfield lengths.
+    identifier = re.sub(r':[0-9]+$', '', identifier)
+
+    identifier_length = len(identifier)
+
+    match_upper_re = re.compile(r'^[A-Z]+')
+    match_upper_lower_re = re.compile(r'^[A-Z][a-z]+')
+    match_lower_re = re.compile(r'^[a-z]+')
+
+    match_lower = match_lower_re.search(identifier)
+    match_upper_lower = match_upper_lower_re.search(identifier)
+    match_upper = match_upper_re.search(identifier)
+    if match_lower:
+        word = match_lower.group(0)
+        words.append(word)
+        if len(word) == identifier_length:
+            return words
+        identifier = identifier[len(word):]
+    elif match_upper_lower:
+        word = match_upper_lower.group(0)
+        words.append(word)
+        if len(word) == identifier_length:
+            return words
+        identifier = identifier[len(word):]
+    elif match_upper:
+        word = match_upper.group(0)
+        if len(word) == identifier_length:
+            words.append(word)
+            return words
+        if identifier[len(word)].islower():
+            word = word[:-1]
+        words.append(word)
+        identifier = identifier[len(word):]
+
+    match_number_re = re.compile(r'^[0-9]+')
+    while identifier:
+        identifier_length = len(identifier)
+        if identifier.startswith('_'):
+            if len(identifier) == 1:
+                return words
+            identifier = identifier[1:]
+            continue
+        if identifier.startswith('::'):
+            words.append('::')
+            if len(identifier) == 2:
+                return words
+            identifier = identifier[2:]
+            continue
+        match_upper_lower = match_upper_lower_re.search(identifier)
+        if match_upper_lower:
+            word = match_upper_lower.group(0)
+            words.append(word)
+            if len(word) == identifier_length:
+                return words
+            identifier = identifier[len(word):]
+            continue
+        match_upper = match_upper_re.search(identifier)
+        if match_upper:
+            word = match_upper.group(0)
+            if len(word) == len(identifier):
+                words.append(word)
+                return words
+            if identifier[len(word)].islower():
+                word = word[:-1]
+            words.append(word)
+            identifier = identifier[len(word):]
+            continue
+        match_number = match_number_re.search(identifier)
+        if match_number:
+            word = match_number.group(0)
+            words.append(word)
+            if len(word) == identifier_length:
+                return words
+            identifier = identifier[len(word):]
+            continue
+        match_lower = match_lower_re.search(identifier)
+        if match_lower:
+            word = match_lower.group(0)
+            words.append(word)
+            if len(word) == identifier_length:
+                return words
+            identifier = identifier[len(word):]
+            continue
+        assert False, 'Could not match "%s"' % identifier
+
+    return words
+
+
+def _check_identifier_name_for_acronyms(identifier, line_number, is_class_or_namespace_or_struct_name, error):
+    """Checks to see if the identifier name contains an acronym with improper case.
+
+    Using "url" is okay at the start of an identifier name, and "URL" is okay in the
+    middle or at the end of an identifier name, but "Url" is never okay.
+    """
+    acronyms = '|'.join(['MIME', 'URL'])
+    acronym_exceptions = '|'.join(['cfurl', 'curl', 'Curl', 'nsurl', 'urls'])
+
+    identifier_words = _split_identifier_into_words(identifier)
+
+    is_constructor = False
+    if identifier_words.count('::') == 1:
+        names = identifier.split('::')
+        if names[0] == names[1]:
+            is_constructor = True
+
+    contains_acronym_lowercase_re = re.compile('(%s)' % acronyms.lower())
+    is_acronym_any_case_re = re.compile('^(%s)$' % acronyms, re.IGNORECASE)
+    is_acronym_lowercase_re = re.compile('^(%s)$' % acronyms.lower())
+    is_acronym_uppercase_re = re.compile('^(%s)$' % acronyms.upper())
+    is_acronym_exception_any_case_re = re.compile('^(%s)$' % acronym_exceptions)
+
+    start_of_variable = True
+    for i in range(0, len(identifier_words)):
+        word = identifier_words[i]
+
+        if word == '::':
+            start_of_variable = True
+            continue
+
+        if start_of_variable:
+            start_of_variable = False
+            # Identifiers that start with an acronym must be all lowercase, except for class/namespace/struct names.
+            if is_acronym_any_case_re.search(word):
+                if is_acronym_lowercase_re.search(word):
+                    continue
+                elif is_acronym_uppercase_re.search(word) and \
+                        (is_class_or_namespace_or_struct_name or '::' in identifier_words[i:] or is_constructor):
+                    continue
+                else:
+                    error(line_number, 'readability/naming/acronym', 5,
+                          'The identifier name "%s" starts with an acronym that is not all lowercase.' % identifier)
+                    return False
+        else:
+            # Identifiers that contain or end with an acronym must be all uppercase.
+            if is_acronym_any_case_re.search(word):
+                if is_acronym_uppercase_re.search(word):
+                    continue
+                else:
+                    error(line_number, 'readability/naming/acronym', 5,
+                          'The identifier name "%s" contains an acronym that is not all uppercase.' % identifier)
+                    return False
+
+        if contains_acronym_lowercase_re.search(word) and not is_acronym_exception_any_case_re.search(word):
+            error(line_number, 'readability/naming/acronym', 3,
+                  'The identifier name "%s" _may_ contain an acronym that is not all uppercase.' % identifier)
+            continue
+
     return True
 
 
@@ -1722,6 +1974,23 @@ def check_function_definition(filename, file_extension, clean_lines, line_number
     """
     if line_number != function_state.body_start_position.row:
         return
+
+    # Check for decode() functions that don't have WARN_UNUSED_RETURN attribute.
+    function_name = function_state.current_function.split('..')[-1]
+    if function_name.startswith('decode') or function_name.startswith('platformDecode'):
+        if file_extension == 'h' or (function_state.is_static() or function_state.is_declaration):
+            if function_state.has_return_type('(auto|bool)'):
+                if not function_state.has_attribute('WARN_UNUSED_RETURN'):
+                    error(line_number, 'security/missing_warn_unused_return', 5,
+                          'decode() function returning a value is missing WARN_UNUSED_RETURN attribute')
+
+    attributes = function_state.attributes_after_definition(r'(\bWARN_[0-9A-Z_]+\b|__attribute__\(\(__[a-z_]+__\)\))')
+    if len(attributes) > 0:
+        attribute_text = ', '.join(attributes)
+        plural = 's' if len(attributes) > 1 else ''
+        error(line_number, 'readability/function', 5,
+              'Function attribute{plural} ({attributes}) should appear before the function definition'.
+              format(attributes=attribute_text, plural=plural))
 
     parameter_list = function_state.parameter_list()
     for parameter in parameter_list:
@@ -1764,6 +2033,12 @@ def check_function_definition(filename, file_extension, clean_lines, line_number
                   'macro from the class and apply it to each appropriate method, or move '
                   'the inline function definition out-of-line.' %
                   class_state.classinfo_stack[-1].export_macro)
+    elif function_state.export_macro():
+        export_macro = function_state.export_macro()
+        path = _EXPORT_MACRO_SPEC[export_macro]
+        if not match(path, _unix_path(filename)):
+            error(line_number, 'build/export_macro', 5,
+                  '%s should only appear in directories matching %s.' % (export_macro, path))
 
 
 def check_for_leaky_patterns(clean_lines, line_number, function_state, error):
@@ -1978,13 +2253,14 @@ def check_spacing(file_extension, clean_lines, line_number, file_state, error):
     # there should either be zero or one spaces inside the parens.
     # We don't want: "if ( foo)" or "if ( foo   )".
     # Exception: "for ( ; foo; bar)" and "for (foo; bar; )" are allowed.
+    # Exception: "for (foo n in [foo bar:baz])" is allowed because of obj-c method calls
     matched = search(r'\b(?P<statement>if|for|while|switch)\s*\((?P<remainder>.*)$', line)
     if matched:
         statement = matched.group('statement')
         condition, rest = up_to_unmatched_closing_paren(matched.group('remainder'))
         if condition is not None:
-            if statement == 'for' and search(r'(?:[^ :]:[^:]|[^:]:[^ :])', condition):
-                error(line_number, 'whitespace/colon', 4, 'Missing space around : in range-based for statement')
+            if statement == 'for' and search(r'(?:[^ :]:[^:]|[^:]:[^ :])', condition) and not search(r'\[[^\]]+:[^\]]*\]', condition):
+                    error(line_number, 'whitespace/colon', 4, 'Missing space around : in range-based for statement')
             condition_match = search(r'(?P<leading>[ ]*)(?P<separator>.).*[^ ]+(?P<trailing>[ ]*)', condition)
             if condition_match:
                 n_leading = len(condition_match.group('leading'))
@@ -2050,7 +2326,7 @@ def check_spacing(file_extension, clean_lines, line_number, file_state, error):
     # 'delete []' or 'new char * []'. Objective-C can't follow this rule
     # because of method calls.
     if file_extension != 'mm' and file_extension != 'm':
-        if search(r'\w\s+\[', line) and not search(r'(delete|return)\s+\[', line):
+        if search(r'\w\s+\[', line) and not search(r'(delete|return|auto)\s+\[', line):
             error(line_number, 'whitespace/brackets', 5,
                   'Extra space before [.')
 
@@ -2230,6 +2506,29 @@ def check_enum_casing(clean_lines, line_number, enum_state, error):
               'enum members should use InterCaps with an initial capital letter or initial \'k\' for C-style enums.')
 
 
+def check_once_flag(clean_lines, line_number, enum_state, error):
+    """Looks for non-static std::once_flag / dispatch_once_t.
+
+    Args:
+      clean_lines: A CleansedLines instance containing the file.
+      line_number: The number of the line to check.
+      enum_state: A _EnumState instance which maintains enum declaration state.
+      error: The function to call with any errors found.
+    """
+
+    line = clean_lines.elided[line_number]  # Get rid of comments and strings.
+
+    using_std_once_flag = search(r'std::once_flag|dispatch_once_t', line)
+    if not using_std_once_flag:
+        return
+
+    using_std_once_flag_with_static = search(r'static\s+(?:std::once_flag|dispatch_once_t)', line)
+    if using_std_once_flag_with_static:
+        return
+
+    error(line_number, 'runtime/once_flag', 4, "std::once_flag / dispatch_once_t should be in `static` storage.")
+
+
 def check_directive_indentation(clean_lines, line_number, file_state, error):
     """Looks for indentation of preprocessor directives.
 
@@ -2354,6 +2653,30 @@ def check_max_min_macros(clean_lines, line_number, file_state, error):
           % (max_min_macro_lower, max_min_macro_lower, max_min_macro))
 
 
+def check_wtf_checked_size(clean_lines, line_number, file_state, error):
+    """Looks for use of 'Checked<size_t, RecordOverflow>' which should be replaced with 'CheckedSize'.
+
+    Args:
+      clean_lines: A CleansedLines instance containing the file.
+      line_number: The number of the line to check.
+      file_state: A _FileState instance which maintains information about
+                  the state of things in the file.
+      error: The function to call with any errors found.
+    """
+
+    if file_state.is_c_or_objective_c():
+        return
+
+    line = clean_lines.elided[line_number]
+
+    using_checked_size_record_overflow = search(r'\bChecked\s*<\s*size_t,\s*RecordOverflow\s*>\s*(\b|\()', line)
+    if not using_checked_size_record_overflow:
+        return
+
+    error(line_number, 'runtime/wtf_checked_size', 5,
+          "Use 'CheckedSize' instead of 'Checked<size_t, RecordOverflow>'.")
+
+
 def check_wtf_move(clean_lines, line_number, file_state, error):
     """Looks for use of 'std::move()' which should be replaced with 'WTFMove()'.
 
@@ -2423,6 +2746,48 @@ def check_wtf_make_unique(clean_lines, line_number, file_state, error):
     else:
         error(line_number, 'runtime/wtf_make_unique', 4,
               "Use 'WTF::makeUnique<{typename}>' instead of 'std::make_unique<{typename}>'.".format(typename=typename))
+
+
+def check_wtf_never_destroyed(clean_lines, line_number, file_state, error):
+    """Looks for use of 'NeverDestroyed<Lock/Condition>' which should be replaced with 'Lock/Condition'.
+
+    Args:
+      clean_lines: A CleansedLines instance containing the file.
+      line_number: The number of the line to check.
+      file_state: A _FileState instance which maintains information about
+                  the state of things in the file.
+      error: The function to call with any errors found.
+    """
+
+    line = clean_lines.elided[line_number]  # Get rid of comments and strings.
+
+    using_wtf_never_destroyed_search = search(r'\b(?:Lazy)?NeverDestroyed\s*<([^(>]+)>', line)  # LazyNeverDestroyed is also caught.
+    if not using_wtf_never_destroyed_search:
+        return
+
+    typename = using_wtf_never_destroyed_search.group(1).strip()
+    if search(r'(Lock|Condition)', typename):
+        error(line_number, 'runtime/wtf_never_destroyed', 4, "Use 'static Lock/Condition' instead of 'NeverDestroyed<Lock/Condition>'.")
+
+
+def check_lock_guard(clean_lines, line_number, file_state, error):
+    """Looks for use of 'std::lock_guard<>' which should be replaced with 'WTF::Locker'.
+
+    Args:
+      clean_lines: A CleansedLines instance containing the file.
+      line_number: The number of the line to check.
+      file_state: A _FileState instance which maintains information about
+                  the state of things in the file.
+      error: The function to call with any errors found.
+    """
+
+    line = clean_lines.elided[line_number]  # Get rid of comments and strings.
+
+    using_std_lock_guard_search = search(r'\bstd::lock_guard\s*<([^(]+)', line)
+    if not using_std_lock_guard_search:
+        return
+
+    error(line_number, 'runtime/lock_guard', 4, "Use 'auto locker = holdLock(mutex)' instead of 'std::lock_guard<>'.")
 
 
 def check_ctype_functions(clean_lines, line_number, file_state, error):
@@ -2832,7 +3197,7 @@ def check_for_null(clean_lines, line_number, file_state, error):
 
     if search(r'\bNULL\b', line):
         # FIXME: We should recommend using nullptr instead of NULL in C++ code per
-        # <http://www.webkit.org/coding/coding-style.html#zero-null>.
+        # <https://www.webkit.org/coding/coding-style.html#zero-null>.
         error(line_number, 'readability/null', 5, 'Use nullptr instead of NULL.')
         return
 
@@ -2982,9 +3347,12 @@ def check_style(clean_lines, line_number, file_extension, class_state, file_stat
     check_using_std(clean_lines, line_number, file_state, error)
     check_using_namespace(clean_lines, line_number, file_extension, error)
     check_max_min_macros(clean_lines, line_number, file_state, error)
+    check_wtf_checked_size(clean_lines, line_number, file_state, error)
     check_wtf_move(clean_lines, line_number, file_state, error)
     check_wtf_optional(clean_lines, line_number, file_state, error)
     check_wtf_make_unique(clean_lines, line_number, file_state, error)
+    check_wtf_never_destroyed(clean_lines, line_number, file_state, error)
+    check_lock_guard(clean_lines, line_number, file_state, error)
     check_ctype_functions(clean_lines, line_number, file_state, error)
     check_switch_indentation(clean_lines, line_number, error)
     check_braces(clean_lines, line_number, file_state, error)
@@ -2997,6 +3365,7 @@ def check_style(clean_lines, line_number, file_extension, class_state, file_stat
     check_soft_link_class_alloc(clean_lines, line_number, error)
     check_indentation_amount(clean_lines, line_number, error)
     check_enum_casing(clean_lines, line_number, enum_state, error)
+    check_once_flag(clean_lines, line_number, file_state, error)
     check_min_versions_of_wk_api_available(clean_lines, line_number, error)
 
 
@@ -3059,7 +3428,7 @@ def _classify_include(filename, include, is_system, include_state):
     """
 
     # If it is a system header we know it is classified as _OTHER_HEADER.
-    if is_system and not include.startswith('public/') and not include.startswith('wtf/'):
+    if is_system and not include.startswith('public/') and not include.startswith('wtf/') and not include.endswith('SoftLink.h'):
         return _OTHER_HEADER
 
     # If the include is named config.h then this is WebCore/config.h.
@@ -3084,6 +3453,8 @@ def _classify_include(filename, include, is_system, include_state):
     # If we haven't encountered a primary header, then be lenient in checking.
     if not include_state.visited_primary_section():
         if target_base.find(include_base) != -1:
+            return _PRIMARY_HEADER
+        if include_base in ['{}Internal'.format(target_base), '{}Private'.format(target_base)]:
             return _PRIMARY_HEADER
 
     # If we already encountered a primary header, perform a strict comparison.
@@ -3161,6 +3532,8 @@ def check_include_line(filename, file_extension, clean_lines, line_number, inclu
 
     header_type = _classify_include(filename, include, is_system, include_state)
     primary_header_exists = _does_primary_header_exist(filename)
+    has_config_header = check_has_config_header(filename)
+
     include_state.header_types[line_number] = header_type
 
     # Only proceed if this isn't a duplicate header.
@@ -3175,7 +3548,8 @@ def check_include_line(filename, file_extension, clean_lines, line_number, inclu
     error_message = include_state.check_next_include_order(header_type,
                                                            filename,
                                                            file_extension == "h",
-                                                           primary_header_exists)
+                                                           primary_header_exists,
+                                                           has_config_header)
 
     # Check to make sure *SoftLink.h headers always appear last and never in a header.
     if error_message and include_state.visited_soft_link_section():
@@ -3189,7 +3563,7 @@ def check_include_line(filename, file_extension, clean_lines, line_number, inclu
         if not is_blank_line(next_line):
             error(line_number, 'build/include_order', 4,
                 'You should add a blank line after implementation file\'s own header.')
-        if is_blank_line(previous_line):
+        if has_config_header and is_blank_line(previous_line):
             error(line_number, 'build/include_order', 4,
                 'You should not add a blank line before implementation file\'s own header.')
 
@@ -3368,7 +3742,7 @@ def check_language(filename, clean_lines, line_number, file_extension, include_s
         nested_angle_bracket_count = 1
         previous_closing_angle_bracket_index = -1
         closing_angle_bracket_index = 9 # Used if only one pair of angle brackets.
-        for i in xrange(10, len(match_line) - 1):
+        for i in range(10, len(match_line) - 1):
             if match_line[i] == '<':
                 nested_angle_bracket_count += 1
             if match_line[i] == '>':
@@ -3381,7 +3755,7 @@ def check_language(filename, clean_lines, line_number, file_extension, include_s
                           'RetainPtr<> should never contain a type with \'*\'. Correct: RetainPtr<NSString>, RetainPtr<CFStringRef>.')
                 break
 
-    matched = re.compile('^\s*SOFT_LINK_(PRIVATE_)?FRAMEWORK.*\((\S+)\)').search(line)
+    matched = re.compile(r'^\s*SOFT_LINK_(PRIVATE_)?FRAMEWORK.*\((\S+)\)').search(line)
     if matched:
         framework_name = matched.group(2)
         if file_extension == 'h' and not search(r'^\s*SOFT_LINK_(PRIVATE_)?FRAMEWORK_FOR_HEADER.*\(', line):
@@ -3507,7 +3881,7 @@ def check_language(filename, clean_lines, line_number, file_extension, include_s
 
 
 def check_identifier_name_in_declaration(filename, line_number, line, file_state, error):
-    """Checks if identifier names contain any underscores.
+    """Checks if identifier names contain any anti-patterns like underscores.
 
     As identifiers in libraries we are using have a bunch of
     underscores, we only warn about the declarations of identifiers
@@ -3532,13 +3906,15 @@ def check_identifier_name_in_declaration(filename, line_number, line, file_state
         protector_name = ref_check.group('protector_name')
         protected_name = ref_check.group('protected_name')
         cap_protected_name = protected_name[0].upper() + protected_name[1:]
-        expected_protector_name = 'protected' + cap_protected_name
-        if protected_name == 'this' and protector_name != 'protectedThis':
-            error(line_number, 'readability/naming/protected', 4, "\'" + protector_name + "\' is incorrectly named. It should be named \'protectedThis\'.")
-        elif protector_name == expected_protector_name or protector_name == 'protector':
-            return
-        else:
-            error(line_number, 'readability/naming/protected', 4, "\'" + protector_name + "\' is incorrectly named. It should be named \'protector\' or \'" + expected_protector_name + "\'.")
+        # Ignore function declarations where cap_protected_name == protected_name indicates a type name.
+        if cap_protected_name != protected_name:
+            expected_protector_name = 'protected' + cap_protected_name
+            if protected_name == 'this' and protector_name != 'protectedThis':
+                error(line_number, 'readability/naming/protected', 4, "\'" + protector_name + "\' is incorrectly named. It should be named \'protectedThis\'.")
+            elif protector_name == expected_protector_name or protector_name == 'protector':
+                return
+            else:
+                error(line_number, 'readability/naming/protected', 4, "\'" + protector_name + "\' is incorrectly named. It should be named \'protector\' or \'" + expected_protector_name + "\'.")
 
     # Basically, a declaration is a type name followed by whitespaces
     # followed by an identifier. The type name can be complicated
@@ -3550,10 +3926,18 @@ def check_identifier_name_in_declaration(filename, line_number, line, file_state
     line = sub(r'long (long )?(?=long|double|int)', '', line)
     # Convert unsigned/signed types to simple types, too.
     line = sub(r'(unsigned|signed) (?=char|short|int|long)', '', line)
-    line = sub(r'\b(inline|using|static|const|volatile|auto|register|extern|typedef|restrict|struct|class|virtual)(?=\W)', '', line)
+
+    is_class_or_namespace_or_struct_name = False
+    class_namespace_struct_name_re = re.compile('\\b(class|explicit|namespace|struct|%s)(?=\\W)' % '|'.join(_EXPORT_MACROS))
+    if class_namespace_struct_name_re.search(line):
+        is_class_or_namespace_or_struct_name = True
+
+    # Remove keywords that aren't types.
+    line = sub(r'\b(inline|using|static|const|volatile|register|extern|typedef|restrict|struct|class|virtual)(?=\W)', '', line)
 
     # Remove "new" and "new (expr)" to simplify, too.
-    line = sub(r'new\s*(\([^)]*\))?', '', line)
+    line = sub(r'new\s+', '', line)
+    line = sub(r'new\s*(\([^)]*\))', '', line)
 
     # Remove all template parameters by removing matching < and >.
     # Loop until no templates are removed to remove nested templates.
@@ -3582,7 +3966,7 @@ def check_identifier_name_in_declaration(filename, line_number, line, file_state
     type_regexp = r'\w([\w]|\s*[*&]\s*|::)+'
     identifier_regexp = r'(?P<identifier>[\w:]+)'
     maybe_bitfield_regexp = r'(:\s*\d+\s*)?'
-    character_after_identifier_regexp = r'(?P<character_after_identifier>[[;()=,])(?!=)'
+    character_after_identifier_regexp = r'(?P<character_after_identifier>[\[;()=,])(?!=)'
     declaration_without_type_regexp = r'\s*' + identifier_regexp + r'\s*' + maybe_bitfield_regexp + character_after_identifier_regexp
     declaration_with_type_regexp = r'\s*' + type_regexp + r'\s' + declaration_without_type_regexp
     constructor_regexp = r'\s*([\w_]*::)*(?P<pre_part>[\w_]+)::(?P<post_part>[\w_]+)[(]'
@@ -3604,6 +3988,11 @@ def check_identifier_name_in_declaration(filename, line_number, line, file_state
         identifier = matched.group('identifier')
         character_after_identifier = matched.group('character_after_identifier')
 
+        # It's possible for the regular expression to match ':' in modern Objective-C for loops
+        # or NSDictionary initialization lists.
+        if identifier == ':':
+            return
+
         # If we removed a non-for-control statement, the character after
         # the identifier should be '='. With this rule, we can avoid
         # warning for cases like "if (val & INT_MAX) {".
@@ -3618,6 +4007,7 @@ def check_identifier_name_in_declaration(filename, line_number, line, file_state
             # Various exceptions to the rule: JavaScript op codes functions, const_iterator.
             if (not (filename.find('JavaScriptCore') >= 0 and (modified_identifier.find('op_') >= 0 or modified_identifier.find('intrinsic_') >= 0))
                 and not (('gtk' in filename or 'glib' in filename or 'wpe' in filename or 'atk' in filename) and modified_identifier.startswith('webkit_'))
+                and not ('glib' in filename and modified_identifier.startswith('jsc_'))
                 and not modified_identifier.startswith('tst_')
                 and not modified_identifier.startswith('webkit_dom_object_')
                 and not modified_identifier.startswith('webkit_soup')
@@ -3641,6 +4031,8 @@ def check_identifier_name_in_declaration(filename, line_number, line, file_state
         # Check for variables named 'l', these are too easy to confuse with '1' in some fonts
         if modified_identifier == 'l':
             error(line_number, 'readability/naming', 4, identifier + " is incorrectly named. Don't use the single letter 'l' as an identifier name.")
+
+        _check_identifier_name_for_acronyms(identifier, line_number, is_class_or_namespace_or_struct_name, error)
 
         # There can be only one declaration in non-for-control statements.
         if control_statement:
@@ -3772,11 +4164,25 @@ for _header, _templates in _HEADERS_CONTAINING_TEMPLATES:
              _header))
 
 
+def _unix_path(file_path):
+    if os.path.sep == '/':
+        return file_path
+    return file_path.replace(os.path.sep, '/')
+
+
 def is_generated_file(file_path):
     """Check if the file is auto-generated."""
-    # Convert file paths using unix path separator for normalization.
-    file_path = file_path.replace(os.path.sep, '/')
+    file_path = _unix_path(file_path)
     return file_path in _AUTO_GENERATED_FILES
+
+
+def check_has_config_header(file_path):
+    """Check if the module uses config.h"""
+    file_path = _unix_path(file_path)
+    for pattern in _NO_CONFIG_H_PATH_PATTERNS:
+        if re.match(pattern, file_path):
+            return False
+    return True
 
 
 def files_belong_to_same_module(filename_cpp, filename_h):
@@ -3882,7 +4288,7 @@ def check_for_include_what_you_use(filename, clean_lines, include_state, error):
     required = {}  # A map of header name to line_number and the template entity.
         # Example of required: { '<functional>': (1219, 'less<>') }
 
-    for line_number in xrange(clean_lines.num_lines()):
+    for line_number in range(clean_lines.num_lines()):
         line = clean_lines.elided[line_number]
         if not line or line[0] == '#':
             continue
@@ -3925,7 +4331,7 @@ def check_for_include_what_you_use(filename, clean_lines, include_state, error):
 
     # include_state is modified during iteration, so we iterate over a copy of
     # the keys.
-    for header in include_state.keys():  # NOLINT
+    for header in list(include_state.keys()):  # NOLINT
         (same_module, common_path) = files_belong_to_same_module(abs_filename, header)
         fullpath = common_path + header
         if same_module and update_include_state(fullpath, include_state):
@@ -4041,7 +4447,7 @@ def _process_lines(filename, file_extension, lines, error, min_confidence):
     check_for_copyright(lines, error)
 
     if file_extension == 'h':
-        check_for_header_guard(lines, error)
+        check_for_header_guard(filename, lines, error)
         if filename == 'Source/WTF/wtf/Platform.h':
             check_platformh_comments(lines, error)
 
@@ -4050,7 +4456,7 @@ def _process_lines(filename, file_extension, lines, error, min_confidence):
     file_state = _FileState(clean_lines, file_extension)
     enum_state = _EnumState()
     asm_state = _InlineASMState()
-    for line in xrange(clean_lines.num_lines()):
+    for line in range(clean_lines.num_lines()):
         process_line(filename, file_extension, clean_lines, line,
                      include_state, function_state, class_state, file_state,
                      enum_state, asm_state, error)
@@ -4080,8 +4486,10 @@ class CppChecker(object):
         'build/class',
         'build/deprecated',
         'build/endif_comment',
+        'build/export_macro',
         'build/forward_decl',
         'build/header_guard',
+        'build/header_guard_missing',
         'build/include',
         'build/include_order',
         'build/include_what_you_use',
@@ -4109,13 +4517,13 @@ class CppChecker(object):
         'readability/multiline_string',
         'readability/parameter_name',
         'readability/naming',
+        'readability/naming/acronym',
         'readability/naming/protected',
         'readability/naming/underscores',
         'readability/null',
         'readability/streams',
         'readability/todo',
         'readability/utf8',
-        'readability/webkit_export',
         'runtime/arrays',
         'runtime/bitfields',
         'runtime/casting',
@@ -4127,8 +4535,10 @@ class CppChecker(object):
         'runtime/int',
         'runtime/invalid_increment',
         'runtime/leaky_pattern',
+        'runtime/lock_guard',
         'runtime/max_min_macros',
         'runtime/memset',
+        'runtime/once_flag',
         'runtime/printf',
         'runtime/printf_format',
         'runtime/references',
@@ -4140,10 +4550,13 @@ class CppChecker(object):
         'runtime/threadsafe_fn',
         'runtime/unsigned',
         'runtime/virtual',
+        'runtime/wtf_checked_size',
         'runtime/wtf_optional',
         'runtime/wtf_make_unique',
         'runtime/wtf_move',
+        'runtime/wtf_never_destroyed',
         'security/assertion',
+        'security/missing_warn_unused_return',
         'security/printf',
         'security/temp_file',
         'softlink/framework',

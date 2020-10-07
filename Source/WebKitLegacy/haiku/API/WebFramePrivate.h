@@ -44,17 +44,13 @@ class Page;
 
 class WebFramePrivate {
 public:
-    WebFramePrivate()
+    WebFramePrivate(WebCore::Page* page)
         : ownerElement(nullptr)
-        , page(nullptr)
+        , page(page)
         , frame(nullptr)
-        , loaderClient(nullptr)
     {}
 
-    bool Init(WebCore::Page* page, BWebFrame* frame,
-        std::unique_ptr<WebCore::FrameLoaderClientHaiku> frameLoaderClient);
 
-    
     WTF::String name;
     WTF::String requestedURL;
     WebCore::HTMLFrameOwnerElement* ownerElement;
@@ -66,7 +62,6 @@ public:
     // references around. (FrameLoader and Frame used to be one class, they
     // can be considered as one object as far as object life-time goes.)
     WebCore::Frame* frame;
-    std::unique_ptr<WebCore::FrameLoaderClientHaiku> loaderClient;
 };
 
 #endif // WebFramePrivate_h

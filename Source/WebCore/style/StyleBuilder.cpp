@@ -31,27 +31,59 @@
 #include "StyleBuilder.h"
 
 #include "CSSFontSelector.h"
+#include "CSSPaintImageValue.h"
+#include "CSSPendingSubstitutionValue.h"
+#include "CSSValuePool.h"
+#include "HTMLElement.h"
+#include "PaintWorkletGlobalScope.h"
 #include "Settings.h"
 #include "StyleBuilderGenerated.h"
 #include "StyleFontSizeFunctions.h"
-#include "StyleResolver.h"
+#include "StylePropertyShorthand.h"
+
+#include <wtf/SetForScope.h>
 
 namespace WebCore {
 namespace Style {
 
 static const CSSPropertyID firstLowPriorityProperty = static_cast<CSSPropertyID>(lastHighPriorityProperty + 1);
 
-static PropertyCascade::Direction directionFromStyle(const RenderStyle& style)
+inline PropertyCascade::Direction directionFromStyle(const RenderStyle& style)
 {
     return { style.direction(), style.writingMode() };
 }
 
-Builder::Builder(StyleResolver& resolver, const MatchResult& matchResult, OptionSet<CascadeLevel> cascadeLevels, PropertyCascade::IncludedProperties includedProperties)
-    : m_cascade(matchResult, cascadeLevels, includedProperties, directionFromStyle(*resolver.style()))
-    , m_state(*this, *resolver.style(), *resolver.parentStyle(), resolver.rootElementStyle(), resolver.document(), resolver.element())
+inline bool isValidVisitedLinkProperty(CSSPropertyID id)
 {
-    ASSERT(resolver.style());
-    ASSERT(resolver.parentStyle());
+    switch (id) {
+    case CSSPropertyBackgroundColor:
+    case CSSPropertyBorderLeftColor:
+    case CSSPropertyBorderRightColor:
+    case CSSPropertyBorderTopColor:
+    case CSSPropertyBorderBottomColor:
+    case CSSPropertyCaretColor:
+    case CSSPropertyColor:
+    case CSSPropertyOutlineColor:
+    case CSSPropertyColumnRuleColor:
+    case CSSPropertyTextDecorationColor:
+    case CSSPropertyWebkitTextEmphasisColor:
+    case CSSPropertyWebkitTextFillColor:
+    case CSSPropertyWebkitTextStrokeColor:
+    case CSSPropertyFill:
+    case CSSPropertyStroke:
+    case CSSPropertyStrokeColor:
+        return true;
+    default:
+        break;
+    }
+
+    return false;
+}
+
+Builder::Builder(RenderStyle& style, BuilderContext&& context, const MatchResult& matchResult, OptionSet<CascadeLevel> cascadeLevels, PropertyCascade::IncludedProperties includedProperties)
+    : m_cascade(matchResult, cascadeLevels, includedProperties, directionFromStyle(style))
+    , m_state(*this, style, WTFMove(context))
+{
 }
 
 Builder::~Builder() = default;
@@ -89,9 +121,12 @@ void Builder::applyLowPriorityProperties()
     ASSERT(!m_state.fontDirty());
 }
 
-void Builder::applyPropertyValue(CSSPropertyID propertyID, CSSValue& value)
+void Builder::applyPropertyValue(CSSPropertyID propertyID, CSSValue* value)
 {
-    applyProperty(propertyID, value, SelectorChecker::MatchDefault);
+    if (!value)
+        return;
+
+    applyProperty(propertyID, *value, SelectorChecker::MatchDefault);
 
     m_state.updateFont();
 }
@@ -161,7 +196,7 @@ void Builder::applyCustomProperty(const String& name)
         if (index != SelectorChecker::MatchDefault && m_state.style().insideLink() == InsideLink::NotInside)
             continue;
 
-        Ref<CSSCustomPropertyValue> valueToApply = CSSCustomPropertyValue::create(downcast<CSSCustomPropertyValue>(*property.cssValue[index]));
+        auto valueToApply = makeRef(downcast<CSSCustomPropertyValue>(*property.cssValue[index]));
 
         if (inCycle) {
             m_state.m_appliedCustomProperties.add(name); // Make sure we do not try to apply this property again while resolving it.
@@ -183,12 +218,11 @@ void Builder::applyCustomProperty(const String& name)
         }
 
         if (m_state.m_inProgressPropertiesCustom.contains(name)) {
-            m_state.m_linkMatch = index;
+            SetForScope<SelectorChecker::LinkMatchMask> scopedLinkMatchMutation(m_state.m_linkMatch, index);
             applyProperty(CSSPropertyCustom, valueToApply.get(), index);
         }
     }
 
-    m_state.m_linkMatch = SelectorChecker::MatchDefault;
     m_state.m_inProgressPropertiesCustom.remove(name);
     m_state.m_appliedCustomProperties.add(name);
 
@@ -198,7 +232,7 @@ void Builder::applyCustomProperty(const String& name)
         if (index != SelectorChecker::MatchDefault && m_state.style().insideLink() == InsideLink::NotInside)
             continue;
 
-        Ref<CSSCustomPropertyValue> valueToApply = CSSCustomPropertyValue::create(downcast<CSSCustomPropertyValue>(*property.cssValue[index]));
+        auto valueToApply = makeRef(downcast<CSSCustomPropertyValue>(*property.cssValue[index]));
 
         if (inCycle && WTF::holds_alternative<Ref<CSSVariableReferenceValue>>(valueToApply->value())) {
             // Resolve this value so that we reset its dependencies.
@@ -214,7 +248,7 @@ inline void Builder::applyCascadeProperty(const PropertyCascade::Property& prope
 
     auto applyWithLinkMatch = [&](SelectorChecker::LinkMatchMask linkMatch) {
         if (property.cssValue[linkMatch]) {
-            m_state.m_linkMatch = linkMatch;
+            SetForScope<SelectorChecker::LinkMatchMask> scopedLinkMatchMutation(m_state.m_linkMatch, linkMatch);
             applyProperty(property.id, *property.cssValue[linkMatch], linkMatch);
         }
     };
@@ -336,6 +370,12 @@ Ref<CSSValue> Builder::resolveValue(CSSPropertyID propertyID, CSSValue& value)
 
 RefPtr<CSSValue> Builder::resolvedVariableValue(CSSPropertyID propID, const CSSValue& value)
 {
+    if (value.isPendingSubstitutionValue()) {
+        auto& substitutionValue = downcast<CSSPendingSubstitutionValue>(value);
+        CSSParser parser(CSSParserContext(m_state.document(), substitutionValue.baseURL()));
+        return parser.parseValueWithVariableReferences(propID, value, m_state);
+    }
+    
     CSSParser parser(m_state.document());
     return parser.parseValueWithVariableReferences(propID, value, m_state);
 }

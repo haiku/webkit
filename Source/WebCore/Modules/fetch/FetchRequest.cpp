@@ -60,7 +60,7 @@ static ExceptionOr<String> computeReferrer(ScriptExecutionContext& context, cons
     if (!referrerURL.isValid())
         return Exception { TypeError, "Referrer is not a valid URL."_s };
 
-    if (referrerURL.protocolIs("about") && referrerURL.path() == "client")
+    if (referrerURL.protocolIsAbout() && referrerURL.path() == "client")
         return "client"_str;
 
     if (!(context.securityOrigin() && context.securityOrigin()->canRequest(referrerURL)))
@@ -160,9 +160,10 @@ static inline Optional<Exception> processInvalidSignal(ScriptExecutionContext& c
 ExceptionOr<void> FetchRequest::initializeWith(const String& url, Init&& init)
 {
     ASSERT(scriptExecutionContext());
-    // FIXME: Tighten the URL parsing algorithm according https://url.spec.whatwg.org/#concept-url-parser.
-    URL requestURL = scriptExecutionContext()->completeURL(url);
-    if (!requestURL.isValid() || !requestURL.user().isEmpty() || !requestURL.pass().isEmpty())
+
+    // FIXME: Tighten the URL parsing algorithm according to https://url.spec.whatwg.org/#concept-url-parser.
+    URL requestURL = scriptExecutionContext()->completeURL(url, ScriptExecutionContext::ForceUTF8::Yes);
+    if (!requestURL.isValid() || requestURL.hasCredentials())
         return Exception { TypeError, "URL is not valid or contains user credentials."_s };
 
     m_options.mode = Mode::Cors;
@@ -222,9 +223,12 @@ ExceptionOr<void> FetchRequest::initializeWith(FetchRequest& input, Init&& init)
     } else
         m_signal->follow(input.m_signal.get());
 
-    auto fillResult = init.headers ? m_headers->fill(*init.headers) : m_headers->fill(input.headers());
-    if (fillResult.hasException())
-        return fillResult;
+    if (init.hasMembers()) {
+        auto fillResult = init.headers ? m_headers->fill(*init.headers) : m_headers->fill(input.headers());
+        if (fillResult.hasException())
+            return fillResult;
+    } else
+        m_headers->setInternalHeaders(HTTPHeaderMap { input.headers().internalHeaders() });
 
     auto setBodyResult = init.body ? setBody(WTFMove(*init.body)) : setBody(input);
     if (setBodyResult.hasException())
@@ -296,7 +300,7 @@ String FetchRequest::referrer() const
 const String& FetchRequest::urlString() const
 {
     if (m_requestURL.isNull())
-        m_requestURL = m_request.url();
+        m_requestURL = m_request.url().string();
     return m_requestURL;
 }
 
@@ -308,7 +312,7 @@ ResourceRequest FetchRequest::resourceRequest() const
     request.setHTTPHeaderFields(m_headers->internalHeaders());
 
     if (!isBodyNull())
-        request.setHTTPBody(body().bodyAsFormData(*scriptExecutionContext()));
+        request.setHTTPBody(body().bodyAsFormData());
 
     return request;
 }
@@ -330,4 +334,3 @@ const char* FetchRequest::activeDOMObjectName() const
 }
 
 } // namespace WebCore
-

@@ -5,7 +5,12 @@ css-dark-mode/older-systems [ Skip ]
 compositing/contents-format/ipad [ Pass ]
 
 # iPads don't zoom when form elements are focused
+fast/forms/ios/user-scalable-scales-for-keyboard-focus-with-no-author-defined-scale.html [ Skip ]
 fast/visual-viewport/ios/caret-after-focus-in-fixed.html [ Skip ]
+
+# The select picker input view is not displayed on iPad.
+fast/forms/ios/no-stale-checked-items-in-select-picker.html
+fast/forms/ios/disabled-options-in-multi-select-picker.html
 
 # These tests are designed for iPhone and crash on iPad
 media/modern-media-controls/media-documents/media-document-audio-ios-sizing.html [ Skip ]
@@ -43,18 +48,15 @@ webkit.org/b/194259 fast/events/ios/viewport-no-width-value-allows-double-tap.ht
 # This tests an iphone-specific behavior so is expected to fail on iPad.
 fast/scrolling/ios/overflow-scrolling-touch-enabled-stacking.html [ ImageOnlyFailure ]
 
+# This test relies on the numeric keyboard having a different size than regular keyboard. This is not the case on iPad.
+fast/forms/ios/inputmode-change-update-keyboard.html [ Skip ]
+
 # <rdar://problem/51869921> REGRESSION (iOS 13) [ iPad Sim ] Layout Test http/tests/adClickAttribution/anchor-tag-attributes-validation.html is failing
 http/tests/adClickAttribution/anchor-tag-attributes-validation.html [ Failure ]
 
 # <rdar://problem/51865126> [ iPad Simulator ] 2 New Layout tests are failing on iOS 13 iPad Simulator testers fast/scrolling/ios/body-overflow-hidden-height-100-percent-zoomed-*
 fast/scrolling/ios/body-overflow-hidden-height-100-percent-zoomed-2.html [ Skip ]
 fast/scrolling/ios/body-overflow-hidden-height-100-percent-zoomed-1.html [ Skip ]
-
-# <rdar://problem/51918994> [ iPad Sim ] Layout test media/video-concurrent-visible-playback.html is a flaky timeout
-media/video-concurrent-visible-playback.html [ Pass Timeout ]
-
-# <rdar://problem/51920910> [ iPad Sim ] Layout test media/video-object-fit-change.html is a flaky timeout
-media/video-concurrent-visible-playback.html [ Pass Timeout ]
 
 # <rdar://problem/52914585> (Layout Test fast/forms/file/file-input-reset-using-open-panel.html is Failing)
 fast/forms/file/file-input-reset-using-open-panel.html [ ImageOnlyFailure ]
@@ -64,12 +66,5 @@ webkit.org/b/203264 editing/pasteboard/smart-paste-paragraph-001.html [ Pass ]
 webkit.org/b/203264 editing/pasteboard/smart-paste-paragraph-002.html [ Pass ]
 webkit.org/b/203264 editing/pasteboard/smart-paste-paragraph-004.html [ Pass ]
 
-media/picture-in-picture-api-element-attributes.html [ Pass ]
-media/picture-in-picture-api-enter-pip-1.html [ Pass ]
-media/picture-in-picture-api-enter-pip-2.html [ Pass ]
-media/picture-in-picture-api-enter-pip-3.html [ Pass ]
-webkit.org/b/203614 media/picture-in-picture-api-enter-pip-4.html [ Pass Timeout ]
-webkit.org/b/203614 media/picture-in-picture-api-exit-pip-1.html [ Pass Timeout ]
-media/picture-in-picture-api-exit-pip-2.html [ Pass ]
-webkit.org/b/203614 media/picture-in-picture-api-pip-events.html [ Pass Timeout ]
-webkit.org/b/203614 media/picture-in-picture-api-pip-window.html [ Pass Timeout ]
+media/picture-in-picture [ Pass ]
+media/remove-video-element-in-pip-from-document.html [ Pass ]

@@ -89,6 +89,8 @@ def main(argv, stdout, stderr):
         options.additional_env_var.append('JSC_maxPerThreadStackUsage=' + str(stackSizeInBytes))
         options.additional_env_var.append('__XPC_JSC_maxPerThreadStackUsage=' + str(stackSizeInBytes))
         run_details = run(port, options, args, stderr)
+        if run_details.exit_code != -1 and run_details.skipped_all_tests:
+            return run_details.exit_code
         if run_details.exit_code != -1 and not run_details.initial_results.keyboard_interrupted:
             bot_printer = buildbot_results.BuildBotPrinter(stdout, options.debug_rwt_logging)
             bot_printer.print_results(run_details)
@@ -118,6 +120,10 @@ def parse_args(args):
             help="Use accelerated drawing (OS X only)"),
         optparse.make_option("--remote-layer-tree", action="store_true", default=False,
             help="Use the remote layer tree drawing model (OS X WebKit2 only)"),
+        optparse.make_option("--internal-feature", type="string", action="append", default=[],
+            help="Enable (disable) an internal feature (--internal-feature FeatureName[=true|false])"),
+        optparse.make_option("--experimental-feature", type="string", action="append", default=[],
+            help="Enable (disable) an experimental feature (--experimental-feature FeatureName[=true|false])"),
     ]))
 
     option_group_definitions.append(("WebKit Options", [
@@ -145,6 +151,9 @@ def parse_args(args):
             dest="sample_on_timeout", help="Don't run sample on timeout (OS X only)"),
         optparse.make_option("--no-ref-tests", action="store_true",
             dest="no_ref_tests", help="Skip all ref tests"),
+        optparse.make_option("--ignore-render-tree-dump-results", action="store_true",
+            dest="ignore_render_tree_dump_results",
+            help="Don't compare or save results for render tree dump tests (they still run and crashes are reported)"),
         optparse.make_option("--tolerance",
             help="Ignore image differences less than this percentage (some "
                 "ports may ignore this option)", type="float"),
@@ -176,7 +185,7 @@ def parse_args(args):
                  "option while others can have a default value that can be overridden here."),
 
         optparse.make_option("--skip-failing-tests", action="store_true",
-            default=False, help="Skip tests that are expected to fail. "
+            default=False, help="Skip tests that are marked as failing or flaky. "
                  "Note: When using this option, you might miss new crashes "
                  "in these tests."),
         optparse.make_option("--additional-drt-flag", action="append",
@@ -298,6 +307,7 @@ def parse_args(args):
             help='"xvfb": Use a virtualized X11 server. "xorg": Use the current X11 session. '
                  '"weston": Use a virtualized Weston server. "wayland": Use the current wayland session.'),
         optparse.make_option("--world-leaks", action="store_true", default=False, help="Check for world leaks (currently, only documents). Differs from --leaks in that this uses internal instrumentation, rather than external tools."),
+        optparse.make_option("--accessibility-isolated-tree", action="store_true", default=False, help="Runs tests in accessibility isolated tree mode."),
     ]))
 
     option_group_definitions.append(("iOS Options", [
@@ -311,12 +321,21 @@ def parse_args(args):
     ]))
 
     option_group_definitions.append(("Miscellaneous Options", [
-        optparse.make_option("--lint-test-files", action="store_true",
-        default=False, help=("Makes sure the test files parse for all "
-                            "configurations. Does not run any tests.")),
-        optparse.make_option("--print-expectations", action="store_true",
-        default=False, help=("Print the expected outcome for the given test, or all tests listed in TestExpectations. "
-                            "Does not run any tests.")),
+        optparse.make_option(
+            "--lint-test-files", action="store_true", default=False,
+            help=("Makes sure the test files parse for all configurations. Does not run any tests.")),
+        optparse.make_option(
+            "--print-expectations", action="store_true", default=False,
+            help=("Print the expected outcome for the given test, or all tests listed in TestExpectations. Does not run any tests.")),
+        optparse.make_option(
+            "--webgl-test-suite", action="store_true", default=False,
+            help=("Run exhaustive webgl list, including test ordinarily skipped for performance reasons. Equivalent to '--additional-expectations=LayoutTests/webgl/TestExpectations webgl'")),
+        optparse.make_option(
+            "--use-gpu-process", action="store_true", default=False,
+            help=("Enable all GPU process related features, also set additional expectations and the result report flavor.")),
+        optparse.make_option(
+            "--prefer-integrated-gpu", action="store_true", default=False,
+            help=("Prefer using the lower-power integrated GPU on a dual-GPU system. Note that other running applications and the tests themselves can override this request.")),
     ]))
 
     option_group_definitions.append(("Web Platform Test Server Options", [
@@ -351,7 +370,31 @@ def parse_args(args):
         option_group.add_options(group_options)
         option_parser.add_option_group(option_group)
 
-    return option_parser.parse_args(args)
+    options, args = option_parser.parse_args(args)
+    if options.webgl_test_suite:
+        if not args:
+            args.append('webgl')
+        host = Host()
+        host.initialize_scm()
+        options.additional_expectations.insert(0, host.filesystem.join(host.scm().checkout_root, 'LayoutTests/webgl/TestExpectations'))
+
+    if options.use_gpu_process:
+        host = Host()
+        host.initialize_scm()
+        options.additional_expectations.insert(0, host.filesystem.join(host.scm().checkout_root, 'LayoutTests/gpu-process/TestExpectations'))
+        if not options.internal_feature:
+            options.internal_feature = []
+        options.internal_feature.append('UseGPUProcessForMediaEnabled')
+        options.internal_feature.append('CaptureAudioInGPUProcessEnabled')
+        options.internal_feature.append('CaptureVideoInGPUProcessEnabled')
+        options.internal_feature.append('UseGPUProcessForCanvasRenderingEnabled')
+        options.internal_feature.append('UseGPUProcessForDOMRenderingEnabled')
+        options.internal_feature.append('UseGPUProcessForWebGLEnabled')
+        if options.result_report_flavor:
+            raise RuntimeError('--use-gpu-process implicitly sets the result flavor, this should not be overridden')
+        options.result_report_flavor = 'gpuprocess'
+
+    return options, args
 
 
 def _print_expectations(port, options, args, logging_stream):
@@ -433,6 +476,10 @@ def _set_up_derived_options(port, options):
     # The GTK+ and WPE ports only support WebKit2 so they always use WKTR.
     if options.platform in ["gtk", "wpe"]:
         options.webkit_test_runner = True
+
+    # Don't maintain render tree dump results for Apple Windows port.
+    if port.port_name == "win":
+        options.ignore_render_tree_dump_results = True
 
     if options.leaks:
         options.additional_env_var.append("JSC_usePoisoning=0")

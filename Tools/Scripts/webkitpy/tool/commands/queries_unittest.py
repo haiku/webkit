@@ -29,14 +29,14 @@
 
 import unittest
 
-from webkitpy.common.system.outputcapture import OutputCapture
 from webkitpy.common.net.bugzilla import Bugzilla
-from webkitpy.common.system.outputcapture import OutputCapture
 from webkitpy.thirdparty.mock import Mock
 from webkitpy.port.test import TestPort
 from webkitpy.tool.commands.commandtest import CommandsTest
 from webkitpy.tool.commands.queries import *
 from webkitpy.tool.mocktool import MockTool, MockOptions
+
+from webkitcorepy import OutputCapture
 
 
 class MockTestPort1(object):
@@ -118,8 +118,7 @@ class QueryCommandsTest(CommandsTest):
             "Bugs with attachments pending review:\n" \
             "http://webkit.org/b/bugid   Description (age in days)\n" \
             "http://webkit.org/b/50001   Bug with a patch needing review. (0)\n" \
-            "http://webkit.org/b/50007   Security bug with a patch needing review. (0)\n" \
-            "Total: 2\n"
+            "Total: 1\n"
         self.assert_execute_outputs(PatchesToReview(), None, expected_stdout, expected_stderr, options=options)
 
         options.cc_email = None
@@ -161,20 +160,16 @@ class FailureReasonTest(unittest.TestCase):
 
 class PrintExpectationsTest(unittest.TestCase):
     def run_test(self, tests, expected_stdout, platform='test-win-xp', **args):
-        options = MockOptions(all=False, csv=False, full=False, platform=platform,
+        options = MockOptions(all=False, full=False, platform=platform,
                               include_keyword=[], exclude_keyword=[], paths=False).update(**args)
         tool = MockTool()
         tool.port_factory.all_port_names = lambda: TestPort.ALL_BASELINE_VARIANTS
         command = PrintExpectations()
         command.bind_to_tool(tool)
 
-        oc = OutputCapture()
-        try:
-            oc.capture_output()
+        with OutputCapture() as captured:
             command.execute(options, tests, tool)
-        finally:
-            stdout, _, _ = oc.restore_output()
-        self.assertMultiLineEqual(stdout, expected_stdout)
+        self.assertMultiLineEqual(captured.stdout.getvalue(), expected_stdout)
 
     def test_basic(self):
         self.run_test(['failures/expected/text.html', 'failures/expected/image.html'],
@@ -216,12 +211,6 @@ class PrintExpectationsTest(unittest.TestCase):
                        'failures/expected/image.html\n'),
                       include_keyword=['image'])
 
-    def test_csv(self):
-        self.run_test(['failures/expected/text.html', 'failures/expected/image.html'],
-                      ('test-win-xp,failures/expected/image.html,BUGTEST,IMAGE\n'
-                       'test-win-xp,failures/expected/text.html,BUGTEST,FAIL\n'),
-                      csv=True)
-
     def test_paths(self):
         self.run_test([],
                       ('LayoutTests/TestExpectations\n'
@@ -247,26 +236,12 @@ class PrintBaselinesTest(unittest.TestCase):
         self.tool.port_factory.get = lambda port_name=None: self.test_port
         self.tool.port_factory.all_port_names = lambda: TestPort.ALL_BASELINE_VARIANTS
 
-    def tearDown(self):
-        if self.oc:
-            self.restore_output()
-
-    def capture_output(self):
-        self.oc = OutputCapture()
-        self.oc.capture_output()
-
-    def restore_output(self):
-        stdout, stderr, logs = self.oc.restore_output()
-        self.oc = None
-        return (stdout, stderr, logs)
-
     def test_basic(self):
         command = PrintBaselines()
         command.bind_to_tool(self.tool)
-        self.capture_output()
-        command.execute(MockOptions(all=False, csv=False, platform=None), ['passes/text.html'], self.tool)
-        stdout, _, _ = self.restore_output()
-        self.assertMultiLineEqual(stdout,
+        with OutputCapture() as captured:
+            command.execute(MockOptions(all=False, platform=None), ['passes/text.html'], self.tool)
+        self.assertMultiLineEqual(captured.stdout.getvalue(),
                           ('// For test-win-xp\n'
                            'passes/text-expected.png\n'
                            'passes/text-expected.txt\n'))
@@ -274,10 +249,9 @@ class PrintBaselinesTest(unittest.TestCase):
     def test_multiple(self):
         command = PrintBaselines()
         command.bind_to_tool(self.tool)
-        self.capture_output()
-        command.execute(MockOptions(all=False, csv=False, platform='test-win-*'), ['passes/text.html'], self.tool)
-        stdout, _, _ = self.restore_output()
-        self.assertMultiLineEqual(stdout,
+        with OutputCapture() as captured:
+            command.execute(MockOptions(all=False, platform='test-win-*'), ['passes/text.html'], self.tool)
+        self.assertMultiLineEqual(captured.stdout.getvalue(),
                           ('// For test-win-vista\n'
                            'passes/text-expected.png\n'
                            'passes/text-expected.txt\n'
@@ -289,13 +263,3 @@ class PrintBaselinesTest(unittest.TestCase):
                            '// For test-win-xp\n'
                            'passes/text-expected.png\n'
                            'passes/text-expected.txt\n'))
-
-    def test_csv(self):
-        command = PrintBaselines()
-        command.bind_to_tool(self.tool)
-        self.capture_output()
-        command.execute(MockOptions(all=False, platform='*xp', csv=True), ['passes/text.html'], self.tool)
-        stdout, _, _ = self.restore_output()
-        self.assertMultiLineEqual(stdout,
-                          ('test-win-xp,passes/text.html,None,png,passes/text-expected.png,None\n'
-                           'test-win-xp,passes/text.html,None,txt,passes/text-expected.txt,None\n'))

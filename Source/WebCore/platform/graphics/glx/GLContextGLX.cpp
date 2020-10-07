@@ -221,7 +221,7 @@ std::unique_ptr<GLContextGLX> GLContextGLX::createPbufferContext(PlatformDisplay
         0
     };
 
-    int returnedElements;
+    int returnedElements = 0;
     Display* display = downcast<PlatformDisplayX11>(platformDisplay).native();
     XUniquePtr<GLXFBConfig> configs(glXChooseFBConfig(display, 0, fbConfigAttributes, &returnedElements));
     if (!returnedElements)
@@ -413,8 +413,8 @@ cairo_device_t* GLContextGLX::cairoDevice()
     return m_cairoDevice;
 }
 
-#if ENABLE(GRAPHICS_CONTEXT_3D)
-PlatformGraphicsContext3D GLContextGLX::platformContext()
+#if ENABLE(GRAPHICS_CONTEXT_GL)
+PlatformGraphicsContextGL GLContextGLX::platformContext()
 {
     return m_context.get();
 }

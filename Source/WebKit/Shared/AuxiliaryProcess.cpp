@@ -26,8 +26,11 @@
 #include "config.h"
 #include "AuxiliaryProcess.h"
 
+#include "ContentWorldShared.h"
+#include "LogInitialization.h"
 #include "Logging.h"
 #include "SandboxInitializationParameters.h"
+#include <WebCore/LogInitialization.h>
 #include <pal/SessionID.h>
 
 #if !OS(WINDOWS)
@@ -75,10 +78,16 @@ void AuxiliaryProcess::initialize(const AuxiliaryProcessInitializationParameters
     SandboxInitializationParameters sandboxParameters;
     initializeSandbox(parameters, sandboxParameters);
 
+#if !LOG_DISABLED || !RELEASE_LOG_DISABLED
+    WebCore::initializeLogChannelsIfNecessary();
+    WebKit::initializeLogChannelsIfNecessary();
+#endif // !LOG_DISABLED || !RELEASE_LOG_DISABLED
+
     initializeProcessName(parameters);
 
-    // In WebKit2, only the UI process should ever be generating non-default PAL::SessionIDs.
+    // In WebKit2, only the UI process should ever be generating certain identifiers.
     PAL::SessionID::enableGenerationProtection();
+    ContentWorldIdentifier::enableGenerationProtection();
 
     m_connection = IPC::Connection::createClientConnection(parameters.connectionIdentifier, *this);
     initializeConnection(m_connection.get());
@@ -105,22 +114,22 @@ void AuxiliaryProcess::initializeConnection(IPC::Connection*)
 {
 }
 
-void AuxiliaryProcess::addMessageReceiver(IPC::StringReference messageReceiverName, IPC::MessageReceiver& messageReceiver)
+void AuxiliaryProcess::addMessageReceiver(IPC::ReceiverName messageReceiverName, IPC::MessageReceiver& messageReceiver)
 {
     m_messageReceiverMap.addMessageReceiver(messageReceiverName, messageReceiver);
 }
 
-void AuxiliaryProcess::addMessageReceiver(IPC::StringReference messageReceiverName, uint64_t destinationID, IPC::MessageReceiver& messageReceiver)
+void AuxiliaryProcess::addMessageReceiver(IPC::ReceiverName messageReceiverName, uint64_t destinationID, IPC::MessageReceiver& messageReceiver)
 {
     m_messageReceiverMap.addMessageReceiver(messageReceiverName, destinationID, messageReceiver);
 }
 
-void AuxiliaryProcess::removeMessageReceiver(IPC::StringReference messageReceiverName, uint64_t destinationID)
+void AuxiliaryProcess::removeMessageReceiver(IPC::ReceiverName messageReceiverName, uint64_t destinationID)
 {
     m_messageReceiverMap.removeMessageReceiver(messageReceiverName, destinationID);
 }
 
-void AuxiliaryProcess::removeMessageReceiver(IPC::StringReference messageReceiverName)
+void AuxiliaryProcess::removeMessageReceiver(IPC::ReceiverName messageReceiverName)
 {
     m_messageReceiverMap.removeMessageReceiver(messageReceiverName);
 }
@@ -194,6 +203,37 @@ void AuxiliaryProcess::shutDown()
     terminate();
 }
 
+Optional<std::pair<IPC::Connection::Identifier, IPC::Attachment>> AuxiliaryProcess::createIPCConnectionPair()
+{
+#if USE(UNIX_DOMAIN_SOCKETS)
+    IPC::Connection::SocketPair socketPair = IPC::Connection::createPlatformConnection();
+    return std::make_pair(socketPair.server, IPC::Attachment { socketPair.client });
+#elif OS(DARWIN)
+    // Create the listening port.
+    mach_port_t listeningPort = MACH_PORT_NULL;
+    auto kr = mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &listeningPort);
+    if (kr != KERN_SUCCESS) {
+        RELEASE_LOG_ERROR(Process, "AuxiliaryProcess::createIPCConnectionPair: Could not allocate mach port, error %x", kr);
+        CRASH();
+    }
+    if (!MACH_PORT_VALID(listeningPort)) {
+        RELEASE_LOG_ERROR(Process, "AuxiliaryProcess::createIPCConnectionPair: Could not allocate mach port, returned port was invalid");
+        CRASH();
+    }
+    return std::make_pair(IPC::Connection::Identifier { listeningPort }, IPC::Attachment { listeningPort, MACH_MSG_TYPE_MAKE_SEND });
+#elif OS(WINDOWS)
+    IPC::Connection::Identifier serverIdentifier, clientIdentifier;
+    if (!IPC::Connection::createServerAndClientIdentifiers(serverIdentifier, clientIdentifier)) {
+        LOG_ERROR("Failed to create server and client identifiers");
+        CRASH();
+    }
+    return std::make_pair(serverIdentifier, IPC::Attachment { clientIdentifier });
+#else
+    notImplemented();
+    return { };
+#endif
+}
+
 #if !PLATFORM(COCOA)
 void AuxiliaryProcess::platformInitialize()
 {
@@ -203,9 +243,9 @@ void AuxiliaryProcess::initializeSandbox(const AuxiliaryProcessInitializationPar
 {
 }
 
-void AuxiliaryProcess::didReceiveInvalidMessage(IPC::Connection&, IPC::StringReference messageReceiverName, IPC::StringReference messageName)
+void AuxiliaryProcess::didReceiveInvalidMessage(IPC::Connection&, IPC::MessageName messageName)
 {
-    WTFLogAlways("Received invalid message: '%s::%s'", messageReceiverName.toString().data(), messageName.toString().data());
+    WTFLogAlways("Received invalid message: '%s'", description(messageName));
     CRASH();
 }
 

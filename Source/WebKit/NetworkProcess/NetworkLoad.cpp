@@ -30,7 +30,9 @@
 #include "AuthenticationManager.h"
 #include "NetworkDataTaskBlob.h"
 #include "NetworkProcess.h"
+#include "NetworkProcessProxyMessages.h"
 #include "NetworkSession.h"
+#include "WebCoreArgumentCoders.h"
 #include "WebErrors.h"
 #include <WebCore/ResourceRequest.h>
 #include <WebCore/SharedBuffer.h>
@@ -62,17 +64,16 @@ NetworkLoad::NetworkLoad(NetworkLoadClient& client, BlobRegistryImpl* blobRegist
     , m_loadThrottleLatency(networkSession.loadThrottleLatency())
     , m_currentRequest(m_parameters.request)
 {
-    initialize(networkSession, blobRegistry);
-}
-
-void NetworkLoad::initialize(NetworkSession& networkSession, WebCore::BlobRegistryImpl* blobRegistry)
-{
     if (blobRegistry && m_parameters.request.url().protocolIsBlob())
         m_task = NetworkDataTaskBlob::create(networkSession, *blobRegistry, *this, m_parameters.request, m_parameters.contentSniffingPolicy, m_parameters.blobFileReferences);
     else
         m_task = NetworkDataTask::create(networkSession, *this, m_parameters);
+}
 
-    m_task->resume();
+void NetworkLoad::start()
+{
+    if (m_task)
+        m_task->resume();
 }
 
 NetworkLoad::~NetworkLoad()
@@ -187,8 +188,10 @@ void NetworkLoad::willPerformHTTPRedirection(ResourceResponse&& redirectResponse
     m_client.get().willSendRedirectedRequest(WTFMove(oldRequest), WTFMove(request), WTFMove(redirectResponse));
 }
 
-void NetworkLoad::didReceiveChallenge(AuthenticationChallenge&& challenge, ChallengeCompletionHandler&& completionHandler)
+void NetworkLoad::didReceiveChallenge(AuthenticationChallenge&& challenge, NegotiatedLegacyTLS negotiatedLegacyTLS, ChallengeCompletionHandler&& completionHandler)
 {
+    m_client.get().didReceiveChallenge(challenge);
+
     auto scheme = challenge.protectionSpace().authenticationScheme();
     bool isTLSHandshake = scheme == ProtectionSpaceAuthenticationSchemeServerTrustEvaluationRequested
         || scheme == ProtectionSpaceAuthenticationSchemeClientCertificateRequested;
@@ -201,10 +204,10 @@ void NetworkLoad::didReceiveChallenge(AuthenticationChallenge&& challenge, Chall
     if (auto* pendingDownload = m_task->pendingDownload())
         m_networkProcess->authenticationManager().didReceiveAuthenticationChallenge(*pendingDownload, challenge, WTFMove(completionHandler));
     else
-        m_networkProcess->authenticationManager().didReceiveAuthenticationChallenge(m_task->sessionID(), m_parameters.webPageProxyID, m_parameters.topOrigin ? &m_parameters.topOrigin->data() : nullptr, challenge, WTFMove(completionHandler));
+        m_networkProcess->authenticationManager().didReceiveAuthenticationChallenge(m_task->sessionID(), m_parameters.webPageProxyID, m_parameters.topOrigin ? &m_parameters.topOrigin->data() : nullptr, challenge, negotiatedLegacyTLS, WTFMove(completionHandler));
 }
 
-void NetworkLoad::didReceiveResponse(ResourceResponse&& response, ResponseCompletionHandler&& completionHandler)
+void NetworkLoad::didReceiveResponse(ResourceResponse&& response, NegotiatedLegacyTLS negotiatedLegacyTLS, ResponseCompletionHandler&& completionHandler)
 {
     ASSERT(RunLoop::isMain());
     ASSERT(!m_throttle);
@@ -219,14 +222,16 @@ void NetworkLoad::didReceiveResponse(ResourceResponse&& response, ResponseComple
         return;
     }
 
-    notifyDidReceiveResponse(WTFMove(response), WTFMove(completionHandler));
+    if (negotiatedLegacyTLS == NegotiatedLegacyTLS::Yes)
+        m_networkProcess->authenticationManager().negotiatedLegacyTLS(m_parameters.webPageProxyID);
+    
+    notifyDidReceiveResponse(WTFMove(response), negotiatedLegacyTLS, WTFMove(completionHandler));
 }
 
-void NetworkLoad::notifyDidReceiveResponse(ResourceResponse&& response, ResponseCompletionHandler&& completionHandler)
+void NetworkLoad::notifyDidReceiveResponse(ResourceResponse&& response, NegotiatedLegacyTLS negotiatedLegacyTLS, ResponseCompletionHandler&& completionHandler)
 {
     ASSERT(RunLoop::isMain());
 
-    response.setSource(ResourceResponse::Source::Network);
     if (m_parameters.needsCertificateInfo)
         response.includeCertificateInfo();
 
@@ -258,7 +263,7 @@ void NetworkLoad::throttleDelayCompleted()
 
     auto throttle = WTFMove(m_throttle);
 
-    notifyDidReceiveResponse(WTFMove(throttle->response), WTFMove(throttle->responseCompletionHandler));
+    notifyDidReceiveResponse(WTFMove(throttle->response), NegotiatedLegacyTLS::No, WTFMove(throttle->responseCompletionHandler));
 }
 
 void NetworkLoad::didSendData(uint64_t totalBytesSent, uint64_t totalBytesExpectedToSend)
@@ -281,11 +286,25 @@ void NetworkLoad::wasBlockedByRestrictions()
     m_client.get().didFailLoading(wasBlockedByRestrictionsError(m_currentRequest));
 }
 
+void NetworkLoad::didNegotiateModernTLS(const WebCore::AuthenticationChallenge& challenge)
+{
+    if (m_parameters.webPageProxyID)
+        m_networkProcess->send(Messages::NetworkProcessProxy::DidNegotiateModernTLS(m_parameters.webPageProxyID, challenge));
+}
+
 String NetworkLoad::description() const
 {
     if (m_task.get())
         return m_task->description();
     return emptyString();
+}
+
+void NetworkLoad::setH2PingCallback(const URL& url, CompletionHandler<void(Expected<WTF::Seconds, WebCore::ResourceError>&&)>&& completionHandler)
+{
+    if (m_task)
+        m_task->setH2PingCallback(url, WTFMove(completionHandler));
+    else
+        completionHandler(makeUnexpected(internalError(url)));
 }
 
 } // namespace WebKit

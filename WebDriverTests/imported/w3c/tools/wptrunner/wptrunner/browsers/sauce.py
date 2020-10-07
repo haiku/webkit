@@ -9,16 +9,18 @@ import subprocess
 import tarfile
 import tempfile
 import time
-from cStringIO import StringIO as CStringIO
 
 import requests
 
+from six.moves import cStringIO as StringIO
+
 from .base import Browser, ExecutorBrowser, require_arg
+from .base import get_timeout_multiplier   # noqa: F401
 from ..executors import executor_kwargs as base_executor_kwargs
 from ..executors.executorselenium import (SeleniumTestharnessExecutor,  # noqa: F401
                                           SeleniumRefTestExecutor)  # noqa: F401
 
-here = os.path.split(__file__)[0]
+here = os.path.dirname(__file__)
 # Number of seconds to wait between polling operations when detecting status of
 # Sauce Connect sub-process.
 sc_poll_period = 1
@@ -32,7 +34,8 @@ __wptrunner__ = {"product": "sauce",
                  "browser_kwargs": "browser_kwargs",
                  "executor_kwargs": "executor_kwargs",
                  "env_extras": "env_extras",
-                 "env_options": "env_options"}
+                 "env_options": "env_options",
+                 "timeout_multiplier": "get_timeout_multiplier"}
 
 
 def get_capabilities(**kwargs):
@@ -65,9 +68,6 @@ def get_capabilities(**kwargs):
         "version": version,
         "prerun": prerun_script.get(browser_name)
     }
-
-    if browser_name == 'MicrosoftEdge':
-        capabilities['selenium-version'] = '2.4.8'
 
     return capabilities
 
@@ -122,7 +122,7 @@ def env_options():
 def get_tar(url, dest):
     resp = requests.get(url, stream=True)
     resp.raise_for_status()
-    with tarfile.open(fileobj=CStringIO(resp.raw.read())) as f:
+    with tarfile.open(fileobj=StringIO(resp.raw.read())) as f:
         f.extractall(path=dest)
 
 
@@ -133,6 +133,7 @@ class SauceConnect():
         self.sauce_key = kwargs["sauce_key"]
         self.sauce_tunnel_id = kwargs["sauce_tunnel_id"]
         self.sauce_connect_binary = kwargs.get("sauce_connect_binary")
+        self.sauce_connect_args = kwargs.get("sauce_connect_args")
         self.sauce_init_timeout = kwargs.get("sauce_init_timeout")
         self.sc_process = None
         self.temp_dir = None
@@ -171,11 +172,11 @@ class SauceConnect():
             "--readyfile=./sauce_is_ready",
             "--tunnel-domains",
             ",".join(self.env_config.domains_set)
-        ])
+        ] + self.sauce_connect_args)
 
         tot_wait = 0
         while not os.path.exists('./sauce_is_ready') and self.sc_process.poll() is None:
-            if tot_wait >= self.sauce_init_timeout:
+            if not self.sauce_init_timeout or (tot_wait >= self.sauce_init_timeout):
                 self.quit()
 
                 raise SauceException("Sauce Connect Proxy was not ready after %d seconds" % tot_wait)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,205 +27,141 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
-#include "DisplayBox.h"
+#include "InlineLine.h"
+#include "InlineRect.h"
+#include "LayoutBoxGeometry.h"
+#include <wtf/IsoMallocInlines.h>
+#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 namespace Layout {
 
+class InlineFormattingContext;
+class LineBoxBuilder;
+
+// LineBox contains all the inline boxes both horizontally and vertically. It only has width and height geometry.
+//
+//   ____________________________________________________________ Line Box
+// |                                    --------------
+// |                                   |              |
+// | ----------------------------------|--------------|---------- Root Inline Box
+// ||   _____    ___      ___          |              |
+// ||  |        /   \    /   \         |  Inline Box  |
+// ||  |_____  |     |  |     |        |              |    ascent
+// ||  |       |     |  |     |        |              |
+// ||__|________\___/____\___/_________|______________|_______ alignment_baseline
+// ||
+// ||                                                      descent
+// ||_______________________________________________________________
+// |________________________________________________________________
 class LineBox {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    struct Baseline {
-        Baseline(LayoutUnit ascent, LayoutUnit descent);
-        Baseline() = default;
+    // FIXME: This name is in conflict with the actual inline box term: inline level box whose contents participate in this IFC.
+    // This class represents a rectangle on the line (initiated by an inline level box) with some additional attributes like baseline, descent etc.
+    struct InlineBox {
+        WTF_MAKE_ISO_ALLOCATED_INLINE(InlineBox);
+    public:
+        static std::unique_ptr<LineBox::InlineBox> createBoxForRootInlineBox(const Box&, InlineLayoutUnit logicalLeft, InlineLayoutUnit logicalWidth);
+        static std::unique_ptr<LineBox::InlineBox> createBoxForAtomicInlineLevelBox(const Box&, InlineLayoutUnit logicalLeft, InlineLayoutSize, InlineLayoutUnit baseline);
+        static std::unique_ptr<LineBox::InlineBox> createBoxForInlineBox(const Box&, InlineLayoutUnit logicalLeft, InlineLayoutUnit logicalWidth);
 
-        void setAscent(LayoutUnit);
-        void setDescent(LayoutUnit);
+        const InlineRect& logicalRect() const { return m_logicalRect; }
+        InlineLayoutUnit logicalTop() const { return m_logicalRect.top(); }
+        InlineLayoutUnit logicalBottom() const { return m_logicalRect.bottom(); }
+        InlineLayoutUnit logicalLeft() const { return m_logicalRect.left(); }
+        InlineLayoutUnit logicalWidth() const { return m_logicalRect.width(); }
+        InlineLayoutUnit logicalHeight() const { return m_logicalRect.height(); }
 
-        void reset();
+        InlineLayoutUnit baseline() const { return m_baseline; }
+        Optional<InlineLayoutUnit> descent() const { return m_descent; }
 
-        LayoutUnit height() const { return ascent() + descent(); }
-        LayoutUnit ascent() const;
-        LayoutUnit descent() const;
+        bool isEmpty() const { return m_isEmpty; }
+        void setIsNonEmpty() { m_isEmpty = false; }
+
+        Optional<InlineLayoutUnit> lineSpacing() const { return m_lineSpacing; }
+        const FontMetrics& fontMetrics() const { return layoutBox().style().fontMetrics(); }
+        const Box& layoutBox() const { return *m_layoutBox; }
+
+        InlineBox(const Box&, InlineLayoutUnit logicalLeft, InlineLayoutSize, InlineLayoutUnit baseline);
+        InlineBox(const Box&, InlineLayoutUnit logicalLeft, InlineLayoutUnit logicalWidth);
+        InlineBox() = default;
 
     private:
-#if !ASSERT_DISABLED
-        bool m_hasValidAscent { false };
-        bool m_hasValidDescent { false };
-#endif
-        LayoutUnit m_ascent;
-        LayoutUnit m_descent;
+        friend class LineBoxBuilder;
+
+        void setLogicalTop(InlineLayoutUnit logicalTop) { m_logicalRect.setTop(logicalTop); }
+        void setLogicalWidth(InlineLayoutUnit logicalWidth) { m_logicalRect.setWidth(logicalWidth); }
+        void setLogicalHeight(InlineLayoutUnit logicalHeight) { m_logicalRect.setHeight(logicalHeight); }
+        void setBaseline(InlineLayoutUnit baseline) { m_baseline = baseline; }
+        void setDescent(InlineLayoutUnit descent) { m_descent = descent; }
+        void setLineSpacing(InlineLayoutUnit lineSpacing) { m_lineSpacing = lineSpacing; }
+
+    private:
+        WeakPtr<const Box> m_layoutBox;
+        InlineRect m_logicalRect;
+        InlineLayoutUnit m_baseline { 0 };
+        Optional<InlineLayoutUnit> m_descent;
+        Optional<InlineLayoutUnit> m_lineSpacing;
+        bool m_isEmpty { true };
     };
 
-    LineBox(Display::Rect, const Baseline&, LayoutUnit baselineOffset);
-    LineBox() = default;
-    
-    LayoutPoint logicalTopLeft() const { return m_rect.topLeft(); }
+    enum class IsLineVisuallyEmpty { No, Yes };
+    LineBox(InlineLayoutUnit logicalWidth, IsLineVisuallyEmpty);
 
-    LayoutUnit logicalLeft() const { return m_rect.left(); }
-    LayoutUnit logicalRight() const { return m_rect.right(); }
-    LayoutUnit logicalTop() const { return m_rect.top(); }
-    LayoutUnit logicalBottom() const { return m_rect.bottom(); }
+    InlineLayoutUnit logicalWidth() const { return m_logicalSize.width(); }
+    InlineLayoutUnit logicalHeight() const { return m_logicalSize.height(); }
+    InlineLayoutSize logicalSize() const { return m_logicalSize; }
 
-    LayoutUnit logicalWidth() const { return m_rect.width(); }
-    LayoutUnit logicalHeight() const { return m_rect.height(); }
+    Optional<InlineLayoutUnit> horizontalAlignmentOffset() const { return m_horizontalAlignmentOffset; }
+    bool isLineVisuallyEmpty() const { return m_isLineVisuallyEmpty; }
 
-    const Baseline& baseline() const;
-    // Baseline offset from line logical top. Note that offset does not necessarily equal to ascent.
-    //
-    // -------------------    line logical top     ------------------- (top align)
-    //             ^                                              ^
-    //             |                                  ^           |
-    //   ^         | baseline offset                  |           | baseline offset
-    //   |         |                                  |           |
-    //   | ascent  |                                  | ascent    |
-    //   |         |                                  v           v
-    //   v         v                               ------------------- baseline
-    //   ----------------- baseline                   ^
-    //   ^                                            | descent
-    //   | descent                                    v
-    //   v
-    // -------------------    line logical bottom  -------------------
-    LayoutUnit baselineOffset() const;
-    void setBaselineOffsetIfGreater(LayoutUnit);
-    void setAscentIfGreater(LayoutUnit);
-    void setDescentIfGreater(LayoutUnit);
+    const InlineBox& inlineBoxForLayoutBox(const Box& layoutBox) const { return *m_inlineBoxRectMap.get(&layoutBox); }
+    InlineRect logicalRectForTextRun(const Line::Run&) const;
+    auto inlineBoxList() const { return m_inlineBoxRectMap.values(); }
+    bool containsInlineLevelBox(const Box& layoutBox) const { return m_inlineBoxRectMap.contains(&layoutBox); }
 
-    void resetBaseline();
-    void resetDescent() { m_baseline.setDescent({ }); }
-
-    void setLogicalTopLeft(LayoutPoint logicalTopLeft) { m_rect.setTopLeft(logicalTopLeft); }
-    void setLogicalHeight(LayoutUnit logicalHeight) { m_rect.setHeight(logicalHeight); }
-
-    void setLogicalHeightIfGreater(LayoutUnit);
-    void setLogicalWidth(LayoutUnit logicalWidth) { m_rect.setWidth(logicalWidth); }
-
-    void moveHorizontally(LayoutUnit delta) { m_rect.moveHorizontally(delta); }
-
-    void expandHorizontally(LayoutUnit delta) { m_rect.expandHorizontally(delta); }
-    void shrinkHorizontally(LayoutUnit delta) { expandHorizontally(-delta); }
-
-    void expandVertically(LayoutUnit delta) { m_rect.expandVertically(delta); }
-    void shrinkVertically(LayoutUnit delta) { expandVertically(-delta); }
+    InlineLayoutUnit alignmentBaseline() const { return m_rootInlineBox->logicalTop() + m_rootInlineBox->baseline(); }
 
 private:
-#if !ASSERT_DISABLED
-    bool m_hasValidBaseline { false };
-    bool m_hasValidBaselineOffset { false };
-#endif
-    Display::Rect m_rect;
-    Baseline m_baseline;
-    LayoutUnit m_baselineOffset;
+    friend class LineBoxBuilder;
+
+    void setLogicalHeight(InlineLayoutUnit logicalHeight) { m_logicalSize.setHeight(logicalHeight); }
+    void setHorizontalAlignmentOffset(InlineLayoutUnit horizontalAlignmentOffset) { m_horizontalAlignmentOffset = horizontalAlignmentOffset; }
+
+    void addRootInlineBox(std::unique_ptr<InlineBox>&&);
+    void addInlineBox(std::unique_ptr<InlineBox>&&);
+
+    InlineBox& rootInlineBox() { return *m_rootInlineBox; }
+    using InlineBoxList = Vector<std::unique_ptr<InlineBox>>;
+    const InlineBoxList& nonRootInlineBoxes() const { return m_nonRootInlineBoxList; }
+
+    InlineBox& inlineBoxForLayoutBox(const Box& layoutBox) { return *m_inlineBoxRectMap.get(&layoutBox); }
+
+private:
+    InlineLayoutSize m_logicalSize;
+    Optional<InlineLayoutUnit> m_horizontalAlignmentOffset;
+    bool m_isLineVisuallyEmpty { true };
+
+    std::unique_ptr<InlineBox> m_rootInlineBox;
+    InlineBoxList m_nonRootInlineBoxList;
+
+    HashMap<const Box*, InlineBox*> m_inlineBoxRectMap;
 };
 
-inline LineBox::LineBox(Display::Rect rect, const Baseline& baseline, LayoutUnit baselineOffset)
-    : m_rect(rect)
-    , m_baseline(baseline)
-    , m_baselineOffset(baselineOffset)
+inline std::unique_ptr<LineBox::InlineBox> LineBox::InlineBox::createBoxForRootInlineBox(const Box& layoutBox, InlineLayoutUnit logicalLeft, InlineLayoutUnit logicalWidth)
 {
-#if !ASSERT_DISABLED
-    m_hasValidBaseline = true;
-    m_hasValidBaselineOffset = true;
-#endif
+    return makeUnique<LineBox::InlineBox>(layoutBox, logicalLeft, logicalWidth);
 }
 
-inline void LineBox::setLogicalHeightIfGreater(LayoutUnit logicalHeight)
+inline std::unique_ptr<LineBox::InlineBox> LineBox::InlineBox::createBoxForAtomicInlineLevelBox(const Box& layoutBox, InlineLayoutUnit logicalLeft, InlineLayoutSize logicalSize, InlineLayoutUnit baseline)
 {
-    if (logicalHeight <= m_rect.height())
-        return;
-    m_rect.setHeight(logicalHeight);
+    return makeUnique<LineBox::InlineBox>(layoutBox, logicalLeft, logicalSize, baseline);
 }
 
-inline const LineBox::Baseline& LineBox::baseline() const
+inline std::unique_ptr<LineBox::InlineBox> LineBox::InlineBox::createBoxForInlineBox(const Box& layoutBox, InlineLayoutUnit logicalLeft, InlineLayoutUnit logicalWidth)
 {
-    ASSERT(m_hasValidBaseline);
-    return m_baseline;
-}
-
-inline void LineBox::setBaselineOffsetIfGreater(LayoutUnit baselineOffset)
-{
-#if !ASSERT_DISABLED
-    m_hasValidBaselineOffset = true;
-#endif
-    m_baselineOffset = std::max(baselineOffset, m_baselineOffset);
-}
-
-inline void LineBox::setAscentIfGreater(LayoutUnit ascent)
-{
-    if (ascent < m_baseline.ascent())
-        return;
-    setBaselineOffsetIfGreater(ascent);
-    m_baseline.setAscent(ascent);
-}
-
-inline void LineBox::setDescentIfGreater(LayoutUnit descent)
-{
-    if (descent < m_baseline.descent())
-        return;
-    m_baseline.setDescent(descent);
-}
-
-inline LayoutUnit LineBox::baselineOffset() const
-{
-    ASSERT(m_hasValidBaselineOffset);
-    return m_baselineOffset;
-}
-
-inline void LineBox::resetBaseline()
-{
-#if !ASSERT_DISABLED
-    m_hasValidBaselineOffset = true;
-#endif
-    m_baselineOffset = { };
-    m_baseline.reset();
-}
-
-inline LineBox::Baseline::Baseline(LayoutUnit ascent, LayoutUnit descent)
-    : m_ascent(ascent)
-    , m_descent(descent)
-{
-#if !ASSERT_DISABLED
-    m_hasValidAscent = true;
-    m_hasValidDescent = true;
-#endif
-}
-
-inline void LineBox::Baseline::setAscent(LayoutUnit ascent)
-{
-#if !ASSERT_DISABLED
-    m_hasValidAscent = true;
-#endif
-    m_ascent = ascent;
-}
-
-inline void LineBox::Baseline::setDescent(LayoutUnit descent)
-{
-#if !ASSERT_DISABLED
-    m_hasValidDescent = true;
-#endif
-    m_descent = descent;
-}
-
-inline void LineBox::Baseline::reset()
-{
-#if !ASSERT_DISABLED
-    m_hasValidAscent = true;
-    m_hasValidDescent = true;
-#endif
-    m_ascent = { };
-    m_descent = { };
-}
-
-inline LayoutUnit LineBox::Baseline::ascent() const
-{
-    ASSERT(m_hasValidAscent);
-    return m_ascent;
-}
-
-inline LayoutUnit LineBox::Baseline::descent() const
-{
-    ASSERT(m_hasValidDescent);
-    return m_descent;
+    return makeUnique<LineBox::InlineBox>(layoutBox, logicalLeft, logicalWidth);
 }
 
 }

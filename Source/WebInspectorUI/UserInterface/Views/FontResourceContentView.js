@@ -65,7 +65,7 @@ WI.FontResourceContentView = class FontResourceContentView extends WI.ResourceCo
 
         this._updatePreviewElement();
 
-        if (WI.NetworkManager.supportsLocalResourceOverrides()) {
+        if (WI.NetworkManager.supportsOverridingResponses()) {
             let dropZoneView = new WI.DropZoneView(this);
             dropZoneView.targetElement = this._previewContainer;
             this.addSubview(dropZoneView);
@@ -146,7 +146,7 @@ WI.FontResourceContentView = class FontResourceContentView extends WI.ResourceCo
 
             console.assert(localResourceOverride);
 
-            let revision = localResourceOverride.localResource.currentRevision;
+            let revision = localResourceOverride.localResource.editableRevision;
             revision.updateRevisionContent(content, {base64Encoded, mimeType});
 
             if (!this.showingLocalResourceOverride)

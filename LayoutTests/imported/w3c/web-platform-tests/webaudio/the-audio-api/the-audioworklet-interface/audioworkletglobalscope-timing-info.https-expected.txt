@@ -1,6 +1,8 @@
-CONSOLE MESSAGE: line 52: TypeError: undefined is not an object (evaluating 'context.audioWorklet.addModule')
 
-FAIL 
-      Test currentTime and currentFrame in AudioWorkletGlobalScope
-     TypeError: undefined is not an object (evaluating 'context.audioWorklet.addModule')
+Harness Error (TIMEOUT), message = null
+
+PASS # AUDIT TASK RUNNER STARTED.
+TIMEOUT Executing "Check the timing information from AudioWorkletProcessor" Test timed out
+NOTRUN Audit report
+PASS > [Check the timing information from AudioWorkletProcessor]
 

@@ -26,6 +26,7 @@
 #include "config.h"
 #include "WorkerEventLoop.h"
 
+#include "Microtasks.h"
 #include "WorkerGlobalScope.h"
 #include "WorkletGlobalScope.h"
 
@@ -36,71 +37,44 @@ Ref<WorkerEventLoop> WorkerEventLoop::create(WorkerGlobalScope& context)
     return adoptRef(*new WorkerEventLoop(context));
 }
 
-#if ENABLE(CSS_PAINTING_API)
 Ref<WorkerEventLoop> WorkerEventLoop::create(WorkletGlobalScope& context)
 {
     return adoptRef(*new WorkerEventLoop(context));
 }
-#endif
 
 WorkerEventLoop::WorkerEventLoop(ScriptExecutionContext& context)
-    : ActiveDOMObject(&context)
+    : ContextDestructionObserver(&context)
 {
-    suspendIfNeeded();
 }
 
-void WorkerEventLoop::queueTask(TaskSource source, ScriptExecutionContext& context, TaskFunction&& function)
+WorkerEventLoop::~WorkerEventLoop()
 {
-    if (!scriptExecutionContext())
-        return;
-    ASSERT(scriptExecutionContext()->isContextThread());
-    ASSERT_UNUSED(context, scriptExecutionContext() == &context);
-    m_tasks.append({ source, WTFMove(function) });
-    scheduleToRunIfNeeded();
 }
 
-const char* WorkerEventLoop::activeDOMObjectName() const
+void WorkerEventLoop::scheduleToRun()
 {
-    return "WorkerEventLoop";
-}
-
-void WorkerEventLoop::suspend(ReasonForSuspension)
-{
-    ASSERT_NOT_REACHED();
-}
-
-void WorkerEventLoop::resume()
-{
-    ASSERT_NOT_REACHED();
-}
-
-void WorkerEventLoop::stop()
-{
-    m_tasks.clear();
-}
-
-void WorkerEventLoop::scheduleToRunIfNeeded()
-{
-    auto* context = scriptExecutionContext();
-    ASSERT(context);
-    if (m_isScheduledToRun || m_tasks.isEmpty())
-        return;
-
-    m_isScheduledToRun = true;
-    context->postTask([eventLoop = makeRef(*this)] (ScriptExecutionContext&) {
-        eventLoop->m_isScheduledToRun = false;
+    ASSERT(scriptExecutionContext());
+    scriptExecutionContext()->postTask([eventLoop = makeRef(*this)] (ScriptExecutionContext&) {
         eventLoop->run();
     });
 }
 
-void WorkerEventLoop::run()
+bool WorkerEventLoop::isContextThread() const
 {
-    auto* context = scriptExecutionContext();
-    if (!context || context->activeDOMObjectsAreStopped() || context->activeDOMObjectsAreSuspended())
-        return;
-    auto tasks = std::exchange(m_tasks, Vector<Task>());
-    for (auto& task : tasks)
-        task.task();
+    return scriptExecutionContext()->isContextThread();
+}
+
+MicrotaskQueue& WorkerEventLoop::microtaskQueue()
+{
+    ASSERT(scriptExecutionContext());
+    if (!m_microtaskQueue)
+        m_microtaskQueue = makeUnique<MicrotaskQueue>(scriptExecutionContext()->vm());
+    return *m_microtaskQueue;
+}
+
+void WorkerEventLoop::clearMicrotaskQueue()
+{
+    m_microtaskQueue = nullptr;
 }
 
 } // namespace WebCore

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2008-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,14 +29,10 @@
 #include "config.h"
 #include "ExceptionHelpers.h"
 
-#include "CallFrame.h"
 #include "CatchScope.h"
-#include "CodeBlock.h"
 #include "ErrorHandlingScope.h"
 #include "Exception.h"
-#include "Interpreter.h"
 #include "JSCInlines.h"
-#include "JSGlobalObjectFunctions.h"
 #include "RuntimeType.h"
 #include <wtf/text/StringBuilder.h>
 #include <wtf/text/StringView.h>
@@ -94,9 +90,8 @@ String errorDescriptionForValue(JSGlobalObject* globalObject, JSValue v)
         return asSymbol(v)->descriptiveString();
     if (v.isObject()) {
         VM& vm = globalObject->vm();
-        CallData callData;
         JSObject* object = asObject(v);
-        if (object->methodTable(vm)->getCallData(object, callData) != CallType::None)
+        if (object->isCallable(vm))
             return vm.smallStrings.functionString()->value(globalObject);
         return JSObject::calculatedClassName(object);
     }
@@ -130,7 +125,7 @@ static String functionCallBase(const String& sourceText)
     if (sourceLength < 2 || sourceText[idx] != ')') {
         // For function calls that have many new lines in between their open parenthesis
         // and their closing parenthesis, the text range passed into the message appender 
-        // will not inlcude the text in between these parentheses, it will just be the desired
+        // will not include the text in between these parentheses, it will just be the desired
         // text that precedes the parentheses.
         return String();
     }
@@ -266,8 +261,11 @@ JSObject* createError(JSGlobalObject* globalObject, JSValue value, const String&
     auto scope = DECLARE_CATCH_SCOPE(vm);
 
     String valueDescription = errorDescriptionForValue(globalObject, value);
-    ASSERT(scope.exception() || !!valueDescription);
-    if (!valueDescription) {
+    if (scope.exception() || !valueDescription) {
+        // When we see an exception, we're not returning immediately because
+        // we're in a CatchScope, i.e. no exceptions are thrown past this scope.
+        // We're using a CatchScope because the contract for createError() is
+        // that it only creates an error object; it doesn't throw it.
         scope.clearException();
         return createOutOfMemoryError(globalObject);
     }
@@ -326,9 +324,24 @@ JSObject* createTDZError(JSGlobalObject* globalObject)
     return createReferenceError(globalObject, "Cannot access uninitialized variable.");
 }
 
+JSObject* createInvalidPrivateNameError(JSGlobalObject* globalObject)
+{
+    return createTypeError(globalObject, makeString("Cannot access invalid private field"), defaultSourceAppender, TypeNothing);
+}
+
+JSObject* createRedefinedPrivateNameError(JSGlobalObject* globalObject)
+{
+    return createTypeError(globalObject, makeString("Cannot redefine existing private field"), defaultSourceAppender, TypeNothing);
+}
+
 Exception* throwOutOfMemoryError(JSGlobalObject* globalObject, ThrowScope& scope)
 {
     return throwException(globalObject, scope, createOutOfMemoryError(globalObject));
+}
+
+Exception* throwOutOfMemoryError(JSGlobalObject* globalObject, ThrowScope& scope, const String& message)
+{
+    return throwException(globalObject, scope, createOutOfMemoryError(globalObject, message));
 }
 
 Exception* throwStackOverflowError(JSGlobalObject* globalObject, ThrowScope& scope)

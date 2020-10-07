@@ -16,9 +16,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "platform/Platform.h"
+#include "platform/PlatformMethods.h"
 #include "test_utils/angle_test_configs.h"
 #include "test_utils/angle_test_instantiate.h"
+#include "test_utils/angle_test_platform.h"
 #include "third_party/perf/perf_result_reporter.h"
 #include "util/EGLWindow.h"
 #include "util/OSWindow.h"
@@ -42,15 +43,15 @@ class Event;
 struct TraceEvent final
 {
     TraceEvent() {}
+    TraceEvent(char phaseIn, const char *categoryNameIn, const char *nameIn, double timestampIn);
 
-    TraceEvent(char phaseIn, const char *categoryNameIn, const char *nameIn, double timestampIn)
-        : phase(phaseIn), categoryName(categoryNameIn), name(nameIn), timestamp(timestampIn)
-    {}
+    static constexpr uint32_t kMaxNameLen = 64;
 
     char phase               = 0;
     const char *categoryName = nullptr;
-    const char *name         = nullptr;
+    char name[kMaxNameLen]   = {};
     double timestamp         = 0;
+    uint32_t tid             = 0;
 };
 
 class ANGLEPerfTest : public testing::Test, angle::NonCopyable
@@ -60,7 +61,7 @@ class ANGLEPerfTest : public testing::Test, angle::NonCopyable
                   const std::string &backend,
                   const std::string &story,
                   unsigned int iterationsPerStep);
-    virtual ~ANGLEPerfTest();
+    ~ANGLEPerfTest() override;
 
     virtual void step() = 0;
 
@@ -68,6 +69,7 @@ class ANGLEPerfTest : public testing::Test, angle::NonCopyable
     virtual void startTest() {}
     // Called right before timer is stopped to let the test wait for asynchronous operations.
     virtual void finishTest() {}
+    virtual void flush() {}
 
   protected:
     void run();
@@ -83,6 +85,12 @@ class ANGLEPerfTest : public testing::Test, angle::NonCopyable
     unsigned int getNumStepsPerformed() const { return mNumStepsPerformed; }
     void doRunLoop(double maxRunTime);
 
+    // Overriden in trace perf tests.
+    virtual void saveScreenshot(const std::string &screenshotName) {}
+
+    double printResults();
+    void calibrateStepsToRun();
+
     std::string mName;
     std::string mBackend;
     std::string mStory;
@@ -90,14 +98,16 @@ class ANGLEPerfTest : public testing::Test, angle::NonCopyable
     uint64_t mGPUTimeNs;
     bool mSkipTest;
     std::unique_ptr<perf_test::PerfResultReporter> mReporter;
-
-  private:
-    double printResults();
-
-    unsigned int mStepsToRun;
-    unsigned int mNumStepsPerformed;
-    unsigned int mIterationsPerStep;
+    int mStepsToRun;
+    int mNumStepsPerformed;
+    int mIterationsPerStep;
     bool mRunning;
+};
+
+enum class SurfaceType
+{
+    Window,
+    Offscreen,
 };
 
 struct RenderTestParams : public angle::PlatformParameters
@@ -112,13 +122,14 @@ struct RenderTestParams : public angle::PlatformParameters
     EGLint windowHeight            = 64;
     unsigned int iterationsPerStep = 0;
     bool trackGpuTime              = false;
+    SurfaceType surfaceType        = SurfaceType::Window;
 };
 
 class ANGLERenderTest : public ANGLEPerfTest
 {
   public:
     ANGLERenderTest(const std::string &name, const RenderTestParams &testParams);
-    ~ANGLERenderTest();
+    ~ANGLERenderTest() override;
 
     void addExtensionPrerequisite(const char *extensionName);
 
@@ -130,6 +141,7 @@ class ANGLERenderTest : public ANGLEPerfTest
     bool popEvent(Event *event);
 
     OSWindow *getWindow();
+    GLWindowBase *getGLWindow();
 
     std::vector<TraceEvent> &getTraceEventBuffer();
 
@@ -146,6 +158,12 @@ class ANGLERenderTest : public ANGLEPerfTest
 
     void beginInternalTraceEvent(const char *name);
     void endInternalTraceEvent(const char *name);
+    void beginGLTraceEvent(const char *name, double hostTimeSec);
+    void endGLTraceEvent(const char *name, double hostTimeSec);
+
+    void disableTestHarnessSwap() { mSwapEnabled = false; }
+
+    bool mIsTimestampQueryAvailable;
 
   private:
     void SetUp() override;
@@ -162,6 +180,7 @@ class ANGLERenderTest : public ANGLEPerfTest
     std::vector<const char *> mExtensionPrerequisites;
     angle::PlatformMethods mPlatformMethods;
     ConfigParameters mConfigParams;
+    bool mSwapEnabled;
 
     GLuint mTimestampQuery;
 
@@ -178,8 +197,8 @@ namespace params
 template <typename ParamsT>
 ParamsT Offscreen(const ParamsT &input)
 {
-    ParamsT output   = input;
-    output.offscreen = true;
+    ParamsT output     = input;
+    output.surfaceType = SurfaceType::Offscreen;
     return output;
 }
 
@@ -191,6 +210,17 @@ ParamsT NullDevice(const ParamsT &input)
     output.trackGpuTime             = false;
     return output;
 }
+
+template <typename ParamsT>
+ParamsT Passthrough(const ParamsT &input)
+{
+    return input;
+}
 }  // namespace params
 
+namespace angle
+{
+// Returns the time of the host since the application started in seconds.
+double GetHostTimeSeconds();
+}  // namespace angle
 #endif  // PERF_TESTS_ANGLE_PERF_TEST_H_

@@ -13,6 +13,7 @@
 #include "libANGLE/Context.h"
 #include "libANGLE/renderer/gl/FunctionsGL.h"
 #include "libANGLE/renderer/gl/RendererGL.h"
+#include "libANGLE/trace.h"
 #include "platform/FeaturesGL.h"
 
 #include <iostream>
@@ -38,6 +39,7 @@ class TranslateTaskGL : public angle::Closure
 
     void operator()() override
     {
+        ANGLE_TRACE_EVENT1("gpu.angle", "TranslateTaskGL::run", "source", mSource);
         const char *source = mSource.c_str();
         mResult            = sh::Compile(mHandle, &source, 1, mOptions);
         if (mResult)
@@ -250,6 +252,11 @@ std::shared_ptr<WaitableCompileEvent> ShaderGL::compile(const gl::Context *conte
         additionalOptions |= SH_INIT_OUTPUT_VARIABLES;
     }
 
+    if (isWebGL && !context->getState().getEnableFeature(GL_TEXTURE_RECTANGLE_ANGLE))
+    {
+        additionalOptions |= SH_DISABLE_ARB_TEXTURE_RECTANGLE;
+    }
+
     const angle::FeaturesGL &features = GetFeaturesGL(context);
 
     if (features.doWhileGLSLCausesGPUHang.enabled)
@@ -328,7 +335,7 @@ std::shared_ptr<WaitableCompileEvent> ShaderGL::compile(const gl::Context *conte
         additionalOptions |= SH_SELECT_VIEW_IN_NV_GLSL_VERTEX_SHADER;
     }
 
-    if (features.clampArrayAccess.enabled)
+    if (features.clampArrayAccess.enabled || isWebGL)
     {
         additionalOptions |= SH_CLAMP_INDIRECT_ARRAY_BOUNDS;
     }
@@ -341,6 +348,26 @@ std::shared_ptr<WaitableCompileEvent> ShaderGL::compile(const gl::Context *conte
     if (features.unfoldShortCircuits.enabled)
     {
         additionalOptions |= SH_UNFOLD_SHORT_CIRCUIT;
+    }
+
+    if (features.removeDynamicIndexingOfSwizzledVector.enabled)
+    {
+        additionalOptions |= SH_REMOVE_DYNAMIC_INDEXING_OF_SWIZZLED_VECTOR;
+    }
+
+    if (features.preAddTexelFetchOffsets.enabled)
+    {
+        additionalOptions |= SH_REWRITE_TEXELFETCHOFFSET_TO_TEXELFETCH;
+    }
+
+    if (features.regenerateStructNames.enabled)
+    {
+        additionalOptions |= SH_REGENERATE_STRUCT_NAMES;
+    }
+
+    if (features.rewriteRowMajorMatrices.enabled)
+    {
+        additionalOptions |= SH_REWRITE_ROW_MAJOR_MATRICES;
     }
 
     options |= additionalOptions;

@@ -63,7 +63,7 @@ TEST(IndexedDB, IndexedDBTempFileSize)
     [[configuration userContentController] addScriptMessageHandler:handler.get() name:@"testHandler"];
 
     NSString *hash = WebCore::SQLiteFileSystem::computeHashForFileName("IndexedDBTempFileSize");
-    NSString *databaseRootDirectory = [@"~/Library/WebKit/TestWebKitAPI/CustomWebsiteData/IndexedDB/" stringByExpandingTildeInPath];
+    NSString *databaseRootDirectory = [@"~/Library/WebKit/com.apple.WebKit.TestWebKitAPI/CustomWebsiteData/IndexedDB/" stringByExpandingTildeInPath];
     NSString *databaseDirectory = [[[databaseRootDirectory stringByAppendingPathComponent:@"v1"] stringByAppendingPathComponent:@"file__0"] stringByAppendingPathComponent:hash];
     RetainPtr<NSURL> idbPath = [NSURL fileURLWithPath:databaseRootDirectory isDirectory:YES];
     RetainPtr<NSURL> walFilePath = [NSURL fileURLWithPath:[databaseDirectory stringByAppendingPathComponent:@"IndexedDB.sqlite3-wal"] isDirectory:NO];
@@ -95,7 +95,7 @@ TEST(IndexedDB, IndexedDBTempFileSize)
 
     // Terminate network process to keep WAL on disk.
     webView = nil;
-    [configuration.get().processPool _terminateNetworkProcess];
+    [configuration.get().websiteDataStore _terminateNetworkProcess];
 
     EXPECT_TRUE([[NSFileManager defaultManager] fileExistsAtPath:walFilePath.get().path]);
     RetainPtr<NSDictionary> fileAttributes = [[NSFileManager defaultManager] attributesOfItemAtPath:walFilePath.get().path error:nil];

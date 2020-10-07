@@ -52,17 +52,39 @@ void InspectorTargetAgent::willDestroyFrontendAndBackend(DisconnectReason)
     disconnectFromTargets();
 
     m_isConnected = false;
+    m_shouldPauseOnStart = false;
 }
 
-void InspectorTargetAgent::sendMessageToTarget(ErrorString& errorString, const String& targetId, const String& message)
+Protocol::ErrorStringOr<void> InspectorTargetAgent::setPauseOnStart(bool pauseOnStart)
+{
+    m_shouldPauseOnStart = pauseOnStart;
+
+    return { };
+}
+
+Protocol::ErrorStringOr<void> InspectorTargetAgent::resume(const String& targetId)
+{
+    auto* target = m_targets.get(targetId);
+    if (!target)
+        return makeUnexpected("Missing target for given targetId"_s);
+
+    if (!target->isPaused())
+        return makeUnexpected("Target for given targetId is not paused"_s);
+
+    target->resume();
+
+    return { };
+}
+
+Protocol::ErrorStringOr<void> InspectorTargetAgent::sendMessageToTarget(const String& targetId, const String& message)
 {
     InspectorTarget* target = m_targets.get(targetId);
-    if (!target) {
-        errorString = "Missing target for given targetId"_s;
-        return;
-    }
+    if (!target)
+        return makeUnexpected("Missing target for given targetId"_s);
 
     target->sendMessageToTargetBackend(message);
+
+    return { };
 }
 
 void InspectorTargetAgent::sendMessageFromTargetToFrontend(const String& targetId, const String& message)
@@ -95,6 +117,8 @@ static Ref<Protocol::Target::TargetInfo> buildTargetInfoObject(const InspectorTa
         .release();
     if (target.isProvisional())
         result->setIsProvisional(true);
+    if (target.isPaused())
+        result->setIsPaused(true);
     return result;
 }
 
@@ -106,6 +130,8 @@ void InspectorTargetAgent::targetCreated(InspectorTarget& target)
     if (!m_isConnected)
         return;
 
+    if (m_shouldPauseOnStart)
+        target.pause();
     target.connect(connectionType());
 
     m_frontendDispatcher->targetCreated(buildTargetInfoObject(target));
@@ -117,8 +143,6 @@ void InspectorTargetAgent::targetDestroyed(InspectorTarget& target)
 
     if (!m_isConnected)
         return;
-
-    target.disconnect();
 
     m_frontendDispatcher->targetDestroyed(target.identifier());
 }

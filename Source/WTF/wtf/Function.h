@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Apple Inc. All rights reserved.
+ * Copyright (C) 2016-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,10 +58,14 @@ private:
 
 template<typename> class Function;
 
+template<typename Out, typename... In> Function<Out(In...)> adopt(Detail::CallableWrapperBase<Out, In...>*);
+
 template <typename Out, typename... In>
 class Function<Out(In...)> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
+    using Impl = Detail::CallableWrapperBase<Out, In...>;
+
     Function() = default;
     Function(std::nullptr_t) { }
 
@@ -101,9 +105,27 @@ public:
         return *this;
     }
 
+    Impl* leak()
+    {
+        return m_callableWrapper.release();
+    }
+
 private:
-    std::unique_ptr<Detail::CallableWrapperBase<Out, In...>> m_callableWrapper;
+    enum AdoptTag { Adopt };
+    Function(Impl* impl, AdoptTag)
+        : m_callableWrapper(impl)
+    {
+    }
+
+    friend Function adopt<Out, In...>(Impl*);
+
+    std::unique_ptr<Impl> m_callableWrapper;
 };
+
+template<typename Out, typename... In> Function<Out(In...)> adopt(Detail::CallableWrapperBase<Out, In...>* impl)
+{
+    return Function<Out(In...)>(impl, Function<Out(In...)>::Adopt);
+}
 
 } // namespace WTF
 

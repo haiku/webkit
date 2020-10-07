@@ -23,9 +23,12 @@
 messages -> EventDispatcher {
     WheelEvent(WebCore::PageIdentifier pageID, WebKit::WebWheelEvent event, bool canRubberBandAtLeft, bool canRubberBandAtRight, bool canRubberBandAtTop, bool canRubberBandAtBottom)
 #if ENABLE(IOS_TOUCH_EVENTS)
-    TouchEvent(WebCore::PageIdentifier pageID, WebKit::WebTouchEvent event)
+    TouchEvent(WebCore::PageIdentifier pageID, WebKit::WebTouchEvent event, Optional<WebKit::CallbackID> callbackID)
 #endif
 #if ENABLE(MAC_GESTURE_EVENTS)
     GestureEvent(WebCore::PageIdentifier pageID, WebKit::WebGestureEvent event)
+#endif
+#if ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
+    DisplayWasRefreshed(uint32_t displayID)
 #endif
 }

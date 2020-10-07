@@ -26,7 +26,7 @@ namespace JSC {
 
 class BooleanPrototype final : public BooleanObject {
 public:
-    typedef BooleanObject Base;
+    using Base = BooleanObject;
     static constexpr unsigned StructureFlags = Base::StructureFlags | HasStaticPropertyTable;
 
     static BooleanPrototype* create(VM& vm, JSGlobalObject* globalObject, Structure* structure)
@@ -43,11 +43,10 @@ public:
         return Structure::create(vm, globalObject, prototype, TypeInfo(ObjectType, StructureFlags), info());
     }
 
-protected:
-    void finishCreation(VM&, JSGlobalObject*);
-
 private:
     BooleanPrototype(VM&, Structure*);
+    void finishCreation(VM&, JSGlobalObject*);
 };
+STATIC_ASSERT_ISO_SUBSPACE_SHARABLE(BooleanPrototype, BooleanObject);
 
 } // namespace JSC

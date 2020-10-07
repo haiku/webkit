@@ -23,14 +23,11 @@
 #include "common_audio/smoothing_filter.h"
 #include "modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor.h"
 #include "modules/audio_coding/codecs/opus/opus_interface.h"
-#include "rtc_base/constructormagic.h"
-#include "rtc_base/protobuf_utils.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
 class RtcEventLog;
-
-struct CodecInst;
 
 class AudioEncoderOpusImpl final : public AudioEncoder {
  public:
@@ -43,9 +40,9 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
     float OptimizePacketLossRate(float packet_loss_rate) const;
 
     // Getters for testing.
-    float min_packet_loss_rate() const { return min_packet_loss_rate_; };
-    float max_packet_loss_rate() const { return max_packet_loss_rate_; };
-    float slope() const { return slope_; };
+    float min_packet_loss_rate() const { return min_packet_loss_rate_; }
+    float max_packet_loss_rate() const { return max_packet_loss_rate_; }
+    float slope() const { return slope_; }
 
    private:
     const float min_packet_loss_rate_;
@@ -53,8 +50,6 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
     const float slope_;
     RTC_DISALLOW_COPY_AND_ASSIGN(NewPacketLossRateOptimizer);
   };
-
-  static AudioEncoderOpusConfig CreateConfig(const CodecInst& codec_inst);
 
   // Returns empty if the current bitrate falls within the hysteresis window,
   // defined by complexity_threshold_bps +/- complexity_threshold_window_bps.
@@ -83,17 +78,12 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
       const AudioNetworkAdaptorCreator& audio_network_adaptor_creator,
       std::unique_ptr<SmoothingFilter> bitrate_smoother);
 
-  explicit AudioEncoderOpusImpl(const CodecInst& codec_inst);
   AudioEncoderOpusImpl(int payload_type, const SdpAudioFormat& format);
   ~AudioEncoderOpusImpl() override;
 
-  // Static interface for use by BuiltinAudioEncoderFactory.
-  static constexpr const char* GetPayloadName() { return "opus"; }
-  static absl::optional<AudioCodecInfo> QueryAudioEncoder(
-      const SdpAudioFormat& format);
-
   int SampleRateHz() const override;
   size_t NumChannels() const override;
+  int RtpTimestampRateHz() const override;
   size_t Num10MsFramesInNextPacket() const override;
   size_t Max10MsFramesInAPacket() const override;
   int GetTargetBitrate() const override;
@@ -114,8 +104,7 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
   void DisableAudioNetworkAdaptor() override;
   void OnReceivedUplinkPacketLossFraction(
       float uplink_packet_loss_fraction) override;
-  void OnReceivedUplinkRecoverablePacketLossFraction(
-      float uplink_recoverable_packet_loss_fraction) override;
+  void OnReceivedTargetAudioBitrate(int target_audio_bitrate_bps) override;
   void OnReceivedUplinkBandwidth(
       int target_audio_bitrate_bps,
       absl::optional<int64_t> bwe_period_ms) override;
@@ -125,6 +114,8 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
   void SetReceiverFrameLengthRange(int min_frame_length_ms,
                                    int max_frame_length_ms) override;
   ANAStats GetANAStats() const override;
+  absl::optional<std::pair<TimeDelta, TimeDelta> > GetFrameLengthRange()
+      const override;
   rtc::ArrayView<const int> supported_frame_lengths_ms() const {
     return config_.supported_frame_lengths_ms;
   }
@@ -176,7 +167,7 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
 
   void ApplyAudioNetworkAdaptor();
   std::unique_ptr<AudioNetworkAdaptor> DefaultAudioNetworkAdaptorCreator(
-      const ProtoString& config_string,
+      const std::string& config_string,
       RtcEventLog* event_log) const;
 
   void MaybeUpdateUplinkBandwidth();
@@ -184,9 +175,13 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
   AudioEncoderOpusConfig config_;
   const int payload_type_;
   const bool send_side_bwe_with_overhead_;
-  const bool use_link_capacity_for_adaptation_;
+  const bool use_stable_target_for_adaptation_;
   const bool adjust_bandwidth_;
   bool bitrate_changed_;
+  // A multiplier for bitrates at 5 kbps and higher. The target bitrate
+  // will be multiplied by these multipliers, each multiplier is applied to a
+  // 1 kbps range.
+  std::vector<float> bitrate_multipliers_;
   float packet_loss_rate_;
   const float min_packet_loss_rate_;
   const std::unique_ptr<NewPacketLossRateOptimizer> new_packet_loss_optimizer_;
@@ -202,7 +197,6 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
   absl::optional<size_t> overhead_bytes_per_packet_;
   const std::unique_ptr<SmoothingFilter> bitrate_smoother_;
   absl::optional<int64_t> bitrate_smoother_last_update_time_;
-  absl::optional<int64_t> link_capacity_allocation_bps_;
   int consecutive_dtx_frames_;
 
   friend struct AudioEncoderOpus;

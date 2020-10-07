@@ -39,6 +39,7 @@
 #include <webkit2/WebKitFormSubmissionRequest.h>
 #include <webkit2/WebKitForwardDeclarations.h>
 #include <webkit2/WebKitHitTestResult.h>
+#include <webkit2/WebKitInputMethodContext.h>
 #include <webkit2/WebKitJavascriptResult.h>
 #include <webkit2/WebKitNavigationAction.h>
 #include <webkit2/WebKitNotification.h>
@@ -53,6 +54,7 @@
 #include <webkit2/WebKitWebContext.h>
 #include <webkit2/WebKitWebInspector.h>
 #include <webkit2/WebKitWebResource.h>
+#include <webkit2/WebKitWebsitePolicies.h>
 #include <webkit2/WebKitWebViewBase.h>
 #include <webkit2/WebKitWebViewSessionState.h>
 #include <webkit2/WebKitWindowProperties.h>
@@ -300,6 +302,9 @@ webkit_web_view_is_ephemeral                         (WebKitWebView             
 WEBKIT_API gboolean
 webkit_web_view_is_controlled_by_automation          (WebKitWebView             *web_view);
 
+WEBKIT_API WebKitAutomationBrowsingContextPresentation
+webkit_web_view_get_automation_presentation_type     (WebKitWebView             *web_view);
+
 WEBKIT_API WebKitWebsiteDataManager *
 webkit_web_view_get_website_data_manager             (WebKitWebView             *web_view);
 
@@ -345,6 +350,13 @@ webkit_web_view_is_loading                           (WebKitWebView             
 
 WEBKIT_API gboolean
 webkit_web_view_is_playing_audio                     (WebKitWebView             *web_view);
+
+WEBKIT_API void
+webkit_web_view_set_is_muted                         (WebKitWebView             *web_view,
+                                                      gboolean                   muted);
+
+WEBKIT_API gboolean
+webkit_web_view_get_is_muted                         (WebKitWebView             *web_view);
 
 WEBKIT_API guint64
 webkit_web_view_get_page_id                          (WebKitWebView             *web_view);
@@ -565,6 +577,18 @@ WEBKIT_API WebKitUserMessage *
 webkit_web_view_send_message_to_page_finish          (WebKitWebView             *web_view,
                                                       GAsyncResult              *result,
                                                       GError                   **error);
+
+WEBKIT_API void
+webkit_web_view_set_input_method_context             (WebKitWebView             *web_view,
+                                                      WebKitInputMethodContext  *context);
+
+WEBKIT_API WebKitInputMethodContext *
+webkit_web_view_get_input_method_context             (WebKitWebView             *web_view);
+
+
+WEBKIT_API WebKitWebsitePolicies *
+webkit_web_view_get_website_policies                 (WebKitWebView             *web_view);
+
 
 G_END_DECLS
 

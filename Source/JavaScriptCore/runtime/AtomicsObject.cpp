@@ -29,7 +29,6 @@
 #include "FrameTracers.h"
 #include "JSCInlines.h"
 #include "JSTypedArrays.h"
-#include "ObjectPrototype.h"
 #include "ReleaseHeapAccessScope.h"
 #include "TypedArrayController.h"
 
@@ -51,8 +50,8 @@ STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(AtomicsObject);
     macro(wake, Wake, 3)                                                \
     macro(xor, Xor, 3)
 
-#define DECLARE_FUNC_PROTO(lowerName, upperName, count)                 \
-    EncodedJSValue JSC_HOST_CALL atomicsFunc ## upperName(JSGlobalObject*, CallFrame*);
+#define DECLARE_FUNC_PROTO(lowerName, upperName, count)  \
+    JSC_DECLARE_HOST_FUNCTION(atomicsFunc ## upperName);
 FOR_EACH_ATOMICS_FUNC(DECLARE_FUNC_PROTO)
 #undef DECLARE_FUNC_PROTO
 
@@ -313,52 +312,52 @@ EncodedJSValue isLockFree(JSGlobalObject* globalObject, JSValue arg)
 
 } // anonymous namespace
 
-EncodedJSValue JSC_HOST_CALL atomicsFuncAdd(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(atomicsFuncAdd, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return atomicOperationWithArgs(globalObject, callFrame, AddFunc());
 }
 
-EncodedJSValue JSC_HOST_CALL atomicsFuncAnd(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(atomicsFuncAnd, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return atomicOperationWithArgs(globalObject, callFrame, AndFunc());
 }
 
-EncodedJSValue JSC_HOST_CALL atomicsFuncCompareExchange(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(atomicsFuncCompareExchange, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return atomicOperationWithArgs(globalObject, callFrame, CompareExchangeFunc());
 }
 
-EncodedJSValue JSC_HOST_CALL atomicsFuncExchange(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(atomicsFuncExchange, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return atomicOperationWithArgs(globalObject, callFrame, ExchangeFunc());
 }
 
-EncodedJSValue JSC_HOST_CALL atomicsFuncIsLockFree(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(atomicsFuncIsLockFree, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return isLockFree(globalObject, callFrame->argument(0));
 }
 
-EncodedJSValue JSC_HOST_CALL atomicsFuncLoad(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(atomicsFuncLoad, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return atomicOperationWithArgs(globalObject, callFrame, LoadFunc());
 }
 
-EncodedJSValue JSC_HOST_CALL atomicsFuncOr(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(atomicsFuncOr, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return atomicOperationWithArgs(globalObject, callFrame, OrFunc());
 }
 
-EncodedJSValue JSC_HOST_CALL atomicsFuncStore(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(atomicsFuncStore, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return atomicOperationWithArgs(globalObject, callFrame, StoreFunc());
 }
 
-EncodedJSValue JSC_HOST_CALL atomicsFuncSub(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(atomicsFuncSub, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return atomicOperationWithArgs(globalObject, callFrame, SubFunc());
 }
 
-EncodedJSValue JSC_HOST_CALL atomicsFuncWait(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(atomicsFuncWait, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -428,7 +427,7 @@ EncodedJSValue JSC_HOST_CALL atomicsFuncWait(JSGlobalObject* globalObject, CallF
     return JSValue::encode(jsString(vm, resultString));
 }
 
-EncodedJSValue JSC_HOST_CALL atomicsFuncWake(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(atomicsFuncWake, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -460,14 +459,14 @@ EncodedJSValue JSC_HOST_CALL atomicsFuncWake(JSGlobalObject* globalObject, CallF
     return JSValue::encode(jsNumber(ParkingLot::unparkCount(ptr, count)));
 }
 
-EncodedJSValue JSC_HOST_CALL atomicsFuncXor(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(atomicsFuncXor, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return atomicOperationWithArgs(globalObject, callFrame, XorFunc());
 }
 
 IGNORE_WARNINGS_BEGIN("frame-address")
 
-EncodedJSValue JIT_OPERATION operationAtomicsAdd(JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand)
+JSC_DEFINE_JIT_OPERATION(operationAtomicsAdd, EncodedJSValue, (JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand))
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -476,7 +475,7 @@ EncodedJSValue JIT_OPERATION operationAtomicsAdd(JSGlobalObject* globalObject, E
     return atomicOperationWithArgs(vm, globalObject, args, AddFunc());
 }
 
-EncodedJSValue JIT_OPERATION operationAtomicsAnd(JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand)
+JSC_DEFINE_JIT_OPERATION(operationAtomicsAnd, EncodedJSValue, (JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand))
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -485,7 +484,7 @@ EncodedJSValue JIT_OPERATION operationAtomicsAnd(JSGlobalObject* globalObject, E
     return atomicOperationWithArgs(vm, globalObject, args, AndFunc());
 }
 
-EncodedJSValue JIT_OPERATION operationAtomicsCompareExchange(JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue expected, EncodedJSValue newValue)
+JSC_DEFINE_JIT_OPERATION(operationAtomicsCompareExchange, EncodedJSValue, (JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue expected, EncodedJSValue newValue))
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -494,7 +493,7 @@ EncodedJSValue JIT_OPERATION operationAtomicsCompareExchange(JSGlobalObject* glo
     return atomicOperationWithArgs(vm, globalObject, args, CompareExchangeFunc());
 }
 
-EncodedJSValue JIT_OPERATION operationAtomicsExchange(JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand)
+JSC_DEFINE_JIT_OPERATION(operationAtomicsExchange, EncodedJSValue, (JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand))
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -503,7 +502,7 @@ EncodedJSValue JIT_OPERATION operationAtomicsExchange(JSGlobalObject* globalObje
     return atomicOperationWithArgs(vm, globalObject, args, ExchangeFunc());
 }
 
-EncodedJSValue JIT_OPERATION operationAtomicsIsLockFree(JSGlobalObject* globalObject, EncodedJSValue size)
+JSC_DEFINE_JIT_OPERATION(operationAtomicsIsLockFree, EncodedJSValue, (JSGlobalObject* globalObject, EncodedJSValue size))
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -511,7 +510,7 @@ EncodedJSValue JIT_OPERATION operationAtomicsIsLockFree(JSGlobalObject* globalOb
     return isLockFree(globalObject, JSValue::decode(size));
 }
 
-EncodedJSValue JIT_OPERATION operationAtomicsLoad(JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index)
+JSC_DEFINE_JIT_OPERATION(operationAtomicsLoad, EncodedJSValue, (JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index))
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -520,7 +519,7 @@ EncodedJSValue JIT_OPERATION operationAtomicsLoad(JSGlobalObject* globalObject, 
     return atomicOperationWithArgs(vm, globalObject, args, LoadFunc());
 }
 
-EncodedJSValue JIT_OPERATION operationAtomicsOr(JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand)
+JSC_DEFINE_JIT_OPERATION(operationAtomicsOr, EncodedJSValue, (JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand))
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -529,7 +528,7 @@ EncodedJSValue JIT_OPERATION operationAtomicsOr(JSGlobalObject* globalObject, En
     return atomicOperationWithArgs(vm, globalObject, args, OrFunc());
 }
 
-EncodedJSValue JIT_OPERATION operationAtomicsStore(JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand)
+JSC_DEFINE_JIT_OPERATION(operationAtomicsStore, EncodedJSValue, (JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand))
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -538,7 +537,7 @@ EncodedJSValue JIT_OPERATION operationAtomicsStore(JSGlobalObject* globalObject,
     return atomicOperationWithArgs(vm, globalObject, args, StoreFunc());
 }
 
-EncodedJSValue JIT_OPERATION operationAtomicsSub(JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand)
+JSC_DEFINE_JIT_OPERATION(operationAtomicsSub, EncodedJSValue, (JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand))
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -547,7 +546,7 @@ EncodedJSValue JIT_OPERATION operationAtomicsSub(JSGlobalObject* globalObject, E
     return atomicOperationWithArgs(vm, globalObject, args, SubFunc());
 }
 
-EncodedJSValue JIT_OPERATION operationAtomicsXor(JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand)
+JSC_DEFINE_JIT_OPERATION(operationAtomicsXor, EncodedJSValue, (JSGlobalObject* globalObject, EncodedJSValue base, EncodedJSValue index, EncodedJSValue operand))
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);

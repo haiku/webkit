@@ -35,35 +35,35 @@ import logging
 import os.path
 import re
 
-from checkers.common import categories as CommonCategories
-from checkers.common import CarriageReturnChecker
-from checkers.contributors import ContributorsChecker
-from checkers.changelog import ChangeLogChecker
-from checkers.cpp import CppChecker
-from checkers.cmake import CMakeChecker
-from checkers.featuredefines import FeatureDefinesChecker
-from checkers.js import JSChecker
-from checkers.jsonchecker import JSONChecker
-from checkers.jsonchecker import JSONContributorsChecker
-from checkers.jsonchecker import JSONFeaturesChecker
-from checkers.jsonchecker import JSONCSSPropertiesChecker
-from checkers.jstest import JSTestChecker
-from checkers.messagesin import MessagesInChecker
-from checkers.png import PNGChecker
-from checkers.python import PythonChecker, Python3Checker
-from checkers.sdkvariant import SDKVariantChecker
-from checkers.test_expectations import TestExpectationsChecker
-from checkers.text import TextChecker
-from checkers.watchlist import WatchListChecker
-from checkers.xcodeproj import XcodeProjectFileChecker
-from checkers.xml import XMLChecker
-from error_handlers import DefaultStyleErrorHandler
-from filter import FilterConfiguration
-from optparser import ArgumentParser
-from optparser import DefaultCommandOptionValues
 from webkitpy.common.host import Host
 from webkitpy.common.system.logutils import configure_logging as _configure_logging
 from webkitpy.port.config import apple_additions
+from webkitpy.style.checkers.common import categories as CommonCategories
+from webkitpy.style.checkers.common import CarriageReturnChecker
+from webkitpy.style.checkers.contributors import ContributorsChecker
+from webkitpy.style.checkers.changelog import ChangeLogChecker
+from webkitpy.style.checkers.cpp import CppChecker
+from webkitpy.style.checkers.cmake import CMakeChecker
+from webkitpy.style.checkers.featuredefines import FeatureDefinesChecker
+from webkitpy.style.checkers.js import JSChecker
+from webkitpy.style.checkers.jsonchecker import JSONChecker
+from webkitpy.style.checkers.jsonchecker import JSONContributorsChecker
+from webkitpy.style.checkers.jsonchecker import JSONFeaturesChecker
+from webkitpy.style.checkers.jsonchecker import JSONCSSPropertiesChecker
+from webkitpy.style.checkers.jstest import JSTestChecker
+from webkitpy.style.checkers.messagesin import MessagesInChecker
+from webkitpy.style.checkers.png import PNGChecker
+from webkitpy.style.checkers.python import PythonChecker, Python3Checker
+from webkitpy.style.checkers.sdkvariant import SDKVariantChecker
+from webkitpy.style.checkers.test_expectations import TestExpectationsChecker
+from webkitpy.style.checkers.text import TextChecker
+from webkitpy.style.checkers.watchlist import WatchListChecker
+from webkitpy.style.checkers.xcodeproj import XcodeProjectFileChecker
+from webkitpy.style.checkers.xml import XMLChecker
+from webkitpy.style.error_handlers import DefaultStyleErrorHandler
+from webkitpy.style.filter import FilterConfiguration
+from webkitpy.style.optparser import ArgumentParser
+from webkitpy.style.optparser import DefaultCommandOptionValues
 
 
 _log = logging.getLogger(__name__)
@@ -177,7 +177,7 @@ _PATH_RULES_SPECIFIER = [
     ([
       # To use GStreamer GL without conflicts of GL symbols,
       # we should include gst/gl/gl.h before including OpenGL[ES]Shims
-      os.path.join('Source', 'WebCore', 'platform', 'graphics', 'gstreamer', 'MediaPlayerPrivateGStreamerBase.cpp')],
+      os.path.join('Source', 'WebCore', 'platform', 'graphics', 'gstreamer', 'MediaPlayerPrivateGStreamer.cpp')],
      ["-build/include_order"]),
 
     ([
@@ -217,8 +217,12 @@ _PATH_RULES_SPECIFIER = [
     ([
       # These files define GObjects, which implies some definitions of
       # variables and functions containing underscores.
+      os.path.join('Source', 'WebCore', 'platform', 'graphics', 'gstreamer', 'GLVideoSinkGStreamer.cpp'),
+      os.path.join('Source', 'WebCore', 'platform', 'graphics', 'gstreamer', 'GLVideoSinkGStreamer.h'),
       os.path.join('Source', 'WebCore', 'platform', 'graphics', 'gstreamer', 'VideoSinkGStreamer.cpp'),
       os.path.join('Source', 'WebCore', 'platform', 'graphics', 'gstreamer', 'WebKitWebSourceGStreamer.cpp'),
+      os.path.join('Source', 'WebCore', 'platform', 'graphics', 'gstreamer', 'WebKitAudioSinkGStreamer.cpp'),
+      os.path.join('Source', 'WebCore', 'platform', 'graphics', 'gstreamer', 'WebKitAudioSinkGStreamer.h'),
       os.path.join('Source', 'WebCore', 'platform', 'audio', 'gstreamer', 'WebKitWebAudioSourceGStreamer.cpp'),
       os.path.join('Source', 'WebCore', 'platform', 'mediastream', 'gstreamer', 'GStreamerMediaStreamSource.h'),
       os.path.join('Source', 'WebCore', 'platform', 'mediastream', 'gstreamer', 'GStreamerMediaStreamSource.cpp'),
@@ -372,6 +376,8 @@ _SKIPPED_FILES_WITH_WARNING = [
 
     # WebKit*.h and JSC*.h files in, except those ending in Private.h are API headers, which do not follow WebKit coding style.
     re.compile(re.escape(os.path.join('Source', 'JavaScriptCore', 'API', 'glib') + os.path.sep) + r'JSC(?!.*Private\.h).*\.h$'),
+    re.compile(re.escape(os.path.join('Source', 'WebKit', 'UIProcess', 'API', 'gtk3') + os.path.sep) + r'WebKit(?!.*Private\.h).*\.h$'),
+    re.compile(re.escape(os.path.join('Source', 'WebKit', 'UIProcess', 'API', 'gtk4') + os.path.sep) + r'WebKit(?!.*Private\.h).*\.h$'),
     re.compile(re.escape(os.path.join('Source', 'WebKit', 'UIProcess', 'API', 'gtk') + os.path.sep) + r'WebKit(?!.*Private\.h).*\.h$'),
     re.compile(re.escape(os.path.join('Source', 'WebKit', 'UIProcess', 'API', 'wpe') + os.path.sep) + r'WebKit(?!.*Private\.h).*\.h$'),
     re.compile(re.escape(os.path.join('Source', 'WebKit', 'WebProcess', 'InjectedBundle', 'API', 'gtk') + os.path.sep) + r'WebKit(?!.*Private\.h).*\.h$'),
@@ -382,6 +388,7 @@ _SKIPPED_FILES_WITH_WARNING = [
     os.path.join('Source', 'WebKit', 'WebProcess', 'InjectedBundle', 'API', 'gtk', 'DOM'),
 
     os.path.join('Source', 'JavaScriptCore', 'API', 'glib', 'jsc.h'),
+    os.path.join('Source', 'WebCore', 'platform', 'gtk', 'GtkVersioning.h'),
     os.path.join('Source', 'WebKit', 'UIProcess', 'API', 'gtk', 'webkit2.h'),
     os.path.join('Source', 'WebKit', 'UIProcess', 'API', 'wpe', 'webkit.h'),
     os.path.join('Source', 'WebKit', 'WebProcess', 'InjectedBundle', 'API', 'gtk', 'webkit-web-extension.h'),

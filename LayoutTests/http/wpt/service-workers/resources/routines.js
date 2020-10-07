@@ -27,3 +27,14 @@ function waitForState(worker, state)
         });
     });
 }
+
+async function waitForServiceWorkerNoLongerRunning(worker)
+{
+    if (!window.internals)
+        return Promise.reject("requires internals");
+
+    const promise = internals.whenServiceWorkerIsTerminated(worker);
+    let timer = setInterval(() => worker.postMessage("test"), 50);
+    await promise;
+    clearInterval(timer);
+}

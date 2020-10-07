@@ -29,11 +29,9 @@
 #include "WebKitWebPageAccessibilityObject.h"
 #include "WebPageProxy.h"
 #include "WebPageProxyMessages.h"
-#include "WebPreferencesKeys.h"
-#include "WebPreferencesStore.h"
 #include <WebCore/NotImplemented.h>
-#include <WebCore/Settings.h>
-#include <WebCore/SharedBuffer.h>
+#include <WebCore/PlatformScreen.h>
+#include <WebCore/PointerCharacteristics.h>
 
 namespace WebKit {
 using namespace WebCore;
@@ -59,11 +57,6 @@ void WebPage::platformDetach()
 {
 }
 
-void WebPage::platformEditorState(Frame&, EditorState&, IncludePostLayoutDataHint) const
-{
-    notImplemented();
-}
-
 bool WebPage::performDefaultBehaviorForKeyEvent(const WebKeyboardEvent&)
 {
     notImplemented();
@@ -80,6 +73,24 @@ String WebPage::platformUserAgent(const URL&) const
 {
     notImplemented();
     return String();
+}
+
+bool WebPage::hoverSupportedByAnyAvailablePointingDevice() const
+{
+#if ENABLE(TOUCH_EVENTS)
+    return !screenHasTouchDevice();
+#else
+    return true;
+#endif
+}
+
+OptionSet<PointerCharacteristics> WebPage::pointerCharacteristicsOfAllAvailablePointingDevices() const
+{
+#if ENABLE(TOUCH_EVENTS)
+    if (screenHasTouchDevice())
+        return PointerCharacteristics::Coarse;
+#endif
+    return PointerCharacteristics::Fine;
 }
 
 } // namespace WebKit

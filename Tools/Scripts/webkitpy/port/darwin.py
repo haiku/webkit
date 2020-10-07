@@ -30,6 +30,8 @@ from webkitpy.common.system.executive import ScriptError
 from webkitpy.port.apple import ApplePort
 from webkitpy.port.leakdetector import LeakDetector
 
+from webkitcorepy import decorators
+
 
 _log = logging.getLogger(__name__)
 
@@ -98,7 +100,7 @@ class DarwinPort(ApplePort):
         return self.host.filesystem.join(log_directory, 'CrashReporter')
 
     def _merge_crash_logs(self, logs, new_logs, crashed_processes):
-        for test, crash_log in new_logs.iteritems():
+        for test, crash_log in new_logs.items():
             try:
                 if test.split('-')[0] == 'Sandbox':
                     process_name = test.split('-')[1]
@@ -186,7 +188,7 @@ class DarwinPort(ApplePort):
                     host.executive.run_command(spindump_command)
                 host.filesystem.move_to_base_host(DarwinPort.tailspin_file_path(host, name, pid, str(tempdir)),
                                                   DarwinPort.tailspin_file_path(self.host, name, pid, self.results_directory()))
-            except IOError as e:
+            except (IOError, ScriptError) as e:
                 _log.warning('Unable to symbolicate tailspin log of process:' + str(e))
         else:  # Tailspin failed, run sample instead
             try:
@@ -224,6 +226,7 @@ class DarwinPort(ApplePort):
                     sample_files[test_name] = tailspin_file
         return sample_files
 
+    @decorators.Memoize()
     def _path_to_image_diff(self):
         # ImageDiff for DarwinPorts is a little complicated. It will either be in
         # a directory named ../mac relative to the port build directory, in a directory
@@ -269,3 +272,10 @@ class DarwinPort(ApplePort):
 
     def app_executable_from_bundle(self, app_bundle):
         return self._plist_data_from_bundle(app_bundle, 'CFBundleExecutable')
+
+    def environment_for_api_tests(self):
+        environment = super(DarwinPort, self).environment_for_api_tests()
+        build_root_path = str(self._build_path())
+        for name in ['DYLD_LIBRARY_PATH', '__XPC_DYLD_LIBRARY_PATH', 'DYLD_FRAMEWORK_PATH', '__XPC_DYLD_FRAMEWORK_PATH']:
+            self._append_value_colon_separated(environment, name, build_root_path)
+        return environment

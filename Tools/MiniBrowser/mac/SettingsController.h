@@ -25,13 +25,11 @@
 
 #import <Cocoa/Cocoa.h>
 
-@interface SettingsController : NSObject {
-    NSMenu *_menu;
-}
+extern NSString * const kUserAgentChangedNotificationName;
 
-+ (instancetype)shared;
+@interface SettingsController : NSObject
 
-@property (nonatomic, readonly) NSMenu *menu;
+- (instancetype)initWithMenu:(NSMenu *)menu;
 
 @property (nonatomic, readonly) BOOL useWebKit2ByDefault;
 @property (nonatomic, readonly) BOOL createEditorByDefault;
@@ -48,7 +46,6 @@
 @property (nonatomic, readonly) BOOL wheelEventHandlerRegionOverlayVisible;
 @property (nonatomic, readonly) BOOL useUISideCompositing;
 @property (nonatomic, readonly) BOOL perWindowWebProcessesDisabled;
-@property (nonatomic, readonly) BOOL subPixelCSSOMMetricsEnabled;
 @property (nonatomic, readonly) BOOL acceleratedDrawingEnabled;
 @property (nonatomic, readonly) BOOL displayListDrawingEnabled;
 @property (nonatomic, readonly) BOOL subpixelAntialiasedLayerTextEnabled;
@@ -64,5 +61,8 @@
 @property (nonatomic, readonly) BOOL processSwapOnWindowOpenWithOpenerEnabled;
 
 @property (nonatomic, readonly) NSString *defaultURL;
+@property (nonatomic, readonly) NSString *customUserAgent;
+
+@property (nonatomic) BOOL webViewFillsWindow;
 
 @end

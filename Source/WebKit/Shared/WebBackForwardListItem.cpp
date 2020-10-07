@@ -60,6 +60,7 @@ WebBackForwardListItem::~WebBackForwardListItem()
 
 HashMap<BackForwardItemIdentifier, WebBackForwardListItem*>& WebBackForwardListItem::allItems()
 {
+    RELEASE_ASSERT(RunLoop::isMain());
     static NeverDestroyed<HashMap<BackForwardItemIdentifier, WebBackForwardListItem*>> items;
     return items;
 }
@@ -180,16 +181,6 @@ void WebBackForwardListItem::setBackForwardCacheEntry(std::unique_ptr<WebBackFor
 SuspendedPageProxy* WebBackForwardListItem::suspendedPage() const
 {
     return m_backForwardCacheEntry ? m_backForwardCacheEntry->suspendedPage() : nullptr;
-}
-
-bool WebBackForwardListItem::hasCachedWebPage() const
-{
-    if (!m_backForwardCacheEntry)
-        return false;
-    if (!m_backForwardCacheEntry->suspendedPage())
-        return true; // In-process cached page without suspended page proxy.
-    // Make sure the suspended page proxy has an associated WebPage.
-    return !m_backForwardCacheEntry->suspendedPage()->pageIsClosedOrClosing();
 }
 
 #if !LOG_DISABLED

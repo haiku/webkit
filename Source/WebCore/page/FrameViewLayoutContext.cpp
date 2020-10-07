@@ -26,7 +26,6 @@
 #include "config.h"
 #include "FrameViewLayoutContext.h"
 
-#include "CSSAnimationController.h"
 #include "DebugPageOverlays.h"
 #include "Document.h"
 #include "FrameView.h"
@@ -40,8 +39,13 @@
 #include "ScriptDisallowedScope.h"
 #include "Settings.h"
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+#include "InvalidationContext.h"
+#include "InvalidationState.h"
+#include "LayoutBoxGeometry.h"
 #include "LayoutContext.h"
 #include "LayoutState.h"
+#include "LayoutTreeBuilder.h"
+#include "RenderDescendantIterator.h"
 #endif
 
 #include <wtf/SetForScope.h>
@@ -55,8 +59,32 @@ void FrameViewLayoutContext::layoutUsingFormattingContext()
 {
     if (!RuntimeEnabledFeatures::sharedFeatures().layoutFormattingContextEnabled())
         return;
-    m_initialLayoutState = Layout::LayoutContext::runLayoutAndVerify(*renderView());
-} 
+    // FrameView::setContentsSize temporary disables layout.
+    if (m_disableSetNeedsLayoutCount)
+        return;
+
+    auto& renderView = *this->renderView();
+    m_layoutTree = Layout::TreeBuilder::buildLayoutTree(renderView);
+    m_layoutState = makeUnique<Layout::LayoutState>(*document(), m_layoutTree->root());
+    // FIXME: This is not the real invalidation yet.
+    auto invalidationState = Layout::InvalidationState { };
+    auto layoutContext = Layout::LayoutContext { *m_layoutState };
+    layoutContext.layout(view().layoutSize(), invalidationState);
+
+    // Clean up the render tree state when we don't run RenderView::layout.
+    if (renderView.needsLayout()) {
+        auto contentSize = m_layoutState->geometryForBox(*m_layoutState->root().firstChild()).logicalSize();
+        renderView.setSize(contentSize);
+        renderView.repaintViewRectangle({ 0, 0, contentSize.width(), contentSize.height() });
+
+        for (auto& descendant : descendantsOfType<RenderObject>(renderView))
+            descendant.clearNeedsLayout();
+        renderView.clearNeedsLayout();
+    }
+#ifndef NDEBUG
+    Layout::LayoutContext::verifyAndOutputMismatchingLayoutTree(*m_layoutState, renderView);
+#endif
+}
 #endif
 
 static bool isObjectAncestorContainerOf(RenderElement& ancestor, RenderElement& descendant)
@@ -157,11 +185,9 @@ void FrameViewLayoutContext::layout()
     LayoutScope layoutScope(*this);
     TraceScope tracingScope(LayoutStart, LayoutEnd);
     InspectorInstrumentation::willLayout(view().frame());
-    AnimationUpdateBlock animationUpdateBlock(&view().frame().animation());
     WeakPtr<RenderElement> layoutRoot;
     
     m_layoutTimer.stop();
-    m_delayedLayout = false;
     m_setNeedsLayoutWasDeferred = false;
 
 #if !LOG_DISABLED
@@ -288,7 +314,6 @@ void FrameViewLayoutContext::reset()
     clearSubtreeLayoutRoot();
     m_layoutCount = 0;
     m_layoutSchedulingIsEnabled = true;
-    m_delayedLayout = false;
     m_layoutTimer.stop();
     m_firstLayout = true;
     m_asynchronousTasksTimer.stop();
@@ -353,21 +378,15 @@ void FrameViewLayoutContext::scheduleLayout()
     if (frame().ownerRenderer() && view().isInChildFrameWithFrameFlattening())
         frame().ownerRenderer()->setNeedsLayout(MarkContainingBlockChain);
 
-    Seconds delay = frame().document()->minimumLayoutDelay();
-    if (m_layoutTimer.isActive() && m_delayedLayout && !delay)
-        unscheduleLayout();
-
     if (m_layoutTimer.isActive())
         return;
 
-    m_delayedLayout = delay.value();
-
 #if !LOG_DISABLED
     if (!frame().document()->ownerElement())
-        LOG(Layout, "FrameView %p scheduling layout for %.3fs", this, delay.value());
+        LOG(Layout, "FrameView %p layout timer scheduled at %.3fs", this, frame().document()->timeSinceDocumentCreation().value());
 #endif
 
-    m_layoutTimer.startOneShot(delay);
+    m_layoutTimer.startOneShot(0_s);
 }
 
 void FrameViewLayoutContext::unscheduleLayout()
@@ -384,7 +403,6 @@ void FrameViewLayoutContext::unscheduleLayout()
 #endif
 
     m_layoutTimer.stop();
-    m_delayedLayout = false;
 }
 
 void FrameViewLayoutContext::scheduleSubtreeLayout(RenderElement& layoutRoot)
@@ -402,12 +420,10 @@ void FrameViewLayoutContext::scheduleSubtreeLayout(RenderElement& layoutRoot)
     }
 
     if (!isLayoutPending() && isLayoutSchedulingEnabled()) {
-        Seconds delay = renderView.document().minimumLayoutDelay();
         ASSERT(!layoutRoot.container() || is<RenderView>(layoutRoot.container()) || !layoutRoot.container()->needsLayout());
         setSubtreeLayoutRoot(layoutRoot);
         InspectorInstrumentation::didInvalidateLayout(frame());
-        m_delayedLayout = delay.value();
-        m_layoutTimer.startOneShot(delay);
+        m_layoutTimer.startOneShot(0_s);
         return;
     }
 
@@ -576,7 +592,7 @@ void FrameViewLayoutContext::addLayoutDelta(const LayoutSize& delta)
         layoutState->addLayoutDelta(delta);
 }
     
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
 bool FrameViewLayoutContext::layoutDeltaMatches(const LayoutSize& delta)
 {
     if (auto* layoutState = this->layoutState())

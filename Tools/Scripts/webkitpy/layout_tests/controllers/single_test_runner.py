@@ -29,8 +29,8 @@
 
 import logging
 import re
-import time
 
+from webkitcorepy import string_utils
 from webkitpy.layout_tests.controllers import test_result_writer
 from webkitpy.port.driver import DriverInput, DriverOutput
 from webkitpy.layout_tests.models import test_expectations
@@ -214,7 +214,7 @@ class SingleTestRunner(object):
         elif driver_output.error:
             _log.debug("%s %s output stderr lines:" % (self._worker_name, testname))
         for line in driver_output.error.splitlines():
-            _log.debug("  %s" % line)
+            _log.debug("  {}".format(string_utils.decode(line, target_type=str)))
         return failures
 
     def _compare_output(self, expected_driver_output, driver_output):
@@ -234,6 +234,8 @@ class SingleTestRunner(object):
 
     def _compare_text(self, expected_text, actual_text):
         failures = []
+        if self._options.ignore_render_tree_dump_results and actual_text and self._render_tree_dump_pattern.match(actual_text):
+            return failures
         if (expected_text and actual_text and
             # Assuming expected_text is already normalized.
             self._port.do_text_results_differ(expected_text, self._get_normalized_output_text(actual_text))):
@@ -346,7 +348,5 @@ class SingleTestRunner(object):
                 actual_driver_output.error = (actual_driver_output.error or '') + error_string
             elif diff_result[0]:
                 failures.append(test_failures.FailureReftestMismatch(reference_filename))
-            else:
-                _log.warning("  %s -> ref test hashes didn't match but diff passed" % self._test_name)
 
         return TestResult(self._test_name, failures, total_test_time, has_stderr, pid=actual_driver_output.pid)

@@ -51,11 +51,11 @@ JSEventListener::JSEventListener(JSObject* function, JSObject* wrapper, bool isA
     , m_isAttribute(isAttribute)
     , m_isolatedWorld(isolatedWorld)
 {
-    if (wrapper) {
-        JSC::Heap::heap(wrapper)->writeBarrier(wrapper, function);
+    if (function) {
+        ASSERT(wrapper);
         m_jsFunction = JSC::Weak<JSC::JSObject>(function);
-    } else
-        ASSERT(!function);
+        m_isInitialized = true;
+    }
 }
 
 JSEventListener::~JSEventListener() = default;
@@ -80,7 +80,7 @@ JSObject* JSEventListener::initializeJSFunction(ScriptExecutionContext&) const
 
 void JSEventListener::visitJSFunction(SlotVisitor& visitor)
 {
-    // If m_wrapper is null, then m_jsFunction is zombied, and should never be accessed.
+    // If m_wrapper is null, we are not keeping m_jsFunction alive.
     if (!m_wrapper)
         return;
 
@@ -110,7 +110,7 @@ void JSEventListener::handleEvent(ScriptExecutionContext& scriptExecutionContext
     // "If this throws an exception, report the exception." It should not propagate the
     // exception.
 
-    JSObject* jsFunction = this->jsFunction(scriptExecutionContext);
+    JSObject* jsFunction = ensureJSFunction(scriptExecutionContext);
     if (!jsFunction)
         return;
 
@@ -122,7 +122,7 @@ void JSEventListener::handleEvent(ScriptExecutionContext& scriptExecutionContext
         JSDOMWindow* window = jsCast<JSDOMWindow*>(globalObject);
         if (!window->wrapped().isCurrentlyDisplayedInFrame())
             return;
-        if (wasCreatedFromMarkup() && !scriptExecutionContext.contentSecurityPolicy()->allowInlineEventHandlers(sourceURL(), sourcePosition().m_line))
+        if (wasCreatedFromMarkup() && !scriptExecutionContext.contentSecurityPolicy()->allowInlineEventHandlers(sourceURL().string(), sourcePosition().m_line))
             return;
         // FIXME: Is this check needed for other contexts?
         ScriptController& script = window->wrapped().frame()->script();
@@ -134,11 +134,13 @@ void JSEventListener::handleEvent(ScriptExecutionContext& scriptExecutionContext
 
     JSValue handleEventFunction = jsFunction;
 
-    CallData callData;
-    CallType callType = getCallData(vm, handleEventFunction, callData);
+    auto callData = getCallData(vm, handleEventFunction);
 
-    // If jsFunction is not actually a function, see if it implements the EventListener interface and use that
-    if (callType == CallType::None) {
+    // If jsFunction is not actually a function and this is an EventListener, see if it implements callback interface.
+    if (callData.type == CallData::Type::None) {
+        if (m_isAttribute)
+            return;
+
         handleEventFunction = jsFunction->get(lexicalGlobalObject, Identifier::fromString(vm, "handleEvent"));
         if (UNLIKELY(scope.exception())) {
             auto* exception = scope.exception();
@@ -147,11 +149,13 @@ void JSEventListener::handleEvent(ScriptExecutionContext& scriptExecutionContext
             reportException(lexicalGlobalObject, exception);
             return;
         }
-        callType = getCallData(vm, handleEventFunction, callData);
+        callData = getCallData(vm, handleEventFunction);
+        if (callData.type == CallData::Type::None) {
+            event.target()->uncaughtExceptionInEventHandler();
+            reportException(lexicalGlobalObject, createTypeError(lexicalGlobalObject, "'handleEvent' property of event listener should be callable"_s));
+            return;
+        }
     }
-
-    if (callType == CallType::None)
-        return;
 
     Ref<JSEventListener> protectedThis(*this);
 
@@ -168,28 +172,34 @@ void JSEventListener::handleEvent(ScriptExecutionContext& scriptExecutionContext
 
     VMEntryScope entryScope(vm, vm.entryScope ? vm.entryScope->globalObject() : globalObject);
 
-    JSExecState::instrumentFunctionCall(&scriptExecutionContext, callType, callData);
+    JSExecState::instrumentFunction(&scriptExecutionContext, callData);
 
     JSValue thisValue = handleEventFunction == jsFunction ? toJS(lexicalGlobalObject, globalObject, event.currentTarget()) : jsFunction;
     NakedPtr<JSC::Exception> exception;
-    JSValue retval = JSExecState::profiledCall(lexicalGlobalObject, JSC::ProfilingReason::Other, handleEventFunction, callType, callData, thisValue, args, exception);
+    JSValue retval = JSExecState::profiledCall(lexicalGlobalObject, JSC::ProfilingReason::Other, handleEventFunction, callData, thisValue, args, exception);
 
     InspectorInstrumentation::didCallFunction(&scriptExecutionContext);
 
     globalObject->setCurrentEvent(savedEvent);
 
-    if (is<WorkerGlobalScope>(scriptExecutionContext)) {
-        auto& scriptController = *downcast<WorkerGlobalScope>(scriptExecutionContext).script();
-        bool terminatorCausedException = (scope.exception() && isTerminatedExecutionException(vm, scope.exception()));
-        if (terminatorCausedException || scriptController.isTerminatingExecution())
-            scriptController.forbidExecution();
-    }
+    auto handleExceptionIfNeeded = [&] () -> bool {
+        if (is<WorkerGlobalScope>(scriptExecutionContext)) {
+            auto& scriptController = *downcast<WorkerGlobalScope>(scriptExecutionContext).script();
+            bool terminatorCausedException = (scope.exception() && isTerminatedExecutionException(vm, scope.exception()));
+            if (terminatorCausedException || scriptController.isTerminatingExecution())
+                scriptController.forbidExecution();
+        }
 
-    if (exception) {
-        event.target()->uncaughtExceptionInEventHandler();
-        reportException(lexicalGlobalObject, exception);
+        if (exception) {
+            event.target()->uncaughtExceptionInEventHandler();
+            reportException(lexicalGlobalObject, exception);
+            return true;
+        }
+        return false;
+    };
+
+    if (handleExceptionIfNeeded())
         return;
-    }
 
     if (!m_isAttribute) {
         // This is an EventListener and there is therefore no need for any return value handling.
@@ -200,8 +210,15 @@ void JSEventListener::handleEvent(ScriptExecutionContext& scriptExecutionContext
 
     if (event.type() == eventNames().beforeunloadEvent) {
         // This is a OnBeforeUnloadEventHandler, and therefore the return value must be coerced into a String.
-        if (is<BeforeUnloadEvent>(event))
-            handleBeforeUnloadEventReturnValue(downcast<BeforeUnloadEvent>(event), convert<IDLNullable<IDLDOMString>>(*lexicalGlobalObject, retval));
+        if (is<BeforeUnloadEvent>(event)) {
+            String resultStr = convert<IDLNullable<IDLDOMString>>(*lexicalGlobalObject, retval);
+            if (UNLIKELY(scope.exception())) {
+                exception = scope.exception();
+                if (handleExceptionIfNeeded())
+                    return;
+            }
+            handleBeforeUnloadEventReturnValue(downcast<BeforeUnloadEvent>(event), resultStr);
+        }
         return;
     }
 
@@ -217,12 +234,27 @@ bool JSEventListener::operator==(const EventListener& listener) const
     return m_jsFunction == other.m_jsFunction && m_isAttribute == other.m_isAttribute;
 }
 
+String JSEventListener::functionName() const
+{
+    if (!m_wrapper || !m_jsFunction)
+        return { };
+
+    auto& vm = isolatedWorld().vm();
+    JSC::JSLockHolder lock(vm);
+
+    auto* handlerFunction = JSC::jsDynamicCast<JSC::JSFunction*>(vm, m_jsFunction.get());
+    if (!handlerFunction)
+        return { };
+
+    return handlerFunction->name(vm);
+}
+
 static inline JSC::JSValue eventHandlerAttribute(EventListener* abstractListener, ScriptExecutionContext& context)
 {
     if (!is<JSEventListener>(abstractListener))
         return jsNull();
 
-    auto* function = downcast<JSEventListener>(*abstractListener).jsFunction(context);
+    auto* function = downcast<JSEventListener>(*abstractListener).ensureJSFunction(context);
     if (!function)
         return jsNull();
 

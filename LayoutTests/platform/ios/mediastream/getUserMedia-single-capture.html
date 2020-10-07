@@ -1,3 +1,4 @@
+<!-- webkit-test-runner [ enableCaptureAudioInGPUProcess=false enableCaptureVideoInGPUProcess=false ] -->
 <!doctype html>
 <html>
     <head>
@@ -8,6 +9,15 @@
     </head>
     <body>
         <script>
+
+async function waitForTrackMuted(track)
+{
+    if (track.muted)
+        return;
+
+    return new Promise(resolve => track.onmute = resolve);
+}
+
 promise_test((test) => {
     if (window.testRunner)
         testRunner.setUserMediaPermission(true);
@@ -15,7 +25,7 @@ promise_test((test) => {
     var firstStream;
     var audioTrack;
     var videoTrack;
-    return navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then((stream) => {
+    return navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: { exact: ['user'] } } }).then((stream) => {
         firstStream = stream;
         audioTrack = firstStream.getAudioTracks()[0];
         videoTrack = firstStream.getVideoTracks()[0];
@@ -24,13 +34,17 @@ promise_test((test) => {
         assert_false(videoTrack.muted, "video track is active");
 
         return navigator.mediaDevices.getUserMedia({ audio: true});
-    }).then((stream) => {
+    }).then(async (stream) => {
+        await waitForTrackMuted(audioTrack);
+
         assert_true(audioTrack.muted, "audio track is muted");
         assert_false(videoTrack.muted, "video track is active");
 
-        return navigator.mediaDevices.getUserMedia({ video: true});
-    }).then((stream) => {
-        assert_true(audioTrack.muted, "audio track is muted");
+        return navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: ["environment"] } } });
+    }).then(async (stream) => {
+        await waitForTrackMuted(videoTrack);
+
+        assert_true(audioTrack.muted, "audio track is muted, second check");
         assert_true(videoTrack.muted, "video track is muted");
     });
 }, "Testing successive getUserMedia calls");

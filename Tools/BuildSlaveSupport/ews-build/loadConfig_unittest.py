@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2018 Apple Inc. All rights reserved.
+# Copyright (C) 2018-2020 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,22 +31,83 @@ import loadConfig
 
 
 class ConfigDotJSONTest(unittest.TestCase):
+    def get_config(self):
+        cwd = os.path.dirname(os.path.abspath(__file__))
+        return json.load(open(os.path.join(cwd, 'config.json')))
+
+    def get_builder_from_config(self, config, builder_name):
+        for builder in config['builders']:
+            if builder_name == builder.get('name'):
+                return builder
+
     def test_configuration(self):
         cwd = os.path.dirname(os.path.abspath(__file__))
         loadConfig.loadBuilderConfig({}, is_test_mode_enabled=True, master_prefix_path=cwd)
 
     def test_builder_keys(self):
-        cwd = os.path.dirname(os.path.abspath(__file__))
-        config = json.load(open(os.path.join(cwd, 'config.json')))
+        config = self.get_config()
         valid_builder_keys = ['additionalArguments', 'architectures', 'builddir', 'configuration', 'description',
                               'defaultProperties', 'env', 'factory', 'icon', 'locks', 'name', 'platform', 'properties',
-                              'runTests', 'shortname', 'tags', 'triggers', 'workernames', 'workerbuilddir']
+                              'remotes', 'runTests', 'shortname', 'tags', 'triggers', 'triggered_by', 'workernames', 'workerbuilddir']
         for builder in config.get('builders', []):
             for key in builder:
                 self.assertTrue(key in valid_builder_keys, 'Unexpected key "{}" for builder {}'.format(key, builder.get('name')))
 
+    def test_multiple_scheduers_for_builder(self):
+        config = self.get_config()
+        builder_to_schduler_map = {}
+        triggered_by_schedulers = []
+        for builder in config['builders']:
+            triggered_by = builder.get('triggered_by')
+            if triggered_by:
+                triggered_by_schedulers.extend(triggered_by)
 
-class TagsForBuilderTeest(unittest.TestCase):
+        for scheduler in config.get('schedulers'):
+            if scheduler['name'] in triggered_by_schedulers:
+                continue
+            for buildername in scheduler.get('builderNames'):
+                self.assertTrue(buildername not in builder_to_schduler_map, 'builder {} appears multiple times in schedulers.'.format(buildername))
+                builder_to_schduler_map[buildername] = scheduler.get('name')
+
+    def test_schduler_contains_valid_builder_name(self):
+        config = self.get_config()
+        builder_name_list = [builder['name'] for builder in config['builders']]
+        for scheduler in config.get('schedulers'):
+            for buildername in scheduler.get('builderNames'):
+                self.assertTrue(buildername in builder_name_list, 'builder "{}" in scheduler "{}" is invalid.'.format(buildername, scheduler['name']))
+
+    def test_single_builder_for_triggerable_scheduler(self):
+        config = self.get_config()
+        for scheduler in config['schedulers']:
+            if scheduler.get('type') == 'Triggerable':
+                self.assertTrue(len(scheduler.get('builderNames')) == 1, 'scheduler "{}" triggers multiple builders.'.format(scheduler['name']))
+
+    def test_incorrect_triggered_by(self):
+        config = self.get_config()
+        schedulers_to_buildername_map = {}
+        for scheduler in config['schedulers']:
+            schedulers_to_buildername_map[scheduler['name']] = scheduler['builderNames']
+
+        for builder in config['builders']:
+            for key, value in builder.iteritems():
+                if key == 'triggered_by':
+                    self.assertTrue(len(value) == 1, 'triggered_by "{}" is invalid, it should contain a single trigger.'.format(value))
+                    self.assertTrue(value[0] in schedulers_to_buildername_map.keys(),
+                                    'triggered_by "{}" for builder "{}" is not listed in schedulers section.'.format(value[0], builder['name']))
+
+                    # Ensure that the triggered_by is correct, verify by matching that the builder for the triggered_by scheduler actually triggers current builder
+                    triggered_by = value[0]
+                    triggering_builder_name = schedulers_to_buildername_map.get(triggered_by)[0]
+                    triggering_builder = self.get_builder_from_config(config, triggering_builder_name)
+                    self.assertTrue(triggering_builder, 'builder "{}" in scheduler "{}" is invalid.'.format(triggering_builder_name, triggered_by))
+                    triggering_builder_triggers = triggering_builder.get('triggers')
+                    triggering_builder_triggers_buildernames = [schedulers_to_buildername_map[scheduler][0] for scheduler in triggering_builder_triggers]
+                    self.assertTrue(builder['name'] in triggering_builder_triggers_buildernames,
+                                    'Incorrect triggered_by "{}" in builder "{}", this builder is not in corresponding builder triggers "{}".'
+                                    .format(triggered_by, builder['name'], triggering_builder_triggers_buildernames))
+
+
+class TagsForBuilderTest(unittest.TestCase):
     def verifyTags(self, builderName, expectedTags):
         tags = loadConfig.getTagsForBuilder({'name': builderName})
         self.assertEqual(sorted(tags), sorted(expectedTags))
@@ -60,7 +121,8 @@ class TagsForBuilderTeest(unittest.TestCase):
         self.verifyTags('iOS(11),(test)-EWS', ['iOS', 'test'])
         self.verifyTags('Windows-EWS', ['Windows'])
         self.verifyTags('Windows_Windows', ['Windows'])
-        self.verifyTags('GTK-Webkit2-EWS', ['GTK', 'Webkit2'])
+        self.verifyTags('GTK-Build-EWS', ['GTK', 'Build'])
+        self.verifyTags('GTK-WK2-Tests-EWS', ['GTK', 'WK2', 'Tests'])
         self.verifyTags('macOS-Sierra-Release-WK1-EWS', ['Sierra', 'Release', 'macOS', 'WK1'])
         self.verifyTags('macOS-High-Sierra-Release-32bit-WK2-EWS', ['macOS', 'High', 'Sierra', 'Release', 'WK2', '32bit'])
 

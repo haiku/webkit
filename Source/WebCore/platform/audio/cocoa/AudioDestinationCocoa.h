@@ -28,19 +28,24 @@
 #if ENABLE(WEB_AUDIO)
 
 #include "AudioDestination.h"
+#include "AudioIOCallback.h"
+#include "AudioSourceProvider.h"
 #include <AudioUnit/AudioUnit.h>
 #include <wtf/RefPtr.h>
+#include <wtf/UniqueRef.h>
 
 namespace WebCore {
 
 class AudioBus;
+class MultiChannelResampler;
+class PushPullFIFO;
 
-using CreateAudioDestinationCocoaOverride = std::unique_ptr<AudioDestination>(*)(AudioIOCallback&, float sampleRate);
+using CreateAudioDestinationCocoaOverride = Ref<AudioDestination>(*)(AudioIOCallback&, float sampleRate);
 
 // An AudioDestination using CoreAudio's default output AudioUnit
-class AudioDestinationCocoa : public AudioDestination {
+class AudioDestinationCocoa : public AudioDestination, public AudioSourceProvider {
 public:
-    AudioDestinationCocoa(AudioIOCallback&, float sampleRate);
+    AudioDestinationCocoa(AudioIOCallback&, unsigned numberOfOutputChannels, float sampleRate);
     virtual ~AudioDestinationCocoa();
 
     WEBCORE_EXPORT static CreateAudioDestinationCocoaOverride createOverride;
@@ -49,35 +54,56 @@ protected:
     void setIsPlaying(bool);
 
     bool isPlaying() final { return m_isPlaying; }
-    float sampleRate() const final { return m_sampleRate; }
+    float sampleRate() const final { return m_contextSampleRate; }
+    unsigned framesPerBuffer() const final;
     AudioUnit& outputUnit() { return m_outputUnit; }
+
+    unsigned numberOfOutputChannels() const;
     
     // DefaultOutputUnit callback
     static OSStatus inputProc(void* userData, AudioUnitRenderActionFlags*, const AudioTimeStamp*, UInt32 busNumber, UInt32 numberOfFrames, AudioBufferList* ioData);
 
-    void setAudioStreamBasicDescription(AudioStreamBasicDescription&, float sampleRate);
+    void setAudioStreamBasicDescription(AudioStreamBasicDescription&);
+
+    Function<void(Function<void()>&&)> m_dispatchToRenderThread;
 
 private:
-    void start() override;
+    void start(Function<void(Function<void()>&&)>&&) override;
     void stop() override;
 
-    friend std::unique_ptr<AudioDestination> AudioDestination::create(AudioIOCallback&, const String&, unsigned, unsigned, float);
+    void renderOnRenderingThead(size_t framesToRender);
+
+    friend Ref<AudioDestination> AudioDestination::create(AudioIOCallback&, const String&, unsigned, unsigned, float);
     
+    // AudioSourceProvider.
+    void provideInput(AudioBus*, size_t framesToProcess) final;
+
     void configure();
     void processBusAfterRender(AudioBus&, UInt32 numberOfFrames);
 
-    OSStatus render(UInt32 numberOfFrames, AudioBufferList* ioData);
+    OSStatus render(const AudioTimeStamp*, UInt32 numberOfFrames, AudioBufferList* ioData);
 
     AudioUnit m_outputUnit;
     AudioIOCallback& m_callback;
+
+    // To pass the data from FIFO to the audio device callback.
+    Ref<AudioBus> m_outputBus;
+
+    // To push the rendered result from WebAudio graph into the FIFO.
     Ref<AudioBus> m_renderBus;
-    Ref<AudioBus> m_spareBus;
 
-    float m_sampleRate;
+    // Resolves the buffer size mismatch between the WebAudio engine and
+    // the callback function from the actual audio device.
+    UniqueRef<PushPullFIFO> m_fifo;
+    Lock m_fifoLock;
+
+    std::unique_ptr<MultiChannelResampler> m_resampler;
+    AudioIOPosition m_outputTimestamp;
+
+    float m_contextSampleRate;
+
+    Lock m_isPlayingLock;
     bool m_isPlaying { false };
-
-    unsigned m_startSpareFrame { 0 };
-    unsigned m_endSpareFrame { 0 };
 };
 
 } // namespace WebCore

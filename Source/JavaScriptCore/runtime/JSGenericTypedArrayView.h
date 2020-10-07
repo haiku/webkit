@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -88,22 +88,20 @@ enum class CopyType {
     Unobservable,
 };
 
-static const ASCIILiteral typedArrayBufferHasBeenDetachedErrorMessage { "Underlying ArrayBuffer has been detached from the view"_s };
+extern const ASCIILiteral typedArrayBufferHasBeenDetachedErrorMessage;
+
+JSC_DECLARE_CUSTOM_GETTER(throwNeuteredTypedArrayTypeError);
 
 template<typename Adaptor>
 class JSGenericTypedArrayView final : public JSArrayBufferView {
 public:
-    typedef JSArrayBufferView Base;
+    using Base = JSArrayBufferView;
     typedef typename Adaptor::Type ElementType;
 
-    static constexpr unsigned StructureFlags = Base::StructureFlags | OverridesGetPropertyNames | OverridesGetOwnPropertySlot | InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero;
+    static constexpr unsigned StructureFlags = Base::StructureFlags | OverridesAnyFormOfGetPropertyNames | OverridesGetOwnPropertySlot | InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero;
 
     static constexpr unsigned elementSize = sizeof(typename Adaptor::Type);
-    
-protected:
-    JSGenericTypedArrayView(VM&, ConstructionContext&);
-    
-public:
+
     static JSGenericTypedArrayView* create(JSGlobalObject*, Structure*, unsigned length);
     static JSGenericTypedArrayView* createWithFastVector(JSGlobalObject*, Structure*, unsigned length, void* vector);
     static JSGenericTypedArrayView* createUninitialized(JSGlobalObject*, Structure*, unsigned length);
@@ -258,7 +256,35 @@ public:
             return getFloat64ArrayClassInfo();
         default:
             RELEASE_ASSERT_NOT_REACHED();
-            return 0;
+            return nullptr;
+        }
+    }
+
+    template<typename CellType, SubspaceAccess mode>
+    static IsoSubspace* subspaceFor(VM& vm)
+    {
+        switch (Adaptor::typeValue) {
+        case TypeInt8:
+            return vm.int8ArraySpace<mode>();
+        case TypeInt16:
+            return vm.int16ArraySpace<mode>();
+        case TypeInt32:
+            return vm.int32ArraySpace<mode>();
+        case TypeUint8:
+            return vm.uint8ArraySpace<mode>();
+        case TypeUint8Clamped:
+            return vm.uint8ClampedArraySpace<mode>();
+        case TypeUint16:
+            return vm.uint16ArraySpace<mode>();
+        case TypeUint32:
+            return vm.uint32ArraySpace<mode>();
+        case TypeFloat32:
+            return vm.float32ArraySpace<mode>();
+        case TypeFloat64:
+            return vm.float64ArraySpace<mode>();
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+            return nullptr;
         }
     }
     
@@ -269,15 +295,15 @@ public:
     // This is the default DOM unwrapping. It calls toUnsharedNativeTypedView().
     static RefPtr<typename Adaptor::ViewType> toWrapped(VM&, JSValue);
     
-protected:
+private:
     friend struct TypedArrayClassInfos;
 
-    static EncodedJSValue throwNeuteredTypedArrayTypeError(JSGlobalObject*, EncodedJSValue, PropertyName);
+    JSGenericTypedArrayView(VM&, ConstructionContext&);
 
     static bool getOwnPropertySlot(JSObject*, JSGlobalObject*, PropertyName, PropertySlot&);
     static bool put(JSCell*, JSGlobalObject*, PropertyName, JSValue, PutPropertySlot&);
     static bool defineOwnProperty(JSObject*, JSGlobalObject*, PropertyName, const PropertyDescriptor&, bool shouldThrow);
-    static bool deleteProperty(JSCell*, JSGlobalObject*, PropertyName);
+    static bool deleteProperty(JSCell*, JSGlobalObject*, PropertyName, DeletePropertySlot&);
 
     static bool getOwnPropertySlotByIndex(JSObject*, JSGlobalObject*, unsigned propertyName, PropertySlot&);
     static bool putByIndex(JSCell*, JSGlobalObject*, unsigned propertyName, JSValue, bool shouldThrow);
@@ -288,7 +314,6 @@ protected:
     static size_t estimatedSize(JSCell*, VM&);
     static void visitChildren(JSCell*, SlotVisitor&);
 
-private:
     // Returns true if successful, and false on error; it will throw on error.
     template<typename OtherAdaptor>
     bool setWithSpecificType(

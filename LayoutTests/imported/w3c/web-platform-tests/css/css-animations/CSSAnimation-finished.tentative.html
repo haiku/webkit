@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset=utf-8>
 <title>CSSAnimation.finished</title>
-<!--  TODO: Add a more specific link for this once it is specified.  -->
+<!-- TODO: Add a more specific link for this once it is specified. -->
 <link rel="help" href="https://drafts.csswg.org/css-animations-2/#cssanimation">
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
@@ -31,7 +31,7 @@ promise_test(async t => {
   div.style.animation = '';
   getComputedStyle(div).animation;
 
-  await promise_rejects(t, 'AbortError', originalFinishedPromise,
+  await promise_rejects_dom(t, 'AbortError', originalFinishedPromise,
                         'finished promise is rejected with AbortError');
 
   assert_not_equals(animation.finished, originalFinishedPromise,
@@ -55,7 +55,7 @@ promise_test(async t => {
   div.style.animation = 'def 100s';
   getComputedStyle(div).animation;
 
-  await promise_rejects(t, 'AbortError', originalFinishedPromise,
+  await promise_rejects_dom(t, 'AbortError', originalFinishedPromise,
                         'finished promise is rejected with AbortError');
 
   assert_not_equals(animation.finished, originalFinishedPromise,

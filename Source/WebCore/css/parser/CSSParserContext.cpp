@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2018-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,7 +37,7 @@ namespace WebCore {
 
 const CSSParserContext& strictCSSParserContext()
 {
-    static NeverDestroyed<CSSParserContext> strictContext(HTMLStandardMode);
+    static MainThreadNeverDestroyed<CSSParserContext> strictContext(HTMLStandardMode);
     return strictContext;
 }
 
@@ -75,7 +75,9 @@ CSSParserContext::CSSParserContext(const Document& document, const URL& sheetBas
     attachmentEnabled = RuntimeEnabledFeatures::sharedFeatures().attachmentElementEnabled();
 #endif
     deferredCSSParserEnabled = document.settings().deferredCSSParserEnabled();
+    scrollBehaviorEnabled = document.settings().CSSOMViewSmoothScrollingEnabled();
     useSystemAppearance = document.page() ? document.page()->useSystemAppearance() : false;
+    individualTransformPropertiesEnabled = document.settings().cssIndividualTransformPropertiesEnabled();
 }
 
 bool operator==(const CSSParserContext& a, const CSSParserContext& b)
@@ -99,8 +101,28 @@ bool operator==(const CSSParserContext& a, const CSSParserContext& b)
         && a.attachmentEnabled == b.attachmentEnabled
 #endif
         && a.deferredCSSParserEnabled == b.deferredCSSParserEnabled
+        && a.scrollBehaviorEnabled == b.scrollBehaviorEnabled
+        && a.individualTransformPropertiesEnabled == b.individualTransformPropertiesEnabled
         && a.hasDocumentSecurityOrigin == b.hasDocumentSecurityOrigin
         && a.useSystemAppearance == b.useSystemAppearance;
+}
+
+URL CSSParserContext::completeURL(const String& url) const
+{
+    auto completedURL = [&] {
+        if (url.isNull())
+            return URL();
+        if (charset.isEmpty())
+            return URL(baseURL, url);
+        TextEncoding encoding(charset);
+        auto& encodingForURLParsing = encoding.encodingForFormSubmissionOrURLParsing();
+        return URL(baseURL, url, encodingForURLParsing == UTF8Encoding() ? nullptr : &encodingForURLParsing);
+    }();
+
+    if (mode == WebVTTMode && !completedURL.protocolIsData())
+        return URL();
+
+    return completedURL;
 }
 
 }

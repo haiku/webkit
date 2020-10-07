@@ -24,16 +24,15 @@
  */
 
 #include "config.h"
-#include "RemoteScrollingCoordinatorProxy.h"
 
-#if ENABLE(ASYNC_SCROLLING)
+#if ENABLE(UI_SIDE_COMPOSITING)
+#include "RemoteScrollingCoordinatorProxy.h"
 
 #include "ArgumentCoders.h"
 #include "RemoteLayerTreeDrawingAreaProxy.h"
 #include "RemoteScrollingCoordinator.h"
 #include "RemoteScrollingCoordinatorMessages.h"
 #include "RemoteScrollingCoordinatorTransaction.h"
-#include "VersionChecks.h"
 #include "WebPageProxy.h"
 #include "WebProcessProxy.h"
 #include <WebCore/RuntimeApplicationChecks.h>
@@ -42,6 +41,7 @@
 #include <WebCore/ScrollingStatePositionedNode.h>
 #include <WebCore/ScrollingStateTree.h>
 #include <WebCore/ScrollingTreeFrameScrollingNode.h>
+#include <WebCore/VersionChecks.h>
 
 namespace WebKit {
 using namespace WebCore;
@@ -49,8 +49,6 @@ using namespace WebCore;
 RemoteScrollingCoordinatorProxy::RemoteScrollingCoordinatorProxy(WebPageProxy& webPageProxy)
     : m_webPageProxy(webPageProxy)
     , m_scrollingTree(RemoteScrollingTree::create(*this))
-    , m_requestedScrollInfo(nullptr)
-    , m_propagatesMainFrameScrolls(true)
 {
 }
 
@@ -176,10 +174,20 @@ void RemoteScrollingCoordinatorProxy::establishLayerTreeScrollingRelations(const
 
 #endif
 
-bool RemoteScrollingCoordinatorProxy::handleWheelEvent(const PlatformWheelEvent& event)
+bool RemoteScrollingCoordinatorProxy::handleWheelEvent(const PlatformWheelEvent& wheelEvent)
 {
-    ScrollingEventResult result = m_scrollingTree->tryToHandleWheelEvent(event);
-    return result == ScrollingEventResult::DidHandleEvent; // FIXME: handle other values.
+    if (!m_scrollingTree)
+        return false;
+
+    auto processingSteps = m_scrollingTree->determineWheelEventProcessing(wheelEvent);
+    if (processingSteps.containsAny({ WheelEventProcessingSteps::MainThreadForScrolling, WheelEventProcessingSteps::MainThreadForDOMEventDispatch }))
+        return false;
+
+    if (m_scrollingTree->willWheelEventStartSwipeGesture(wheelEvent))
+        return false;
+
+    auto result = m_scrollingTree->handleWheelEvent(wheelEvent);
+    return result.wasHandled;
 }
 
 void RemoteScrollingCoordinatorProxy::handleMouseEvent(const WebCore::PlatformMouseEvent& event)
@@ -228,11 +236,11 @@ void RemoteScrollingCoordinatorProxy::scrollingTreeNodeDidScroll(ScrollingNodeID
     m_webPageProxy.send(Messages::RemoteScrollingCoordinator::ScrollPositionChangedForNode(scrolledNodeID, newScrollPosition, scrollingLayerPositionAction == ScrollingLayerPositionAction::Sync));
 }
 
-void RemoteScrollingCoordinatorProxy::scrollingTreeNodeRequestsScroll(ScrollingNodeID scrolledNodeID, const FloatPoint& scrollPosition, bool representsProgrammaticScroll)
+void RemoteScrollingCoordinatorProxy::scrollingTreeNodeRequestsScroll(ScrollingNodeID scrolledNodeID, const FloatPoint& scrollPosition, ScrollType scrollType, ScrollClamping)
 {
     if (scrolledNodeID == rootScrollingNodeID() && m_requestedScrollInfo) {
         m_requestedScrollInfo->requestsScrollPositionUpdate = true;
-        m_requestedScrollInfo->requestIsProgrammaticScroll = representsProgrammaticScroll;
+        m_requestedScrollInfo->requestIsProgrammaticScroll = scrollType == ScrollType::Programmatic;
         m_requestedScrollInfo->requestedScrollPosition = scrollPosition;
     }
 }
@@ -248,18 +256,23 @@ String RemoteScrollingCoordinatorProxy::scrollingTreeAsText() const
 bool RemoteScrollingCoordinatorProxy::hasScrollableMainFrame() const
 {
     auto* rootNode = m_scrollingTree->rootNode();
+    return rootNode && rootNode->canHaveScrollbars();
+}
+
+bool RemoteScrollingCoordinatorProxy::hasScrollableOrZoomedMainFrame() const
+{
+    auto* rootNode = m_scrollingTree->rootNode();
     if (!rootNode)
         return false;
 
 #if PLATFORM(IOS_FAMILY)
-    if (WebCore::IOSApplication::isEventbrite() && !linkedOnOrAfter(WebKit::SDKVersion::FirstThatSupportsOverflowHiddenOnMainFrame))
+    if (WebCore::IOSApplication::isEventbrite() && !linkedOnOrAfter(WebCore::SDKVersion::FirstThatSupportsOverflowHiddenOnMainFrame))
         return true;
 #endif
 
     return rootNode->canHaveScrollbars() || rootNode->visualViewportIsSmallerThanLayoutViewport();
 }
 
-#if ENABLE(POINTER_EVENTS)
 OptionSet<TouchAction> RemoteScrollingCoordinatorProxy::activeTouchActionsForTouchIdentifier(unsigned touchIdentifier) const
 {
     auto iterator = m_touchActionsByTouchIdentifier.find(touchIdentifier);
@@ -278,8 +291,24 @@ void RemoteScrollingCoordinatorProxy::clearTouchActionsForTouchIdentifier(unsign
     m_touchActionsByTouchIdentifier.remove(touchIdentifier);
 }
 
+void RemoteScrollingCoordinatorProxy::sendUIStateChangedIfNecessary()
+{
+    if (!m_uiState.changes())
+        return;
+
+    m_webPageProxy.send(Messages::RemoteScrollingCoordinator::ScrollingStateInUIProcessChanged(m_uiState));
+    m_uiState.clearChanges();
+}
+
+void RemoteScrollingCoordinatorProxy::resetStateAfterProcessExited()
+{
+#if ENABLE(CSS_SCROLL_SNAP)
+    m_currentHorizontalSnapPointIndex = 0;
+    m_currentVerticalSnapPointIndex = 0;
 #endif
+    m_uiState.reset();
+}
 
 } // namespace WebKit
 
-#endif // ENABLE(ASYNC_SCROLLING)
+#endif // ENABLE(UI_SIDE_COMPOSITING)

@@ -1,10 +1,11 @@
 CONSOLE MESSAGE: Unhandled Promise Rejection: TypeError: Not enough arguments
-This tests that the navigator object of a deleted frame is disconnected properly. Accessing fields or methods shouldn't crash the browser. 
+This tests that the navigator object of a deleted frame is disconnected properly. Accessing fields or methods shouldn't crash the browser.
  Check Navigator
 navigator.appCodeName is OK
 navigator.appName is OK
 navigator.appVersion is OK
 navigator.clipboard is OK
+navigator.contacts is OK
 navigator.cookieEnabled is OK
 navigator.credentials is OK
 navigator.getStorageUpdates() is OK
@@ -29,6 +30,7 @@ navigator.appCodeName is OK
 navigator.appName is OK
 navigator.appVersion is OK
 navigator.clipboard is OK
+navigator.contacts is OK
 navigator.cookieEnabled is OK
 navigator.credentials is OK
 navigator.getStorageUpdates() is OK

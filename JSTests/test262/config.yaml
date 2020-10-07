@@ -1,40 +1,31 @@
 
 ---
 flags:
-  coalesce-expression: useNullishAwareOperators
-  optional-chaining: useNullishAwareOperators
-  BigInt: useBigInt
   WeakRef: useWeakRefs
+  FinalizationRegistry: useWeakRefs
+  class-fields-public: usePublicClassFields
+  class-fields-private: usePrivateClassFields
+  Intl.DateTimeFormat-dayPeriod: useIntlDateTimeFormatDayPeriod
 skip:
   features:
     - SharedArrayBuffer
     - Atomics
-    # https://bugs.webkit.org/show_bug.cgi?id=166693
-    - async-iteration
+    - Atomics.waitAsync
     # https://bugs.webkit.org/show_bug.cgi?id=174931
     - regexp-lookbehind
+    - legacy-regexp
 
-    - class-fields-public
-    - class-fields-private
     - class-methods-private
     - class-static-fields-public
     - class-static-fields-private
     - class-static-methods-private
+    - cleanupSome
     - host-gc-required
+    # https://bugs.webkit.org/show_bug.cgi?id=202475
     - regexp-match-indices
     - top-level-await
-    - FinalizationGroup
-    - Intl.DateTimeFormat-datetimestyle
-    - Intl.DateTimeFormat-formatRange
     - Intl.ListFormat
-    - Intl.Locale
-    - Intl.NumberFormat-unified
-    - Intl.RelativeTimeFormat
-    - Intl.Segmenter
   paths:
-    # https://bugs.webkit.org/show_bug.cgi?id=192920
-    - test/intl402/NumberFormat/prototype/formatToParts
-
     - test/built-ins/DataView/prototype/getBigInt64
     - test/built-ins/DataView/prototype/getBigUint64
     - test/built-ins/DataView/prototype/setBigInt64
@@ -81,43 +72,11 @@ skip:
     - test/built-ins/TypedArrayConstructors/internals/OwnPropertyKeys/BigInt
     - test/built-ins/TypedArrayConstructors/internals/Set/BigInt
     - test/built-ins/TypedArrayConstructors/of/BigInt
+
+    # requires ICU APIs implementation
+    # https://bugs.webkit.org/show_bug.cgi?id=213822
+    - test/intl402/DateTimeFormat/prototype/formatRangeToParts
   files:
-    - test/built-ins/Array/prototype/reverse/length-exceeding-integer-limit-with-object.js
-    - test/built-ins/Array/prototype/unshift/length-near-integer-limit.js
-
-    # https://bugs.webkit.org/show_bug.cgi?id=186749
-    - test/built-ins/RegExp/property-escapes/character-class.js
-    
-    # https://bugs.webkit.org/show_bug.cgi?id=185495
-    - test/built-ins/Array/prototype/slice/S15.4.4.10_A3_T1.js
-    - test/built-ins/Array/prototype/slice/S15.4.4.10_A3_T2.js
-    - test/built-ins/Array/prototype/slice/create-non-array-invalid-len.js
-    - test/built-ins/Array/prototype/slice/create-proxied-array-invalid-len.js
-    - test/built-ins/Array/prototype/splice/create-species-undef-invalid-len.js
-    - test/built-ins/Array/prototype/splice/create-non-array-invalid-len.js
-    - test/built-ins/Array/prototype/splice/create-species-undef-invalid-len.js
-    - test/built-ins/Array/prototype/splice/length-near-integer-limit-grow-array.js
-
-    # https://bugs.webkit.org/show_bug.cgi?id=185625
-    - test/built-ins/Array/prototype/indexOf/15.4.4.14-3-28.js
-    - test/built-ins/Array/prototype/indexOf/15.4.4.14-3-29.js
-
-    # https://bugs.webkit.org/show_bug.cgi?id=164456
-    - test/built-ins/Array/prototype/lastIndexOf/15.4.4.15-3-28.js
-    - test/built-ins/Array/prototype/pop/S15.4.4.6_A3_T2.js
-    - test/built-ins/Array/prototype/push/S15.4.4.7_A4_T1.js
-    - test/built-ins/Array/prototype/push/length-near-integer-limit.js
-
-    # [[OwnPropertyKeys]] order with large integer index keys up to 2 ** 53 - 1
-    # https://bugs.webkit.org/show_bug.cgi?id=186691
-    - test/built-ins/Reflect/ownKeys/return-on-corresponding-order-large-index.js
-
-    # https://bugs.webkit.org/show_bug.cgi?id=192920
-    - test/intl402/PluralRules/prototype/resolvedOptions/order.js
-    - test/intl402/PluralRules/prototype/resolvedOptions/pluralCategories.js
-    - test/intl402/NumberFormat/prototype/format/format-fraction-digits.js
-    - test/intl402/NumberFormat/prototype/format/format-significant-digits.js
-
     # https://bugs.webkit.org/show_bug.cgi?id=190800
     - test/built-ins/TypedArray/prototype/set/src-typedarray-big-throws.js
     - test/built-ins/TypedArrayConstructors/ctors/typedarray-arg/src-typedarray-big-throws.js
@@ -151,3 +110,75 @@ skip:
     - test/built-ins/TypedArrayConstructors/prototype/toLocaleString/bigint-inherited.js
     - test/built-ins/TypedArrayConstructors/prototype/toString/bigint-inherited.js
     - test/built-ins/TypedArrayConstructors/prototype/values/bigint-inherited.js
+
+    # requires ICU 65 (https://unicode-org.atlassian.net/browse/ICU-20654)
+    - test/intl402/RelativeTimeFormat/prototype/format/en-us-numeric-auto.js
+    - test/intl402/RelativeTimeFormat/prototype/formatToParts/en-us-numeric-auto.js
+
+    # Do not work with ICU 64, and work with ICU 66 or later.
+    - test/intl402/NumberFormat/prototype/format/numbering-systems.js
+
+    # Catalina bot is using older SDK which is shipping < 64 ICU.
+    - test/intl402/NumberFormat/constructor-compactDisplay-compact.js
+    - test/intl402/NumberFormat/constructor-compactDisplay-no-compact.js
+    - test/intl402/NumberFormat/constructor-notation.js
+    - test/intl402/NumberFormat/constructor-signDisplay.js
+    - test/intl402/NumberFormat/constructor-unit.js
+    - test/intl402/NumberFormat/constructor-unitDisplay.js
+    - test/intl402/NumberFormat/currencyDisplay-unit.js
+    - test/intl402/NumberFormat/prototype/format/engineering-scientific-de-DE.js
+    - test/intl402/NumberFormat/prototype/format/engineering-scientific-en-US.js
+    - test/intl402/NumberFormat/prototype/format/engineering-scientific-ja-JP.js
+    - test/intl402/NumberFormat/prototype/format/engineering-scientific-ko-KR.js
+    - test/intl402/NumberFormat/prototype/format/engineering-scientific-zh-TW.js
+    - test/intl402/NumberFormat/prototype/format/notation-compact-de-DE.js
+    - test/intl402/NumberFormat/prototype/format/notation-compact-en-US.js
+    - test/intl402/NumberFormat/prototype/format/notation-compact-ja-JP.js
+    - test/intl402/NumberFormat/prototype/format/notation-compact-ko-KR.js
+    - test/intl402/NumberFormat/prototype/format/notation-compact-zh-TW.js
+    - test/intl402/NumberFormat/prototype/format/signDisplay-currency-de-DE.js
+    - test/intl402/NumberFormat/prototype/format/signDisplay-currency-en-US.js
+    - test/intl402/NumberFormat/prototype/format/signDisplay-currency-ja-JP.js
+    - test/intl402/NumberFormat/prototype/format/signDisplay-currency-ko-KR.js
+    - test/intl402/NumberFormat/prototype/format/signDisplay-currency-zh-TW.js
+    - test/intl402/NumberFormat/prototype/format/signDisplay-de-DE.js
+    - test/intl402/NumberFormat/prototype/format/signDisplay-en-US.js
+    - test/intl402/NumberFormat/prototype/format/signDisplay-ja-JP.js
+    - test/intl402/NumberFormat/prototype/format/signDisplay-ko-KR.js
+    - test/intl402/NumberFormat/prototype/format/signDisplay-rounding.js
+    - test/intl402/NumberFormat/prototype/format/signDisplay-zh-TW.js
+    - test/intl402/NumberFormat/prototype/format/unit-de-DE.js
+    - test/intl402/NumberFormat/prototype/format/unit-en-US.js
+    - test/intl402/NumberFormat/prototype/format/unit-ja-JP.js
+    - test/intl402/NumberFormat/prototype/format/unit-ko-KR.js
+    - test/intl402/NumberFormat/prototype/format/unit-zh-TW.js
+    - test/intl402/NumberFormat/prototype/format/units.js
+    - test/intl402/NumberFormat/prototype/formatToParts/engineering-scientific-de-DE.js
+    - test/intl402/NumberFormat/prototype/formatToParts/engineering-scientific-en-US.js
+    - test/intl402/NumberFormat/prototype/formatToParts/engineering-scientific-ja-JP.js
+    - test/intl402/NumberFormat/prototype/formatToParts/engineering-scientific-ko-KR.js
+    - test/intl402/NumberFormat/prototype/formatToParts/engineering-scientific-zh-TW.js
+    - test/intl402/NumberFormat/prototype/formatToParts/notation-compact-de-DE.js
+    - test/intl402/NumberFormat/prototype/formatToParts/notation-compact-en-US.js
+    - test/intl402/NumberFormat/prototype/formatToParts/notation-compact-ja-JP.js
+    - test/intl402/NumberFormat/prototype/formatToParts/notation-compact-ko-KR.js
+    - test/intl402/NumberFormat/prototype/formatToParts/notation-compact-zh-TW.js
+    - test/intl402/NumberFormat/prototype/formatToParts/percent-en-US.js
+    - test/intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-de-DE.js
+    - test/intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-en-US.js
+    - test/intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-ja-JP.js
+    - test/intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-ko-KR.js
+    - test/intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-zh-TW.js
+    - test/intl402/NumberFormat/prototype/formatToParts/signDisplay-de-DE.js
+    - test/intl402/NumberFormat/prototype/formatToParts/signDisplay-en-US.js
+    - test/intl402/NumberFormat/prototype/formatToParts/signDisplay-ja-JP.js
+    - test/intl402/NumberFormat/prototype/formatToParts/signDisplay-ko-KR.js
+    - test/intl402/NumberFormat/prototype/formatToParts/signDisplay-zh-TW.js
+    - test/intl402/NumberFormat/prototype/formatToParts/unit-de-DE.js
+    - test/intl402/NumberFormat/prototype/formatToParts/unit-en-US.js
+    - test/intl402/NumberFormat/prototype/formatToParts/unit-ja-JP.js
+    - test/intl402/NumberFormat/prototype/formatToParts/unit-ko-KR.js
+    - test/intl402/NumberFormat/prototype/formatToParts/unit-zh-TW.js
+    - test/intl402/NumberFormat/prototype/formatToParts/unit.js
+    - test/intl402/NumberFormat/prototype/resolvedOptions/compactDisplay.js
+    - test/intl402/NumberFormat/style-unit.js

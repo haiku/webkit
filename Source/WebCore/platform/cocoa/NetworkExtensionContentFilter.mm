@@ -26,8 +26,6 @@
 #import "config.h"
 #import "NetworkExtensionContentFilter.h"
 
-#if HAVE(NETWORK_EXTENSION)
-
 #import "ContentFilterUnblockHandler.h"
 #import "Logging.h"
 #import "ResourceRequest.h"
@@ -51,16 +49,29 @@ static inline NSData *replacementDataFromDecisionInfo(NSDictionary *decisionInfo
 
 namespace WebCore {
 
+NetworkExtensionContentFilter::SandboxExtensionsState NetworkExtensionContentFilter::m_sandboxExtensionsState = SandboxExtensionsState::NotSet;
+
 bool NetworkExtensionContentFilter::enabled()
 {
-    bool enabled = [getNEFilterSourceClass() filterRequired];
+    bool enabled = false;
+    switch (m_sandboxExtensionsState) {
+    case SandboxExtensionsState::Consumed:
+        enabled = true;
+        break;
+    case SandboxExtensionsState::NotConsumed:
+        enabled = false;
+        break;
+    case SandboxExtensionsState::NotSet:
+        enabled = [getNEFilterSourceClass() filterRequired];
+        break;
+    }
     LOG(ContentFiltering, "NetworkExtensionContentFilter is %s.\n", enabled ? "enabled" : "not enabled");
     return enabled;
 }
 
-std::unique_ptr<NetworkExtensionContentFilter> NetworkExtensionContentFilter::create()
+UniqueRef<NetworkExtensionContentFilter> NetworkExtensionContentFilter::create()
 {
-    return makeUnique<NetworkExtensionContentFilter>();
+    return makeUniqueRef<NetworkExtensionContentFilter>();
 }
 
 void NetworkExtensionContentFilter::initialize(const URL* url)
@@ -215,6 +226,12 @@ void NetworkExtensionContentFilter::handleDecision(NEFilterSourceStatus status, 
 #endif
 }
 
-} // namespace WebCore
+void NetworkExtensionContentFilter::setHasConsumedSandboxExtensions(bool hasConsumedSandboxExtensions)
+{
+    if (m_sandboxExtensionsState == SandboxExtensionsState::Consumed)
+        return;
 
-#endif // HAVE(NETWORK_EXTENSION)
+    m_sandboxExtensionsState = (hasConsumedSandboxExtensions ? SandboxExtensionsState::Consumed : SandboxExtensionsState::NotConsumed);
+}
+
+} // namespace WebCore

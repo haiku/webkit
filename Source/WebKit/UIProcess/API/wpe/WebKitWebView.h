@@ -30,6 +30,7 @@
 
 #include <wpe/WebKitAuthenticationRequest.h>
 #include <wpe/WebKitBackForwardList.h>
+#include <wpe/WebKitColor.h>
 #include <wpe/WebKitContextMenu.h>
 #include <wpe/WebKitDefines.h>
 #include <wpe/WebKitEditorState.h>
@@ -37,11 +38,14 @@
 #include <wpe/WebKitFindController.h>
 #include <wpe/WebKitFormSubmissionRequest.h>
 #include <wpe/WebKitHitTestResult.h>
+#include <wpe/WebKitInputMethodContext.h>
 #include <wpe/WebKitJavascriptResult.h>
 #include <wpe/WebKitNavigationAction.h>
 #include <wpe/WebKitNotification.h>
+#include <wpe/WebKitOptionMenu.h>
 #include <wpe/WebKitPermissionRequest.h>
 #include <wpe/WebKitPolicyDecision.h>
+#include <wpe/WebKitRectangle.h>
 #include <wpe/WebKitScriptDialog.h>
 #include <wpe/WebKitSettings.h>
 #include <wpe/WebKitURIRequest.h>
@@ -49,8 +53,8 @@
 #include <wpe/WebKitUserMessage.h>
 #include <wpe/WebKitWebContext.h>
 #include <wpe/WebKitWebResource.h>
+#include <wpe/WebKitWebsitePolicies.h>
 #include <wpe/WebKitWebViewBackend.h>
-#include <wpe/WebKitColor.h>
 #include <wpe/WebKitWebViewSessionState.h>
 #include <wpe/WebKitWindowProperties.h>
 
@@ -244,7 +248,9 @@ struct _WebKitWebViewClass {
                                                     WebKitWebProcessTerminationReason reason);
     gboolean       (* user_message_received)       (WebKitWebView               *web_view,
                                                     WebKitUserMessage           *message);
-
+    gboolean       (* show_option_menu)            (WebKitWebView               *web_view,
+                                                    WebKitOptionMenu            *menu,
+                                                    WebKitRectangle             *rectangle);
 
     void (*_webkit_reserved0) (void);
     void (*_webkit_reserved1) (void);
@@ -252,7 +258,6 @@ struct _WebKitWebViewClass {
     void (*_webkit_reserved3) (void);
     void (*_webkit_reserved4) (void);
     void (*_webkit_reserved5) (void);
-    void (*_webkit_reserved6) (void);
 };
 
 WEBKIT_API GType
@@ -285,6 +290,9 @@ webkit_web_view_is_ephemeral                         (WebKitWebView             
 
 WEBKIT_API gboolean
 webkit_web_view_is_controlled_by_automation          (WebKitWebView             *web_view);
+
+WEBKIT_API WebKitAutomationBrowsingContextPresentation
+webkit_web_view_get_automation_presentation_type     (WebKitWebView             *web_view);
 
 WEBKIT_API WebKitWebsiteDataManager *
 webkit_web_view_get_website_data_manager             (WebKitWebView             *web_view);
@@ -331,6 +339,13 @@ webkit_web_view_is_loading                           (WebKitWebView             
 
 WEBKIT_API gboolean
 webkit_web_view_is_playing_audio                     (WebKitWebView             *web_view);
+
+WEBKIT_API void
+webkit_web_view_set_is_muted                         (WebKitWebView             *web_view,
+                                                      gboolean                   muted);
+
+WEBKIT_API gboolean
+webkit_web_view_get_is_muted                         (WebKitWebView             *web_view);
 
 WEBKIT_API guint64
 webkit_web_view_get_page_id                          (WebKitWebView             *web_view);
@@ -539,6 +554,16 @@ WEBKIT_API WebKitUserMessage *
 webkit_web_view_send_message_to_page_finish          (WebKitWebView               *web_view,
                                                       GAsyncResult                *result,
                                                       GError                     **error);
+
+WEBKIT_API void
+webkit_web_view_set_input_method_context             (WebKitWebView               *web_view,
+                                                      WebKitInputMethodContext    *context);
+
+WEBKIT_API WebKitInputMethodContext *
+webkit_web_view_get_input_method_context             (WebKitWebView               *web_view);
+
+WEBKIT_API WebKitWebsitePolicies *
+webkit_web_view_get_website_policies                 (WebKitWebView             *web_view);
 
 G_END_DECLS
 

@@ -50,8 +50,9 @@ private:
     StringConstructor(VM&, Structure*);
     void finishCreation(VM&, StringPrototype*);
 };
+STATIC_ASSERT_ISO_SUBSPACE_SHARABLE(StringConstructor, InternalFunction);
 
-JSString* JSC_HOST_CALL stringFromCharCode(JSGlobalObject*, int32_t);
+JSString* stringFromCharCode(JSGlobalObject*, int32_t);
 JSString* stringConstructor(JSGlobalObject*, JSValue);
 
 } // namespace JSC

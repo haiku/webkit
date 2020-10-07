@@ -35,11 +35,11 @@ import re
 import sys
 import time
 
+from webkitcorepy import Version
+
 from webkitpy.common.system.crashlogs import CrashLogs
 from webkitpy.common.system.systemhost import SystemHost
-from webkitpy.common.system.executive import Executive
 from webkitpy.common.system.path import abspath_to_uri, cygpath
-from webkitpy.common.version import Version
 from webkitpy.common.version_name_map import VersionNameMap
 from webkitpy.port.apple import ApplePort
 from webkitpy.port.config import apple_additions
@@ -51,7 +51,11 @@ try:
     import _winreg
     import win32com.client
 except ImportError:
-    _log.debug("Not running on native Windows.")
+    try:
+        import winreg as _winreg
+        import win32com.client
+    except ImportError:
+        _log.debug("Not running on native Windows.")
 
 
 class WinPort(ApplePort):
@@ -61,6 +65,8 @@ class WinPort(ApplePort):
     VERSION_MAX = Version(10)
 
     ARCHITECTURES = ['x86', 'x86_64']
+
+    DEFAULT_ARCHITECTURE = 'x86_64'
 
     CRASH_LOG_PREFIX = "CrashLog"
 
@@ -97,26 +103,23 @@ class WinPort(ApplePort):
             self._os_version = self.host.platform.os_version
 
     def do_text_results_differ(self, expected_text, actual_text):
-        # Sanity was restored in WK2, so we don't need this hack there.
-        if self.get_option('webkit_test_runner'):
-            return ApplePort.do_text_results_differ(self, expected_text, actual_text)
-
-        # This is a hack (which dates back to ORWT).
-        # Windows does not have an EDITING DELEGATE, so we strip any EDITING DELEGATE
-        # messages to make more of the tests pass.
-        # It's possible more of the ports might want this and this could move down into WebKitPort.
-        delegate_regexp = re.compile("^EDITING DELEGATE: .*?\n", re.MULTILINE)
-        expected_text = delegate_regexp.sub("", expected_text)
-        actual_text = delegate_regexp.sub("", actual_text)
-        return expected_text != actual_text
+        # Sanity was restored in WebKitTestRunner, so we don't need this hack there.
+        if not self.get_option('webkit_test_runner'):
+            # Windows does not have an EDITING DELEGATE, so strip those messages to make more tests pass.
+            # It's possible other ports might want this, and if so, this could move down into WebKitPort.
+            delegate_regexp = re.compile("^EDITING DELEGATE: .*?\n", re.MULTILINE)
+            expected_text = delegate_regexp.sub("", expected_text)
+            actual_text = delegate_regexp.sub("", actual_text)
+        return ApplePort.do_text_results_differ(self, expected_text, actual_text)
 
     def default_baseline_search_path(self, **kwargs):
         version_name_map = VersionNameMap.map(self.host.platform)
         if self._os_version < self.VERSION_MIN or self._os_version > self.VERSION_MAX:
-            fallback_versions = [self._os_version]
+            fallback_versions = [self._os_version] if self._os_version else []
         else:
             sorted_versions = sorted(version_name_map.mapping_for_platform(platform=self.port_name).values())
             fallback_versions = sorted_versions[sorted_versions.index(self._os_version):]
+
         fallback_names = ['win-' + version_name_map.to_name(version, platform=self.port_name).lower().replace(' ', '') for version in fallback_versions]
         fallback_names.append('win')
 
@@ -147,7 +150,7 @@ class WinPort(ApplePort):
         return 'win'
 
     def _port_flag_for_scripts(self):
-        if self.get_option('architecture') == 'x86_64':
+        if self.architecture() == 'x86_64':
             return '--64-bit'
         return None
 
@@ -160,7 +163,7 @@ class WinPort(ApplePort):
         if not root_directory:
             ApplePort._build_path(self, *comps)  # Sets option _cached_root
             binary_directory = 'bin32'
-            if self.get_option('architecture') == 'x86_64':
+            if self.architecture() == 'x86_64':
                 binary_directory = 'bin64'
             root_directory = self._filesystem.join(self.get_option('_cached_root'), binary_directory)
             self.set_option('_cached_root', root_directory)
@@ -192,10 +195,7 @@ class WinPort(ApplePort):
     def _path_to_lighttpd_php(self):
         return "/usr/bin/php-cgi"
 
-    def _path_to_image_diff(self):
-        if self.is_cygwin():
-            return super(WinPort, self)._path_to_image_diff()
-
+    def _path_to_default_image_diff(self):
         return self._build_path('ImageDiff.exe')
 
     API_TEST_BINARY_NAMES = ['TestWTF.exe', 'TestWebCore.exe', 'TestWebKitLegacy.exe']
@@ -213,7 +213,7 @@ class WinPort(ApplePort):
         possible_paths = [self._filesystem.join(os.environ['PROGRAMFILES'], "Windows Kits", "10", "Debuggers", "x64", "ntsd.exe"),
             self._filesystem.join(os.environ['PROGRAMFILES'], "Windows Kits", "8.1", "Debuggers", "x64", "ntsd.exe"),
             self._filesystem.join(os.environ['PROGRAMFILES'], "Windows Kits", "8.0", "Debuggers", "x64", "ntsd.exe")]
-        if self.get_option('architecture') == 'x86_64':
+        if self.architecture() == 'x86_64':
             possible_paths.append(self._filesystem.join("{0} (x86)".format(os.environ['PROGRAMFILES']), "Windows Kits", "10", "Debuggers", "x64", "ntsd.exe"))
             possible_paths.append(self._filesystem.join("{0} (x86)".format(os.environ['PROGRAMFILES']), "Windows Kits", "8.1", "Debuggers", "x64", "ntsd.exe"))
             possible_paths.append(self._filesystem.join("{0} (x86)".format(os.environ['PROGRAMFILES']), "Windows Kits", "8.0", "Debuggers", "x64", "ntsd.exe"))
@@ -472,7 +472,7 @@ class WinCairoPort(WinPort):
         paths = []
         version_name_map = VersionNameMap.map(self.host.platform)
         if self._os_version < self.VERSION_MIN or self._os_version > self.VERSION_MAX:
-            versions = [self._os_version]
+            versions = [self._os_version] if self._os_version else []
         else:
             sorted_versions = sorted(version_name_map.mapping_for_platform(platform=self.port_name).values())
             versions = sorted_versions[sorted_versions.index(self._os_version):]

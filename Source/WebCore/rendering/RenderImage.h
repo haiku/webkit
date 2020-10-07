@@ -66,7 +66,7 @@ public:
     const String& altText() const { return m_altText; }
     void setAltText(const String& altText) { m_altText = altText; }
 
-    inline void setImageDevicePixelRatio(float factor) { m_imageDevicePixelRatio = factor; }
+    void setImageDevicePixelRatio(float factor);
     float imageDevicePixelRatio() const { return m_imageDevicePixelRatio; }
 
     void setHasShadowControls(bool hasShadowControls) { m_hasShadowControls = hasShadowControls; }
@@ -77,8 +77,6 @@ public:
     virtual bool shouldDisplayBrokenImageIcon() const;
 
     bool hasNonBitmapImage() const;
-
-    bool isEditableImage() const;
 
 protected:
     void willBeDestroyed() override;
@@ -102,8 +100,6 @@ protected:
         imageChanged(imageResource().imagePtr());
     }
 
-    void incrementVisuallyNonEmptyPixelCountIfNeeded(const IntSize&);
-
 private:
     const char* renderName() const override { return "RenderImage"; }
 
@@ -111,8 +107,6 @@ private:
 
     bool isImage() const override { return true; }
     bool isRenderImage() const final { return true; }
-    
-    bool requiresLayer() const override;
 
     void paintReplaced(PaintInfo&, const LayoutPoint&) override;
     void paintIncompleteImageOutline(PaintInfo&, LayoutPoint, LayoutUnit) const;
@@ -121,7 +115,7 @@ private:
 
     LayoutUnit minimumReplacedHeight() const override;
 
-    void notifyFinished(CachedResource&) final;
+    void notifyFinished(CachedResource&, const NetworkLoadMetrics&) final;
     bool nodeAtPoint(const HitTestRequest&, HitTestResult&, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestAction) final;
 
     bool boxShadowShouldBeAppliedToBackground(const LayoutPoint& paintOffset, BackgroundBleedAvoidance, InlineFlowBox*) const final;
@@ -138,11 +132,15 @@ private:
     
     void layoutShadowControls(const LayoutSize& oldSize);
 
+    LayoutUnit computeReplacedLogicalWidth(ShouldComputePreferred = ComputeActual) const override;
+    LayoutUnit computeReplacedLogicalHeight(Optional<LayoutUnit> estimatedUsedWidth = WTF::nullopt) const override;
+
+    bool shouldCollapseToEmpty() const;
+
     // Text to display as long as the image isn't available.
     String m_altText;
     std::unique_ptr<RenderImageResource> m_imageResource;
     bool m_needsToSetSizeForAltText { false };
-    bool m_didIncrementVisuallyNonEmptyPixelCount { false };
     bool m_isGeneratedContent { false };
     bool m_hasShadowControls { false };
     float m_imageDevicePixelRatio { 1 };

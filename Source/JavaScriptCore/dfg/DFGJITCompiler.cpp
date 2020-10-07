@@ -34,16 +34,11 @@
 #include "DFGJITCode.h"
 #include "DFGJITFinalizer.h"
 #include "DFGOSRExit.h"
-#include "DFGOperations.h"
-#include "DFGRegisterBank.h"
-#include "DFGSlowPathGenerator.h"
 #include "DFGSpeculativeJIT.h"
 #include "DFGThunks.h"
-#include "JSCInlines.h"
 #include "JSCJSValueInlines.h"
 #include "LinkBuffer.h"
 #include "MaxFrameExtentForSlowPathCall.h"
-#include "StructureStubInfo.h"
 #include "ThunkGenerators.h"
 #include "VM.h"
 
@@ -85,8 +80,6 @@ void JITCompiler::linkOSRExits()
         }
     }
     
-    MacroAssemblerCodeRef<JITThunkPtrTag> osrExitThunk = vm().getCTIStub(osrExitThunkGenerator);
-    auto osrExitThunkLabel = CodeLocationLabel<JITThunkPtrTag>(osrExitThunk.code());
     for (unsigned i = 0; i < m_jitCode->osrExit.size(); ++i) {
         OSRExitCompilationInfo& info = m_exitCompilationInfo[i];
         JumpList& failureJumps = info.m_failureJumps;
@@ -97,13 +90,7 @@ void JITCompiler::linkOSRExits()
 
         jitAssertHasValidCallFrame();
         store32(TrustedImm32(i), &vm().osrExitIndex);
-        if (Options::useProbeOSRExit()) {
-            Jump target = jump();
-            addLinkTask([target, osrExitThunkLabel] (LinkBuffer& linkBuffer) {
-                linkBuffer.link(target, osrExitThunkLabel);
-            });
-        } else
-            info.m_patchableJump = patchableJump();
+        info.m_patchableJump = patchableJump();
     }
 }
 
@@ -154,7 +141,7 @@ void JITCompiler::compileExceptionHandlers()
         prepareCallOperation(vm());
         addPtr(TrustedImm32(m_graph.stackPointerOffset() * sizeof(Register)), GPRInfo::callFrameRegister, stackPointerRegister);
 
-        m_calls.append(CallLinkRecord(call(OperationPtrTag), FunctionPtr<OperationPtrTag>(operationLookupExceptionHandlerFromCallerFrame)));
+        appendCall(operationLookupExceptionHandlerFromCallerFrame);
 
         jumpToExceptionHandler(vm());
     }
@@ -168,7 +155,7 @@ void JITCompiler::compileExceptionHandlers()
         move(TrustedImmPtr(&vm()), GPRInfo::argumentGPR0);
         prepareCallOperation(vm());
 
-        m_calls.append(CallLinkRecord(call(OperationPtrTag), FunctionPtr<OperationPtrTag>(operationLookupExceptionHandler)));
+        appendCall(operationLookupExceptionHandler);
 
         jumpToExceptionHandler(vm());
     }
@@ -252,7 +239,10 @@ void JITCompiler::link(LinkBuffer& linkBuffer)
 
     finalizeInlineCaches(m_getByIds, linkBuffer);
     finalizeInlineCaches(m_getByIdsWithThis, linkBuffer);
+    finalizeInlineCaches(m_getByVals, linkBuffer);
     finalizeInlineCaches(m_putByIds, linkBuffer);
+    finalizeInlineCaches(m_delByIds, linkBuffer);
+    finalizeInlineCaches(m_delByVals, linkBuffer);
     finalizeInlineCaches(m_inByIds, linkBuffer);
     finalizeInlineCaches(m_instanceOfs, linkBuffer);
 
@@ -360,8 +350,6 @@ void JITCompiler::compile()
     emitStackOverflowCheck(*this, stackOverflow);
 
     addPtr(TrustedImm32(-(m_graph.frameRegisterCount() * sizeof(Register))), GPRInfo::callFrameRegister, stackPointerRegister);
-    if (Options::zeroStackFrame())
-        clearStackFrame(GPRInfo::callFrameRegister, stackPointerRegister, GPRInfo::regT0, m_graph.frameRegisterCount() * sizeof(Register));
     checkStackPointerAlignment();
     compileSetupRegistersForEntry();
     compileEntryExecutionFlag();
@@ -401,9 +389,6 @@ void JITCompiler::compile()
     link(*linkBuffer);
     m_speculative->linkOSREntries(*linkBuffer);
 
-    m_jitCode->shrinkToFit();
-    codeBlock()->shrinkToFit(CodeBlock::LateShrink);
-
     disassemble(*linkBuffer);
 
     m_graph.m_plan.setFinalizer(makeUnique<JITFinalizer>(
@@ -429,8 +414,6 @@ void JITCompiler::compileFunction()
 
     // Move the stack pointer down to accommodate locals
     addPtr(TrustedImm32(-(m_graph.frameRegisterCount() * sizeof(Register))), GPRInfo::callFrameRegister, stackPointerRegister);
-    if (Options::zeroStackFrame())
-        clearStackFrame(GPRInfo::callFrameRegister, stackPointerRegister, GPRInfo::regT0, m_graph.frameRegisterCount() * sizeof(Register));
     checkStackPointerAlignment();
 
     compileSetupRegistersForEntry();
@@ -469,7 +452,7 @@ void JITCompiler::compileFunction()
         arityCheck = label();
         compileEntry();
 
-        load32(AssemblyHelpers::payloadFor((VirtualRegister)CallFrameSlot::argumentCount), GPRInfo::regT1);
+        load32(AssemblyHelpers::payloadFor((VirtualRegister)CallFrameSlot::argumentCountIncludingThis), GPRInfo::regT1);
         branch32(AboveOrEqual, GPRInfo::regT1, TrustedImm32(m_codeBlock->numParameters())).linkTo(fromArityCheck, this);
         emitStoreCodeOrigin(CodeOrigin(BytecodeIndex(0)));
         if (maxFrameExtentForSlowPathCall)
@@ -505,9 +488,6 @@ void JITCompiler::compileFunction()
     link(*linkBuffer);
     m_speculative->linkOSREntries(*linkBuffer);
     
-    m_jitCode->shrinkToFit();
-    codeBlock()->shrinkToFit(CodeBlock::LateShrink);
-
     if (requiresArityFixup)
         linkBuffer->link(callArityFixup, FunctionPtr<JITThunkPtrTag>(vm().getCTIStub(arityFixupGenerator).code()));
 
@@ -594,11 +574,12 @@ void JITCompiler::noticeOSREntry(BasicBlock& basicBlock, JITCompiler::Label bloc
             default:
                 break;
             }
-            
-            if (variable->local() != variable->machineLocal()) {
+
+            ASSERT(!variable->operand().isTmp());
+            if (variable->operand().virtualRegister() != variable->machineLocal()) {
                 entry->m_reshufflings.append(
                     OSREntryReshuffling(
-                        variable->local().offset(), variable->machineLocal().offset()));
+                        variable->operand().virtualRegister().offset(), variable->machineLocal().offset()));
             }
         }
     }
@@ -645,7 +626,7 @@ void JITCompiler::exceptionCheck()
         unsigned streamIndex = m_speculative->m_outOfLineStreamIndex ? *m_speculative->m_outOfLineStreamIndex : m_speculative->m_stream->size();
         MacroAssembler::Jump hadException = emitNonPatchableExceptionCheck(vm());
         // We assume here that this is called after callOpeartion()/appendCall() is called.
-        appendExceptionHandlingOSRExit(ExceptionCheck, streamIndex, opCatchOrigin, exceptionHandler, m_jitCode->common.lastCallSite(), hadException);
+        appendExceptionHandlingOSRExit(ExceptionCheck, streamIndex, opCatchOrigin, exceptionHandler, m_jitCode->common.codeOrigins->lastCallSite(), hadException);
     } else
         m_exceptionChecks.append(emitExceptionCheck(vm()));
 }

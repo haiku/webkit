@@ -12,11 +12,12 @@
 #define MODULES_RTP_RTCP_SOURCE_RTP_FORMAT_H_
 
 #include <stdint.h>
+
 #include <memory>
 #include <vector>
 
+#include "absl/types/optional.h"
 #include "api/array_view.h"
-#include "common_types.h"  // NOLINT(build/include)
 #include "modules/include/module_common_types.h"
 #include "modules/rtp_rtcp/source/rtp_video_header.h"
 
@@ -33,13 +34,14 @@ class RtpPacketizer {
     // Reduction len for packet that is first & last at the same time.
     int single_packet_reduction_len = 0;
   };
+
+  // If type is not set, returns a raw packetizer.
   static std::unique_ptr<RtpPacketizer> Create(
-      VideoCodecType type,
+      absl::optional<VideoCodecType> type,
       rtc::ArrayView<const uint8_t> payload,
       PayloadSizeLimits limits,
       // Codec-specific details.
       const RTPVideoHeader& rtp_video_header,
-      FrameType frame_type,
       const RTPFragmentationHeader* fragmentation);
 
   virtual ~RtpPacketizer() = default;
@@ -56,32 +58,6 @@ class RtpPacketizer {
   // Returns empty vector on failure.
   static std::vector<int> SplitAboutEqually(int payload_len,
                                             const PayloadSizeLimits& limits);
-};
-
-// TODO(sprang): Update the depacketizer to return a std::unqie_ptr with a copy
-// of the parsed payload, rather than just a pointer into the incoming buffer.
-// This way we can move some parsing out from the jitter buffer into here, and
-// the jitter buffer can just store that pointer rather than doing a copy there.
-class RtpDepacketizer {
- public:
-  struct ParsedPayload {
-    RTPVideoHeader& video_header() { return video; }
-    const RTPVideoHeader& video_header() const { return video; }
-    RTPVideoHeader video;
-
-    const uint8_t* payload;
-    size_t payload_length;
-    FrameType frame_type;
-  };
-
-  static RtpDepacketizer* Create(VideoCodecType type);
-
-  virtual ~RtpDepacketizer() {}
-
-  // Parses the RTP payload, parsed result will be saved in |parsed_payload|.
-  virtual bool Parse(ParsedPayload* parsed_payload,
-                     const uint8_t* payload_data,
-                     size_t payload_data_length) = 0;
 };
 }  // namespace webrtc
 #endif  // MODULES_RTP_RTCP_SOURCE_RTP_FORMAT_H_

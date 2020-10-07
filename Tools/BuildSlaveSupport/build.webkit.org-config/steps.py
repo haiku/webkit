@@ -1,4 +1,4 @@
-# Copyright (C) 2017 Apple Inc. All rights reserved.
+# Copyright (C) 2017-2020 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,6 +28,7 @@ from twisted.internet import defer
 
 import os
 import re
+import socket
 import json
 import cStringIO
 import urllib
@@ -35,8 +36,9 @@ import urllib
 APPLE_WEBKIT_AWS_PROXY = "http://proxy01.webkit.org:3128"
 S3URL = "https://s3-us-west-2.amazonaws.com/"
 WithProperties = properties.WithProperties
-RESULTS_WEBKIT = 'https://results.webkit.org'
+RESULTS_WEBKIT_URL = 'https://results.webkit.org'
 RESULTS_SERVER_API_KEY = 'RESULTS_SERVER_API_KEY'
+BUILD_WEBKIT_URL = socket.gethostname().strip()
 
 
 class TestWithFailureCount(shell.Test):
@@ -70,7 +72,7 @@ class TestWithFailureCount(shell.Test):
 
 
 class ConfigureBuild(buildstep.BuildStep):
-    name = "configure build"
+    name = "configure-build"
     description = ["configuring build"]
     descriptionDone = ["configured build"]
 
@@ -132,14 +134,28 @@ class InstallWin32Dependencies(shell.Compile):
 
 
 class KillOldProcesses(shell.Compile):
-    name = "kill old processes"
+    name = "kill-old-processes"
     description = ["killing old processes"]
     descriptionDone = ["killed old processes"]
     command = ["python", "./Tools/BuildSlaveSupport/kill-old-processes", "buildbot"]
 
 
+class TriggerCrashLogSubmission(shell.Compile):
+    name = "trigger-crash-log-submission"
+    description = ["triggering crash log submission"]
+    descriptionDone = ["triggered crash log submission"]
+    command = ["python", "./Tools/BuildSlaveSupport/trigger-crash-log-submission"]
+
+
+class WaitForCrashCollection(shell.Compile):
+    name = "wait-for-crash-collection"
+    description = ["waiting for crash collection to quiesce"]
+    descriptionDone = ["crash collection has quiesced"]
+    command = ["python", "./Tools/BuildSlaveSupport/wait-for-crash-collection", "--timeout", str(5 * 60)]
+
+
 class CleanBuildIfScheduled(shell.Compile):
-    name = "delete WebKitBuild directory"
+    name = "delete-WebKitBuild-directory"
     description = ["deleting WebKitBuild directory"]
     descriptionDone = ["deleted WebKitBuild directory"]
     command = ["python", "./Tools/BuildSlaveSupport/clean-build", WithProperties("--platform=%(fullPlatform)s"), WithProperties("--%(configuration)s")]
@@ -152,7 +168,7 @@ class CleanBuildIfScheduled(shell.Compile):
 
 
 class DeleteStaleBuildFiles(shell.Compile):
-    name = "delete stale build files"
+    name = "delete-stale-build-files"
     description = ["deleting stale build files"]
     descriptionDone = ["deleted stale build files"]
     command = ["python", "./Tools/BuildSlaveSupport/delete-stale-build-files", WithProperties("--platform=%(fullPlatform)s"), WithProperties("--%(configuration)s")]
@@ -176,7 +192,7 @@ class InstallGtkDependencies(shell.ShellCommand):
     name = "jhbuild"
     description = ["updating gtk dependencies"]
     descriptionDone = ["updated gtk dependencies"]
-    command = ["perl", "./Tools/Scripts/update-webkitgtk-libs"]
+    command = ["perl", "./Tools/Scripts/update-webkitgtk-libs", WithProperties("--%(configuration)s")]
     haltOnFailure = True
 
 
@@ -184,17 +200,17 @@ class InstallWpeDependencies(shell.ShellCommand):
     name = "jhbuild"
     description = ["updating wpe dependencies"]
     descriptionDone = ["updated wpe dependencies"]
-    command = ["perl", "./Tools/Scripts/update-webkitwpe-libs"]
+    command = ["perl", "./Tools/Scripts/update-webkitwpe-libs", WithProperties("--%(configuration)s")]
     haltOnFailure = True
 
 
 def appendCustomBuildFlags(step, platform, fullPlatform):
-    if platform not in ('gtk', 'wincairo', 'ios', 'jsc-only', 'wpe'):
+    if platform not in ('gtk', 'wincairo', 'ios', 'jsc-only', 'wpe', 'playstation', 'tvos', 'watchos',):
         return
-    if fullPlatform.startswith('ios-simulator'):
-        platform = 'ios-simulator'
-    elif platform == 'ios':
-        platform = 'device'
+    if 'simulator' in fullPlatform:
+        platform = platform + '-simulator'
+    elif platform in ['ios', 'tvos', 'watchos']:
+        platform = platform + '-device'
     step.setCommand(step.command + ['--' + platform])
 
 
@@ -226,11 +242,11 @@ class CompileWebKit(shell.Compile):
 
         if additionalArguments:
             self.setCommand(self.command + additionalArguments)
-        if platform in ('mac', 'ios') and architecture:
+        if platform in ('mac', 'ios', 'tvos', 'watchos') and architecture:
             self.setCommand(self.command + ['ARCHS=' + architecture])
-            if platform == 'ios':
+            if platform in ['ios', 'tvos', 'watchos']:
                 self.setCommand(self.command + ['ONLY_ACTIVE_ARCH=NO'])
-        if platform in ('mac', 'ios') and buildOnly:
+        if platform in ('mac', 'ios', 'tvos', 'watchos') and buildOnly:
             # For build-only bots, the expectation is that tests will be run on separate machines,
             # so we need to package debug info as dSYMs. Only generating line tables makes
             # this much faster than full debug info, and crash logs still have line numbers.
@@ -285,13 +301,26 @@ class ArchiveMinifiedBuiltProduct(ArchiveBuiltProduct):
 
 
 class GenerateJSCBundle(shell.ShellCommand):
-    command = ["python", "./Tools/Scripts/generate-jsc-bundle", "--builder-name", WithProperties("%(buildername)s"),
-               WithProperties("--platform=%(fullPlatform)s"), WithProperties("--%(configuration)s"),
-               WithProperties("--revision=%(got_revision)s"), "--remote-config-file", "../../remote-jsc-bundle-upload-config.json"]
+    command = ["./Tools/Scripts/generate-bundle", "--builder-name", WithProperties("%(buildername)s"),
+               "--bundle=jsc", "--syslibs=bundle-all", WithProperties("--platform=%(fullPlatform)s"),
+               WithProperties("--%(configuration)s"), WithProperties("--revision=%(got_revision)s"),
+               "--remote-config-file", "../../remote-jsc-bundle-upload-config.json"]
     name = "generate-jsc-bundle"
     description = ["generating jsc bundle"]
     descriptionDone = ["generated jsc bundle"]
     haltOnFailure = False
+
+
+class GenerateMiniBrowserBundle(shell.ShellCommand):
+    command = ["./Tools/Scripts/generate-bundle", "--builder-name", WithProperties("%(buildername)s"),
+               "--bundle=MiniBrowser", WithProperties("--platform=%(fullPlatform)s"),
+               WithProperties("--%(configuration)s"), WithProperties("--revision=%(got_revision)s"),
+               "--remote-config-file", "../../remote-minibrowser-bundle-upload-config.json"]
+    name = "generate-minibrowser-bundle"
+    description = ["generating minibrowser bundle"]
+    descriptionDone = ["generated minibrowser bundle"]
+    haltOnFailure = False
+
 
 class ExtractBuiltProduct(shell.ShellCommand):
     command = ["python", "./Tools/BuildSlaveSupport/built-product-archive",
@@ -341,11 +370,26 @@ class RunJavaScriptCoreTests(TestWithFailureCount):
     description = ["jscore-tests running"]
     descriptionDone = ["jscore-tests"]
     jsonFileName = "jsc_results.json"
-    command = ["perl", "./Tools/Scripts/run-javascriptcore-tests", "--no-build", "--no-fail-fast", "--json-output={0}".format(jsonFileName), WithProperties("--%(configuration)s")]
+    command = [
+        "perl", "./Tools/Scripts/run-javascriptcore-tests",
+        "--no-build", "--no-fail-fast",
+        "--json-output={0}".format(jsonFileName),
+        WithProperties("--%(configuration)s"),
+        "--builder-name", WithProperties("%(buildername)s"),
+        "--build-number", WithProperties("%(buildnumber)s"),
+        "--buildbot-worker", WithProperties("%(slavename)s"),
+        "--buildbot-master", BUILD_WEBKIT_URL,
+        "--report", RESULTS_WEBKIT_URL,
+    ]
     failedTestsFormatString = "%d JSC test%s failed"
     logfiles = {"json": jsonFileName}
 
+    def __init__(self, *args, **kwargs):
+        kwargs['logEnviron'] = False
+        TestWithFailureCount.__init__(self, *args, **kwargs)
+
     def start(self):
+        self.slaveEnvironment[RESULTS_SERVER_API_KEY] = os.getenv(RESULTS_SERVER_API_KEY)
         platform = self.getProperty('platform')
         architecture = self.getProperty("architecture")
         # Currently run-javascriptcore-test doesn't support run javascript core test binaries list below remotely
@@ -353,8 +397,8 @@ class RunJavaScriptCoreTests(TestWithFailureCount):
             self.command += ['--no-testmasm', '--no-testair', '--no-testb3', '--no-testdfg', '--no-testapi']
         # Linux bots have currently problems with JSC tests that try to use large amounts of memory.
         # Check: https://bugs.webkit.org/show_bug.cgi?id=175140
-        if platform in ('gtk', 'wpe'):
-            self.setCommand(self.command + ['--memory-limited'])
+        if platform in ('gtk', 'wpe', 'jsc-only'):
+            self.setCommand(self.command + ['--memory-limited', '--verbose'])
         # WinCairo uses the Windows command prompt, not Cygwin.
         elif platform == 'wincairo':
             self.setCommand(self.command + ['--test-writer=ruby'])
@@ -383,7 +427,7 @@ class RunJavaScriptCoreTests(TestWithFailureCount):
 
 class RunRemoteJavaScriptCoreTests(RunJavaScriptCoreTests):
     def start(self):
-        self.setCommand(self.command + ["--memory-limited", "--remote-config-file", "../../remote-jsc-tests-config.json"])
+        self.setCommand(self.command + ["--remote-config-file", "../../remote-jsc-tests-config.json"])
         return RunJavaScriptCoreTests.start(self)
 
 
@@ -420,9 +464,8 @@ class RunWebKitTests(shell.Test):
                "--build-number", WithProperties("%(buildnumber)s"),
                "--buildbot-worker", WithProperties("%(slavename)s"),
                "--master-name", "webkit.org",
-               "--buildbot-master", "build.webkit.org",
-               "--report", RESULTS_WEBKIT,
-               "--test-results-server", "webkit-test-results.webkit.org",
+               "--buildbot-master", BUILD_WEBKIT_URL,
+               "--report", RESULTS_WEBKIT_URL,
                "--exit-after-n-crashes-or-timeouts", "50",
                "--exit-after-n-failures", "500",
                WithProperties("--%(configuration)s")]
@@ -442,7 +485,7 @@ class RunWebKitTests(shell.Test):
         self.setCommand(self.command + ['--debug-rwt-logging'])
 
         if platform == "win":
-            self.setCommand(self.command + ['--batch-size', '100', '--root=' + os.path.join("WebKitBuild", self.getProperty('configuration'), "bin32")])
+            self.setCommand(self.command + ['--batch-size', '100', '--root=' + os.path.join("WebKitBuild", self.getProperty('configuration'), "bin64")])
 
         if additionalArguments:
             self.setCommand(self.command + additionalArguments)
@@ -550,11 +593,11 @@ class RunAPITests(TestWithFailureCount):
         "--json-output={0}".format(jsonFileName),
         WithProperties("--%(configuration)s"),
         "--verbose",
-        "--buildbot-master", "build.webkit.org",
+        "--buildbot-master", BUILD_WEBKIT_URL,
         "--builder-name", WithProperties("%(buildername)s"),
         "--build-number", WithProperties("%(buildnumber)s"),
         "--buildbot-worker", WithProperties("%(slavename)s"),
-        "--report", RESULTS_WEBKIT,
+        "--report", RESULTS_WEBKIT_URL,
     ]
     failedTestsFormatString = "%d api test%s failed or timed out"
 
@@ -577,29 +620,8 @@ class RunAPITests(TestWithFailureCount):
 
 
 class RunPythonTests(TestWithFailureCount):
-    name = "webkitpy-test"
-    description = ["python-tests running"]
-    descriptionDone = ["python-tests"]
-    command = [
-        "python",
-        "./Tools/Scripts/test-webkitpy",
-        "--verbose",
-        WithProperties("--%(configuration)s"),
-        "--buildbot-master", "build.webkit.org",
-        "--builder-name", WithProperties("%(buildername)s"),
-        "--build-number", WithProperties("%(buildnumber)s"),
-        "--buildbot-worker", WithProperties("%(slavename)s"),
-        "--report", RESULTS_WEBKIT,
-    ]
-    failedTestsFormatString = "%d python test%s failed"
-
-    def __init__(self, *args, **kwargs):
-        kwargs['logEnviron'] = False
-        TestWithFailureCount.__init__(self, *args, **kwargs)
 
     def start(self):
-        self.slaveEnvironment[RESULTS_SERVER_API_KEY] = os.getenv(RESULTS_SERVER_API_KEY)
-
         platform = self.getProperty('platform')
         # Python tests are flaky on the GTK builders, running them serially
         # helps and does not significantly prolong the cycle time.
@@ -621,6 +643,45 @@ class RunPythonTests(TestWithFailureCount):
                 continue
             return sum(int(component.split('=')[1]) for component in match.group('counts').split(', '))
         return 0
+
+
+class RunWebKitPyTests(RunPythonTests):
+    name = "webkitpy-test"
+    description = ["python-tests running"]
+    descriptionDone = ["python-tests"]
+    command = [
+        "python",
+        "./Tools/Scripts/test-webkitpy",
+        "--verbose",
+        "--buildbot-master", BUILD_WEBKIT_URL,
+        "--builder-name", WithProperties("%(buildername)s"),
+        "--build-number", WithProperties("%(buildnumber)s"),
+        "--buildbot-worker", WithProperties("%(slavename)s"),
+        "--report", RESULTS_WEBKIT_URL,
+    ]
+    failedTestsFormatString = "%d python test%s failed"
+
+    def __init__(self, *args, **kwargs):
+        kwargs['logEnviron'] = False
+        RunPythonTests.__init__(self, *args, **kwargs)
+
+    def start(self):
+        self.slaveEnvironment[RESULTS_SERVER_API_KEY] = os.getenv(RESULTS_SERVER_API_KEY)
+        return RunPythonTests.start(self)
+
+
+class RunLLDBWebKitTests(RunPythonTests):
+    name = "lldb-webkit-test"
+    description = ["lldb-webkit-tests running"]
+    descriptionDone = ["lldb-webkit-tests"]
+    command = [
+        "python",
+        "./Tools/Scripts/test-lldb-webkit",
+        "--verbose",
+        "--no-build",
+        WithProperties("--%(configuration)s"),
+    ]
+    failedTestsFormatString = "%d lldb test%s failed"
 
 
 class RunPerlTests(TestWithFailureCount):
@@ -647,9 +708,28 @@ class RunLLINTCLoopTests(TestWithFailureCount):
     description = ["cloop-tests running"]
     descriptionDone = ["cloop-tests"]
     jsonFileName = "jsc_cloop.json"
-    command = ["perl", "./Tools/Scripts/run-javascriptcore-tests", "--cloop", "--no-build", "--no-jsc-stress", "--no-fail-fast", "--json-output={0}".format(jsonFileName), WithProperties("--%(configuration)s")]
+    command = [
+        "perl", "./Tools/Scripts/run-javascriptcore-tests",
+        "--cloop", "--no-build",
+        "--no-jsc-stress", "--no-fail-fast",
+        "--json-output={0}".format(jsonFileName),
+        WithProperties("--%(configuration)s"),
+        "--builder-name", WithProperties("%(buildername)s"),
+        "--build-number", WithProperties("%(buildnumber)s"),
+        "--buildbot-worker", WithProperties("%(slavename)s"),
+        "--buildbot-master", BUILD_WEBKIT_URL,
+        "--report", RESULTS_WEBKIT_URL,
+    ]
     failedTestsFormatString = "%d regression%s found."
     logfiles = {"json": jsonFileName}
+
+    def __init__(self, *args, **kwargs):
+        kwargs['logEnviron'] = False
+        TestWithFailureCount.__init__(self, *args, **kwargs)
+
+    def start(self):
+        self.slaveEnvironment[RESULTS_SERVER_API_KEY] = os.getenv(RESULTS_SERVER_API_KEY)
+        return shell.Test.start(self)
 
     def countFailures(self, cmd):
         logText = cmd.logs['stdio'].getText()
@@ -668,9 +748,28 @@ class Run32bitJSCTests(TestWithFailureCount):
     description = ["32bit-jsc-tests running"]
     descriptionDone = ["32bit-jsc-tests"]
     jsonFileName = "jsc_32bit.json"
-    command = ["perl", "./Tools/Scripts/run-javascriptcore-tests", "--32-bit", "--no-build", "--no-fail-fast", "--no-jit", "--no-testair", "--no-testb3", "--no-testmasm", "--json-output={0}".format(jsonFileName), WithProperties("--%(configuration)s")]
+    command = [
+        "perl", "./Tools/Scripts/run-javascriptcore-tests",
+        "--32-bit", "--no-build",
+        "--no-fail-fast", "--no-jit", "--no-testair", "--no-testb3", "--no-testmasm",
+        "--json-output={0}".format(jsonFileName),
+        WithProperties("--%(configuration)s"),
+        "--builder-name", WithProperties("%(buildername)s"),
+        "--build-number", WithProperties("%(buildnumber)s"),
+        "--buildbot-worker", WithProperties("%(slavename)s"),
+        "--buildbot-master", BUILD_WEBKIT_URL,
+        "--report", RESULTS_WEBKIT_URL,
+    ]
     failedTestsFormatString = "%d regression%s found."
     logfiles = {"json": jsonFileName}
+
+    def __init__(self, *args, **kwargs):
+        kwargs['logEnviron'] = False
+        TestWithFailureCount.__init__(self, *args, **kwargs)
+
+    def start(self):
+        self.slaveEnvironment[RESULTS_SERVER_API_KEY] = os.getenv(RESULTS_SERVER_API_KEY)
+        return shell.Test.start(self)
 
     def countFailures(self, cmd):
         logText = cmd.logs['stdio'].getText()
@@ -699,7 +798,7 @@ class RunBuiltinsTests(shell.Test):
 
 
 class RunGLibAPITests(shell.Test):
-    name = "API tests"
+    name = "API-tests"
     description = ["API tests running"]
     descriptionDone = ["API tests"]
 
@@ -932,6 +1031,7 @@ class UploadTestResults(transfer.FileUpload):
         kwargs['slavesrc'] = self.slavesrc
         kwargs['masterdest'] = self.masterdest
         kwargs['mode'] = 0644
+        kwargs['blocksize'] = 1024 * 256
         transfer.FileUpload.__init__(self, **kwargs)
 
 

@@ -29,6 +29,7 @@
 
 #pragma once
 
+#include "AudioBufferOptions.h"
 #include "ExceptionOr.h"
 #include <JavaScriptCore/Float32Array.h>
 #include <wtf/Lock.h>
@@ -41,24 +42,22 @@ class AudioBus;
 class AudioBuffer : public RefCounted<AudioBuffer> {
 public:   
     static RefPtr<AudioBuffer> create(unsigned numberOfChannels, size_t numberOfFrames, float sampleRate);
-
+    static ExceptionOr<Ref<AudioBuffer>> create(const AudioBufferOptions&);
     // Returns nullptr if data is not a valid audio file.
     static RefPtr<AudioBuffer> createFromAudioFileData(const void* data, size_t dataSize, bool mixToMono, float sampleRate);
 
     // Format
     size_t length() const { return m_length; }
-    double duration() const { return length() / sampleRate(); }
+    double duration() const { return length() / static_cast<double>(sampleRate()); }
     float sampleRate() const { return m_sampleRate; }
 
     // Channel data access
     unsigned numberOfChannels() const { return m_channels.size(); }
     ExceptionOr<Ref<Float32Array>> getChannelData(unsigned channelIndex);
+    ExceptionOr<void> copyFromChannel(Ref<Float32Array>&&, unsigned channelNumber, unsigned bufferOffset);
+    ExceptionOr<void> copyToChannel(Ref<Float32Array>&&, unsigned channelNumber, unsigned startInChannel);
     Float32Array* channelData(unsigned channelIndex);
     void zero();
-
-    // Scalar gain
-    double gain() const { return m_gain; }
-    void setGain(double gain) { m_gain = gain; }
 
     // Because an AudioBuffer has a JavaScript wrapper, which will be garbage collected, it may take a while for this object to be deleted.
     // releaseMemory() can be called when the AudioContext goes away, so we can release the memory earlier than when the garbage collection happens.
@@ -68,12 +67,11 @@ public:
     size_t memoryCost() const;
     
 private:
-    AudioBuffer(unsigned numberOfChannels, size_t numberOfFrames, float sampleRate);
+    AudioBuffer(unsigned numberOfChannels, size_t length, float sampleRate);
     explicit AudioBuffer(AudioBus&);
 
     void invalidate();
 
-    double m_gain { 1.0 }; // scalar gain
     float m_sampleRate;
     mutable Lock m_channelsLock;
     size_t m_length;

@@ -25,8 +25,11 @@
 
 #import "config.h"
 
+#import "WTFStringUtilities.h"
+#import <wtf/URL.h>
 #import <wtf/Vector.h>
 #import <wtf/cocoa/NSURLExtras.h>
+#import <wtf/cocoa/VectorCocoa.h>
 #import <wtf/text/WTFString.h>
 
 namespace TestWebKitAPI {
@@ -70,6 +73,13 @@ TEST(WTF_URLExtras, URLExtras)
 
     EXPECT_STREQ("http://site.com", userVisibleString(literalURL("http://site.com")));
     EXPECT_STREQ("http://%77ebsite.com", userVisibleString(literalURL("http://%77ebsite.com")));
+
+    EXPECT_STREQ("-.example.com", [WTF::decodeHostName(@"-.example.com") UTF8String]);
+    EXPECT_STREQ("-a.example.com", [WTF::decodeHostName(@"-a.example.com") UTF8String]);
+    EXPECT_STREQ("a-.example.com", [WTF::decodeHostName(@"a-.example.com") UTF8String]);
+    EXPECT_STREQ("ab--cd.example.com", [WTF::decodeHostName(@"ab--cd.example.com") UTF8String]);
+    EXPECT_STREQ(".example.com", [WTF::decodeHostName(@"xn--.example.com") UTF8String]);
+    EXPECT_STREQ("a..example.com", [WTF::decodeHostName(@"a..example.com") UTF8String]);
 }
     
 TEST(WTF_URLExtras, URLExtras_Spoof)
@@ -194,6 +204,27 @@ TEST(WTF_URLExtras, URLExtras_ParsingError)
 
     NSString *encodedHostName = WTF::encodeHostName(@"http://.com");
     EXPECT_TRUE(encodedHostName == nil);
+
+    WTF::URL url2(URL(), utf16String(u"http://\u2267\u222E\uFE63"));
+    EXPECT_STREQ([[url2 absoluteString] UTF8String], "http://%E2%89%A7%E2%88%AE%EF%B9%A3");
+
+    std::array<UChar, 3> utf16 { 0xC2, 0xB6, 0x00 };
+    WTF::URL url3(URL(), String(utf16.data()));
+    EXPECT_FALSE(url3.string().is8Bit());
+    EXPECT_FALSE(url3.isValid());
+    EXPECT_STREQ([[url3 absoluteString] UTF8String], "%C3%82%C2%B6");
+    
+    std::array<LChar, 3> latin1 { 0xC2, 0xB6, 0x00 };
+    WTF::URL url4(URL(), String(latin1.data()));
+    EXPECT_FALSE(url4.isValid());
+    EXPECT_TRUE(url4.string().is8Bit());
+    EXPECT_STREQ([[url4 absoluteString] UTF8String], "%C3%82%C2%B6");
+
+    char buffer[100];
+    memset(buffer, 0, sizeof(buffer));
+    WTF::URL url5(URL(), "file:///A%C3%A7%C3%A3o.html"_s);
+    CFURLGetFileSystemRepresentation(url5.createCFURL().get(), false, reinterpret_cast<UInt8*>(buffer), sizeof(buffer));
+    EXPECT_STREQ(buffer, "/Ação.html");
 }
 
 TEST(WTF_URLExtras, URLExtras_Nil)
@@ -203,6 +234,13 @@ TEST(WTF_URLExtras, URLExtras_Nil)
 
     NSURL *url2 = WTF::URLWithUserTypedStringDeprecated(nil, nil);
     EXPECT_TRUE(url2 == nil);
+}
+
+TEST(WTF_URLExtras, CreateNSArray)
+{
+    Vector<URL> urls { URL(URL(), "https://webkit.org/") };
+    auto array = createNSArray(urls);
+    EXPECT_TRUE([array.get()[0] isKindOfClass:NSURL.class]);
 }
 
 } // namespace TestWebKitAPI

@@ -53,6 +53,8 @@ list(APPEND WebCore_SOURCES
     platform/network/cf/SynchronousLoaderClientCFNet.cpp
 
     platform/text/LocaleNone.cpp
+
+    platform/win/StructuredExceptionHandlerSuppressor.cpp
 )
 
 list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS
@@ -83,8 +85,7 @@ if (${USE_DIRECT2D})
         platform/graphics/win/GradientDirect2D.cpp
         platform/graphics/win/GraphicsContextDirect2D.cpp
         platform/graphics/win/GraphicsLayerDirect2D.cpp
-        platform/graphics/win/ImageBufferDataDirect2D.cpp
-        platform/graphics/win/ImageBufferDirect2D.cpp
+        platform/graphics/win/ImageBufferDirect2DBackend.cpp
         platform/graphics/win/ImageDecoderDirect2D.cpp
         platform/graphics/win/ImageDirect2D.cpp
         platform/graphics/win/NativeImageDirect2D.cpp
@@ -129,11 +130,12 @@ else ()
         platform/graphics/cg/FloatRectCG.cpp
         platform/graphics/cg/FloatSizeCG.cpp
         platform/graphics/cg/GradientCG.cpp
-        platform/graphics/cg/GraphicsContext3DCG.cpp
+        platform/graphics/cg/GraphicsContextGLCG.cpp
         platform/graphics/cg/GraphicsContextCG.cpp
         platform/graphics/cg/IOSurfacePool.cpp
-        platform/graphics/cg/ImageBufferCG.cpp
-        platform/graphics/cg/ImageBufferDataCG.cpp
+        platform/graphics/cg/ImageBufferCGBackend.cpp
+        platform/graphics/cg/ImageBufferCGBitmapBackend.cpp
+        platform/graphics/cg/ImageBufferIOSurfaceBackend.cpp
         platform/graphics/cg/ImageBufferUtilitiesCG.cpp
         platform/graphics/cg/ImageDecoderCG.cpp
         platform/graphics/cg/ImageSourceCGWin.cpp
@@ -148,11 +150,15 @@ else ()
         platform/graphics/cg/TransformationMatrixCG.cpp
         platform/graphics/cg/UTIRegistry.cpp
 
+        platform/graphics/coretext/FontCascadeCoreText.cpp
+        platform/graphics/coretext/FontCoreText.cpp
+        platform/graphics/coretext/FontPlatformDataCoreText.cpp
+        platform/graphics/coretext/GlyphPageCoreText.cpp
+
         platform/graphics/opentype/OpenTypeCG.cpp
 
         platform/graphics/win/FontCGWin.cpp
         platform/graphics/win/FontPlatformDataCGWin.cpp
-        platform/graphics/win/GlyphPageTreeNodeCGWin.cpp
         platform/graphics/win/GraphicsContextCGWin.cpp
         platform/graphics/win/ImageCGWin.cpp
         platform/graphics/win/SimpleFontDataCGWin.cpp
@@ -176,9 +182,20 @@ else ()
 
         platform/graphics/cg/GraphicsContextCG.h
         platform/graphics/cg/IOSurfacePool.h
-        platform/graphics/cg/ImageBufferDataCG.h
+        platform/graphics/cg/ImageBufferCGBackend.h
+        platform/graphics/cg/ImageBufferCGBitmapBackend.h
+        platform/graphics/cg/ImageBufferIOSurfaceBackend.h
         platform/graphics/cg/ImageBufferUtilitiesCG.h
         platform/graphics/cg/PDFDocumentImage.h
         platform/graphics/cg/UTIRegistry.h
     )
+endif ()
+
+if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+    list(APPEND WebCore_SOURCES ${WebCore_DERIVED_SOURCES_DIR}/makesafeseh.obj)
+    add_custom_command(
+        OUTPUT ${WebCore_DERIVED_SOURCES_DIR}/makesafeseh.obj
+        DEPENDS ${WEBCORE_DIR}/platform/win/makesafeseh.asm
+        COMMAND ml /safeseh /c /Fo ${WebCore_DERIVED_SOURCES_DIR}/makesafeseh.obj ${WEBCORE_DIR}/platform/win/makesafeseh.asm
+        VERBATIM)
 endif ()

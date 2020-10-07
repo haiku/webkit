@@ -33,10 +33,38 @@
 
 #else
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSImage ()
-- (void)lockFocusWithRect:(NSRect)rect context:(NSGraphicsContext *)context hints:(NSDictionary *)hints flipped:(BOOL)flipped;
++ (instancetype)imageWithImageRep:(NSImageRep *)imageRep;
+- (instancetype)_imageWithConfiguration:(NSDictionary *)configuration;
+- (void)lockFocusWithRect:(NSRect)rect context:(nullable NSGraphicsContext *)context hints:(nullable NSDictionary *)hints flipped:(BOOL)flipped;
 @end
 
-#endif
+@interface NSImage (NSSystemSymbols)
++ (nullable NSImage *)_imageWithSystemSymbolName:(NSString *) symbolName;
+@end
+
+WTF_EXTERN_C_BEGIN
+
+extern const NSString *NSImageAlternateCriterionFont;
+extern const NSString *NSImageAlternateCriterionSymbolScale;
+
+WTF_EXTERN_C_END
+
+NS_ASSUME_NONNULL_END
 
 #endif
+
+#if HAVE(ALTERNATE_ICONS)
+
+NS_ASSUME_NONNULL_BEGIN
+
+extern const NSImageHintKey NSImageHintSymbolFont;
+extern const NSImageHintKey NSImageHintSymbolScale;
+
+NS_ASSUME_NONNULL_END
+
+#endif // HAVE(ALTERNATE_ICONS)
+
+#endif // USE(APPLE_INTERNAL_SDK)

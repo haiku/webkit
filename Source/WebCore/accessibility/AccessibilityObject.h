@@ -33,7 +33,6 @@
 #include "FloatQuad.h"
 #include "LayoutRect.h"
 #include "Path.h"
-#include "Range.h"
 #include <wtf/Forward.h>
 #include <wtf/Function.h>
 #include <wtf/RefPtr.h>
@@ -66,50 +65,19 @@ class IntPoint;
 class IntSize;
 class ScrollableArea;
 
-enum class AccessibilityTextSource {
-    Alternative,
-    Children,
-    Summary,
-    Help,
-    Visible,
-    TitleTag,
-    Placeholder,
-    LabelByElement,
-    Title,
-    Subtitle,
-    Action,
-};
-    
 struct AccessibilityText {
     String text;
     AccessibilityTextSource textSource;
-    Vector<RefPtr<AccessibilityObject>> textElements;
     
     AccessibilityText(const String& t, const AccessibilityTextSource& s)
         : text(t)
         , textSource(s)
     { }
-
-    AccessibilityText(const String& t, const AccessibilityTextSource& s, Vector<RefPtr<AccessibilityObject>> elements)
-        : text(t)
-        , textSource(s)
-        , textElements(WTFMove(elements))
-    { }
-
-    AccessibilityText(const String& t, const AccessibilityTextSource& s, RefPtr<AccessibilityObject>&& element)
-        : text(t)
-        , textSource(s)
-    {
-        textElements.append(WTFMove(element));
-    }
 };
 
 bool nodeHasPresentationRole(Node*);
 
 class AccessibilityObject : public AXCoreObject {
-protected:
-    AccessibilityObject() = default;
-
 public:
     virtual ~AccessibilityObject();
 
@@ -119,25 +87,22 @@ public:
     void setObjectID(AXID id) override { m_id = id; }
     void init() override { }
 
-    // When the corresponding WebCore object that this AccessibilityObject
-    // wraps is deleted, it must be detached.
-    void detach(AccessibilityDetachmentType, AXObjectCache* = nullptr) override;
     bool isDetached() const override;
 
     bool isAccessibilityNodeObject() const override { return false; }
     bool isAccessibilityRenderObject() const override { return false; }
     bool isAccessibilityScrollbar() const override { return false; }
-    bool isAccessibilityScrollView() const override { return false; }
+    bool isAccessibilityScrollViewInstance() const override { return false; }
     bool isAccessibilitySVGRoot() const override { return false; }
     bool isAccessibilitySVGElement() const override { return false; }
-
-    bool containsText(String *) const override;
+    bool isAccessibilityTableInstance() const override { return false; }
+    bool isAccessibilityTableColumnInstance() const override { return false; }
+    bool isAccessibilityProgressIndicatorInstance() const override { return false; }
+    bool isAXIsolatedObjectInstance() const override { return false; }
 
     bool isAttachmentElement() const override { return false; }
     bool isHeading() const override { return false; }
     bool isLink() const override { return false; }
-    bool isImage() const override { return false; }
-    bool isImageMap() const override { return roleValue() == AccessibilityRole::ImageMap; }
     bool isNativeImage() const override { return false; }
     bool isImageButton() const override { return false; }
     bool isPasswordField() const override { return false; }
@@ -145,11 +110,7 @@ public:
     AccessibilityObject* passwordFieldOrContainingPasswordField() override { return nullptr; }
     bool isNativeTextControl() const override { return false; }
     bool isSearchField() const override { return false; }
-    bool isWebArea() const override { return roleValue() == AccessibilityRole::WebArea; }
-    bool isCheckbox() const override { return roleValue() == AccessibilityRole::CheckBox; }
-    bool isRadioButton() const override { return roleValue() == AccessibilityRole::RadioButton; }
     bool isNativeListBox() const override { return false; }
-    bool isListBox() const override { return roleValue() == AccessibilityRole::ListBox; }
     bool isListBoxOption() const override { return false; }
     bool isAttachment() const override { return false; }
     bool isMediaTimeline() const override { return false; }
@@ -166,55 +127,80 @@ public:
     bool isInputSlider() const override { return false; }
     bool isControl() const override { return false; }
     bool isLabel() const override { return false; }
+
     bool isList() const override { return false; }
+    bool isUnorderedList() const override { return false; }
+    bool isOrderedList() const override { return false; }
+    bool isDescriptionList() const override { return false; }
+
+    // Table support.
     bool isTable() const override { return false; }
+    bool isExposable() const override { return true; }
     bool isDataTable() const override { return false; }
-    bool isTableRow() const override { return false; }
-    bool isTableColumn() const override { return false; }
+    int tableLevel() const override { return 0; }
+    bool supportsSelectedRows() const override { return false; }
+    AccessibilityChildrenVector columns() override { return AccessibilityChildrenVector(); }
+    AccessibilityChildrenVector rows() override { return AccessibilityChildrenVector(); }
+    unsigned columnCount() override { return 0; }
+    unsigned rowCount() override { return 0; }
+    AccessibilityChildrenVector cells() override { return AccessibilityChildrenVector(); }
+    AXCoreObject* cellForColumnAndRow(unsigned, unsigned) override { return nullptr; }
+    AccessibilityChildrenVector columnHeaders() override { return AccessibilityChildrenVector(); }
+    AccessibilityChildrenVector rowHeaders() override { return AccessibilityChildrenVector(); }
+    AccessibilityChildrenVector visibleRows() override { return AccessibilityChildrenVector(); }
+    AXCoreObject* headerContainer() override { return nullptr; }
+    int axColumnCount() const override { return 0; }
+    int axRowCount() const override { return 0; }
+
+    // Table cell support.
     bool isTableCell() const override { return false; }
+    // Returns the start location and row span of the cell.
+    std::pair<unsigned, unsigned> rowIndexRange() const override { return { 0, 1 }; }
+    // Returns the start location and column span of the cell.
+    std::pair<unsigned, unsigned> columnIndexRange() const override { return { 0, 1 }; }
+    bool isColumnHeaderCell() const override { return false; }
+    bool isRowHeaderCell() const override { return false; }
+    int axColumnIndex() const override { return -1; }
+    int axRowIndex() const override { return -1; }
+
+    // Table column support.
+    bool isTableColumn() const override { return false; }
+    unsigned columnIndex() const override { return 0; }
+    AXCoreObject* columnHeader() override { return nullptr; }
+
+    // Table row support.
+    bool isTableRow() const override { return false; }
+    unsigned rowIndex() const override { return 0; }
+
+    // ARIA tree/grid row support.
+    bool isARIATreeGridRow() const override { return false; }
+    AccessibilityChildrenVector disclosedRows() override; // ARIATreeItem implementation. AccessibilityARIAGridRow overrides this method.
+    AXCoreObject* disclosedByRow() const override { return nullptr; }
+
     bool isFieldset() const override { return false; }
     bool isGroup() const override { return false; }
-    bool isARIATreeGridRow() const override { return false; }
     bool isImageMapLink() const override { return false; }
     bool isMenuList() const override { return false; }
     bool isMenuListPopup() const override { return false; }
     bool isMenuListOption() const override { return false; }
-    bool isSpinButton() const override { return roleValue() == AccessibilityRole::SpinButton; }
     bool isNativeSpinButton() const override { return false; }
+    AXCoreObject* incrementButton() override { return nullptr; }
+    AXCoreObject* decrementButton() override { return nullptr; }
     bool isSpinButtonPart() const override { return false; }
+    bool isIncrementor() const override { return false; }
     bool isMockObject() const override { return false; }
-    bool isMediaControlLabel() const override { return false; }
+    virtual bool isMediaControlLabel() const { return false; }
     bool isMediaObject() const override { return false; }
-    bool isSwitch() const override { return roleValue() == AccessibilityRole::Switch; }
-    bool isToggleButton() const override { return roleValue() == AccessibilityRole::ToggleButton; }
     bool isTextControl() const override;
     bool isARIATextControl() const override;
     bool isNonNativeTextControl() const override;
-    bool isTabList() const override { return roleValue() == AccessibilityRole::TabList; }
-    bool isTabItem() const override { return roleValue() == AccessibilityRole::Tab; }
-    bool isRadioGroup() const override { return roleValue() == AccessibilityRole::RadioGroup; }
-    bool isComboBox() const override { return roleValue() == AccessibilityRole::ComboBox; }
-    bool isTree() const override { return roleValue() == AccessibilityRole::Tree; }
-    bool isTreeGrid() const override { return roleValue() == AccessibilityRole::TreeGrid; }
-    bool isTreeItem() const override { return roleValue() == AccessibilityRole::TreeItem; }
-    bool isScrollbar() const override { return roleValue() == AccessibilityRole::ScrollBar; }
     bool isButton() const override;
-    bool isListItem() const override { return roleValue() == AccessibilityRole::ListItem; }
-    bool isCheckboxOrRadio() const override { return isCheckbox() || isRadioButton(); }
-    bool isScrollView() const override { return roleValue() == AccessibilityRole::ScrollArea; }
-    bool isCanvas() const override { return roleValue() == AccessibilityRole::Canvas; }
-    bool isPopUpButton() const override { return roleValue() == AccessibilityRole::PopUpButton; }
-    bool isBlockquote() const override;
     bool isLandmark() const override;
-    bool isColorWell() const override { return roleValue() == AccessibilityRole::ColorWell; }
     bool isRangeControl() const override;
     bool isMeter() const override;
-    bool isSplitter() const override { return roleValue() == AccessibilityRole::Splitter; }
-    bool isToolbar() const override { return roleValue() == AccessibilityRole::Toolbar; }
     bool isStyleFormatGroup() const override;
     bool isFigureElement() const override;
     bool isKeyboardFocusable() const override;
-    bool isSummary() const override { return roleValue() == AccessibilityRole::Summary; }
     bool isOutput() const override;
 
     bool isChecked() const override { return false; }
@@ -238,24 +224,24 @@ public:
     void setIsExpanded(bool) override { }
     FloatRect relativeFrame() const override;
     FloatRect convertFrameToSpace(const FloatRect&, AccessibilityConversionSpace) const override;
-
+    HashMap<String, AXEditingStyleValueVariant> resolvedEditingStyles() const override;
+    
     // In a multi-select list, many items can be selected but only one is active at a time.
     bool isSelectedOptionActive() const override { return false; }
 
     bool hasBoldFont() const override { return false; }
     bool hasItalicFont() const override { return false; }
     bool hasMisspelling() const override;
-    RefPtr<Range> getMisspellingRange(RefPtr<Range> const& start, AccessibilitySearchDirection) const override;
+    Optional<SimpleRange> misspellingRange(const SimpleRange& start, AccessibilitySearchDirection) const override;
     bool hasPlainText() const override { return false; }
-    bool hasSameFont(RenderObject*) const override { return false; }
-    bool hasSameFontColor(RenderObject*) const override { return false; }
-    bool hasSameStyle(RenderObject*) const override { return false; }
-    bool isStaticText() const override { return roleValue() == AccessibilityRole::StaticText; }
+    bool hasSameFont(const AXCoreObject&) const override { return false; }
+    bool hasSameFontColor(const AXCoreObject&) const override { return false; }
+    bool hasSameStyle(const AXCoreObject&) const override { return false; }
     bool hasUnderline() const override { return false; }
     bool hasHighlighting() const override;
 
     bool supportsDatetimeAttribute() const override;
-    const AtomString& datetimeAttributeValue() const override;
+    String datetimeAttributeValue() const override;
 
     bool canSetFocusAttribute() const override { return false; }
     bool canSetTextRangeAttributes() const override { return false; }
@@ -277,7 +263,6 @@ public:
 
     unsigned blockquoteLevel() const override;
     int headingLevel() const override { return 0; }
-    int tableLevel() const override { return 0; }
     AccessibilityButtonState checkboxOrRadioValue() const override;
     String valueDescription() const override { return String(); }
     float valueForRange() const override { return 0.0f; }
@@ -290,7 +275,6 @@ public:
     int layoutCount() const override { return 0; }
     double estimatedLoadingProgress() const override { return 0; }
     WEBCORE_EXPORT static bool isARIAControl(AccessibilityRole);
-    WEBCORE_EXPORT static bool isARIAInput(AccessibilityRole);
 
     bool supportsARIAOwns() const override { return false; }
     bool isActiveDescendantOfFocusedContainer() const override;
@@ -320,13 +304,13 @@ public:
     bool supportsPressed() const override;
     bool supportsExpanded() const override;
     bool supportsChecked() const override;
+    bool supportsRowCountChange() const override;
     AccessibilitySortDirection sortDirection() const override;
     bool canvasHasFallbackContent() const override { return false; }
     bool supportsRangeValue() const override;
-    const AtomString& identifierAttribute() const override;
-    const AtomString& linkRelValue() const override;
+    String identifierAttribute() const override;
+    String linkRelValue() const override;
     void classList(Vector<String>&) const override;
-    String roleDescription() const override;
     AccessibilityCurrentState currentState() const override;
     String currentValue() const override;
     bool supportsCurrent() const override;
@@ -343,11 +327,11 @@ public:
     int posInSet() const override;
 
     // ARIA drag and drop
-    bool supportsARIADropping() const override { return false; }
-    bool supportsARIADragging() const override { return false; }
-    bool isARIAGrabbed() override { return false; }
+    bool supportsDropping() const override { return false; }
+    bool supportsDragging() const override { return false; }
+    bool isGrabbed() override { return false; }
     void setARIAGrabbed(bool) override { }
-    Vector<String> determineARIADropEffects() override { return { }; }
+    Vector<String> determineDropEffects() const override { return { }; }
 
     // Called on the root AX object to return the deepest available element.
     AXCoreObject* accessibilityHitTest(const IntPoint&) const override { return nullptr; }
@@ -372,12 +356,7 @@ public:
     bool isDescendantOfRole(AccessibilityRole) const override;
 
     // Text selection
-private:
-    RefPtr<Range> rangeOfStringClosestToRangeInDirection(Range*, AccessibilitySearchDirection, Vector<String> const&) const;
-    RefPtr<Range> selectionRange() const;
-    RefPtr<Range> findTextRange(Vector<String> const& searchStrings, RefPtr<Range> const& start, AccessibilitySearchTextDirection) const;
-public:
-    Vector<RefPtr<Range>> findTextRanges(AccessibilitySearchTextCriteria const&) const override;
+    Vector<SimpleRange> findTextRanges(const AccessibilitySearchTextCriteria&) const override;
     Vector<String> performTextOperation(AccessibilityTextOperation const&) override;
 
     AccessibilityObject* observableObject() const override { return nullptr; }
@@ -425,9 +404,12 @@ public:
     void elementsFromAttribute(Vector<Element*>&, const QualifiedName&) const override;
 
     // Only if isColorWell()
-    void colorValue(int& r, int& g, int& b) const override { r = 0; g = 0; b = 0; }
+    SRGBA<uint8_t> colorValue() const override { return Color::transparentBlack; }
 
     AccessibilityRole roleValue() const override { return m_role; }
+    String rolePlatformString() const override;
+    String roleDescription() const override;
+    String ariaLandmarkRoleDescription() const override;
 
     AXObjectCache* axObjectCache() const override;
     AXID objectID() const override { return m_id; }
@@ -438,9 +420,7 @@ public:
     bool supportsPressAction() const override;
     Element* actionElement() const override { return nullptr; }
     LayoutRect boundingBoxRect() const override { return LayoutRect(); }
-    IntRect pixelSnappedBoundingBoxRect() const override { return snappedIntRect(boundingBoxRect()); }
     LayoutRect elementRect() const override = 0;
-    LayoutSize size() const override { return elementRect().size(); }
     IntPoint clickPoint() override;
     static IntRect boundingBoxForQuads(RenderObject*, const Vector<FloatQuad>&);
     Path elementPath() const override { return Path(); }
@@ -454,9 +434,13 @@ public:
     URL url() const override { return URL(); }
     VisibleSelection selection() const override { return VisibleSelection(); }
     String selectedText() const override { return String(); }
-    const AtomString& accessKey() const override { return nullAtom(); }
-    const String& actionVerb() const override;
+    String accessKey() const override { return nullAtom(); }
+    String actionVerb() const override;
     Widget* widget() const override { return nullptr; }
+    PlatformWidget platformWidget() const override { return nullptr; }
+#if PLATFORM(COCOA)
+    RemoteAXObjectRef remoteParentObject() const override;
+#endif
     Widget* widgetForAttachmentView() const override { return nullptr; }
     Page* page() const override;
     Document* document() const override;
@@ -464,19 +448,21 @@ public:
     Frame* frame() const override;
     Frame* mainFrame() const override;
     Document* topDocument() const override;
+    ScrollView* scrollView() const override { return nullptr; }
     ScrollView* scrollViewAncestor() const override;
     String language() const override;
     // 1-based, to match the aria-level spec.
     unsigned hierarchicalLevel() const override { return 0; }
+    bool isInlineText() const override;
 
     void setFocused(bool) override { }
     void setSelectedText(const String&) override { }
     void setSelectedTextRange(const PlainTextRange&) override { }
-    void setValue(const String&) override { }
+    bool setValue(const String&) override { return false; }
     bool replaceTextInRange(const String&, const PlainTextRange&) override;
     bool insertText(const String&) override;
 
-    void setValue(float) override { }
+    bool setValue(float) override { return false; }
     void setSelected(bool) override { }
     void setSelectedRows(AccessibilityChildrenVector&) override { }
 
@@ -519,20 +505,18 @@ public:
     bool shouldFocusActiveDescendant() const override { return false; }
     AccessibilityObject* activeDescendant() const override { return nullptr; }
     void handleActiveDescendantChanged() override { }
-    void handleAriaExpandedChanged() override { }
-    bool isDescendantOfObject(const AXCoreObject*) const override;
-    bool isAncestorOfObject(const AXCoreObject*) const override;
     AccessibilityObject* firstAnonymousBlockChild() const override;
 
     WEBCORE_EXPORT static AccessibilityRole ariaRoleToWebCoreRole(const String&);
     bool hasAttribute(const QualifiedName&) const override;
     const AtomString& getAttribute(const QualifiedName&) const override;
     bool hasTagName(const QualifiedName&) const override;
+    String tagName() const override;
 
     VisiblePositionRange visiblePositionRange() const override { return VisiblePositionRange(); }
     VisiblePositionRange visiblePositionRangeForLine(unsigned) const override { return VisiblePositionRange(); }
 
-    RefPtr<Range> elementRange() const override;
+    Optional<SimpleRange> elementRange() const override;
     static bool replacedNodeNeedsCharacter(Node* replacedNode);
 
     VisiblePositionRange visiblePositionRangeForUnorderedPositions(const VisiblePosition&, const VisiblePosition&) const override;
@@ -546,12 +530,12 @@ public:
     VisiblePositionRange visiblePositionRangeForRange(const PlainTextRange&) const override;
     VisiblePositionRange lineRangeForPosition(const VisiblePosition&) const override;
 
-    RefPtr<Range> rangeForPlainTextRange(const PlainTextRange&) const override;
+    Optional<SimpleRange> rangeForPlainTextRange(const PlainTextRange&) const override;
 
     static String stringForVisiblePositionRange(const VisiblePositionRange&);
-    String stringForRange(RefPtr<Range>) const override;
+    String stringForRange(const SimpleRange&) const override;
     IntRect boundsForVisiblePositionRange(const VisiblePositionRange&) const override { return IntRect(); }
-    IntRect boundsForRange(const RefPtr<Range>) const override { return IntRect(); }
+    IntRect boundsForRange(const SimpleRange&) const override { return IntRect(); }
     int lengthForVisiblePositionRange(const VisiblePositionRange&) const override;
     void setSelectedVisiblePositionRange(const VisiblePositionRange&) const override { }
 
@@ -605,8 +589,6 @@ public:
 
     // Used by an ARIA tree to get all its rows.
     void ariaTreeRows(AccessibilityChildrenVector&) override;
-    // Used by an ARIA tree item to get all of its direct rows that it can disclose.
-    void ariaTreeItemDisclosedRows(AccessibilityChildrenVector&) override;
     // Used by an ARIA tree item to get only its content, and not its child tree items and groups.
     void ariaTreeItemContent(AccessibilityChildrenVector&) override;
 
@@ -629,6 +611,7 @@ public:
     bool supportsAutoComplete() const override;
     String autoCompleteValue() const override;
 
+    bool hasARIAValueNow() const override { return hasAttribute(HTMLNames::aria_valuenowAttr); }
     bool supportsARIAAttributes() const override;
 
     // CSS3 Speech properties.
@@ -708,13 +691,6 @@ public:
     bool isDOMHidden() const override;
     bool isHidden() const override { return isAXHidden() || isDOMHidden(); }
 
-#if ENABLE(ACCESSIBILITY)
-    AccessibilityObjectWrapper* wrapper() const override { return m_wrapper.get(); }
-    void setWrapper(AccessibilityObjectWrapper* wrapper) override { m_wrapper = wrapper; }
-#else
-    AccessibilityObjectWrapper* wrapper() const override { return nullptr; }
-#endif
-
 #if PLATFORM(COCOA)
     void overrideAttachmentParent(AXCoreObject* parent) override;
 #else
@@ -749,6 +725,7 @@ public:
     String descriptionAttributeValue() const override;
     String helpTextAttributeValue() const override;
     String titleAttributeValue() const override;
+    bool hasApplePDFAnnotationAttribute() const override { return hasAttribute(HTMLNames::x_apple_pdf_annotationAttr); }
 #endif
 
 #if PLATFORM(COCOA) && !PLATFORM(IOS_FAMILY)
@@ -761,22 +738,23 @@ public:
     AccessibilityObject* highestEditableAncestor() override;
 
     const AccessibilityScrollView* ancestorAccessibilityScrollView(bool includeSelf) const override;
+    AccessibilityObject* webAreaObject() const override { return nullptr; }
 
-    void clearIsIgnoredFromParentData() override { m_isIgnoredFromParentData = AccessibilityIsIgnoredFromParentData(); }
+    void clearIsIgnoredFromParentData() override { m_isIgnoredFromParentData = { }; }
     void setIsIgnoredFromParentDataForChild(AXCoreObject*) override;
 
+    uint64_t sessionID() const override;
+    String documentURI() const override;
+    String documentEncoding() const override;
+    AccessibilityChildrenVector documentLinks() override { return AccessibilityChildrenVector(); }
+
 protected:
-    AXID m_id { 0 };
-    AccessibilityChildrenVector m_children;
-    mutable bool m_haveChildren { false };
-    AccessibilityRole m_role { AccessibilityRole::Unknown };
-    AccessibilityObjectInclusion m_lastKnownIsIgnoredValue { AccessibilityObjectInclusion::DefaultBehavior };
-    AccessibilityIsIgnoredFromParentData m_isIgnoredFromParentData { };
-    bool m_childrenDirty { false };
-    bool m_subtreeDirty { false };
-#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
-    bool m_isolatedTreeNodeInitialized { false };
-#endif
+    AccessibilityObject() = default;
+
+    // FIXME: Make more of these member functions private.
+
+    void detachRemoteParts(AccessibilityDetachmentType) override;
+    void detachPlatformWrapper(AccessibilityDetachmentType) override;
 
     void setIsIgnoredFromParentData(AccessibilityIsIgnoredFromParentData& data) override { m_isIgnoredFromParentData = data; }
 
@@ -789,44 +767,65 @@ protected:
     ScrollableArea* scrollableAreaAncestor() const;
     void scrollAreaAndAncestor(std::pair<ScrollableArea*, AccessibilityObject*>&) const;
 
-    static bool isAccessibilityObjectSearchMatchAtIndex(AXCoreObject*, AccessibilitySearchCriteria*, size_t);
-    static bool isAccessibilityObjectSearchMatch(AXCoreObject*, AccessibilitySearchCriteria*);
-    static bool isAccessibilityTextSearchMatch(AXCoreObject*, AccessibilitySearchCriteria*);
-    static bool objectMatchesSearchCriteriaWithResultLimit(AXCoreObject*, AccessibilitySearchCriteria*, AccessibilityChildrenVector&);
     virtual AccessibilityRole buttonRoleType() const;
+    String rolePlatformDescription() const;
     bool isOnScreen() const override;
     bool dispatchTouchEvent();
 
+    static bool isARIAInput(AccessibilityRole);
     void ariaElementsFromAttribute(AccessibilityChildrenVector&, const QualifiedName&) const;
     void ariaElementsReferencedByAttribute(AccessibilityChildrenVector&, const QualifiedName&) const;
 
     AccessibilityObject* radioGroupAncestor() const;
 
-#if ENABLE(ACCESSIBILITY) && USE(ATK)
     bool allowsTextRanges() const;
     unsigned getLengthForTextRange() const;
-#else
-    bool allowsTextRanges() const { return isTextControl(); }
-    unsigned getLengthForTextRange() const { return text().length(); }
-#endif
 
-#if PLATFORM(COCOA)
-    RetainPtr<WebAccessibilityObjectWrapper> m_wrapper;
-#elif PLATFORM(WIN)
-    COMPtr<AccessibilityObjectWrapper> m_wrapper;
-#elif USE(ATK)
-    GRefPtr<WebKitAccessible> m_wrapper;
+private:
+    Optional<SimpleRange> rangeOfStringClosestToRangeInDirection(const SimpleRange&, AccessibilitySearchDirection, const Vector<String>&) const;
+    Optional<SimpleRange> selectionRange() const;
+    Optional<SimpleRange> findTextRange(const Vector<String>& searchStrings, const SimpleRange& start, AccessibilitySearchTextDirection) const;
+
+    AXID m_id { 0 };
+protected: // FIXME: Make the data members private.
+    AccessibilityChildrenVector m_children;
+    mutable bool m_haveChildren { false };
+    AccessibilityRole m_role { AccessibilityRole::Unknown };
+private:
+    AccessibilityObjectInclusion m_lastKnownIsIgnoredValue { AccessibilityObjectInclusion::DefaultBehavior };
+protected: // FIXME: Make the data members private.
+    AccessibilityIsIgnoredFromParentData m_isIgnoredFromParentData;
+    bool m_childrenDirty { false };
+    bool m_subtreeDirty { false };
+private:
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+    bool m_isolatedTreeNodeInitialized { false };
 #endif
 };
 
 #if !ENABLE(ACCESSIBILITY)
 inline const AccessibilityObject::AccessibilityChildrenVector& AccessibilityObject::children(bool) { return m_children; }
-inline const String& AccessibilityObject::actionVerb() const { return emptyString(); }
+inline String AccessibilityObject::actionVerb() const { return emptyString(); }
 inline int AccessibilityObject::lineForPosition(const VisiblePosition&) const { return -1; }
 inline void AccessibilityObject::updateBackingStore() { }
+inline void AccessibilityObject::detachPlatformWrapper(AccessibilityDetachmentType) { }
+#endif
+
+#if !(ENABLE(ACCESSIBILITY) && USE(ATK))
+inline bool AccessibilityObject::allowsTextRanges() const { return isTextControl(); }
+inline unsigned AccessibilityObject::getLengthForTextRange() const { return text().length(); }
 #endif
 
 AccessibilityObject* firstAccessibleObjectFromNode(const Node*, const WTF::Function<bool(const AccessibilityObject&)>& isAccessible);
+
+namespace Accessibility {
+
+using PlatformRoleMap = HashMap<AccessibilityRole, String, DefaultHash<unsigned>, WTF::UnsignedWithZeroKeyHashTraits<unsigned>>;
+
+PlatformRoleMap createPlatformRoleMap();
+String roleToPlatformString(AccessibilityRole);
+
+} // namespace Accessibility
 
 } // namespace WebCore
 

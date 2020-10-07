@@ -9,12 +9,13 @@
 #ifndef COMPILER_TRANSLATOR_EXTENSIONBEHAVIOR_H_
 #define COMPILER_TRANSLATOR_EXTENSIONBEHAVIOR_H_
 
+#include <cstdint>
 #include <map>
 
 namespace sh
 {
 
-enum class TExtension
+enum class TExtension : uint8_t
 {
     UNDEFINED,  // Special value used to indicate no extension.
 
@@ -25,11 +26,14 @@ enum class TExtension
     EXT_draw_buffers,
     EXT_frag_depth,
     EXT_geometry_shader,
+    EXT_gpu_shader5,
     EXT_shader_framebuffer_fetch,
     EXT_shader_texture_lod,
     EXT_YUV_target,
+    EXT_shader_non_constant_global_initializers,
     NV_EGL_stream_consumer_external,
     NV_shader_framebuffer_fetch,
+    NV_shader_noperspective_interpolation,
     OES_EGL_image_external,
     OES_EGL_image_external_essl3,
     OES_standard_derivatives,
@@ -38,10 +42,14 @@ enum class TExtension
     OVR_multiview,
     OVR_multiview2,
     ANGLE_multi_draw,
-    ANGLE_base_vertex_base_instance
+    ANGLE_base_vertex_base_instance,
+    WEBGL_video_texture,
+    APPLE_clip_distance,
+    OES_texture_cube_map_array,
+    EXT_texture_cube_map_array,
 };
 
-enum TBehavior
+enum TBehavior : uint8_t
 {
     EBhRequire,
     EBhEnable,

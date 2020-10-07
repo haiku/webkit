@@ -36,6 +36,7 @@
 #include "CSSFontSelector.h"
 #include "CSSParser.h"
 #include "CSSPropertyNames.h"
+#include "Gradient.h"
 #include "ImageBuffer.h"
 #include "ImageData.h"
 #include "InspectorInstrumentation.h"
@@ -43,8 +44,8 @@
 #include "RenderTheme.h"
 #include "ResourceLoadObserver.h"
 #include "RuntimeEnabledFeatures.h"
+#include "StyleBuilder.h"
 #include "StyleProperties.h"
-#include "StyleResolver.h"
 #include "TextMetrics.h"
 #include "TextRun.h"
 #include <wtf/CheckedArithmetic.h>
@@ -171,15 +172,19 @@ void CanvasRenderingContext2D::setFont(const String& newFont)
     newStyle->fontCascade().update(&document.fontSelector());
 
     // Now map the font property longhands into the style.
-    StyleResolver& styleResolver = canvas().styleResolver();
-    styleResolver.applyPropertyToStyle(CSSPropertyFontFamily, parsedStyle->getPropertyCSSValue(CSSPropertyFontFamily).get(), WTFMove(newStyle));
-    styleResolver.applyPropertyToCurrentStyle(CSSPropertyFontStyle, parsedStyle->getPropertyCSSValue(CSSPropertyFontStyle).get());
-    styleResolver.applyPropertyToCurrentStyle(CSSPropertyFontVariantCaps, parsedStyle->getPropertyCSSValue(CSSPropertyFontVariantCaps).get());
-    styleResolver.applyPropertyToCurrentStyle(CSSPropertyFontWeight, parsedStyle->getPropertyCSSValue(CSSPropertyFontWeight).get());
-    styleResolver.applyPropertyToCurrentStyle(CSSPropertyFontSize, parsedStyle->getPropertyCSSValue(CSSPropertyFontSize).get());
-    styleResolver.applyPropertyToCurrentStyle(CSSPropertyLineHeight, parsedStyle->getPropertyCSSValue(CSSPropertyLineHeight).get());
 
-    modifiableState().font.initialize(document.fontSelector(), *styleResolver.style());
+    Style::MatchResult matchResult;
+    auto parentStyle = RenderStyle::clone(*newStyle);
+    Style::Builder styleBuilder(*newStyle, { document, parentStyle }, matchResult, { });
+
+    styleBuilder.applyPropertyValue(CSSPropertyFontFamily, parsedStyle->getPropertyCSSValue(CSSPropertyFontFamily).get());
+    styleBuilder.applyPropertyValue(CSSPropertyFontStyle, parsedStyle->getPropertyCSSValue(CSSPropertyFontStyle).get());
+    styleBuilder.applyPropertyValue(CSSPropertyFontVariantCaps, parsedStyle->getPropertyCSSValue(CSSPropertyFontVariantCaps).get());
+    styleBuilder.applyPropertyValue(CSSPropertyFontWeight, parsedStyle->getPropertyCSSValue(CSSPropertyFontWeight).get());
+    styleBuilder.applyPropertyValue(CSSPropertyFontSize, parsedStyle->getPropertyCSSValue(CSSPropertyFontSize).get());
+    styleBuilder.applyPropertyValue(CSSPropertyLineHeight, parsedStyle->getPropertyCSSValue(CSSPropertyLineHeight).get());
+
+    modifiableState().font.initialize(document.fontSelector(), *newStyle);
 }
 
 static CanvasTextAlign toCanvasTextAlign(TextAlign textAlign)
@@ -380,7 +385,7 @@ Ref<TextMetrics> CanvasRenderingContext2D::measureText(const String& text)
     auto direction = toTextDirection(state().direction, &computedStyle);
     bool override = computedStyle ? isOverride(computedStyle->unicodeBidi()) : false;
 
-    TextRun textRun(normalizedText, 0, 0, AllowTrailingExpansion, direction, override, true);
+    TextRun textRun(normalizedText, 0, 0, AllowRightExpansion, direction, override, true);
     auto& font = fontProxy();
     auto& fontMetrics = font.fontMetrics();
 
@@ -493,7 +498,7 @@ void CanvasRenderingContext2D::drawTextInternal(const String& text, float x, flo
     auto direction = toTextDirection(state().direction, &computedStyle);
     bool override = computedStyle ? isOverride(computedStyle->unicodeBidi()) : false;
 
-    TextRun textRun(normalizedText, 0, 0, AllowTrailingExpansion, direction, override, true);
+    TextRun textRun(normalizedText, 0, 0, AllowRightExpansion, direction, override, true);
     float fontWidth = fontProxy.width(textRun);
     bool useMaxWidth = maxWidth && maxWidth.value() < fontWidth;
     float width = useMaxWidth ? maxWidth.value() : fontWidth;
@@ -541,40 +546,39 @@ void CanvasRenderingContext2D::drawTextInternal(const String& text, float x, flo
             fontProxy.drawBidiText(*c, textRun, location + offset, FontCascade::UseFallbackIfFontNotReady);
         }
 
-        auto maskImage = ImageBuffer::createCompatibleBuffer(maskRect.size(), ColorSpaceSRGB, *c);
-        if (!maskImage)
+        GraphicsContextStateSaver stateSaver(*c);
+
+        auto paintMaskImage = [&] (GraphicsContext& maskImageContext) {
+            if (fill)
+                maskImageContext.setFillColor(Color::black);
+            else {
+                maskImageContext.setStrokeColor(Color::black);
+                maskImageContext.setStrokeThickness(c->strokeThickness());
+            }
+
+            maskImageContext.setTextDrawingMode(fill ? TextDrawingMode::Fill : TextDrawingMode::Stroke);
+
+            if (useMaxWidth) {
+                maskImageContext.translate(location - maskRect.location());
+                // We draw when fontWidth is 0 so compositing operations (eg, a "copy" op) still work.
+                maskImageContext.scale(FloatSize((fontWidth > 0 ? (width / fontWidth) : 0), 1));
+                fontProxy.drawBidiText(maskImageContext, textRun, FloatPoint(0, 0), FontCascade::UseFallbackIfFontNotReady);
+            } else {
+                maskImageContext.translate(-maskRect.location());
+                fontProxy.drawBidiText(maskImageContext, textRun, location, FontCascade::UseFallbackIfFontNotReady);
+            }
+        };
+
+        if (c->clipToDrawingCommands(maskRect, ColorSpace::SRGB, WTFMove(paintMaskImage)) == GraphicsContext::ClipToDrawingCommandsResult::FailedToCreateImageBuffer)
             return;
 
-        auto& maskImageContext = maskImage->context();
-
-        if (fill)
-            maskImageContext.setFillColor(Color::black);
-        else {
-            maskImageContext.setStrokeColor(Color::black);
-            maskImageContext.setStrokeThickness(c->strokeThickness());
-        }
-
-        maskImageContext.setTextDrawingMode(fill ? TextModeFill : TextModeStroke);
-
-        if (useMaxWidth) {
-            maskImageContext.translate(location - maskRect.location());
-            // We draw when fontWidth is 0 so compositing operations (eg, a "copy" op) still work.
-            maskImageContext.scale(FloatSize((fontWidth > 0 ? (width / fontWidth) : 0), 1));
-            fontProxy.drawBidiText(maskImageContext, textRun, FloatPoint(0, 0), FontCascade::UseFallbackIfFontNotReady);
-        } else {
-            maskImageContext.translate(-maskRect.location());
-            fontProxy.drawBidiText(maskImageContext, textRun, location, FontCascade::UseFallbackIfFontNotReady);
-        }
-
-        GraphicsContextStateSaver stateSaver(*c);
-        c->clipToImageBuffer(*maskImage, maskRect);
         drawStyle.applyFillColor(*c);
         c->fillRect(maskRect);
         return;
     }
 #endif
 
-    c->setTextDrawingMode(fill ? TextModeFill : TextModeStroke);
+    c->setTextDrawingMode(fill ? TextDrawingMode::Fill : TextDrawingMode::Stroke);
 
     GraphicsContextStateSaver stateSaver(*c);
     if (useMaxWidth) {
@@ -589,7 +593,7 @@ void CanvasRenderingContext2D::drawTextInternal(const String& text, float x, flo
         fontProxy.drawBidiText(*c, textRun, location, FontCascade::UseFallbackIfFontNotReady);
         endCompositeLayer();
         didDrawEntireCanvas();
-    } else if (state().globalComposite == CompositeCopy) {
+    } else if (state().globalComposite == CompositeOperator::Copy) {
         clearCanvas();
         fontProxy.drawBidiText(*c, textRun, location, FontCascade::UseFallbackIfFontNotReady);
         didDrawEntireCanvas();

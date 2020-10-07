@@ -40,6 +40,12 @@ public:
     using Base = JSNonFinalObject;
     static constexpr unsigned StructureFlags = Base::StructureFlags | OverridesToThis;
 
+    template<typename, SubspaceAccess>
+    static void subspaceFor(VM&)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
     DECLARE_EXPORT_INFO;
 
     friend class LLIntOffsetsExtractor;
@@ -121,7 +127,7 @@ inline ScopeChainIterator JSScope::begin()
 
 inline ScopeChainIterator JSScope::end()
 { 
-    return ScopeChainIterator(0); 
+    return ScopeChainIterator(nullptr); 
 }
 
 inline JSScope* JSScope::next()

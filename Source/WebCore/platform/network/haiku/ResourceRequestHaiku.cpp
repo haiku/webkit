@@ -37,7 +37,7 @@ BUrlRequest* ResourceRequest::toNetworkRequest(BUrlContext* context)
     BUrlRequest* request = BUrlProtocolRoster::MakeRequest(url());
 
     if (!request) {
-        m_url = WTF::blankURL(); // This tells the ResourceLoader we failed.
+        m_url = WTF::aboutBlankURL(); // This tells the ResourceLoader we failed.
         return NULL;
     }
 
@@ -64,7 +64,7 @@ BUrlRequest* ResourceRequest::toNetworkRequest(BUrlContext* context)
             httpRequest->SetPassword(fPassword);
         }
 
-        if (!requestHeaders->HasHeader("Accept-Language")) {
+        if (requestHeaders->HasHeader("Accept-Language") < 0) {
             // Add the default languages
             BMessage message;
             BLocaleRoster::Default()->GetPreferredLanguages(&message);

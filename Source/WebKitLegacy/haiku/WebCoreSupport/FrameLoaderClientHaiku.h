@@ -58,7 +58,7 @@ struct LoadErrorResetToken;
 class FrameLoaderClientHaiku : public FrameLoaderClient {
  public:
     explicit FrameLoaderClientHaiku(BWebPage*);
-    void frameLoaderDestroyed() override;
+	~FrameLoaderClientHaiku();
 
     void setFrame(BWebFrame* frame) {m_webFrame = frame;}
     BWebFrame* webFrame() { return m_webFrame; }
@@ -84,15 +84,15 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
                                          const ResourceResponse&) override;
     bool shouldUseCredentialStorage(DocumentLoader*, unsigned long identifier) override;
     void dispatchDidReceiveAuthenticationChallenge(DocumentLoader*,
-                                                           unsigned long identifier,
-                                                           const AuthenticationChallenge&) override;
+        unsigned long identifier, const AuthenticationChallenge&) override;
 
     bool dispatchDidReceiveInvalidCertificate(DocumentLoader*,
         const CertificateInfo& certificate, const char* message) override;
 
-    void dispatchDidCommitLoad(WTF::Optional<WebCore::HasInsecureContent>) override;
+    void dispatchDidCommitLoad(WTF::Optional<WebCore::HasInsecureContent>,
+		Optional<WebCore::UsedLegacyTLS>) override;
     void dispatchDidReceiveResponse(DocumentLoader*, unsigned long,
-                                            const ResourceResponse&) override;
+        const ResourceResponse&) override;
     void dispatchDidReceiveContentLength(DocumentLoader*, unsigned long, int) override;
     void dispatchDidFinishLoading(DocumentLoader*, unsigned long) override;
     void dispatchDidFailLoading(DocumentLoader*, unsigned long,
@@ -166,20 +166,18 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
     void didRunInsecureContent(SecurityOrigin&, const URL&) override;
     void didDetectXSS(const URL&, bool didBlockEntirePage) override;
 
-    ResourceError cancelledError(const ResourceRequest&) override;
-    ResourceError blockedError(const ResourceRequest&) override;
-    ResourceError blockedByContentBlockerError(const ResourceRequest&) override;
-    ResourceError cannotShowURLError(const ResourceRequest&) override;
-    ResourceError interruptedForPolicyChangeError(const ResourceRequest&) override;
+    ResourceError cancelledError(const ResourceRequest&) const override;
+    ResourceError blockedError(const ResourceRequest&) const override;
+    ResourceError blockedByContentBlockerError(const ResourceRequest&) const override;
+    ResourceError cannotShowURLError(const ResourceRequest&) const override;
+    ResourceError interruptedForPolicyChangeError(const ResourceRequest&) const override;
+    ResourceError cannotShowMIMETypeError(const ResourceResponse&) const override;
+    ResourceError fileDoesNotExistError(const ResourceResponse&) const override;
+    ResourceError pluginWillHandleLoadError(const ResourceResponse&) const override;
 
+    bool shouldFallBack(const ResourceError&) const override;
 
-    ResourceError cannotShowMIMETypeError(const ResourceResponse&) override;
-    ResourceError fileDoesNotExistError(const ResourceResponse&) override;
-    ResourceError pluginWillHandleLoadError(const ResourceResponse&) override;
-
-    bool shouldFallBack(const ResourceError&) override;
-
-    String userAgent(const URL&) override;
+    String userAgent(const URL&) const override;
 
     void savePlatformDataToCachedFrame(CachedFrame*) override;
     void transitionToCommittedFromCachedFrame(CachedFrame*) override;
@@ -201,8 +199,7 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
 
     void setTitle(const StringWithDirection&, const URL&) override;
 
-    RefPtr<Frame> createFrame(const URL& url, const String& name, HTMLFrameOwnerElement&,
-        const String& referrer) override;
+    RefPtr<Frame> createFrame(const String& name, HTMLFrameOwnerElement&) override;
     RefPtr<Widget> createPlugin(const IntSize&, HTMLPlugInElement&, const URL&, const Vector<String>&,
         const Vector<String>&, const String&, bool) override;
     void redirectDataToPlugin(Widget& pluginWidget) override;
@@ -214,8 +211,6 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
 
     String overrideMediaType() const override;
 
-    void dispatchDidBecomeFrameset(bool) override;
-
     void dispatchDidClearWindowObjectInWorld(DOMWrapperWorld&) override;
 
     Ref<FrameNetworkingContext> createNetworkingContext() override;
@@ -223,11 +218,13 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
 
     void prefetchDNS(const String&) override { }
 
-	void didRestoreFromBackForwardCache() final {}
+    void didRestoreFromBackForwardCache() final {}
+
+    void sendH2Ping(const WTF::URL&, WTF::CompletionHandler<void(std::experimental::fundamentals_v3::expected<WTF::Seconds, WebCore::ResourceError>&&)>&&) final { notImplemented(); }
  private:
     bool isTertiaryMouseButton(const NavigationAction& action) const;
 
-	status_t dispatchNavigationRequested(const ResourceRequest& request) const;
+    status_t dispatchNavigationRequested(const ResourceRequest& request) const;
     status_t dispatchMessage(BMessage& message, bool allowChildFrame = false) const;
 
 private:

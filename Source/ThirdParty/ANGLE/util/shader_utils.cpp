@@ -4,33 +4,26 @@
 // found in the LICENSE file.
 //
 
-#include "shader_utils.h"
+#include "util/shader_utils.h"
 
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <vector>
 
+#include "util/test_utils.h"
+
 namespace
 {
-std::string ReadFileToString(const std::string &source)
+bool ReadEntireFile(const std::string &filePath, std::string *contentsOut)
 {
-    std::ifstream stream(source.c_str());
-    if (!stream)
-    {
-        std::cerr << "Failed to load shader file: " << source;
-        return "";
-    }
-
-    std::string result;
-
-    stream.seekg(0, std::ios::end);
-    result.reserve(static_cast<unsigned int>(stream.tellg()));
-    stream.seekg(0, std::ios::beg);
-
-    result.assign((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
-
-    return result;
+    constexpr uint32_t kMaxBufferSize = 2000;
+    char buffer[kMaxBufferSize]       = {};
+    if (!angle::ReadEntireFileToString(filePath.c_str(), buffer, kMaxBufferSize) ||
+        strlen(buffer) == 0)
+        return false;
+    *contentsOut = buffer;
+    return true;
 }
 
 GLuint CompileProgramInternal(const char *vsSource,
@@ -124,9 +117,10 @@ GLuint CompileShader(GLenum type, const char *source)
 
 GLuint CompileShaderFromFile(GLenum type, const std::string &sourcePath)
 {
-    std::string source = ReadFileToString(sourcePath);
-    if (source.empty())
+    std::string source;
+    if (!ReadEntireFile(sourcePath, &source))
     {
+        std::cerr << "Error reading shader file: " << sourcePath << "\n";
         return 0;
     }
 
@@ -168,6 +162,25 @@ GLuint CheckLinkStatusAndReturnProgram(GLuint program, bool outputErrorMessages)
     }
 
     return program;
+}
+
+GLuint GetProgramShader(GLuint program, GLint requestedType)
+{
+    static constexpr GLsizei kMaxShaderCount = 16;
+    GLuint attachedShaders[kMaxShaderCount]  = {0u};
+    GLsizei count                            = 0;
+    glGetAttachedShaders(program, kMaxShaderCount, &count, attachedShaders);
+    for (int i = 0; i < count; ++i)
+    {
+        GLint type = 0;
+        glGetShaderiv(attachedShaders[i], GL_SHADER_TYPE, &type);
+        if (type == requestedType)
+        {
+            return attachedShaders[i];
+        }
+    }
+
+    return 0;
 }
 
 GLuint CompileProgramWithTransformFeedback(
@@ -214,10 +227,17 @@ GLuint CompileProgramWithGS(const char *vsSource, const char *gsSource, const ch
 
 GLuint CompileProgramFromFiles(const std::string &vsPath, const std::string &fsPath)
 {
-    std::string vsSource = ReadFileToString(vsPath);
-    std::string fsSource = ReadFileToString(fsPath);
-    if (vsSource.empty() || fsSource.empty())
+    std::string vsSource;
+    if (!ReadEntireFile(vsPath, &vsSource))
     {
+        std::cerr << "Error reading shader: " << vsPath << "\n";
+        return 0;
+    }
+
+    std::string fsSource;
+    if (!ReadEntireFile(fsPath, &fsSource))
+    {
+        std::cerr << "Error reading shader: " << fsPath << "\n";
         return 0;
     }
 
@@ -408,12 +428,12 @@ void main()
 const char *Texture2D()
 {
     return R"(precision mediump float;
-uniform sampler2D u_tex;
+uniform sampler2D u_tex2D;
 varying vec2 v_texCoord;
 
 void main()
 {
-    gl_FragColor = texture2D(u_tex, v_texCoord);
+    gl_FragColor = texture2D(u_tex2D, v_texCoord);
 })";
 }
 
@@ -426,6 +446,14 @@ namespace essl3_shaders
 const char *PositionAttrib()
 {
     return "a_position";
+}
+const char *Texture2DUniform()
+{
+    return "u_tex2D";
+}
+const char *LodUniform()
+{
+    return "u_lod";
 }
 
 namespace vs
@@ -463,6 +491,21 @@ void main()
 {
     gl_Position = a_position;
     v_position = a_position;
+})";
+}
+
+// A shader that simply passes through attribute a_position, setting it to gl_Position and varying
+// texcoord.
+const char *Texture2DLod()
+{
+    return R"(#version 300 es
+in vec4 a_position;
+out vec2 v_texCoord;
+
+void main()
+{
+    gl_Position = vec4(a_position.xy, 0.0, 1.0);
+    v_texCoord = a_position.xy * 0.5 + vec2(0.5);
 })";
 }
 
@@ -504,6 +547,22 @@ out vec4 my_FragColor;
 void main()
 {
     my_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+})";
+}
+
+// A shader that samples the texture at a given lod.
+const char *Texture2DLod()
+{
+    return R"(#version 300 es
+precision mediump float;
+uniform sampler2D u_tex2D;
+uniform float u_lod;
+in vec2 v_texCoord;
+out vec4 my_FragColor;
+
+void main()
+{
+    my_FragColor = textureLod(u_tex2D, v_texCoord, u_lod);
 })";
 }
 
@@ -570,6 +629,18 @@ out vec4 my_FragColor;
 void main()
 {
     my_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+})";
+}
+
+// A shader that fills with 100% opaque green.
+const char *Green()
+{
+    return R"(#version 310 es
+precision highp float;
+out vec4 my_FragColor;
+void main()
+{
+    my_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
 })";
 }
 

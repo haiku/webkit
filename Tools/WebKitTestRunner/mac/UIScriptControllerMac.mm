@@ -28,10 +28,11 @@
 
 #import "EventSenderProxy.h"
 #import "EventSerializerMac.h"
+#import "LayoutTestSpellChecker.h"
+#import "PlatformViewHelpers.h"
+#import "PlatformWebView.h"
 #import "PlatformWebView.h"
 #import "SharedEventStreamsMac.h"
-#import "TestController.h"
-#import "PlatformWebView.h"
 #import "StringFunctions.h"
 #import "TestController.h"
 #import "TestRunnerWKWebView.h"
@@ -42,6 +43,8 @@
 #import <JavaScriptCore/JavaScriptCore.h>
 #import <JavaScriptCore/OpaqueJSString.h>
 #import <WebKit/WKWebViewPrivate.h>
+#import <WebKit/WKWebViewPrivateForTesting.h>
+#import <wtf/BlockPtr.h>
 
 namespace WTR {
 
@@ -67,11 +70,11 @@ void UIScriptControllerMac::zoomToScale(double scale, JSValueRef callback)
     auto* webView = this->webView();
     [webView _setPageScale:scale withOrigin:CGPointZero];
 
-    [webView _doAfterNextPresentationUpdate:^{
+    [webView _doAfterNextPresentationUpdate:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 double UIScriptControllerMac::zoomScale() const
@@ -87,20 +90,69 @@ void UIScriptControllerMac::simulateAccessibilitySettingsChangeNotification(JSVa
     NSNotificationCenter *center = [[NSWorkspace sharedWorkspace] notificationCenter];
     [center postNotificationName:NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification object:webView];
 
-    [webView _doAfterNextPresentationUpdate:^{
+    [webView _doAfterNextPresentationUpdate:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
+}
+
+bool UIScriptControllerMac::isShowingDateTimePicker() const
+{
+    for (NSWindow *childWindow in webView().window.childWindows) {
+        if ([childWindow isKindOfClass:NSClassFromString(@"WKDateTimePickerWindow")])
+            return true;
+    }
+    return false;
+}
+
+double UIScriptControllerMac::dateTimePickerValue() const
+{
+    for (NSWindow *childWindow in webView().window.childWindows) {
+        if ([childWindow isKindOfClass:NSClassFromString(@"WKDateTimePickerWindow")]) {
+            for (NSView *subview in childWindow.contentView.subviews) {
+                if ([subview isKindOfClass:[NSDatePicker class]])
+                    return [[(NSDatePicker *)subview dateValue] timeIntervalSince1970] * 1000;
+            }
+        }
+    }
+    return 0;
 }
 
 bool UIScriptControllerMac::isShowingDataListSuggestions() const
 {
+    return dataListSuggestionsTableView();
+}
+
+void UIScriptControllerMac::activateDataListSuggestion(unsigned index, JSValueRef callback)
+{
+    unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
+
+    RetainPtr<NSTableView> table;
+    do {
+        table = dataListSuggestionsTableView();
+    } while (index >= [table numberOfRows] && [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantPast]]);
+
+    [table selectRowIndexes:[NSIndexSet indexSetWithIndex:index] byExtendingSelection:NO];
+
+    // Send the action after a short delay to simulate normal user interaction.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.05 * NSEC_PER_SEC)), dispatch_get_main_queue(), [this, protectedThis = makeRefPtr(*this), callbackID, table] {
+        if ([table window])
+            [table sendAction:[table action] to:[table target]];
+
+        if (!m_context)
+            return;
+        m_context->asyncTaskComplete(callbackID);
+    });
+}
+
+NSTableView *UIScriptControllerMac::dataListSuggestionsTableView() const
+{
     for (NSWindow *childWindow in webView().window.childWindows) {
         if ([childWindow isKindOfClass:NSClassFromString(@"WKDataListSuggestionWindow")])
-            return true;
+            return (NSTableView *)[findAllViewsInHierarchyOfType(childWindow.contentView, NSClassFromString(@"WKDataListSuggestionTableView")) firstObject];
     }
-    return false;
+    return nil;
 }
 
 static void playBackEvents(WKWebView *webView, UIScriptContext *context, NSString *eventStream, JSValueRef callback)
@@ -143,10 +195,11 @@ void UIScriptControllerMac::chooseMenuAction(JSStringRef jsAction, JSValueRef ca
         [activeMenu cancelTracking];
     }
 
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (m_context)
-            m_context->asyncTaskComplete(callbackID);
-    });
+    dispatch_async(dispatch_get_main_queue(), makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
+        if (!m_context)
+            return;
+        m_context->asyncTaskComplete(callbackID);
+    }).get());
 }
 
 void UIScriptControllerMac::beginBackSwipe(JSValueRef callback)
@@ -161,7 +214,7 @@ void UIScriptControllerMac::completeBackSwipe(JSValueRef callback)
 
 void UIScriptControllerMac::playBackEventStream(JSStringRef eventStream, JSValueRef callback)
 {
-    RetainPtr<CFStringRef> stream = adoptCF(JSStringCopyCFString(kCFAllocatorDefault, eventStream));
+    auto stream = adoptCF(JSStringCopyCFString(kCFAllocatorDefault, eventStream));
     playBackEvents(webView(), m_context, (__bridge NSString *)stream.get(), callback);
 }
 
@@ -219,17 +272,23 @@ void UIScriptControllerMac::activateAtPoint(long x, long y, JSValueRef callback)
     eventSender->mouseDown(0, 0);
     eventSender->mouseUp(0, 0);
 
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (m_context)
-            m_context->asyncTaskComplete(callbackID);
-    });
+    dispatch_async(dispatch_get_main_queue(), makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
+        if (!m_context)
+            return;
+        m_context->asyncTaskComplete(callbackID);
+    }).get());
 }
 
 void UIScriptControllerMac::copyText(JSStringRef text)
 {
     NSPasteboard *pasteboard = NSPasteboard.generalPasteboard;
-    [pasteboard declareTypes:[NSArray arrayWithObject:NSPasteboardTypeString] owner:nil];
+    [pasteboard declareTypes:@[NSPasteboardTypeString] owner:nil];
     [pasteboard setString:text->string() forType:NSPasteboardTypeString];
+}
+
+void UIScriptControllerMac::setSpellCheckerResults(JSValueRef results)
+{
+    [[LayoutTestSpellChecker checker] setResultsFromJSValue:results inContext:m_context->jsContext()];
 }
 
 } // namespace WTR

@@ -40,6 +40,12 @@ public:
 
     static constexpr bool needsDestruction = true;
 
+    template<typename CellType, SubspaceAccess mode>
+    static IsoSubspace* subspaceFor(VM& vm)
+    {
+        return vm.symbolSpace<mode>();
+    }
+
     static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
     {
         return Structure::create(vm, globalObject, prototype, TypeInfo(SymbolType, StructureFlags), info());
@@ -49,6 +55,7 @@ public:
     static Symbol* createWithDescription(VM&, const String&);
     JS_EXPORT_PRIVATE static Symbol* create(VM&, SymbolImpl& uid);
 
+    SymbolImpl& uid() const { return m_privateName.uid(); }
     PrivateName privateName() const { return m_privateName; }
     String descriptiveString() const;
     String description() const;
@@ -64,7 +71,7 @@ public:
         return OBJECT_OFFSETOF(Symbol, m_privateName);
     }
 
-protected:
+private:
     static void destroy(JSCell*);
 
     Symbol(VM&);

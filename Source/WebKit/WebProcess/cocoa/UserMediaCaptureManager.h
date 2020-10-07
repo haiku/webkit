@@ -27,12 +27,13 @@
 
 #if PLATFORM(COCOA) && ENABLE(MEDIA_STREAM)
 
-#include "MessageReceiver.h"
+#include "RemoteCaptureSampleManager.h"
 #include "SharedMemory.h"
 #include "WebProcessSupplement.h"
 #include <WebCore/CaptureDeviceManager.h>
 #include <WebCore/RealtimeMediaSource.h>
 #include <WebCore/RealtimeMediaSourceFactory.h>
+#include <WebCore/RealtimeMediaSourceIdentifier.h>
 #include <wtf/HashMap.h>
 
 namespace WebCore {
@@ -42,10 +43,10 @@ class RemoteVideoSample;
 
 namespace WebKit {
 
-class CrossProcessRealtimeAudioSource;
+class RemoteRealtimeMediaSource;
 class WebProcess;
 
-class UserMediaCaptureManager : public WebProcessSupplement, public IPC::MessageReceiver, public WebCore::AudioCaptureFactory, public WebCore::VideoCaptureFactory, public WebCore::DisplayCaptureFactory {
+class UserMediaCaptureManager : public WebProcessSupplement, public IPC::MessageReceiver {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit UserMediaCaptureManager(WebProcess&);
@@ -53,15 +54,53 @@ public:
 
     static const char* supplementName();
 
-private:
-    // WebProcessSupplement
-    void initialize(const WebProcessCreationParameters&) final;
+    void didReceiveMessageFromGPUProcess(IPC::Connection& connection, IPC::Decoder& decoder) { didReceiveMessage(connection, decoder); }
+    void setupCaptureProcesses(bool shouldCaptureAudioInUIProcess, bool shouldCaptureAudioInGPUProcess, bool shouldCaptureVideoInUIProcess, bool shouldCaptureVideoInGPUProcess, bool shouldCaptureDisplayInUIProcess);
 
+    void addSource(Ref<RemoteRealtimeMediaSource>&&);
+    void removeSource(WebCore::RealtimeMediaSourceIdentifier);
+
+private:
     // WebCore::RealtimeMediaSource factories
-    WebCore::CaptureSourceOrError createAudioCaptureSource(const WebCore::CaptureDevice& device, String&& hashSalt, const WebCore::MediaConstraints* constraints) final { return createCaptureSource(device, WTFMove(hashSalt), constraints); }
-    WebCore::CaptureSourceOrError createVideoCaptureSource(const WebCore::CaptureDevice& device, String&& hashSalt, const WebCore::MediaConstraints* constraints) final { return createCaptureSource(device, WTFMove(hashSalt), constraints); }
-    WebCore::CaptureSourceOrError createDisplayCaptureSource(const WebCore::CaptureDevice& device, const WebCore::MediaConstraints* constraints) final  { return createCaptureSource(device, { }, constraints); }
-    WebCore::CaptureSourceOrError createCaptureSource(const WebCore::CaptureDevice&, String&&, const WebCore::MediaConstraints*);
+    class AudioFactory : public WebCore::AudioCaptureFactory {
+    public:
+        explicit AudioFactory(UserMediaCaptureManager& manager) : m_manager(manager) { }
+        void setShouldCaptureInGPUProcess(bool);
+
+    private:
+        WebCore::CaptureSourceOrError createAudioCaptureSource(const WebCore::CaptureDevice&, String&& hashSalt, const WebCore::MediaConstraints*) final;
+        WebCore::CaptureDeviceManager& audioCaptureDeviceManager() final { return m_manager.m_noOpCaptureDeviceManager; }
+        const Vector<WebCore::CaptureDevice>& speakerDevices() const final { return m_speakerDevices; }
+
+        UserMediaCaptureManager& m_manager;
+        bool m_shouldCaptureInGPUProcess { false };
+        Vector<WebCore::CaptureDevice> m_speakerDevices;
+    };
+    class VideoFactory : public WebCore::VideoCaptureFactory {
+    public:
+        explicit VideoFactory(UserMediaCaptureManager& manager) : m_manager(manager) { }
+        void setShouldCaptureInGPUProcess(bool value) { m_shouldCaptureInGPUProcess = value; }
+
+    private:
+        WebCore::CaptureSourceOrError createVideoCaptureSource(const WebCore::CaptureDevice&, String&& hashSalt, const WebCore::MediaConstraints*) final;
+        WebCore::CaptureDeviceManager& videoCaptureDeviceManager() final { return m_manager.m_noOpCaptureDeviceManager; }
+#if PLATFORM(IOS_FAMILY)
+        void setActiveSource(WebCore::RealtimeMediaSource&) final;
+#endif
+
+        UserMediaCaptureManager& m_manager;
+        bool m_shouldCaptureInGPUProcess { false };
+    };
+    class DisplayFactory : public WebCore::DisplayCaptureFactory {
+    public:
+        explicit DisplayFactory(UserMediaCaptureManager& manager) : m_manager(manager) { }
+
+    private:
+        WebCore::CaptureSourceOrError createDisplayCaptureSource(const WebCore::CaptureDevice&, const WebCore::MediaConstraints*) final;
+        WebCore::CaptureDeviceManager& displayCaptureDeviceManager() final { return m_manager.m_noOpCaptureDeviceManager; }
+
+        UserMediaCaptureManager& m_manager;
+    };
 
     class NoOpCaptureDeviceManager : public WebCore::CaptureDeviceManager {
     public:
@@ -76,42 +115,28 @@ private:
         Vector<WebCore::CaptureDevice> m_emptyDevices;
     };
 
-    WebCore::CaptureDeviceManager& audioCaptureDeviceManager() final { return m_noOpCaptureDeviceManager; }
-    WebCore::CaptureDeviceManager& videoCaptureDeviceManager() final { return m_noOpCaptureDeviceManager; }
-    WebCore::CaptureDeviceManager& displayCaptureDeviceManager() final { return m_noOpCaptureDeviceManager; }
-
-#if PLATFORM(IOS_FAMILY)
-    void setAudioCapturePageState(bool interrupted, bool pageMuted) final;
-    void setVideoCapturePageState(bool interrupted, bool pageMuted) final;
-#endif
-
     // IPC::MessageReceiver
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) final;
 
     // Messages::UserMediaCaptureManager
-    void captureFailed(uint64_t id);
-    void sourceStopped(uint64_t id);
-    void sourceEnded(uint64_t id);
-    void sourceMutedChanged(uint64_t id, bool muted);
-    void sourceSettingsChanged(uint64_t id, const WebCore::RealtimeMediaSourceSettings&);
-    void storageChanged(uint64_t id, const SharedMemory::Handle&, const WebCore::CAAudioStreamDescription&, uint64_t numberOfFrames);
-    void ringBufferFrameBoundsChanged(uint64_t id, uint64_t startFrame, uint64_t endFrame);
-    void audioSamplesAvailable(uint64_t id, MediaTime, uint64_t numberOfFrames, uint64_t startFrame, uint64_t endFrame);
-    void remoteVideoSampleAvailable(uint64_t id, WebCore::RemoteVideoSample&&);
+    void captureFailed(WebCore::RealtimeMediaSourceIdentifier);
+    void sourceStopped(WebCore::RealtimeMediaSourceIdentifier);
+    void sourceEnded(WebCore::RealtimeMediaSourceIdentifier identifier) { removeSource(identifier); }
+    void sourceMutedChanged(WebCore::RealtimeMediaSourceIdentifier, bool muted);
+    void sourceSettingsChanged(WebCore::RealtimeMediaSourceIdentifier, const WebCore::RealtimeMediaSourceSettings&);
+    void remoteVideoSampleAvailable(WebCore::RealtimeMediaSourceIdentifier, WebCore::RemoteVideoSample&&);
+    void applyConstraintsSucceeded(WebCore::RealtimeMediaSourceIdentifier, const WebCore::RealtimeMediaSourceSettings&);
+    void applyConstraintsFailed(WebCore::RealtimeMediaSourceIdentifier, String&&, String&&);
 
-    void startProducingData(uint64_t);
-    void stopProducingData(uint64_t);
-    WebCore::RealtimeMediaSourceCapabilities capabilities(uint64_t);
-    void setMuted(uint64_t, bool);
-    void applyConstraints(uint64_t, const WebCore::MediaConstraints&);
-    void applyConstraintsSucceeded(uint64_t, const WebCore::RealtimeMediaSourceSettings&);
-    void applyConstraintsFailed(uint64_t, String&&, String&&);
+    Ref<WebCore::RealtimeMediaSource> cloneVideoSource(RemoteRealtimeMediaSource&);
 
-    class Source;
-    friend class Source;
-    HashMap<uint64_t, RefPtr<Source>> m_sources;
+    HashMap<WebCore::RealtimeMediaSourceIdentifier, Ref<RemoteRealtimeMediaSource>> m_sources;
     WebProcess& m_process;
     NoOpCaptureDeviceManager m_noOpCaptureDeviceManager;
+    AudioFactory m_audioFactory;
+    VideoFactory m_videoFactory;
+    DisplayFactory m_displayFactory;
+    RemoteCaptureSampleManager m_remoteCaptureSampleManager;
 };
 
 } // namespace WebKit

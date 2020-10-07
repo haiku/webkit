@@ -30,6 +30,7 @@
 #include <wtf/HashSet.h>
 #include <wtf/ListHashSet.h>
 #include <wtf/Vector.h>
+#include <wtf/VectorHash.h>
 #include <wtf/text/StringHash.h>
 #include <wtf/text/WTFString.h>
 
@@ -125,6 +126,36 @@ TEST(WTF_Vector, ConstructWithFromString)
     EXPECT_TRUE(s2 == vector[1]);
     EXPECT_TRUE(s1 == vector[2]);
     EXPECT_TRUE(s3.isNull());
+}
+
+TEST(WTF_Vector, IsolateCopy)
+{
+    String s1 = "s1";
+    String s2 = "s2";
+
+    auto vector1 = Vector<String>::from(WTFMove(s1), s2);
+    EXPECT_EQ(2U, vector1.size());
+    EXPECT_EQ(2U, vector1.capacity());
+
+    auto* data1 = vector1[0].impl();
+    auto* data2 = vector1[1].impl();
+
+    auto vector2 = vector1.isolatedCopy();
+
+    EXPECT_TRUE("s1" == vector2[0]);
+    EXPECT_TRUE("s2" == vector2[1]);
+
+    EXPECT_FALSE(data1 == vector2[0].impl());
+    EXPECT_FALSE(data2 == vector2[1].impl());
+
+    auto vector3 = WTFMove(vector1).isolatedCopy();
+    EXPECT_EQ(0U, vector1.size());
+
+    EXPECT_TRUE("s1" == vector3[0]);
+    EXPECT_TRUE("s2" == vector3[1]);
+
+    EXPECT_TRUE(data1 == vector3[0].impl());
+    EXPECT_FALSE(data2 == vector3[1].impl());
 }
 
 TEST(WTF_Vector, ConstructWithFromMoveOnly)
@@ -840,6 +871,284 @@ TEST(WTF_Vector, MapFromHashMap)
 
 }
 
+WTF::Optional<int> evenMultipliedByFive(int input)
+{
+    if (input % 2)
+        return WTF::nullopt;
+    return input * 5;
+}
+
+TEST(WTF_Vector, CompactMapStaticFunctionReturnOptional)
+{
+    Vector<int> vector { 1, 2, 3, 4 };
+
+    static_assert(std::is_same<decltype(WTF::compactMap(vector, evenMultipliedByFive)), typename WTF::Vector<int>>::value,
+        "WTF::compactMap returns Vector<Ref<>> when the mapped function returns Optional<>");
+    auto mapped = WTF::compactMap(vector, evenMultipliedByFive);
+
+    EXPECT_EQ(2U, mapped.size());
+    EXPECT_EQ(10, mapped[0]);
+    EXPECT_EQ(20, mapped[1]);
+}
+
+struct RefCountedObject : public RefCounted<RefCountedObject> {
+public:
+    static Ref<RefCountedObject> create(int value) { return adoptRef(*new RefCountedObject(value)); }
+
+    void ref() const
+    {
+        RefCounted<RefCountedObject>::ref();
+        ++s_totalRefCount;
+    }
+
+    int value { 0 };
+
+    static unsigned s_totalRefCount;
+
+private:
+    RefCountedObject(int value)
+        : value(value)
+    { }
+};
+
+unsigned RefCountedObject::s_totalRefCount = 0;
+
+RefPtr<RefCountedObject> createRefCountedForOdd(int input)
+{
+    if (input % 2)
+        return RefCountedObject::create(input);
+    return nullptr;
+}
+
+TEST(WTF_Vector, CompactMapStaticFunctionReturnRefPtr)
+{
+    Vector<int> vector { 1, 2, 3, 4 };
+
+    RefCountedObject::s_totalRefCount = 0;
+    static_assert(std::is_same<decltype(WTF::compactMap(vector, createRefCountedForOdd)), typename WTF::Vector<Ref<RefCountedObject>>>::value,
+        "WTF::compactMap returns Vector<int> when the mapped function returns Optional<int>");
+    auto mapped = WTF::compactMap(vector, createRefCountedForOdd);
+
+    EXPECT_EQ(0U, RefCountedObject::s_totalRefCount);
+    EXPECT_EQ(2U, mapped.size());
+    EXPECT_EQ(1, mapped[0]->value);
+    EXPECT_EQ(3, mapped[1]->value);
+}
+
+Optional<Ref<RefCountedObject>> createRefCountedForEven(int input)
+{
+    if (input % 2)
+        return WTF::nullopt;
+    return RefCountedObject::create(input);
+}
+
+TEST(WTF_Vector, CompactMapStaticFunctionReturnOptionalRef)
+{
+    Vector<int> vector { 1, 2, 3, 4 };
+
+    RefCountedObject::s_totalRefCount = 0;
+    static_assert(std::is_same<decltype(WTF::compactMap(vector, createRefCountedForEven)), typename WTF::Vector<Ref<RefCountedObject>>>::value,
+        "WTF::compactMap returns Vector<Ref<>> when the mapped function returns RefPtr<>");
+    auto mapped = WTF::compactMap(vector, createRefCountedForEven);
+
+    EXPECT_EQ(0U, RefCountedObject::s_totalRefCount);
+    EXPECT_EQ(2U, mapped.size());
+    EXPECT_EQ(2, mapped[0]->value);
+    EXPECT_EQ(4, mapped[1]->value);
+}
+
+Optional<RefPtr<RefCountedObject>> createRefCountedWhenDivisibleByThree(int input)
+{
+    if (input % 3)
+        return WTF::nullopt;
+    if (input % 2)
+        return RefPtr<RefCountedObject>();
+    return RefPtr<RefCountedObject>(RefCountedObject::create(input));
+}
+
+TEST(WTF_Vector, CompactMapStaticFunctionReturnOptionalRefPtr)
+{
+    Vector<int> vector { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+
+    RefCountedObject::s_totalRefCount = 0;
+    static_assert(std::is_same<decltype(WTF::compactMap(vector, createRefCountedWhenDivisibleByThree)), typename WTF::Vector<RefPtr<RefCountedObject>>>::value,
+        "WTF::compactMap returns Vector<RefPtr<>> when the mapped function returns Optional<RefPtr<>>");
+    auto mapped = WTF::compactMap(vector, createRefCountedWhenDivisibleByThree);
+
+    EXPECT_EQ(0U, RefCountedObject::s_totalRefCount);
+    EXPECT_EQ(3U, mapped.size());
+    EXPECT_EQ(nullptr, mapped[0]);
+    EXPECT_EQ(6, mapped[1]->value);
+    EXPECT_EQ(nullptr, mapped[2]);
+}
+
+TEST(WTF_Vector, CompactMapLambdaReturnOptional)
+{
+    Vector<String> vector { "a", "b", "hello", "ciao", "world", "webkit" };
+
+    auto function = [](const String& value) -> Optional<String> {
+        if (value.length() < 5)
+            return WTF::nullopt;
+        return value.convertToASCIIUppercase();
+    };
+    static_assert(std::is_same<decltype(WTF::compactMap(vector, function)), typename WTF::Vector<String>>::value,
+        "WTF::compactMap returns Vector<String> when the mapped function returns Optional<String>");
+    auto mapped = WTF::compactMap(vector, function);
+
+    EXPECT_EQ(3U, mapped.size());
+    EXPECT_STREQ("HELLO", mapped[0].ascii().data());
+    EXPECT_STREQ("WORLD", mapped[1].ascii().data());
+    EXPECT_STREQ("WEBKIT", mapped[2].ascii().data());
+}
+
+class CountedObject {
+public:
+    explicit CountedObject(int value)
+        : m_value(value)
+    { ++s_count; }
+
+    CountedObject(const CountedObject& other)
+        : m_value(other.m_value)
+    { ++s_count; }
+
+    CountedObject(CountedObject&& other)
+        : m_value(other.m_value)
+    { }
+
+    int value() const { return m_value; }
+
+    static unsigned& count() { return s_count; }
+
+private:
+    int m_value;
+
+    static unsigned s_count;
+};
+
+unsigned CountedObject::s_count = 0;
+
+TEST(WTF_Vector, CompactMapLambdaCopyVectorReturnOptionalCountedObject)
+{
+    Vector<CountedObject> vector { CountedObject(1), CountedObject(2), CountedObject(3), CountedObject(4) };
+
+    CountedObject::count() = 0;
+
+    auto function = [](const CountedObject& object) -> Optional<CountedObject> {
+        if (object.value() % 2)
+            return object;
+        return WTF::nullopt;
+    };
+
+    static_assert(std::is_same<decltype(WTF::compactMap(vector, function)), typename WTF::Vector<CountedObject>>::value,
+        "WTF::compactMap returns Vector<CountedObject> when the lambda returns Optional<CountedObject>");
+    auto mapped = WTF::compactMap(vector, function);
+
+    EXPECT_EQ(2U, CountedObject::count());
+
+    EXPECT_EQ(2U, mapped.size());
+    EXPECT_EQ(1, mapped[0].value());
+    EXPECT_EQ(3, mapped[1].value());
+}
+
+TEST(WTF_Vector, CompactMapLambdaMoveVectorReturnOptionalCountedObject)
+{
+    Vector<CountedObject> vector { CountedObject(1), CountedObject(2), CountedObject(3), CountedObject(4) };
+
+    CountedObject::count() = 0;
+
+    auto function = [](CountedObject&& object) -> Optional<CountedObject> {
+        if (object.value() % 2)
+            return WTFMove(object);
+        return WTF::nullopt;
+    };
+
+    RefCountedObject::s_totalRefCount = 0;
+    static_assert(std::is_same<decltype(WTF::compactMap(WTFMove(vector), function)), typename WTF::Vector<CountedObject>>::value,
+        "WTF::compactMap returns Vector<CountedObject> when the lambda returns Optional<CountedObject>");
+    auto mapped = WTF::compactMap(WTFMove(vector), function);
+
+    EXPECT_EQ(0U, CountedObject::count());
+
+    EXPECT_EQ(2U, mapped.size());
+    EXPECT_EQ(1, mapped[0].value());
+    EXPECT_EQ(3, mapped[1].value());
+}
+
+TEST(WTF_Vector, CompactMapLambdaReturnRefPtr)
+{
+    Vector<int> vector { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+
+    auto function = [](int value) -> RefPtr<RefCountedObject> {
+        if (value % 3)
+            return nullptr;
+        return RefCountedObject::create(value);
+    };
+
+    RefCountedObject::s_totalRefCount = 0;
+    static_assert(std::is_same<decltype(WTF::compactMap(vector, function)), typename WTF::Vector<Ref<RefCountedObject>>>::value,
+        "WTF::compactMap returns Vector<Ref<RefCountedObject>> when the lambda returns RefPtr<RefCountedObject>");
+    auto mapped = WTF::compactMap(vector, function);
+
+    EXPECT_EQ(0U, RefCountedObject::s_totalRefCount);
+    EXPECT_EQ(3U, mapped.size());
+    EXPECT_EQ(3, mapped[0]->value);
+    EXPECT_EQ(6, mapped[1]->value);
+    EXPECT_EQ(9, mapped[2]->value);
+}
+
+TEST(WTF_Vector, CompactMapLambdaReturnRefPtrFromMovedRef)
+{
+    Vector<int> vector { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+
+    auto countedObjects = WTF::map(vector, [](int value) -> Ref<RefCountedObject> {
+        return RefCountedObject::create(value);
+    });
+
+    auto function = [](Ref<RefCountedObject>&& object) -> RefPtr<RefCountedObject> {
+        if (object->value % 3)
+            return nullptr;
+        return WTFMove(object);
+    };
+
+    RefCountedObject::s_totalRefCount = 0;
+    static_assert(std::is_same<decltype(WTF::compactMap(WTFMove(countedObjects), function)), typename WTF::Vector<Ref<RefCountedObject>>>::value,
+        "WTF::compactMap returns Vector<Ref<RefCountedObject>> when the lambda returns RefPtr<RefCountedObject>");
+    auto mapped = WTF::compactMap(WTFMove(countedObjects), function);
+
+    EXPECT_EQ(0U, RefCountedObject::s_totalRefCount);
+    EXPECT_EQ(3U, mapped.size());
+    EXPECT_EQ(3, mapped[0]->value);
+    EXPECT_EQ(6, mapped[1]->value);
+    EXPECT_EQ(9, mapped[2]->value);
+}
+
+TEST(WTF_Vector, CompactMapLambdaReturnOptionalRefPtr)
+{
+    Vector<int> vector { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+
+    RefCountedObject::s_totalRefCount = 0;
+
+    auto function = [&](int value) -> Optional<RefPtr<RefCountedObject>> {
+        if (!(value % 2))
+            return WTF::nullopt;
+        if (!(value % 3))
+            return RefPtr<RefCountedObject>();
+        return RefPtr<RefCountedObject>(RefCountedObject::create(value));
+    };
+
+    static_assert(std::is_same<decltype(WTF::compactMap(vector, function)), typename WTF::Vector<RefPtr<RefCountedObject>>>::value,
+        "WTF::compactMap returns Vector<RefPtr<RefCountedObject>> when the lambda returns Optional<RefPtr<RefCountedObject>>");
+    Vector<RefPtr<RefCountedObject>> mapped = WTF::compactMap(vector, function);
+
+    EXPECT_EQ(0U, RefCountedObject::s_totalRefCount);
+    EXPECT_EQ(5U, mapped.size());
+    EXPECT_EQ(1, mapped[0]->value);
+    EXPECT_EQ(nullptr, mapped[1]);
+    EXPECT_EQ(5, mapped[2]->value);
+    EXPECT_EQ(7, mapped[3]->value);
+    EXPECT_EQ(nullptr, mapped[4]);
+}
+
 TEST(WTF_Vector, CopyToVector)
 {
     HashSet<int> intSet { 1, 2, 3 };
@@ -911,6 +1220,202 @@ TEST(WTF_Vector, StringComparison)
     Vector<String> a = {{ "a" }};
     Vector<String> b = {{ "a" }};
     EXPECT_TRUE(a == b);
+}
+
+TEST(WTF_Vector, HashKey)
+{
+    Vector<int> a = { 1 };
+    Vector<int> b = { 1, 2 };
+
+    HashSet<Vector<int>> hash;
+
+    EXPECT_FALSE(hash.contains(a));
+    EXPECT_FALSE(hash.contains(b));
+
+    hash.add(a);
+
+    EXPECT_TRUE(hash.contains(a));
+    EXPECT_FALSE(hash.contains(b));
+
+    hash.add(a);
+
+    EXPECT_TRUE(hash.contains(a));
+    EXPECT_FALSE(hash.contains(b));
+
+    hash.add(b);
+
+    EXPECT_TRUE(hash.contains(a));
+    EXPECT_TRUE(hash.contains(b));
+
+    hash.remove(a);
+
+    EXPECT_FALSE(hash.contains(a));
+    EXPECT_TRUE(hash.contains(b));
+
+    hash.remove(b);
+
+    EXPECT_FALSE(hash.contains(a));
+    EXPECT_FALSE(hash.contains(b));
+    EXPECT_TRUE(hash.isEmpty());
+
+    for (int i = 0; i < 10; ++i) {
+        for (int j = 0; j < 10; ++j) {
+            hash.add({ i, j });
+            hash.add({ i, j, i });
+        }
+    }
+
+    for (int i = 0; i < 10; ++i) {
+        for (int j = 0; j < 10; ++j) {
+            EXPECT_TRUE(hash.contains({ i, j }));
+            EXPECT_TRUE(hash.contains({ i, j, i }));
+            EXPECT_FALSE(hash.contains({ 10, j }));
+            EXPECT_FALSE(hash.contains({ i, j, 10 }));
+        }
+    }
+
+    for (int i = 0; i < 5; ++i) {
+        for (int j = 0; j < 10; ++j) {
+            hash.remove({ i, j });
+            hash.remove({ i, j, i });
+        }
+    }
+
+    for (int i = 0; i < 10; ++i) {
+        for (int j = 0; j < 10; ++j) {
+            EXPECT_EQ(hash.contains({ i, j }), i > 4);
+            EXPECT_EQ(hash.contains({ i, j, i }), i > 4);
+        }
+    }
+
+    for (int i = 5; i < 10; ++i) {
+        for (int j = 0; j < 10; ++j) {
+            hash.remove({ i, j });
+            hash.remove({ i, j, i });
+        }
+    }
+
+    EXPECT_TRUE(hash.isEmpty());
+}
+
+TEST(WTF_Vector, HashKeyInlineCapacity)
+{
+    Vector<int, 1> a = { 1 };
+    Vector<int, 1> b = { 1, 2 };
+
+    HashSet<Vector<int, 1>> hash;
+
+    EXPECT_FALSE(hash.contains(a));
+    EXPECT_FALSE(hash.contains(b));
+
+    hash.add(a);
+
+    EXPECT_TRUE(hash.contains(a));
+    EXPECT_FALSE(hash.contains(b));
+
+    hash.add(a);
+
+    EXPECT_TRUE(hash.contains(a));
+    EXPECT_FALSE(hash.contains(b));
+
+    hash.add(b);
+
+    EXPECT_TRUE(hash.contains(a));
+    EXPECT_TRUE(hash.contains(b));
+
+    hash.remove(a);
+
+    EXPECT_FALSE(hash.contains(a));
+    EXPECT_TRUE(hash.contains(b));
+
+    hash.remove(b);
+
+    EXPECT_FALSE(hash.contains(a));
+    EXPECT_FALSE(hash.contains(b));
+    EXPECT_TRUE(hash.isEmpty());
+}
+
+TEST(WTF_Vector, HashKeyString)
+{
+    Vector<String> a = { "a" };
+    Vector<String> b = { "a", "b" };
+
+    HashSet<Vector<String>> hash;
+
+    EXPECT_FALSE(hash.contains(a));
+    EXPECT_FALSE(hash.contains(b));
+
+    hash.add(a);
+
+    EXPECT_TRUE(hash.contains(a));
+    EXPECT_FALSE(hash.contains(b));
+
+    hash.add(a);
+
+    EXPECT_TRUE(hash.contains(a));
+    EXPECT_FALSE(hash.contains(b));
+
+    hash.add(b);
+
+    EXPECT_TRUE(hash.contains(a));
+    EXPECT_TRUE(hash.contains(b));
+
+    hash.remove(a);
+
+    EXPECT_FALSE(hash.contains(a));
+    EXPECT_TRUE(hash.contains(b));
+
+    hash.remove(b);
+
+    EXPECT_FALSE(hash.contains(a));
+    EXPECT_FALSE(hash.contains(b));
+
+    for (auto i : { "a", "b", "c", "d", "e" }) {
+        for (auto j : { "a", "b", "c", "d", "e" }) {
+            hash.add({ i, j });
+            hash.add({ i, j, i, j });
+        }
+    }
+
+    for (auto i : { "a", "b", "c", "d", "e" }) {
+        for (auto j : { "a", "b", "c", "d", "e" }) {
+            EXPECT_TRUE(hash.contains({ i, j }));
+            EXPECT_TRUE(hash.contains({ i, j, i, j }));
+            EXPECT_FALSE(hash.contains({ i, j, i }));
+            EXPECT_FALSE(hash.contains({ "x", j }));
+            EXPECT_FALSE(hash.contains({ i, j, "x", j }));
+        }
+    }
+
+    for (auto i : { "d", "e" }) {
+        for (auto j : { "a", "b", "c", "d", "e" }) {
+            hash.remove({ i, j });
+            hash.remove({ i, j, i, j });
+        }
+    }
+
+    for (auto i : { "d", "e" }) {
+        for (auto j : { "a", "b", "c", "d", "e" }) {
+            EXPECT_FALSE(hash.contains({ i, j }));
+            EXPECT_FALSE(hash.contains({ i, j, i, j }));
+        }
+    }
+
+    for (auto i : { "a", "b", "c" }) {
+        for (auto j : { "a", "b", "c", "d", "e" }) {
+            EXPECT_TRUE(hash.contains({ i, j }));
+            EXPECT_TRUE(hash.contains({ i, j, i, j }));
+        }
+    }
+
+    for (auto i : { "a", "b", "c" }) {
+        for (auto j : { "a", "b", "c", "d", "e" }) {
+            hash.remove({ i, j });
+            hash.remove({ i, j, i, j });
+        }
+    }
+
+    EXPECT_TRUE(hash.isEmpty());
 }
     
 } // namespace TestWebKitAPI

@@ -26,7 +26,10 @@
 #import "config.h"
 
 #import "DragAndDropSimulator.h"
+#import "InstanceMethodSwizzler.h"
 #import "PlatformUtilities.h"
+#import <WebKit/WKPreferencesPrivate.h>
+#import <WebKit/WKWebViewPrivate.h>
 
 #if ENABLE(DRAG_SUPPORT) && PLATFORM(MAC)
 
@@ -135,6 +138,35 @@ TEST(DragAndDropTests, DragImageFileIntoFileUpload)
     EXPECT_EQ(1, [webView stringByEvaluatingJavaScript:@"filecount.textContent"].integerValue);
 }
 
+static NSEvent *overrideCurrentEvent()
+{
+    return [NSEvent mouseEventWithType:NSEventTypeLeftMouseDragged
+        location:NSMakePoint(0, 200)
+        modifierFlags:NSEventModifierFlagOption
+        timestamp:[NSDate timeIntervalSinceReferenceDate]
+        windowNumber:0
+        context:nil
+        eventNumber:1
+        clickCount:1
+        pressure:1];
+}
+
+TEST(DragAndDropTests, DragImageWithOptionKeyDown)
+{
+    InstanceMethodSwizzler swizzler([NSApp class], @selector(currentEvent), reinterpret_cast<IMP>(overrideCurrentEvent));
+
+    auto simulator = adoptNS([[DragAndDropSimulator alloc] initWithWebViewFrame:NSMakeRect(0, 0, 400, 400)]);
+    TestWKWebView *webView = [simulator webView];
+
+    [webView synchronouslyLoadTestPageNamed:@"image-and-contenteditable"];
+
+    auto pid = [webView _webProcessIdentifier];
+    [simulator runFrom:NSMakePoint(100, 100) to:NSMakePoint(100, 300)];
+
+    EXPECT_EQ(pid, [webView _webProcessIdentifier]);
+}
+
+
 TEST(DragAndDropTests, ProvideImageDataForMultiplePasteboards)
 {
     auto simulator = adoptNS([[DragAndDropSimulator alloc] initWithWebViewFrame:NSMakeRect(0, 0, 400, 400)]);
@@ -156,6 +188,32 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     EXPECT_EQ(imageFromUniquePasteboard.TIFFRepresentation.length, imageFromDragPasteboard.TIFFRepresentation.length);
     EXPECT_TRUE(NSEqualSizes(imageFromDragPasteboard.size, imageFromUniquePasteboard.size));
     EXPECT_FALSE(NSEqualSizes(NSZeroSize, imageFromUniquePasteboard.size));
+}
+
+TEST(DragAndDropTests, ProvideImageDataAsTypeIdentifiers)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    [[configuration preferences] _setLargeImageAsyncDecodingEnabled:NO];
+
+    auto simulator = adoptNS([[DragAndDropSimulator alloc] initWithWebViewFrame:NSMakeRect(0, 0, 400, 400) configuration:configuration.get()]);
+    TestWKWebView *webView = [simulator webView];
+
+    auto uniquePasteboard = retainPtr(NSPasteboard.pasteboardWithUniqueName);
+
+    [webView synchronouslyLoadHTMLString:@"<img src='sunset-in-cupertino-600px.jpg'></img>"];
+    [simulator runFrom:NSMakePoint(25, 25) to:NSMakePoint(300, 300)];
+    [webView pasteboard:uniquePasteboard.get() provideDataForType:(__bridge NSString *)kUTTypeJPEG];
+    EXPECT_GT([uniquePasteboard dataForType:(__bridge NSString *)kUTTypeJPEG].length, 0u);
+
+    [webView synchronouslyLoadHTMLString:@"<img src='icon.png'></img>"];
+    [simulator runFrom:NSMakePoint(25, 25) to:NSMakePoint(300, 300)];
+    [webView pasteboard:uniquePasteboard.get() provideDataForType:(__bridge NSString *)kUTTypePNG];
+    EXPECT_GT([uniquePasteboard dataForType:(__bridge NSString *)kUTTypePNG].length, 0u);
+
+    [webView synchronouslyLoadHTMLString:@"<img src='apple.gif'></img>"];
+    [simulator runFrom:NSMakePoint(25, 25) to:NSMakePoint(300, 300)];
+    [webView pasteboard:uniquePasteboard.get() provideDataForType:(__bridge NSString *)kUTTypeGIF];
+    EXPECT_GT([uniquePasteboard dataForType:(__bridge NSString *)kUTTypeGIF].length, 0u);
 }
 
 #endif // ENABLE(DRAG_SUPPORT) && PLATFORM(MAC)

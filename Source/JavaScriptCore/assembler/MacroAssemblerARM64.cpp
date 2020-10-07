@@ -28,6 +28,7 @@
 #if ENABLE(ASSEMBLER) && CPU(ARM64)
 #include "MacroAssembler.h"
 
+#include "JSCPtrTag.h"
 #include "ProbeContext.h"
 #include <wtf/InlineASM.h>
 
@@ -40,7 +41,8 @@ namespace JSC {
 
 #if ENABLE(MASM_PROBE)
 
-extern "C" void ctiMasmProbeTrampoline();
+extern "C" JSC_DECLARE_JIT_OPERATION(ctiMasmProbeTrampoline, void, ());
+JSC_ANNOTATE_JIT_OPERATION(ctiMasmProbeTrampolineId, ctiMasmProbeTrampoline);
 
 using namespace ARM64Registers;
 
@@ -297,6 +299,13 @@ static_assert(LR_RESTORATION_LR_OFFSET == offsetof(LRRestorationRecord, lr), "LR
 static_assert(LR_RESTORATION_SIZE == sizeof(LRRestorationRecord), "LR_RESTORATION_SIZE is incorrect");
 static_assert(!(sizeof(LRRestorationRecord) & 0xf), "LRRestorationRecord must be 16-byte aligned");
 
+#if CPU(ARM64E)
+#define JIT_PROBE_EXECUTOR_PTR_TAG 0x28de
+#define JIT_PROBE_STACK_INITIALIZATION_FUNCTION_PTR_TAG 0x315c
+static_assert(JIT_PROBE_EXECUTOR_PTR_TAG == JITProbeExecutorPtrTag);
+static_assert(JIT_PROBE_STACK_INITIALIZATION_FUNCTION_PTR_TAG == JITProbeStackInitializationFunctionPtrTag);
+#endif
+
 // We use x29 and x30 instead of fp and lr because GCC's inline assembler does not recognize fp and lr.
 // See https://bugs.webkit.org/show_bug.cgi?id=175512 for details.
 asm (
@@ -382,7 +391,8 @@ asm (
     // the caller of the probe (which is what we want in order to play nice with debuggers e.g. lldb).
     "mov       x0, sp" "\n" // Set the Probe::State* arg.
 #if CPU(ARM64E)
-    "blraaz    x28" "\n" // Call the probe handler.
+    "movz      lr, #" STRINGIZE_VALUE_OF(JIT_PROBE_EXECUTOR_PTR_TAG) "\n"
+    "blrab     x28, lr" "\n" // Call the probe handler.
 #else
     "blr       x28" "\n" // Call the probe handler.
 #endif
@@ -422,7 +432,8 @@ asm (
 
     "mov       x0, x27" "\n" // Set the Probe::State* arg.
 #if CPU(ARM64E)
-    "blraaz    x2" "\n" // Call the initializeStackFunction (loaded into x2 above).
+    "movz      lr, #" STRINGIZE_VALUE_OF(JIT_PROBE_STACK_INITIALIZATION_FUNCTION_PTR_TAG) "\n"
+    "blrab     x2, lr" "\n" // Call the initializeStackFunction (loaded into x2 above).all the probe handler.
 #else
     "blr       x2" "\n" // Call the initializeStackFunction (loaded into x2 above).
 #endif
@@ -531,11 +542,14 @@ void MacroAssembler::probe(Probe::Function function, void* arg)
     storePair64(x24, x25, sp, TrustedImm32(offsetof(IncomingProbeRecord, x24)));
     storePair64(x26, x27, sp, TrustedImm32(offsetof(IncomingProbeRecord, x26)));
     storePair64(x28, x30, sp, TrustedImm32(offsetof(IncomingProbeRecord, x28))); // Note: x30 is lr.
-    move(TrustedImmPtr(reinterpret_cast<void*>(ctiMasmProbeTrampoline)), x26);
-    move(TrustedImmPtr(reinterpret_cast<void*>(Probe::executeProbe)), x28);
+    move(TrustedImmPtr(tagCFunction<OperationPtrTag>(ctiMasmProbeTrampoline)), x26);
+    move(TrustedImmPtr(tagCFunction<JITProbeExecutorPtrTag>(Probe::executeProbe)), x28);
+#if CPU(ARM64E)
+    ASSERT(isTaggedWith(function, JITProbePtrTag));
+#endif
     move(TrustedImmPtr(reinterpret_cast<void*>(function)), x24);
     move(TrustedImmPtr(arg), x25);
-    call(x26, CFunctionPtrTag);
+    call(x26, OperationPtrTag);
 
     // ctiMasmProbeTrampoline should have restored every register except for lr and the sp.
     load64(Address(sp, offsetof(LRRestorationRecord, lr)), lr);
@@ -577,4 +591,3 @@ MacroAssemblerARM64::CPUIDCheckState MacroAssemblerARM64::s_jscvtCheckState = CP
 } // namespace JSC
 
 #endif // ENABLE(ASSEMBLER) && CPU(ARM64)
-

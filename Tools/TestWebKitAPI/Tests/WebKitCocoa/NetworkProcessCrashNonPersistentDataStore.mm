@@ -23,7 +23,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
+#import "config.h"
 
 #import "PlatformUtilities.h"
 #import "Test.h"
@@ -72,7 +72,7 @@ static void checkRecoveryAfterCrash(WKWebsiteDataStore *dataStore)
     TestWebKitAPI::Util::run(&done);
     done = false;
 
-    [[webView configuration].processPool _terminateNetworkProcess];
+    [[webView configuration].websiteDataStore _terminateNetworkProcess];
     [webView loadRequest:[NSURLRequest requestWithURL:simple2]];
     TestWebKitAPI::Util::run(&done);
 }

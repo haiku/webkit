@@ -13,8 +13,10 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <string>
 
+#include "absl/types/optional.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_codec_type.h"
 #include "common_types.h"  // NOLINT(build/include)
@@ -47,13 +49,10 @@ struct VideoCodecVP8 {
   int keyFrameInterval;
 };
 
-enum class InterLayerPredMode {
-  kOn,       // Allow inter-layer prediction for all frames.
-             // Frame of low spatial layer can be used for
-             // prediction of next spatial layer frame.
-  kOff,      // Encoder produces independent spatial layers.
-  kOnKeyPic  // Allow inter-layer prediction only for frames
-             // within key picture.
+enum class InterLayerPredMode : int {
+  kOff = 0,      // Inter-layer prediction is disabled.
+  kOn = 1,       // Inter-layer prediction is enabled.
+  kOnKeyPic = 2  // Inter-layer prediction is enabled but limited to key frames.
 };
 
 // VP9 specific.
@@ -82,13 +81,25 @@ struct VideoCodecH264 {
   }
   bool frameDroppingOn;
   int keyFrameInterval;
-  // These are NULL/0 if not externally negotiated.
+  uint8_t numberOfTemporalLayers;
+};
+
+#ifndef DISABLE_H265
+struct VideoCodecH265 {
+  bool operator==(const VideoCodecH265& other) const;
+  bool operator!=(const VideoCodecH265& other) const {
+    return !(*this == other);
+  }
+  bool frameDroppingOn;
+  int keyFrameInterval;
+  const uint8_t* vpsData;
+  size_t vpsLen;
   const uint8_t* spsData;
   size_t spsLen;
   const uint8_t* ppsData;
   size_t ppsLen;
-  H264::Profile profile;
 };
+#endif
 
 // Translates from name of codec to codec type and vice versa.
 RTC_EXPORT const char* CodecTypeToPayloadString(VideoCodecType type);
@@ -98,6 +109,9 @@ union VideoCodecUnion {
   VideoCodecVP8 VP8;
   VideoCodecVP9 VP9;
   VideoCodecH264 H264;
+#ifndef DISABLE_H265
+  VideoCodecH265 H265;
+#endif
 };
 
 enum class VideoCodecMode { kRealtimeVideo, kScreensharing };
@@ -115,10 +129,9 @@ class RTC_EXPORT VideoCodec {
   uint16_t width;
   uint16_t height;
 
-  unsigned int startBitrate;   // kilobits/sec.
-  unsigned int maxBitrate;     // kilobits/sec.
-  unsigned int minBitrate;     // kilobits/sec.
-  unsigned int targetBitrate;  // kilobits/sec.
+  unsigned int startBitrate;  // kilobits/sec.
+  unsigned int maxBitrate;    // kilobits/sec.
+  unsigned int minBitrate;    // kilobits/sec.
 
   uint32_t maxFramerate;
 
@@ -133,6 +146,12 @@ class RTC_EXPORT VideoCodec {
 
   VideoCodecMode mode;
   bool expect_encode_from_texture;
+
+  // The size of pool which is used to store video frame buffers inside decoder.
+  // If value isn't present some codec-default value will be used.
+  // If value is present and decoder doesn't have buffer pool the
+  // value will be ignored.
+  absl::optional<int> buffer_pool_size;
 
   // Timing frames configuration. There is delay of delay_ms between two
   // consequent timing frames, excluding outliers. Frame is always made a
@@ -160,6 +179,10 @@ class RTC_EXPORT VideoCodec {
   const VideoCodecVP9& VP9() const;
   VideoCodecH264* H264();
   const VideoCodecH264& H264() const;
+#ifndef DISABLE_H265
+  VideoCodecH265* H265();
+  const VideoCodecH265& H265() const;
+#endif
 
  private:
   // TODO(hta): Consider replacing the union with a pointer type.

@@ -32,9 +32,15 @@ typedef HashMap<void*, JSC::Weak<JSC::JSObject>> DOMObjectWrapperMap;
 
 class DOMWrapperWorld : public RefCounted<DOMWrapperWorld> {
 public:
-    static Ref<DOMWrapperWorld> create(JSC::VM& vm, bool isNormal = false)
+    enum class Type {
+        Normal,   // Main (e.g. Page)
+        User,     // User Scripts (e.g. Extensions)
+        Internal, // WebKit Internal (e.g. Media Controls)
+    };
+
+    static Ref<DOMWrapperWorld> create(JSC::VM& vm, Type type = Type::Internal, const String& name = { })
     {
-        return adoptRef(*new DOMWrapperWorld(vm, isNormal));
+        return adoptRef(*new DOMWrapperWorld(vm, type, name));
     }
     WEBCORE_EXPORT ~DOMWrapperWorld();
 
@@ -47,26 +53,31 @@ public:
     void setShadowRootIsAlwaysOpen() { m_shadowRootIsAlwaysOpen = true; }
     bool shadowRootIsAlwaysOpen() const { return m_shadowRootIsAlwaysOpen; }
 
-    void disableOverrideBuiltinsBehavior() { m_shouldDisableOverrideBuiltinsBehavior = true; }
-    bool shouldDisableOverrideBuiltinsBehavior() const { return m_shouldDisableOverrideBuiltinsBehavior; }
+    void disableLegacyOverrideBuiltInsBehavior() { m_shouldDisableLegacyOverrideBuiltInsBehavior = true; }
+    bool shouldDisableLegacyOverrideBuiltInsBehavior() const { return m_shouldDisableLegacyOverrideBuiltInsBehavior; }
 
     DOMObjectWrapperMap& wrappers() { return m_wrappers; }
 
-    bool isNormal() const { return m_isNormal; }
+    Type type() const { return m_type; }
+    bool isNormal() const { return m_type == Type::Normal; }
+
+    const String& name() const { return m_name; }
 
     JSC::VM& vm() const { return m_vm; }
 
 protected:
-    DOMWrapperWorld(JSC::VM&, bool isNormal);
+    DOMWrapperWorld(JSC::VM&, Type, const String& name);
 
 private:
     JSC::VM& m_vm;
     HashSet<WindowProxy*> m_jsWindowProxies;
     DOMObjectWrapperMap m_wrappers;
 
-    bool m_isNormal;
+    String m_name;
+    Type m_type { Type::Internal };
+
     bool m_shadowRootIsAlwaysOpen { false };
-    bool m_shouldDisableOverrideBuiltinsBehavior { false };
+    bool m_shouldDisableLegacyOverrideBuiltInsBehavior { false };
 };
 
 DOMWrapperWorld& normalWorld(JSC::VM&);

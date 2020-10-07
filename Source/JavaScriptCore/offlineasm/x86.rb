@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Apple Inc. All rights reserved.
+# Copyright (C) 2012-2020 Apple Inc. All rights reserved.
 # Copyright (C) 2013 Digia Plc. and/or its subsidiary(-ies)
 #
 # Redistribution and use in source and binary forms, with or without
@@ -447,7 +447,7 @@ class LabelReference
         else
             $asm.puts "lea #{dst.x86Operand(:ptr)}, #{asmLabel}"
         end
-        "#{offset}(#{dst.x86Operand(kind)})"
+        "#{offset}(#{dst.x86Operand(:ptr)})"
     end
 end
 
@@ -574,6 +574,9 @@ class Instruction
                 $asm.puts "movq #{src.asmLabel}@GOTPCREL(%rip), #{dst.x86Operand(:ptr)}"
             else
                 $asm.puts "lea #{dst.x86Operand(:ptr)}, #{src.asmLabel}"
+            end
+            if src.offset != 0
+                $asm.puts "add#{x86Suffix(kind)} #{orderOperands(const(src.offset), dst.x86Operand(kind))}"
             end
         else
             $asm.puts "lea#{x86Suffix(kind)} #{orderOperands(src.x86AddressOperand(kind), dst.x86Operand(kind))}"
@@ -1123,6 +1126,8 @@ class Instruction
             handleX86Op("orps", :float)
         when "ord"
             handleX86Op("orpd", :double)
+        when "orh"
+            handleX86Op("or#{x86Suffix(:half)}", :half)
         when "rshifti"
             handleX86Shift("sar#{x86Suffix(:int)}", :int)
         when "rshiftp"

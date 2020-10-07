@@ -21,7 +21,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from buildbot.buildslave import BuildSlave
-from buildbot.scheduler import AnyBranchScheduler, Triggerable
+from buildbot.scheduler import AnyBranchScheduler, Triggerable, Nightly
 from buildbot.schedulers.forcesched import FixedParameter, ForceScheduler, StringParameter, BooleanParameter
 from buildbot.schedulers.filter import ChangeFilter
 from buildbot.process import buildstep, factory, properties
@@ -98,8 +98,8 @@ def loadBuilderConfig(c, test_mode_is_enabled=False):
 
         platform = builder['platform']
 
-        builderType = builder.pop('type')
-        factory = globals()["%sFactory" % builderType]
+        factoryName = builder.pop('factory')
+        factory = globals()[factoryName]
         factorykwargs = {}
         for key in "platform", "configuration", "architectures", "triggers", "additionalArguments", "SVNMirror", "device_model":
             value = builder.pop(key, None)
@@ -120,10 +120,12 @@ def loadBuilderConfig(c, test_mode_is_enabled=False):
             builder["category"] = 'WPE'
         elif platform == 'wincairo':
             builder["category"] = 'WinCairo'
+        elif platform.startswith('playstation'):
+            builder["category"] = 'PlayStation'
         else:
             builder["category"] = 'misc'
 
-        if (builder['category'] in ('AppleMac', 'AppleWin', 'iOS')) and builderType != 'Build':
+        if (builder['category'] in ('AppleMac', 'AppleWin', 'iOS')) and factoryName != 'BuildFactory':
             builder['nextBuild'] = pickLatestBuild
 
         c['builders'].append(builder)

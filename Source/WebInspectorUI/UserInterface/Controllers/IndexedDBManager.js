@@ -33,6 +33,8 @@ WI.IndexedDBManager = class IndexedDBManager extends WI.Object
         super();
 
         this._enabled = false;
+        this._requestedSecurityOrigins = new Set;
+
         this._reset();
     }
 
@@ -42,6 +44,8 @@ WI.IndexedDBManager = class IndexedDBManager extends WI.Object
 
     activateExtraDomain(domain)
     {
+        // COMPATIBILITY (iOS 14.0): Inspector.activateExtraDomains was removed in favor of a declared debuggable type
+
         console.assert(domain === "IndexedDB");
 
         for (let target of WI.targets)
@@ -151,6 +155,7 @@ WI.IndexedDBManager = class IndexedDBManager extends WI.Object
     _reset()
     {
         this._indexedDatabases = [];
+        this._requestedSecurityOrigins.clear();
         this.dispatchEventToListeners(WI.IndexedDBManager.Event.Cleared);
 
         let mainFrame = WI.networkManager.mainFrame;
@@ -172,6 +177,11 @@ WI.IndexedDBManager = class IndexedDBManager extends WI.Object
         // Don't show storage if we don't have a security origin (about:blank).
         if (!securityOrigin || securityOrigin === "://")
             return;
+
+        if (this._requestedSecurityOrigins.has(securityOrigin))
+            return;
+
+        this._requestedSecurityOrigins.add(securityOrigin);
 
         function processDatabaseNames(error, names)
         {

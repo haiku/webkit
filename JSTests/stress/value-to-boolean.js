@@ -1,6 +1,3 @@
-// FIXME: unskip when this is solved
-// https://bugs.webkit.org/show_bug.cgi?id=191163
-//@ skip if $architecture == "mips" or $architecture == "arm"
 //@ if $buildType == "release" then runDefault else skip end
 
 function assert(b) {
@@ -63,8 +60,6 @@ for (let testFunction of testFunctions) {
 let masquerader = makeMasquerader();
 for (let testFunction of testFunctions) {
     for (let i = 0; i < 10000; i++) {
-        for (let i = 0; i < 10000; i++) {
-            assert(testFunction(masquerader) === false);
-        }
+        assert(testFunction(masquerader) === false);
     }
 }

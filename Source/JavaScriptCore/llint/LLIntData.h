@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,19 +43,12 @@ typedef void (*LLIntCode)();
 
 namespace LLInt {
 
-extern "C" JS_EXPORT_PRIVATE Opcode g_opcodeMap[numOpcodeIDs + numWasmOpcodeIDs];
-extern "C" JS_EXPORT_PRIVATE Opcode g_opcodeMapWide16[numOpcodeIDs + numWasmOpcodeIDs];
-extern "C" JS_EXPORT_PRIVATE Opcode g_opcodeMapWide32[numOpcodeIDs + numWasmOpcodeIDs];
-
 class Data {
 
 public:
     static void performAssertions(VM&);
 
 private:
-    static uint8_t s_exceptionInstructions[maxOpcodeLength + 1];
-    static uint8_t s_wasmExceptionInstructions[maxOpcodeLength + 1];
-
     friend void initialize();
 
     friend Instruction* exceptionInstructions();
@@ -76,33 +69,33 @@ void initialize();
 
 inline Instruction* exceptionInstructions()
 {
-    return reinterpret_cast<Instruction*>(Data::s_exceptionInstructions);
+    return reinterpret_cast<Instruction*>(g_jscConfig.llint.exceptionInstructions);
 }
     
 inline Instruction* wasmExceptionInstructions()
 {
-    return bitwise_cast<Instruction*>(Data::s_wasmExceptionInstructions);
+    return bitwise_cast<Instruction*>(g_jscConfig.llint.wasmExceptionInstructions);
 }
 
 inline Opcode* opcodeMap()
 {
-    return g_opcodeMap;
+    return g_jscConfig.llint.opcodeMap;
 }
 
 inline Opcode* opcodeMapWide16()
 {
-    return g_opcodeMapWide16;
+    return g_jscConfig.llint.opcodeMapWide16;
 }
 
 inline Opcode* opcodeMapWide32()
 {
-    return g_opcodeMapWide32;
+    return g_jscConfig.llint.opcodeMapWide32;
 }
 
 inline Opcode getOpcode(OpcodeID id)
 {
 #if ENABLE(COMPUTED_GOTO_OPCODES)
-    return g_opcodeMap[id];
+    return g_jscConfig.llint.opcodeMap[id];
 #else
     return static_cast<Opcode>(id);
 #endif
@@ -111,7 +104,7 @@ inline Opcode getOpcode(OpcodeID id)
 inline Opcode getOpcodeWide16(OpcodeID id)
 {
 #if ENABLE(COMPUTED_GOTO_OPCODES)
-    return g_opcodeMapWide16[id];
+    return g_jscConfig.llint.opcodeMapWide16[id];
 #else
     UNUSED_PARAM(id);
     RELEASE_ASSERT_NOT_REACHED();
@@ -121,7 +114,7 @@ inline Opcode getOpcodeWide16(OpcodeID id)
 inline Opcode getOpcodeWide32(OpcodeID id)
 {
 #if ENABLE(COMPUTED_GOTO_OPCODES)
-    return g_opcodeMapWide32[id];
+    return g_jscConfig.llint.opcodeMapWide32[id];
 #else
     UNUSED_PARAM(id);
     RELEASE_ASSERT_NOT_REACHED();
@@ -168,15 +161,46 @@ ALWAYS_INLINE MacroAssemblerCodeRef<tag> getCodeRef(OpcodeID opcodeID)
     return MacroAssemblerCodeRef<tag>::createSelfManagedCodeRef(getCodePtr<tag>(opcodeID));
 }
 
+template<PtrTag tag>
+ALWAYS_INLINE MacroAssemblerCodeRef<tag> getWide16CodeRef(OpcodeID opcodeID)
+{
+    return MacroAssemblerCodeRef<tag>::createSelfManagedCodeRef(getWide16CodePtr<tag>(opcodeID));
+}
+
+template<PtrTag tag>
+ALWAYS_INLINE MacroAssemblerCodeRef<tag> getWide32CodeRef(OpcodeID opcodeID)
+{
+    return MacroAssemblerCodeRef<tag>::createSelfManagedCodeRef(getWide32CodePtr<tag>(opcodeID));
+}
+
 #if ENABLE(JIT)
 template<PtrTag tag>
 ALWAYS_INLINE LLIntCode getCodeFunctionPtr(OpcodeID opcodeID)
 {
-    ASSERT(opcodeID >= NUMBER_OF_BYTECODE_IDS);
 #if COMPILER(MSVC)
     return reinterpret_cast<LLIntCode>(getCodePtr<tag>(opcodeID).executableAddress());
 #else
     return reinterpret_cast<LLIntCode>(getCodePtr<tag>(opcodeID).template executableAddress());
+#endif
+}
+
+template<PtrTag tag>
+ALWAYS_INLINE LLIntCode getWide16CodeFunctionPtr(OpcodeID opcodeID)
+{
+#if COMPILER(MSVC)
+    return reinterpret_cast<LLIntCode>(getWide16CodePtr<tag>(opcodeID).executableAddress());
+#else
+    return reinterpret_cast<LLIntCode>(getWide16CodePtr<tag>(opcodeID).template executableAddress());
+#endif
+}
+
+template<PtrTag tag>
+ALWAYS_INLINE LLIntCode getWide32CodeFunctionPtr(OpcodeID opcodeID)
+{
+#if COMPILER(MSVC)
+    return reinterpret_cast<LLIntCode>(getWide32CodePtr<tag>(opcodeID).executableAddress());
+#else
+    return reinterpret_cast<LLIntCode>(getWide32CodePtr<tag>(opcodeID).template executableAddress());
 #endif
 }
 
@@ -217,6 +241,7 @@ struct Registers {
     static constexpr GPRReg pbGPR = GPRInfo::regCS7;
 #elif CPU(MIPS) || CPU(ARM_THUMB2)
     static constexpr GPRReg metadataTableGPR = GPRInfo::regCS0;
+    static constexpr GPRReg pbGPR = GPRInfo::regCS1;
 #endif
 };
 #endif

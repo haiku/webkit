@@ -32,6 +32,7 @@
 #import <WebCore/ScrollingStateFrameScrollingNode.h>
 #import <WebCore/ScrollingStateScrollingNode.h>
 #import <WebCore/ScrollingTree.h>
+#import <wtf/BlockObjCExceptions.h>
 
 namespace WebKit {
 using namespace WebCore;
@@ -89,8 +90,8 @@ void ScrollingTreeFrameScrollingNodeRemoteIOS::commitStateAfterChildren(const Sc
 
     // Update the scroll position after child nodes have been updated, because they need to have updated their constraints before any scrolling happens.
     if (scrollingStateNode.hasChangedProperty(ScrollingStateScrollingNode::RequestedScrollPosition)) {
-        auto scrollType = scrollingStateNode.requestedScrollPositionRepresentsProgrammaticScroll() ? ScrollType::Programmatic : ScrollType::User;
-        scrollTo(scrollingStateNode.requestedScrollPosition(), scrollType);
+        const auto& requestedScrollData = scrollingStateNode.requestedScrollData();
+        scrollTo(requestedScrollData.scrollPosition, requestedScrollData.scrollType, requestedScrollData.clamping);
     }
 }
 
@@ -127,6 +128,7 @@ void ScrollingTreeFrameScrollingNodeRemoteIOS::repositionScrollingLayers()
 
 void ScrollingTreeFrameScrollingNodeRemoteIOS::repositionRelatedLayers()
 {
+    BEGIN_BLOCK_OBJC_EXCEPTIONS
     auto layoutViewport = this->layoutViewport();
 
     [m_counterScrollingLayer setPosition:layoutViewport.location()];
@@ -142,6 +144,7 @@ void ScrollingTreeFrameScrollingNodeRemoteIOS::repositionRelatedLayers()
         if (m_footerLayer)
             [m_footerLayer setPosition:FloatPoint(layoutViewport.x(), totalContentsSize().height() - footerHeight())];
     }
+    END_BLOCK_OBJC_EXCEPTIONS
 }
 
 }

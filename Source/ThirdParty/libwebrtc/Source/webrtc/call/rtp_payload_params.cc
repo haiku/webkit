@@ -10,12 +10,24 @@
 
 #include "call/rtp_payload_params.h"
 
-#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
-#include "modules/video_coding/include/video_codec_interface.h"
+#include <stddef.h>
+
+#include <algorithm>
+
+#include "absl/algorithm/container.h"
+#include "absl/container/inlined_vector.h"
+#include "absl/types/variant.h"
+#include "api/video/video_timing.h"
+#include "modules/video_coding/codecs/h264/include/h264_globals.h"
+#include "modules/video_coding/codecs/interface/common_constants.h"
+#include "modules/video_coding/codecs/vp8/include/vp8_globals.h"
+#include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
+#include "modules/video_coding/frame_dependencies_calculator.h"
+#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/random.h"
-#include "rtc_base/timeutils.h"
+#include "rtc_base/time_utils.h"
 #include "system_wrappers/include/field_trial.h"
 
 namespace webrtc {
@@ -51,6 +63,7 @@ void PopulateRtpWithCodecSpecifics(const CodecSpecificInfo& info,
           info.codecSpecific.VP9.inter_layer_predicted;
       vp9_header.gof_idx = info.codecSpecific.VP9.gof_idx;
       vp9_header.num_spatial_layers = info.codecSpecific.VP9.num_spatial_layers;
+      vp9_header.first_active_layer = info.codecSpecific.VP9.first_active_layer;
       if (vp9_header.num_spatial_layers > 1) {
         vp9_header.spatial_idx = spatial_index.value_or(kNoSpatialIdx);
       } else {
@@ -81,8 +94,25 @@ void PopulateRtpWithCodecSpecifics(const CodecSpecificInfo& info,
       h264_header.packetization_mode =
           info.codecSpecific.H264.packetization_mode;
       rtp->simulcastIdx = spatial_index.value_or(0);
+      rtp->frame_marking.temporal_id = kNoTemporalIdx;
+      if (info.codecSpecific.H264.temporal_idx != kNoTemporalIdx) {
+        rtp->frame_marking.temporal_id = info.codecSpecific.H264.temporal_idx;
+        rtp->frame_marking.layer_id = 0;
+        rtp->frame_marking.independent_frame =
+            info.codecSpecific.H264.idr_frame;
+        rtp->frame_marking.base_layer_sync =
+            info.codecSpecific.H264.base_layer_sync;
+      }
       return;
     }
+#ifndef DISABLE_H265
+    case kVideoCodecH265: {
+      auto h265_header = rtp->video_type_header.emplace<RTPVideoHeaderH265>();
+      h265_header.packetization_mode =
+          info.codecSpecific.H265.packetization_mode;
+    }
+    return;
+#endif
     case kVideoCodecMultiplex:
     case kVideoCodecGeneric:
       rtp->codec = kVideoCodecGeneric;
@@ -118,9 +148,11 @@ RtpPayloadParams::RtpPayloadParams(const uint32_t ssrc,
       generic_picture_id_experiment_(
           field_trial::IsEnabled("WebRTC-GenericPictureId")),
       generic_descriptor_experiment_(
-          field_trial::IsEnabled("WebRTC-GenericDescriptor")) {
+          !field_trial::IsDisabled("WebRTC-GenericDescriptor")) {
   for (auto& spatial_layer : last_shared_frame_id_)
     spatial_layer.fill(-1);
+
+  buffer_id_to_frame_id_.fill(-1);
 
   Random random(rtc::TimeMicros());
   state_.picture_id =
@@ -141,15 +173,18 @@ RTPVideoHeader RtpPayloadParams::GetRtpVideoHeader(
     PopulateRtpWithCodecSpecifics(*codec_specific_info, image.SpatialIndex(),
                                   &rtp_video_header);
   }
+  rtp_video_header.frame_type = image._frameType,
   rtp_video_header.rotation = image.rotation_;
   rtp_video_header.content_type = image.content_type_;
   rtp_video_header.playout_delay = image.playout_delay_;
   rtp_video_header.width = image._encodedWidth;
   rtp_video_header.height = image._encodedHeight;
-
+  rtp_video_header.color_space = image.ColorSpace()
+                                     ? absl::make_optional(*image.ColorSpace())
+                                     : absl::nullopt;
   SetVideoTiming(image, &rtp_video_header.video_timing);
 
-  const bool is_keyframe = image._frameType == kVideoFrameKey;
+  const bool is_keyframe = image._frameType == VideoFrameType::kVideoFrameKey;
   const bool first_frame_in_picture =
       (codec_specific_info && codec_specific_info->codecType == kVideoCodecVP9)
           ? codec_specific_info->codecSpecific.VP9.first_frame_in_picture
@@ -158,7 +193,8 @@ RTPVideoHeader RtpPayloadParams::GetRtpVideoHeader(
   SetCodecSpecific(&rtp_video_header, first_frame_in_picture);
 
   if (generic_descriptor_experiment_)
-    SetGeneric(shared_frame_id, is_keyframe, &rtp_video_header);
+    SetGeneric(codec_specific_info, shared_frame_id, is_keyframe,
+               &rtp_video_header);
 
   return rtp_video_header;
 }
@@ -207,31 +243,155 @@ void RtpPayloadParams::SetCodecSpecific(RTPVideoHeader* rtp_video_header,
       vp9_header.tl0_pic_idx = state_.tl0_pic_idx;
     }
   }
-  // There are currently two generic descriptors in WebRTC. The old descriptor
-  // can not share a picture id space between simulcast streams, so we use the
-  // |picture_id| in this case. We let the |picture_id| tag along in |frame_id|
-  // until the old generic format can be removed.
-  // TODO(philipel): Remove this when the new generic format has been fully
-  //                 implemented.
+  if (rtp_video_header->codec == kVideoCodecH264) {
+    if (rtp_video_header->frame_marking.temporal_id != kNoTemporalIdx) {
+      if (rtp_video_header->frame_marking.temporal_id == 0) {
+        ++state_.tl0_pic_idx;
+      }
+      rtp_video_header->frame_marking.tl0_pic_idx = state_.tl0_pic_idx;
+    }
+  }
   if (generic_picture_id_experiment_ &&
       rtp_video_header->codec == kVideoCodecGeneric) {
-    rtp_video_header->generic.emplace().frame_id = state_.picture_id;
+    rtp_video_header->video_type_header.emplace<RTPVideoHeaderLegacyGeneric>()
+        .picture_id = state_.picture_id;
   }
 }
 
-void RtpPayloadParams::SetGeneric(int64_t frame_id,
+RTPVideoHeader::GenericDescriptorInfo
+RtpPayloadParams::GenericDescriptorFromFrameInfo(
+    const GenericFrameInfo& frame_info,
+    int64_t frame_id,
+    VideoFrameType frame_type) {
+  RTPVideoHeader::GenericDescriptorInfo generic;
+  generic.frame_id = frame_id;
+  generic.dependencies = dependencies_calculator_.FromBuffersUsage(
+      frame_type, frame_id, frame_info.encoder_buffers);
+  generic.spatial_index = frame_info.spatial_id;
+  generic.temporal_index = frame_info.temporal_id;
+  generic.decode_target_indications = frame_info.decode_target_indications;
+  generic.discardable =
+      absl::c_linear_search(frame_info.decode_target_indications,
+                            DecodeTargetIndication::kDiscardable);
+  return generic;
+}
+
+void RtpPayloadParams::SetGeneric(const CodecSpecificInfo* codec_specific_info,
+                                  int64_t frame_id,
                                   bool is_keyframe,
                                   RTPVideoHeader* rtp_video_header) {
-  if (rtp_video_header->codec == kVideoCodecVP8) {
-    Vp8ToGeneric(frame_id, is_keyframe, rtp_video_header);
+  if (codec_specific_info && codec_specific_info->generic_frame_info &&
+      !codec_specific_info->generic_frame_info->encoder_buffers.empty()) {
+    rtp_video_header->generic =
+        GenericDescriptorFromFrameInfo(*codec_specific_info->generic_frame_info,
+                                       frame_id, rtp_video_header->frame_type);
+    return;
   }
 
-  // TODO(philipel): Implement VP9 to new generic descriptor.
-  // TODO(philipel): Implement H264 to new generic descriptor.
-  // TODO(philipel): Implement generic codec to new generic descriptor.
+  switch (rtp_video_header->codec) {
+    case VideoCodecType::kVideoCodecGeneric:
+      GenericToGeneric(frame_id, is_keyframe, rtp_video_header);
+      return;
+    case VideoCodecType::kVideoCodecVP8:
+      if (codec_specific_info) {
+        Vp8ToGeneric(codec_specific_info->codecSpecific.VP8, frame_id,
+                     is_keyframe, rtp_video_header);
+      }
+      return;
+    case VideoCodecType::kVideoCodecVP9:
+    case VideoCodecType::kVideoCodecAV1:
+      // TODO(philipel): Implement VP9 and AV1 to generic descriptor.
+      return;
+    case VideoCodecType::kVideoCodecH264:
+      if (codec_specific_info) {
+        H264ToGeneric(codec_specific_info->codecSpecific.H264, frame_id,
+                      is_keyframe, rtp_video_header);
+      }
+      return;
+#ifndef DISABLE_H265
+    case VideoCodecType::kVideoCodecH265:
+#endif
+    case VideoCodecType::kVideoCodecMultiplex:
+      return;
+  }
+  RTC_NOTREACHED() << "Unsupported codec.";
 }
 
-void RtpPayloadParams::Vp8ToGeneric(int64_t shared_frame_id,
+void RtpPayloadParams::GenericToGeneric(int64_t shared_frame_id,
+                                        bool is_keyframe,
+                                        RTPVideoHeader* rtp_video_header) {
+  RTPVideoHeader::GenericDescriptorInfo& generic =
+      rtp_video_header->generic.emplace();
+
+  generic.frame_id = shared_frame_id;
+
+  if (is_keyframe) {
+    last_shared_frame_id_[0].fill(-1);
+  } else {
+    int64_t frame_id = last_shared_frame_id_[0][0];
+    RTC_DCHECK_NE(frame_id, -1);
+    RTC_DCHECK_LT(frame_id, shared_frame_id);
+    generic.dependencies.push_back(frame_id);
+  }
+
+  last_shared_frame_id_[0][0] = shared_frame_id;
+}
+
+void RtpPayloadParams::H264ToGeneric(const CodecSpecificInfoH264& h264_info,
+                                     int64_t shared_frame_id,
+                                     bool is_keyframe,
+                                     RTPVideoHeader* rtp_video_header) {
+  const int temporal_index =
+      h264_info.temporal_idx != kNoTemporalIdx ? h264_info.temporal_idx : 0;
+
+  if (temporal_index >= RtpGenericFrameDescriptor::kMaxTemporalLayers) {
+    RTC_LOG(LS_WARNING) << "Temporal and/or spatial index is too high to be "
+                           "used with generic frame descriptor.";
+    return;
+  }
+
+  RTPVideoHeader::GenericDescriptorInfo& generic =
+      rtp_video_header->generic.emplace();
+
+  generic.frame_id = shared_frame_id;
+  generic.temporal_index = temporal_index;
+
+  if (is_keyframe) {
+    RTC_DCHECK_EQ(temporal_index, 0);
+    last_shared_frame_id_[/*spatial index*/ 0].fill(-1);
+    last_shared_frame_id_[/*spatial index*/ 0][temporal_index] =
+        shared_frame_id;
+    return;
+  }
+
+  if (h264_info.base_layer_sync) {
+    int64_t tl0_frame_id = last_shared_frame_id_[/*spatial index*/ 0][0];
+
+    for (int i = 1; i < RtpGenericFrameDescriptor::kMaxTemporalLayers; ++i) {
+      if (last_shared_frame_id_[/*spatial index*/ 0][i] < tl0_frame_id) {
+        last_shared_frame_id_[/*spatial index*/ 0][i] = -1;
+      }
+    }
+
+    RTC_DCHECK_GE(tl0_frame_id, 0);
+    RTC_DCHECK_LT(tl0_frame_id, shared_frame_id);
+    generic.dependencies.push_back(tl0_frame_id);
+  } else {
+    for (int i = 0; i <= temporal_index; ++i) {
+      int64_t frame_id = last_shared_frame_id_[/*spatial index*/ 0][i];
+
+      if (frame_id != -1) {
+        RTC_DCHECK_LT(frame_id, shared_frame_id);
+        generic.dependencies.push_back(frame_id);
+      }
+    }
+  }
+
+  last_shared_frame_id_[/*spatial_index*/ 0][temporal_index] = shared_frame_id;
+}
+
+void RtpPayloadParams::Vp8ToGeneric(const CodecSpecificInfoVP8& vp8_info,
+                                    int64_t shared_frame_id,
                                     bool is_keyframe,
                                     RTPVideoHeader* rtp_video_header) {
   const auto& vp8_header =
@@ -254,6 +414,28 @@ void RtpPayloadParams::Vp8ToGeneric(int64_t shared_frame_id,
   generic.spatial_index = spatial_index;
   generic.temporal_index = temporal_index;
 
+  if (vp8_info.useExplicitDependencies) {
+    SetDependenciesVp8New(vp8_info, shared_frame_id, is_keyframe,
+                          vp8_header.layerSync, &generic);
+  } else {
+    SetDependenciesVp8Deprecated(vp8_info, shared_frame_id, is_keyframe,
+                                 spatial_index, temporal_index,
+                                 vp8_header.layerSync, &generic);
+  }
+}
+
+void RtpPayloadParams::SetDependenciesVp8Deprecated(
+    const CodecSpecificInfoVP8& vp8_info,
+    int64_t shared_frame_id,
+    bool is_keyframe,
+    int spatial_index,
+    int temporal_index,
+    bool layer_sync,
+    RTPVideoHeader::GenericDescriptorInfo* generic) {
+  RTC_DCHECK(!vp8_info.useExplicitDependencies);
+  RTC_DCHECK(!new_version_used_.has_value() || !new_version_used_.value());
+  new_version_used_ = false;
+
   if (is_keyframe) {
     RTC_DCHECK_EQ(temporal_index, 0);
     last_shared_frame_id_[spatial_index].fill(-1);
@@ -261,7 +443,7 @@ void RtpPayloadParams::Vp8ToGeneric(int64_t shared_frame_id,
     return;
   }
 
-  if (vp8_header.layerSync) {
+  if (layer_sync) {
     int64_t tl0_frame_id = last_shared_frame_id_[spatial_index][0];
 
     for (int i = 1; i < RtpGenericFrameDescriptor::kMaxTemporalLayers; ++i) {
@@ -272,19 +454,68 @@ void RtpPayloadParams::Vp8ToGeneric(int64_t shared_frame_id,
 
     RTC_DCHECK_GE(tl0_frame_id, 0);
     RTC_DCHECK_LT(tl0_frame_id, shared_frame_id);
-    generic.dependencies.push_back(tl0_frame_id);
+    generic->dependencies.push_back(tl0_frame_id);
   } else {
     for (int i = 0; i <= temporal_index; ++i) {
       int64_t frame_id = last_shared_frame_id_[spatial_index][i];
 
       if (frame_id != -1) {
         RTC_DCHECK_LT(frame_id, shared_frame_id);
-        generic.dependencies.push_back(frame_id);
+        generic->dependencies.push_back(frame_id);
       }
     }
   }
 
   last_shared_frame_id_[spatial_index][temporal_index] = shared_frame_id;
+}
+
+void RtpPayloadParams::SetDependenciesVp8New(
+    const CodecSpecificInfoVP8& vp8_info,
+    int64_t shared_frame_id,
+    bool is_keyframe,
+    bool layer_sync,
+    RTPVideoHeader::GenericDescriptorInfo* generic) {
+  RTC_DCHECK(vp8_info.useExplicitDependencies);
+  RTC_DCHECK(!new_version_used_.has_value() || new_version_used_.value());
+  new_version_used_ = true;
+
+  if (is_keyframe) {
+    RTC_DCHECK_EQ(vp8_info.referencedBuffersCount, 0u);
+    buffer_id_to_frame_id_.fill(shared_frame_id);
+    return;
+  }
+
+  constexpr size_t kBuffersCountVp8 = CodecSpecificInfoVP8::kBuffersCount;
+
+  RTC_DCHECK_GT(vp8_info.referencedBuffersCount, 0u);
+  RTC_DCHECK_LE(vp8_info.referencedBuffersCount,
+                arraysize(vp8_info.referencedBuffers));
+
+  for (size_t i = 0; i < vp8_info.referencedBuffersCount; ++i) {
+    const size_t referenced_buffer = vp8_info.referencedBuffers[i];
+    RTC_DCHECK_LT(referenced_buffer, kBuffersCountVp8);
+    RTC_DCHECK_LT(referenced_buffer, buffer_id_to_frame_id_.size());
+
+    const int64_t dependency_frame_id =
+        buffer_id_to_frame_id_[referenced_buffer];
+    RTC_DCHECK_GE(dependency_frame_id, 0);
+    RTC_DCHECK_LT(dependency_frame_id, shared_frame_id);
+
+    const bool is_new_dependency =
+        std::find(generic->dependencies.begin(), generic->dependencies.end(),
+                  dependency_frame_id) == generic->dependencies.end();
+    if (is_new_dependency) {
+      generic->dependencies.push_back(dependency_frame_id);
+    }
+  }
+
+  RTC_DCHECK_LE(vp8_info.updatedBuffersCount, kBuffersCountVp8);
+  for (size_t i = 0; i < vp8_info.updatedBuffersCount; ++i) {
+    const size_t updated_id = vp8_info.updatedBuffers[i];
+    buffer_id_to_frame_id_[updated_id] = shared_frame_id;
+  }
+
+  RTC_DCHECK_LE(buffer_id_to_frame_id_.size(), kBuffersCountVp8);
 }
 
 }  // namespace webrtc

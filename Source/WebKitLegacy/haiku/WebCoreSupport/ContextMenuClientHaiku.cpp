@@ -72,9 +72,9 @@ void ContextMenuClientHaiku::searchWithGoogle(const Frame* frame)
 
     if (Page* page = frame->page()) {
 	UserGestureIndicator indicator(ProcessingUserGesture);
-        page->mainFrame().loader().urlSelected(URL({ }, url),
+        page->mainFrame().loader().changeLocation(URL({ }, url),
             String("_blank"), 0, LockHistory::No, LockBackForwardList::No,
-            MaybeSendReferrer, frame->document()->shouldOpenExternalURLsPolicyToPropagate());
+            ReferrerPolicy::EmptyString, frame->document()->shouldOpenExternalURLsPolicyToPropagate());
     }
 }
 

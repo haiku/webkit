@@ -11,18 +11,16 @@
 package org.webrtc;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import android.graphics.SurfaceTexture;
 import android.opengl.GLES20;
 import android.os.SystemClock;
+import android.support.annotation.Nullable;
 import android.support.test.filters.MediumTest;
 import android.support.test.filters.SmallTest;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CountDownLatch;
-import javax.annotation.Nullable;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.junit.Before;
 import org.junit.Test;

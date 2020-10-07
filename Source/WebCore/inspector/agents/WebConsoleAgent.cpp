@@ -36,6 +36,7 @@
 #include "WebInjectedScriptManager.h"
 #include <JavaScriptCore/ConsoleMessage.h>
 #include <JavaScriptCore/JSCInlines.h>
+#include <JavaScriptCore/ScriptArguments.h>
 #include <wtf/text/StringBuilder.h>
 
 
@@ -52,9 +53,6 @@ WebConsoleAgent::~WebConsoleAgent() = default;
 
 void WebConsoleAgent::frameWindowDiscarded(DOMWindow* window)
 {
-    if (!m_injectedScriptManager.inspectorEnvironment().developerExtrasEnabled())
-        return;
-
     for (auto& message : m_consoleMessages) {
         JSC::JSGlobalObject* lexicalGlobalObject = message->globalObject();
         if (!lexicalGlobalObject)
@@ -69,20 +67,14 @@ void WebConsoleAgent::frameWindowDiscarded(DOMWindow* window)
 
 void WebConsoleAgent::didReceiveResponse(unsigned long requestIdentifier, const ResourceResponse& response)
 {
-    if (!m_injectedScriptManager.inspectorEnvironment().developerExtrasEnabled())
-        return;
-
     if (response.httpStatusCode() >= 400) {
-        String message = makeString("Failed to load resource: the server responded with a status of ", response.httpStatusCode(), " (", response.httpStatusText(), ')');
+        String message = makeString("Failed to load resource: the server responded with a status of ", response.httpStatusCode(), " (", ScriptArguments::truncateStringForConsoleMessage(response.httpStatusText()), ')');
         addMessageToConsole(makeUnique<ConsoleMessage>(MessageSource::Network, MessageType::Log, MessageLevel::Error, message, response.url().string(), 0, 0, nullptr, requestIdentifier));
     }
 }
 
 void WebConsoleAgent::didFailLoading(unsigned long requestIdentifier, const ResourceError& error)
 {
-    if (!m_injectedScriptManager.inspectorEnvironment().developerExtrasEnabled())
-        return;
-
     // Report failures only.
     if (error.isCancellation())
         return;
@@ -94,7 +86,7 @@ void WebConsoleAgent::didFailLoading(unsigned long requestIdentifier, const Reso
         message.append(error.localizedDescription());
     }
 
-    addMessageToConsole(makeUnique<ConsoleMessage>(MessageSource::Network, MessageType::Log, MessageLevel::Error, message.toString(), error.failingURL(), 0, 0, nullptr, requestIdentifier));
+    addMessageToConsole(makeUnique<ConsoleMessage>(MessageSource::Network, MessageType::Log, MessageLevel::Error, message.toString(), error.failingURL().string(), 0, 0, nullptr, requestIdentifier));
 }
 
 } // namespace WebCore

@@ -10,7 +10,10 @@
 
 #include "common/debug.h"
 #include "common/platform.h"
-#include "common/tls.h"
+#include "common/system_utils.h"
+#include "libGLESv2/resource.h"
+
+#include <atomic>
 
 namespace gl
 {
@@ -36,7 +39,7 @@ namespace
 static TLSIndex threadTLS = TLS_INVALID_INDEX;
 Debug *g_Debug            = nullptr;
 
-ANGLE_REQUIRE_CONSTANT_INIT std::atomic<std::mutex *> g_Mutex(nullptr);
+ANGLE_REQUIRE_CONSTANT_INIT std::atomic<angle::GlobalMutex *> g_Mutex(nullptr);
 static_assert(std::is_trivially_destructible<decltype(g_Mutex)>::value,
               "global mutex is not trivially destructible");
 
@@ -55,6 +58,9 @@ Thread *AllocateCurrentThread()
         return nullptr;
     }
 
+    // Initialize fast TLS slot
+    SetContextToAndroidOpenGLTLSSlot(nullptr);
+
     return thread;
 }
 
@@ -71,8 +77,8 @@ void AllocateMutex()
 {
     if (g_Mutex == nullptr)
     {
-        std::unique_ptr<std::mutex> newMutex(new std::mutex());
-        std::mutex *expected = nullptr;
+        std::unique_ptr<angle::GlobalMutex> newMutex(new angle::GlobalMutex());
+        angle::GlobalMutex *expected = nullptr;
         if (g_Mutex.compare_exchange_strong(expected, newMutex.get()))
         {
             newMutex.release();
@@ -82,7 +88,7 @@ void AllocateMutex()
 
 }  // anonymous namespace
 
-std::mutex &GetGlobalMutex()
+angle::GlobalMutex &GetGlobalMutex()
 {
     AllocateMutex();
     return *g_Mutex;
@@ -129,6 +135,8 @@ void SetContextCurrent(Thread *thread, gl::Context *context)
         }
     }
     thread->setCurrent(context);
+
+    SetContextToAndroidOpenGLTLSSlot(context);
 }
 }  // namespace egl
 
@@ -153,10 +161,10 @@ void DeallocateDebug()
 
 void DeallocateMutex()
 {
-    std::mutex *mutex = g_Mutex.exchange(nullptr);
+    angle::GlobalMutex *mutex = g_Mutex.exchange(nullptr);
     {
         // Wait for the mutex to become released by other threads before deleting.
-        std::lock_guard<std::mutex> lock(*mutex);
+        std::lock_guard<angle::GlobalMutex> lock(*mutex);
     }
     SafeDelete(mutex);
 }
@@ -206,11 +214,67 @@ bool TerminateProcess()
 
 }  // namespace egl
 
-extern "C" BOOL WINAPI DllMain(HINSTANCE, DWORD reason, LPVOID)
+namespace
+{
+// The following WaitForDebugger code is based on SwiftShader. See:
+// https://cs.chromium.org/chromium/src/third_party/swiftshader/src/Vulkan/main.cpp
+#    if defined(ANGLE_ENABLE_ASSERTS) && !defined(ANGLE_ENABLE_WINDOWS_UWP)
+INT_PTR CALLBACK DebuggerWaitDialogProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    RECT rect;
+
+    switch (uMsg)
+    {
+        case WM_INITDIALOG:
+            ::GetWindowRect(GetDesktopWindow(), &rect);
+            ::SetWindowPos(hwnd, HWND_TOP, rect.right / 2, rect.bottom / 2, 0, 0, SWP_NOSIZE);
+            ::SetTimer(hwnd, 1, 100, NULL);
+            return TRUE;
+        case WM_COMMAND:
+            if (LOWORD(wParam) == IDCANCEL)
+            {
+                ::EndDialog(hwnd, 0);
+            }
+            break;
+        case WM_TIMER:
+            if (angle::IsDebuggerAttached())
+            {
+                ::EndDialog(hwnd, 0);
+            }
+    }
+
+    return FALSE;
+}
+
+void WaitForDebugger(HINSTANCE instance)
+{
+    if (angle::IsDebuggerAttached())
+        return;
+
+    HRSRC dialog = ::FindResourceA(instance, MAKEINTRESOURCEA(IDD_DIALOG1), MAKEINTRESOURCEA(5));
+    if (!dialog)
+    {
+        printf("Error finding wait for debugger dialog. Error %lu.\n", ::GetLastError());
+        return;
+    }
+
+    DLGTEMPLATE *dialogTemplate = reinterpret_cast<DLGTEMPLATE *>(::LoadResource(instance, dialog));
+    ::DialogBoxIndirectA(instance, dialogTemplate, NULL, DebuggerWaitDialogProc);
+}
+#    else
+void WaitForDebugger(HINSTANCE instance) {}
+#    endif  // defined(ANGLE_ENABLE_ASSERTS) && !defined(ANGLE_ENABLE_WINDOWS_UWP)
+}  // namespace
+
+extern "C" BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID)
 {
     switch (reason)
     {
         case DLL_PROCESS_ATTACH:
+            if (angle::GetEnvironmentVar("ANGLE_WAIT_FOR_DEBUGGER") == "1")
+            {
+                WaitForDebugger(instance);
+            }
             return static_cast<BOOL>(egl::InitializeProcess());
 
         case DLL_THREAD_ATTACH:

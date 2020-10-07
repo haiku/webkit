@@ -28,9 +28,8 @@
 #include "config.h"
 #include "WebPage.h"
 
-#include "EditorState.h"
-#include "WebEvent.h"
 #include "WebFrame.h"
+#include "WebKeyboardEvent.h"
 #include "WebKitWebPageAccessibilityObject.h"
 #include "WebPageProxyMessages.h"
 #include "WebProcess.h"
@@ -43,8 +42,10 @@
 #include <WebCore/KeyboardEvent.h>
 #include <WebCore/NotImplemented.h>
 #include <WebCore/Page.h>
-#include <WebCore/PasteboardHelper.h>
 #include <WebCore/PlatformKeyboardEvent.h>
+#include <WebCore/PlatformScreen.h>
+#include <WebCore/PointerCharacteristics.h>
+#include <WebCore/RenderTheme.h>
 #include <WebCore/Settings.h>
 #include <WebCore/SharedBuffer.h>
 #include <WebCore/UserAgent.h>
@@ -74,42 +75,6 @@ void WebPage::platformReinitialize()
 
 void WebPage::platformDetach()
 {
-}
-
-void WebPage::platformEditorState(Frame& frame, EditorState& result, IncludePostLayoutDataHint shouldIncludePostLayoutData) const
-{
-    if (shouldIncludePostLayoutData == IncludePostLayoutDataHint::No || !frame.view() || frame.view()->needsLayout()) {
-        result.isMissingPostLayoutData = true;
-        return;
-    }
-
-    auto& postLayoutData = result.postLayoutData();
-    postLayoutData.caretRectAtStart = frame.selection().absoluteCaretBounds();
-
-    const VisibleSelection& selection = frame.selection().selection();
-    if (selection.isNone())
-        return;
-
-    const Editor& editor = frame.editor();
-    if (selection.isRange()) {
-        if (editor.selectionHasStyle(CSSPropertyFontWeight, "bold") == TrueTriState)
-            postLayoutData.typingAttributes |= AttributeBold;
-        if (editor.selectionHasStyle(CSSPropertyFontStyle, "italic") == TrueTriState)
-            postLayoutData.typingAttributes |= AttributeItalics;
-        if (editor.selectionHasStyle(CSSPropertyWebkitTextDecorationsInEffect, "underline") == TrueTriState)
-            postLayoutData.typingAttributes |= AttributeUnderline;
-        if (editor.selectionHasStyle(CSSPropertyWebkitTextDecorationsInEffect, "line-through") == TrueTriState)
-            postLayoutData.typingAttributes |= AttributeStrikeThrough;
-    } else if (selection.isCaret()) {
-        if (editor.selectionStartHasStyle(CSSPropertyFontWeight, "bold"))
-            postLayoutData.typingAttributes |= AttributeBold;
-        if (editor.selectionStartHasStyle(CSSPropertyFontStyle, "italic"))
-            postLayoutData.typingAttributes |= AttributeItalics;
-        if (editor.selectionStartHasStyle(CSSPropertyWebkitTextDecorationsInEffect, "underline"))
-            postLayoutData.typingAttributes |= AttributeUnderline;
-        if (editor.selectionStartHasStyle(CSSPropertyWebkitTextDecorationsInEffect, "line-through"))
-            postLayoutData.typingAttributes |= AttributeStrikeThrough;
-    }
 }
 
 bool WebPage::performDefaultBehaviorForKeyEvent(const WebKeyboardEvent& keyboardEvent)
@@ -166,21 +131,30 @@ String WebPage::platformUserAgent(const URL& url) const
     return WebCore::standardUserAgentForURL(url);
 }
 
+bool WebPage::hoverSupportedByAnyAvailablePointingDevice() const
+{
+#if ENABLE(TOUCH_EVENTS)
+    return !screenHasTouchDevice();
+#else
+    return true;
+#endif
+}
+
+OptionSet<PointerCharacteristics> WebPage::pointerCharacteristicsOfAllAvailablePointingDevices() const
+{
+#if ENABLE(TOUCH_EVENTS)
+    if (screenHasTouchDevice())
+        return PointerCharacteristics::Coarse;
+#endif
+    return PointerCharacteristics::Fine;
+}
+
 void WebPage::getCenterForZoomGesture(const IntPoint& centerInViewCoordinates, CompletionHandler<void(WebCore::IntPoint&&)>&& completionHandler)
 {
     IntPoint result = mainFrameView()->rootViewToContents(centerInViewCoordinates);
     double scale = m_page->pageScaleFactor();
     result.scale(1 / scale, 1 / scale);
     completionHandler(WTFMove(result));
-}
-
-void WebPage::setInputMethodState(bool enabled)
-{
-    if (m_inputMethodEnabled == enabled)
-        return;
-
-    m_inputMethodEnabled = enabled;
-    send(Messages::WebPageProxy::SetInputMethodState(enabled));
 }
 
 void WebPage::collapseSelectionInFrame(FrameIdentifier frameID)
@@ -203,11 +177,15 @@ void WebPage::showEmojiPicker(Frame& frame)
     sendWithAsyncReply(Messages::WebPageProxy::ShowEmojiPicker(frame.view()->contentsToRootView(frame.selection().absoluteCaretBounds())), WTFMove(completionHandler));
 }
 
-void WebPage::effectiveAppearanceDidChange(bool useDarkAppearance, bool useInactiveAppearance)
+void WebPage::themeDidChange(String&& themeName)
 {
-    if (auto* settings = gtk_settings_get_default())
-        g_object_set(settings, "gtk-application-prefer-dark-theme", useDarkAppearance, nullptr);
-    corePage()->effectiveAppearanceDidChange(useDarkAppearance, useInactiveAppearance);
+    if (m_themeName == themeName)
+        return;
+
+    m_themeName = WTFMove(themeName);
+    g_object_set(gtk_settings_get_default(), "gtk-theme-name", m_themeName.utf8().data(), nullptr);
+    RenderTheme::singleton().platformColorsDidChange();
+    Page::updateStyleForAllPagesAfterGlobalChangeInEnvironment();
 }
 
 } // namespace WebKit

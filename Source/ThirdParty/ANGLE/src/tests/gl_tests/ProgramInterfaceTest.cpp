@@ -122,6 +122,8 @@ TEST_P(ProgramInterfaceTestES31, GetResourceName)
 // Tests glGetProgramResourceLocation.
 TEST_P(ProgramInterfaceTestES31, GetResourceLocation)
 {
+    // http://anglebug.com/4092
+    ANGLE_SKIP_TEST_IF(isSwiftshader());
     constexpr char kVS[] =
         "#version 310 es\n"
         "precision highp float;\n"
@@ -181,6 +183,8 @@ TEST_P(ProgramInterfaceTestES31, GetResourceLocation)
 // Tests glGetProgramResource.
 TEST_P(ProgramInterfaceTestES31, GetResource)
 {
+    // http://anglebug.com/4092
+    ANGLE_SKIP_TEST_IF(isSwiftshader());
     constexpr char kVS[] =
         "#version 310 es\n"
         "precision highp float;\n"
@@ -595,6 +599,12 @@ TEST_P(ProgramInterfaceTestES31, GetBufferVariableProperties)
     // on d3d backend. http://anglebug.com/1951
     ANGLE_SKIP_TEST_IF(IsD3D11());
 
+    // Check SSBO support
+    GLint numSupported;
+    glGetIntegerv(GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &numSupported);
+    EXPECT_GL_NO_ERROR();
+    ANGLE_SKIP_TEST_IF(numSupported < 2);
+
     constexpr char kVS[] =
         "#version 310 es\n"
         "precision highp float;\n"
@@ -944,6 +954,12 @@ TEST_P(ProgramInterfaceTestES31, GetShaderStorageBlockProperties)
     // on d3d backend. http://anglebug.com/1951
     ANGLE_SKIP_TEST_IF(IsD3D11());
 
+    // Check SSBO support
+    GLint numSupported;
+    glGetIntegerv(GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &numSupported);
+    EXPECT_GL_NO_ERROR();
+    ANGLE_SKIP_TEST_IF(numSupported < 3);
+
     constexpr char kVS[] =
         "#version 310 es\n"
         "precision highp float;\n"
@@ -1195,10 +1211,6 @@ void main() {
     glDeleteProgram(program);
 }
 
-ANGLE_INSTANTIATE_TEST(ProgramInterfaceTestES31,
-                       ES31_OPENGL(),
-                       ES31_OPENGLES(),
-                       ES31_D3D11(),
-                       ES31_VULKAN());
+ANGLE_INSTANTIATE_TEST_ES31(ProgramInterfaceTestES31);
 
 }  // anonymous namespace

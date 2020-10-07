@@ -38,9 +38,9 @@ namespace JSC {
 
 #define FOR_EACH_ICEVENT_KIND(macro) \
     macro(InvalidKind) \
-    macro(GetByIdAddAccessCase) \
-    macro(GetByIdReplaceWithJump) \
-    macro(GetByIdSelfPatch) \
+    macro(GetByAddAccessCase) \
+    macro(GetByReplaceWithJump) \
+    macro(GetBySelfPatch) \
     macro(InAddAccessCase) \
     macro(InReplaceWithJump) \
     macro(InstanceOfAddAccessCase) \
@@ -49,10 +49,10 @@ namespace JSC {
     macro(OperationGetByIdGeneric) \
     macro(OperationGetByIdBuildList) \
     macro(OperationGetByIdOptimize) \
+    macro(OperationGetByValOptimize) \
     macro(OperationGetByIdWithThisOptimize) \
     macro(OperationGenericIn) \
     macro(OperationInById) \
-    macro(OperationInByIdGeneric) \
     macro(OperationInByIdOptimize) \
     macro(OperationPutByIdStrict) \
     macro(OperationPutByIdNonStrict) \
@@ -64,12 +64,15 @@ namespace JSC {
     macro(OperationPutByIdDirectNonStrictOptimize) \
     macro(OperationPutByIdStrictBuildList) \
     macro(OperationPutByIdNonStrictBuildList) \
-    macro(OperationPutByIdDirectStrictBuildList) \
-    macro(OperationPutByIdDirectNonStrictBuildList) \
+    macro(OperationPutByIdDefinePrivateFieldFieldStrictOptimize) \
+    macro(OperationPutByIdPutPrivateFieldFieldStrictOptimize) \
     macro(PutByIdAddAccessCase) \
     macro(PutByIdReplaceWithJump) \
     macro(PutByIdSelfPatch) \
-    macro(InByIdSelfPatch)
+    macro(InByIdSelfPatch) \
+    macro(DelByReplaceWithJump) \
+    macro(DelByReplaceWithGeneric) \
+    macro(OperationGetPrivateNameOptimize)
 
 class ICEvent {
 public:
@@ -173,9 +176,7 @@ namespace WTF {
 void printInternal(PrintStream&, JSC::ICEvent::Kind);
 
 template<typename T> struct DefaultHash;
-template<> struct DefaultHash<JSC::ICEvent> {
-    typedef JSC::ICEventHash Hash;
-};
+template<> struct DefaultHash<JSC::ICEvent> : JSC::ICEventHash { };
 
 template<typename T> struct HashTraits;
 template<> struct HashTraits<JSC::ICEvent> : SimpleClassHashTraits<JSC::ICEvent> {

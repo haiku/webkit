@@ -24,21 +24,47 @@
  */
 
 #import "config.h"
-#import "_WKInspector.h"
+#import "_WKInspectorInternal.h"
 
+#import "InspectorDelegate.h"
 #import "WKWebViewInternal.h"
 #import "WebPageProxy.h"
 #import "WebProcessProxy.h"
 #import "_WKFrameHandleInternal.h"
-#import "_WKInspectorInternal.h"
 #import <WebCore/FrameIdentifier.h>
+#import <wtf/HashMap.h>
+#import <wtf/HashSet.h>
 #import <wtf/RetainPtr.h>
+#import <wtf/text/WTFString.h>
 
 @implementation _WKInspector
+
+// MARK: _WKInspector methods
+
+- (id <_WKInspectorDelegate>)delegate
+{
+    return _delegate->delegate().autorelease();
+}
+
+- (void)setDelegate:(id<_WKInspectorDelegate>)delegate
+{
+    if (!_delegate)
+        _delegate = makeUnique<WebKit::InspectorDelegate>(self);
+
+    _inspector->setInspectorClient(_delegate->createInspectorClient());
+    _delegate->setDelegate(delegate);
+}
 
 - (WKWebView *)webView
 {
     if (auto* page = _inspector->inspectedPage())
+        return fromWebPageProxy(*page);
+    return nil;
+}
+
+- (WKWebView *)inspectorWebView
+{
+    if (auto* page = _inspector->inspectorPage())
         return fromWebPageProxy(*page);
     return nil;
 }
@@ -101,7 +127,7 @@
 - (void)showMainResourceForFrame:(_WKFrameHandle *)frame
 {
     if (auto* page = _inspector->inspectedPage())
-        _inspector->showMainResourceForFrame(page->process().webFrame(WebCore::frameIdentifierFromID(frame._frameID)));
+        _inspector->showMainResourceForFrame(page->process().webFrame(frame->_frameHandle->frameID()));
 }
 
 - (void)attach
@@ -129,6 +155,39 @@
     // FIXME: This should use a new message source rdar://problem/34658378
     [self.webView evaluateJavaScript:[NSString stringWithFormat:@"console.error(\"%@\");", error] completionHandler:nil];
 }
+
+// MARK: _WKInspectorPrivate methods
+
+- (void)_setDiagnosticLoggingDelegate:(id<_WKDiagnosticLoggingDelegate>)delegate
+{
+    auto inspectorWebView = self.inspectorWebView;
+    if (!inspectorWebView)
+        return;
+
+    inspectorWebView._diagnosticLoggingDelegate = delegate;
+    _inspector->setDiagnosticLoggingAvailable(!!delegate);
+}
+
+- (void)_browserExtensionsEnabled:(NSDictionary<NSString *, NSString *> *)extensionIDToNameMap
+{
+    HashMap<String, String> transformed;
+    transformed.reserveInitialCapacity(extensionIDToNameMap.count);
+    [extensionIDToNameMap enumerateKeysAndObjectsUsingBlock:[&](NSString *extensionID, NSString *extensionName, BOOL *) {
+        transformed.set(extensionID, extensionName);
+    }];
+    _inspector->browserExtensionsEnabled(WTFMove(transformed));
+}
+
+- (void)_browserExtensionsDisabled:(NSSet<NSString *> *)extensionIDs
+{
+    HashSet<String> transformed;
+    transformed.reserveInitialCapacity(extensionIDs.count);
+    for (NSString *extensionID in extensionIDs)
+        transformed.addVoid(extensionID);
+    _inspector->browserExtensionsDisabled(WTFMove(transformed));
+}
+
+// MARK: _WKInspectorInternal methods
 
 - (API::Object&)_apiObject
 {

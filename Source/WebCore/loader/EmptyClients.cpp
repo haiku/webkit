@@ -37,6 +37,7 @@
 #include "DOMPasteAccess.h"
 #include "DataListSuggestionPicker.h"
 #include "DatabaseProvider.h"
+#include "DateTimeChooser.h"
 #include "DiagnosticLoggingClient.h"
 #include "DocumentFragment.h"
 #include "DocumentLoader.h"
@@ -50,9 +51,11 @@
 #include "FrameNetworkingContext.h"
 #include "HTMLFormElement.h"
 #include "HistoryItem.h"
-#include "InProcessIDBServer.h"
+#include "IDBConnectionToServer.h"
 #include "InspectorClient.h"
 #include "LibWebRTCProvider.h"
+#include "MediaRecorderPrivate.h"
+#include "MediaRecorderProvider.h"
 #include "NetworkStorageSession.h"
 #include "Page.h"
 #include "PageConfiguration.h"
@@ -123,10 +126,42 @@ class EmptyContextMenuClient final : public ContextMenuClient {
 
 class EmptyDatabaseProvider final : public DatabaseProvider {
 #if ENABLE(INDEXED_DATABASE)
-    IDBClient::IDBConnectionToServer& idbConnectionToServerForSession(const PAL::SessionID& sessionID) final
+    struct EmptyIDBConnectionToServerDeletegate final : public IDBClient::IDBConnectionToServerDelegate {
+        IDBConnectionIdentifier identifier() const final { return { }; }
+        void deleteDatabase(const IDBRequestData&) final { }
+        void openDatabase(const IDBRequestData&) final { }
+        void abortTransaction(const IDBResourceIdentifier&) final { }
+        void commitTransaction(const IDBResourceIdentifier&) final { }
+        void didFinishHandlingVersionChangeTransaction(uint64_t, const IDBResourceIdentifier&) final { }
+        void createObjectStore(const IDBRequestData&, const IDBObjectStoreInfo&) final { }
+        void deleteObjectStore(const IDBRequestData&, const String&) final { }
+        void renameObjectStore(const IDBRequestData&, uint64_t, const String&) final { }
+        void clearObjectStore(const IDBRequestData&, uint64_t) final { }
+        void createIndex(const IDBRequestData&, const IDBIndexInfo&) final { }
+        void deleteIndex(const IDBRequestData&, uint64_t, const String&) final { }
+        void renameIndex(const IDBRequestData&, uint64_t, uint64_t, const String&) final { }
+        void putOrAdd(const IDBRequestData&, const IDBKeyData&, const IDBValue&, const IndexedDB::ObjectStoreOverwriteMode) final { }
+        void getRecord(const IDBRequestData&, const IDBGetRecordData&) final { }
+        void getAllRecords(const IDBRequestData&, const IDBGetAllRecordsData&) final { }
+        void getCount(const IDBRequestData&, const IDBKeyRangeData&) final { }
+        void deleteRecord(const IDBRequestData&, const IDBKeyRangeData&) final { }
+        void openCursor(const IDBRequestData&, const IDBCursorInfo&) final { }
+        void iterateCursor(const IDBRequestData&, const IDBIterateCursorData&) final { }
+        void establishTransaction(uint64_t, const IDBTransactionInfo&) final { }
+        void databaseConnectionPendingClose(uint64_t) final { }
+        void databaseConnectionClosed(uint64_t) final { }
+        void abortOpenAndUpgradeNeeded(uint64_t, const IDBResourceIdentifier&) final { }
+        void didFireVersionChangeEvent(uint64_t, const IDBResourceIdentifier&, const IndexedDB::ConnectionClosedOnBehalfOfServer) final { }
+        void openDBRequestCancelled(const IDBRequestData&) final { }
+        void getAllDatabaseNamesAndVersions(const IDBResourceIdentifier&, const ClientOrigin&) final { }
+        ~EmptyIDBConnectionToServerDeletegate() { }
+    };
+
+    IDBClient::IDBConnectionToServer& idbConnectionToServerForSession(const PAL::SessionID&) final
     {
-        static auto& sharedConnection = InProcessIDBServer::create(sessionID).leakRef();
-        return sharedConnection.connectionToServer();
+        static NeverDestroyed<EmptyIDBConnectionToServerDeletegate> emptyDelegate;
+        static auto& emptyConnection = IDBClient::IDBConnectionToServer::create(emptyDelegate.get()).leakRef();
+        return emptyConnection;
     }
 #endif
 };
@@ -144,9 +179,8 @@ class EmptyDiagnosticLoggingClient final : public DiagnosticLoggingClient {
 class EmptyDragClient final : public DragClient {
     void willPerformDragDestinationAction(DragDestinationAction, const DragData&) final { }
     void willPerformDragSourceAction(DragSourceAction, const IntPoint&, DataTransfer&) final { }
-    DragSourceAction dragSourceActionMaskForPoint(const IntPoint&) final { return DragSourceActionNone; }
+    OptionSet<DragSourceAction> dragSourceActionMaskForPoint(const IntPoint&) final { return { }; }
     void startDrag(DragItem, DataTransfer&, Frame&) final { }
-    void dragControllerDestroyed() final { }
 };
 
 #endif // ENABLE(DRAG_SUPPORT)
@@ -158,7 +192,7 @@ public:
     EmptyEditorClient() = default;
 
 private:
-    bool shouldDeleteRange(Range*) final { return false; }
+    bool shouldDeleteRange(const Optional<SimpleRange>&) final { return false; }
     bool smartInsertDeleteEnabled() final { return false; }
     bool isSelectTrailingWhitespaceEnabled() const final { return false; }
     bool isContinuousSpellCheckingEnabled() final { return false; }
@@ -167,15 +201,15 @@ private:
     void toggleGrammarChecking() final { }
     int spellCheckerDocumentTag() final { return -1; }
 
-    bool shouldBeginEditing(Range*) final { return false; }
-    bool shouldEndEditing(Range*) final { return false; }
-    bool shouldInsertNode(Node*, Range*, EditorInsertAction) final { return false; }
-    bool shouldInsertText(const String&, Range*, EditorInsertAction) final { return false; }
-    bool shouldChangeSelectedRange(Range*, Range*, EAffinity, bool) final { return false; }
+    bool shouldBeginEditing(const SimpleRange&) final { return false; }
+    bool shouldEndEditing(const SimpleRange&) final { return false; }
+    bool shouldInsertNode(Node&, const Optional<SimpleRange>&, EditorInsertAction) final { return false; }
+    bool shouldInsertText(const String&, const Optional<SimpleRange>&, EditorInsertAction) final { return false; }
+    bool shouldChangeSelectedRange(const Optional<SimpleRange>&, const Optional<SimpleRange>&, Affinity, bool) final { return false; }
 
-    bool shouldApplyStyle(StyleProperties*, Range*) final { return false; }
+    bool shouldApplyStyle(const StyleProperties&, const Optional<SimpleRange>&) final { return false; }
     void didApplyStyle() final { }
-    bool shouldMoveRangeAfterDelete(Range*, Range*) final { return false; }
+    bool shouldMoveRangeAfterDelete(const SimpleRange&, const SimpleRange&) final { return false; }
 
     void didBeginEditing() final { }
     void respondToChangedContents() final { }
@@ -186,9 +220,9 @@ private:
     void didUpdateComposition() final { }
     void didEndEditing() final { }
     void didEndUserTriggeredSelectionChanges() final { }
-    void willWriteSelectionToPasteboard(Range*) final { }
+    void willWriteSelectionToPasteboard(const Optional<SimpleRange>&) final { }
     void didWriteSelectionToPasteboard() final { }
-    void getClientPasteboardDataForRange(Range*, Vector<String>&, Vector<RefPtr<SharedBuffer>>&) final { }
+    void getClientPasteboardData(const Optional<SimpleRange>&, Vector<String>&, Vector<RefPtr<SharedBuffer>>&) final { }
     void requestCandidatesForSelection(const VisibleSelection&) final { }
     void handleAcceptedCandidateWithSoftSpaces(TextCheckingResult) final { }
 
@@ -228,7 +262,7 @@ private:
     void updateStringForFind(const String&) final { }
 #endif
 
-    bool performTwoStepDrop(DocumentFragment&, Range&, bool) final { return false; }
+    bool performTwoStepDrop(DocumentFragment&, const SimpleRange&, bool) final { return false; }
 
 #if PLATFORM(COCOA)
     void setInsertionPasteboard(const String&) final { };
@@ -268,7 +302,7 @@ private:
     bool spellingUIIsShowing() final { return false; }
 
     void willSetInputMethodState() final { }
-    void setInputMethodState(bool) final { }
+    void setInputMethodState(Element*) final { }
 
     bool canShowFontPanel() const final { return false; }
 
@@ -458,6 +492,15 @@ std::unique_ptr<DataListSuggestionPicker> EmptyChromeClient::createDataListSugge
 
 #endif
 
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+
+std::unique_ptr<DateTimeChooser> EmptyChromeClient::createDateTimeChooser(DateTimeChooserClient&)
+{
+    return nullptr;
+}
+
+#endif
+
 void EmptyChromeClient::runOpenPanel(Frame&, FileChooser&)
 {
 }
@@ -488,7 +531,7 @@ Ref<DocumentLoader> EmptyFrameLoaderClient::createDocumentLoader(const ResourceR
     return DocumentLoader::create(request, substituteData);
 }
 
-RefPtr<Frame> EmptyFrameLoaderClient::createFrame(const URL&, const String&, HTMLFrameOwnerElement&, const String&)
+RefPtr<Frame> EmptyFrameLoaderClient::createFrame(const String&, HTMLFrameOwnerElement&)
 {
     return nullptr;
 }
@@ -511,6 +554,12 @@ inline EmptyFrameNetworkingContext::EmptyFrameNetworkingContext()
 Ref<FrameNetworkingContext> EmptyFrameLoaderClient::createNetworkingContext()
 {
     return EmptyFrameNetworkingContext::create();
+}
+
+void EmptyFrameLoaderClient::sendH2Ping(const URL& url, CompletionHandler<void(Expected<Seconds, ResourceError>&&)>&& completionHandler)
+{
+    ASSERT_NOT_REACHED();
+    completionHandler(makeUnexpected(internalError(url)));
 }
 
 void EmptyEditorClient::EmptyTextCheckerClient::requestCheckingOfString(TextCheckingRequest&, const VisibleSelection&)
@@ -540,8 +589,17 @@ Ref<StorageNamespace> EmptyStorageNamespaceProvider::createTransientLocalStorage
     return adoptRef(*new EmptyStorageNamespace { sessionID });
 }
 
-class EmptyStorageSessionProvider : public StorageSessionProvider {
+class EmptyStorageSessionProvider final : public StorageSessionProvider {
     NetworkStorageSession* storageSession() const final { return nullptr; }
+};
+
+class EmptyMediaRecorderProvider final : public MediaRecorderProvider {
+public:
+    EmptyMediaRecorderProvider() = default;
+private:
+#if ENABLE(MEDIA_STREAM) && PLATFORM(COCOA)
+    std::unique_ptr<MediaRecorderPrivate> createMediaRecorderPrivate(MediaStreamPrivate&, const MediaRecorderPrivateOptions&) final { return nullptr; }
+#endif
 };
 
 PageConfiguration pageConfigurationWithEmptyClients(PAL::SessionID sessionID)
@@ -553,7 +611,10 @@ PageConfiguration pageConfigurationWithEmptyClients(PAL::SessionID sessionID)
         LibWebRTCProvider::create(),
         CacheStorageProvider::create(),
         adoptRef(*new EmptyBackForwardClient),
-        CookieJar::create(adoptRef(*new EmptyStorageSessionProvider))
+        CookieJar::create(adoptRef(*new EmptyStorageSessionProvider)),
+        makeUniqueRef<EmptyProgressTrackerClient>(),
+        makeUniqueRef<EmptyFrameLoaderClient>(),
+        makeUniqueRef<EmptyMediaRecorderProvider>()
     };
 
     static NeverDestroyed<EmptyChromeClient> dummyChromeClient;
@@ -570,18 +631,11 @@ PageConfiguration pageConfigurationWithEmptyClients(PAL::SessionID sessionID)
 #endif
 
 #if ENABLE(DRAG_SUPPORT)
-    static NeverDestroyed<EmptyDragClient> dummyDragClient;
-    pageConfiguration.dragClient = &dummyDragClient.get();
+    pageConfiguration.dragClient = makeUnique<EmptyDragClient>();
 #endif
 
     static NeverDestroyed<EmptyInspectorClient> dummyInspectorClient;
     pageConfiguration.inspectorClient = &dummyInspectorClient.get();
-
-    static NeverDestroyed<EmptyFrameLoaderClient> dummyFrameLoaderClient;
-    pageConfiguration.loaderClientForMainFrame = &dummyFrameLoaderClient.get();
-
-    static NeverDestroyed<EmptyProgressTrackerClient> dummyProgressTrackerClient;
-    pageConfiguration.progressTrackerClient = &dummyProgressTrackerClient.get();
 
     pageConfiguration.diagnosticLoggingClient = makeUnique<EmptyDiagnosticLoggingClient>();
 

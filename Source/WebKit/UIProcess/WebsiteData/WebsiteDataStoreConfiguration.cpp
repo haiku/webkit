@@ -30,13 +30,14 @@
 
 namespace WebKit {
 
-WebsiteDataStoreConfiguration::WebsiteDataStoreConfiguration(IsPersistent isPersistent)
+WebsiteDataStoreConfiguration::WebsiteDataStoreConfiguration(IsPersistent isPersistent, WillCopyPathsFromExistingConfiguration willCopyPaths)
     : m_isPersistent(isPersistent)
 {
-    if (isPersistent == IsPersistent::Yes) {
+    if (isPersistent == IsPersistent::Yes && willCopyPaths == WillCopyPathsFromExistingConfiguration::No) {
         setApplicationCacheDirectory(WebsiteDataStore::defaultApplicationCacheDirectory());
         setCacheStorageDirectory(WebsiteDataStore::defaultCacheStorageDirectory());
         setNetworkCacheDirectory(WebsiteDataStore::defaultNetworkCacheDirectory());
+        setAlternativeServicesDirectory(WebsiteDataStore::defaultAlternativeServicesDirectory());
         setMediaCacheDirectory(WebsiteDataStore::defaultMediaCacheDirectory());
         setIndexedDBDatabaseDirectory(WebsiteDataStore::defaultIndexedDBDatabaseDirectory());
         setServiceWorkerRegistrationDirectory(WebsiteDataStore::defaultServiceWorkerRegistrationDirectory());
@@ -49,13 +50,14 @@ WebsiteDataStoreConfiguration::WebsiteDataStoreConfiguration(IsPersistent isPers
     }
 }
 
-Ref<WebsiteDataStoreConfiguration> WebsiteDataStoreConfiguration::copy()
+Ref<WebsiteDataStoreConfiguration> WebsiteDataStoreConfiguration::copy() const
 {
-    auto copy = WebsiteDataStoreConfiguration::create(m_isPersistent);
+    auto copy = WebsiteDataStoreConfiguration::create(m_isPersistent, WillCopyPathsFromExistingConfiguration::Yes);
 
     copy->m_serviceWorkerProcessTerminationDelayEnabled = this->m_serviceWorkerProcessTerminationDelayEnabled;
     copy->m_fastServerTrustEvaluationEnabled = this->m_fastServerTrustEvaluationEnabled;
     copy->m_networkCacheSpeculativeValidationEnabled = this->m_networkCacheSpeculativeValidationEnabled;
+    copy->m_staleWhileRevalidateEnabled = this->m_staleWhileRevalidateEnabled;
     copy->m_cacheStorageDirectory = this->m_cacheStorageDirectory;
     copy->m_perOriginStorageQuota = this->m_perOriginStorageQuota;
     copy->m_networkCacheDirectory = this->m_networkCacheDirectory;
@@ -65,11 +67,10 @@ Ref<WebsiteDataStoreConfiguration> WebsiteDataStoreConfiguration::copy()
     copy->m_indexedDBDatabaseDirectory = this->m_indexedDBDatabaseDirectory;
     copy->m_serviceWorkerRegistrationDirectory = this->m_serviceWorkerRegistrationDirectory;
     copy->m_webSQLDatabaseDirectory = this->m_webSQLDatabaseDirectory;
-#if USE(GLIB)
     copy->m_hstsStorageDirectory = this->m_hstsStorageDirectory;
-#endif
     copy->m_localStorageDirectory = this->m_localStorageDirectory;
     copy->m_mediaKeysStorageDirectory = this->m_mediaKeysStorageDirectory;
+    copy->m_alternativeServicesDirectory = this->m_alternativeServicesDirectory;
     copy->m_deviceIdHashSaltsStorageDirectory = this->m_deviceIdHashSaltsStorageDirectory;
     copy->m_resourceLoadStatisticsDirectory = this->m_resourceLoadStatisticsDirectory;
     copy->m_javaScriptConfigurationDirectory = this->m_javaScriptConfigurationDirectory;
@@ -82,10 +83,15 @@ Ref<WebsiteDataStoreConfiguration> WebsiteDataStoreConfiguration::copy()
     copy->m_allLoadsBlockedByDeviceManagementRestrictionsForTesting = this->m_allLoadsBlockedByDeviceManagementRestrictionsForTesting;
     copy->m_boundInterfaceIdentifier = this->m_boundInterfaceIdentifier;
     copy->m_allowsCellularAccess = this->m_allowsCellularAccess;
+    copy->m_legacyTLSEnabled = this->m_legacyTLSEnabled;
     copy->m_dataConnectionServiceType = this->m_dataConnectionServiceType;
     copy->m_testingSessionEnabled = this->m_testingSessionEnabled;
     copy->m_testSpeedMultiplier = this->m_testSpeedMultiplier;
     copy->m_suppressesConnectionTerminationOnSystemChange = this->m_suppressesConnectionTerminationOnSystemChange;
+    copy->m_allowsServerPreconnect = this->m_allowsServerPreconnect;
+    copy->m_requiresSecureHTTPSProxyConnection = this->m_requiresSecureHTTPSProxyConnection;
+    copy->m_preventsSystemHTTPProxyAuthentication = this->m_preventsSystemHTTPProxyAuthentication;
+    copy->m_standaloneApplicationURL = this->m_standaloneApplicationURL;
 #if PLATFORM(COCOA)
     if (m_proxyConfiguration)
         copy->m_proxyConfiguration = adoptCF(CFDictionaryCreateCopy(nullptr, this->m_proxyConfiguration.get()));

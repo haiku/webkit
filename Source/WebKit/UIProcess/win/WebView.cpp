@@ -184,6 +184,9 @@ LRESULT WebView::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_MENUCOMMAND:
         lResult = onMenuCommand(hWnd, message, wParam, lParam, handled);
         break;
+    case WM_COMMAND:
+        SendMessage(GetParent(hWnd), message, wParam, lParam);
+        break;
     default:
         handled = false;
         break;
@@ -234,16 +237,6 @@ WebView::WebView(RECT rect, const API::PageConfiguration& configuration, HWND pa
     ASSERT(m_isVisible == static_cast<bool>(::GetWindowLong(m_window, GWL_STYLE) & WS_VISIBLE));
 
     auto pageConfiguration = configuration.copy();
-    auto* preferences = pageConfiguration->preferences();
-    if (!preferences && pageConfiguration->pageGroup()) {
-        preferences = &pageConfiguration->pageGroup()->preferences();
-        pageConfiguration->setPreferences(preferences);
-    }
-    if (preferences) {
-        // Disable accelerated compositing until it is supported.
-        preferences->setAcceleratedCompositingEnabled(false);
-    }
-
     WebProcessPool* processPool = pageConfiguration->processPool();
     m_page = processPool->createWebPage(*m_pageClient, WTFMove(pageConfiguration));
     m_page->initializeWebPage();
@@ -467,7 +460,16 @@ LRESULT WebView::onVerticalScroll(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 
 LRESULT WebView::onKeyEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, bool& handled)
 {
-    m_page->handleKeyboardEvent(NativeWebKeyboardEvent(hWnd, message, wParam, lParam));
+    Vector<MSG> pendingCharEvents;
+    if (message == WM_KEYDOWN) {
+        MSG msg;
+        // WM_SYSCHAR events should not be removed, because WebKit is using WM_SYSCHAR for access keys and they can't be canceled.
+        while (PeekMessage(&msg, hWnd, WM_CHAR, WM_DEADCHAR, PM_REMOVE)) {
+            if (msg.message == WM_CHAR)
+                pendingCharEvents.append(msg);
+        }
+    }
+    m_page->handleKeyboardEvent(NativeWebKeyboardEvent(hWnd, message, wParam, lParam, WTFMove(pendingCharEvents)));
 
     // We claim here to always have handled the event. If the event is not in fact handled, we will
     // find out later in didNotHandleKeyEvent.

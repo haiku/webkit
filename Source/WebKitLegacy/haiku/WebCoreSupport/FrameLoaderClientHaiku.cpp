@@ -68,6 +68,7 @@
 #include "WebViewConstants.h"
 
 #include <JavaScriptCore/APICast.h>
+#include <JavaScriptCore/JSContextRef.h>
 #include <wtf/CompletionHandler.h>
 
 #include <Alert.h>
@@ -104,6 +105,13 @@ FrameLoaderClientHaiku::FrameLoaderClientHaiku(BWebPage* webPage)
     ASSERT(m_webPage);
 }
 
+
+FrameLoaderClientHaiku::~FrameLoaderClientHaiku()
+{
+    uidna_close(m_uidna_context);
+}
+
+
 void FrameLoaderClientHaiku::setDispatchTarget(const BMessenger& messenger)
 {
     m_messenger = messenger;
@@ -112,16 +120,6 @@ void FrameLoaderClientHaiku::setDispatchTarget(const BMessenger& messenger)
 BWebPage* FrameLoaderClientHaiku::page() const
 {
     return m_webPage;
-}
-
-void FrameLoaderClientHaiku::frameLoaderDestroyed()
-{
-    CALLED();
-
-    uidna_close(m_uidna_context);
-    delete m_webFrame;
-        // The frame takes care of deleting us. When that call returns, the
-        // frame loader object is gone!
 }
 
 WTF::Optional<WebCore::PageIdentifier> FrameLoaderClientHaiku::pageID() const
@@ -387,7 +385,9 @@ void FrameLoaderClientHaiku::dispatchDidReceiveTitle(const StringWithDirection& 
     dispatchMessage(message);
 }
 
-void FrameLoaderClientHaiku::dispatchDidCommitLoad(WTF::Optional<WebCore::HasInsecureContent>)
+void FrameLoaderClientHaiku::dispatchDidCommitLoad(
+	WTF::Optional<WebCore::HasInsecureContent>,
+	Optional<WebCore::UsedLegacyTLS>)
 {
     CALLED();
     if (m_loadingErrorPage) {
@@ -408,7 +408,7 @@ void FrameLoaderClientHaiku::dispatchDidCommitLoad(WTF::Optional<WebCore::HasIns
 
     uidna_nameToUnicodeUTF8(m_uidna_context, url.host().utf8().data(),
         -1 /* NULL-terminated */, dest, sizeof(dest), &info, &error);
-   
+
     if (U_SUCCESS(error) && info.errors == 0)
         decoded.SetHost(dest);
 
@@ -691,39 +691,39 @@ void FrameLoaderClientHaiku::convertMainResourceLoadToDownload(DocumentLoader*,
     startDownload(request);
 }
 
-WebCore::ResourceError FrameLoaderClientHaiku::cancelledError(const WebCore::ResourceRequest& request)
+WebCore::ResourceError FrameLoaderClientHaiku::cancelledError(const WebCore::ResourceRequest& request) const
 {
     ResourceError error = ResourceError(String(), WebKitErrorCannotShowURL,
         request.url(), "Load request cancelled", ResourceError::Type::Cancellation);
     return error;
 }
 
-WebCore::ResourceError FrameLoaderClientHaiku::blockedError(const ResourceRequest& request)
+WebCore::ResourceError FrameLoaderClientHaiku::blockedError(const ResourceRequest& request) const
 {
     return ResourceError(String(), WebKitErrorCannotUseRestrictedPort,
                          request.url(), "Not allowed to use restricted network port");
 }
 
-WebCore::ResourceError FrameLoaderClientHaiku::blockedByContentBlockerError(const ResourceRequest& request)
+WebCore::ResourceError FrameLoaderClientHaiku::blockedByContentBlockerError(const ResourceRequest& request) const
 {
     return ResourceError(String(), WebKitErrorCannotShowURL,
         request.url(), "Blocked by content blocker");
 }
 
-WebCore::ResourceError FrameLoaderClientHaiku::cannotShowURLError(const WebCore::ResourceRequest& request)
+WebCore::ResourceError FrameLoaderClientHaiku::cannotShowURLError(const WebCore::ResourceRequest& request) const
 {
     return ResourceError(String(), WebKitErrorCannotShowURL,
                          request.url(), "URL cannot be shown");
 }
 
-WebCore::ResourceError FrameLoaderClientHaiku::interruptedForPolicyChangeError(const WebCore::ResourceRequest& request)
+WebCore::ResourceError FrameLoaderClientHaiku::interruptedForPolicyChangeError(const WebCore::ResourceRequest& request) const
 {
     ResourceError error = ResourceError(String(), WebKitErrorFrameLoadInterruptedByPolicyChange,
         request.url(), "Frame load was interrupted", ResourceError::Type::Cancellation);
     return error;
 }
 
-WebCore::ResourceError FrameLoaderClientHaiku::cannotShowMIMETypeError(const WebCore::ResourceResponse& response)
+WebCore::ResourceError FrameLoaderClientHaiku::cannotShowMIMETypeError(const WebCore::ResourceResponse& response) const
 {
     // FIXME: This can probably be used to automatically close pages that have no content,
     // but only triggered a download. Since BWebPage is used for initiating a BWebDownload,
@@ -733,19 +733,19 @@ WebCore::ResourceError FrameLoaderClientHaiku::cannotShowMIMETypeError(const Web
                          response.url(), "Content with the specified MIME type cannot be shown");
 }
 
-WebCore::ResourceError FrameLoaderClientHaiku::fileDoesNotExistError(const WebCore::ResourceResponse& response)
+WebCore::ResourceError FrameLoaderClientHaiku::fileDoesNotExistError(const WebCore::ResourceResponse& response) const
 {
     return ResourceError(String(), WebKitErrorCannotShowURL,
                          response.url(), "File does not exist");
 }
 
-ResourceError FrameLoaderClientHaiku::pluginWillHandleLoadError(const ResourceResponse& response)
+ResourceError FrameLoaderClientHaiku::pluginWillHandleLoadError(const ResourceResponse& response) const
 {
     return ResourceError(String(), WebKitErrorPlugInWillHandleLoad,
                          response.url(), "Plugin will handle load");
 }
 
-bool FrameLoaderClientHaiku::shouldFallBack(const WebCore::ResourceError& error)
+bool FrameLoaderClientHaiku::shouldFallBack(const WebCore::ResourceError& error) const
 {
     return !(error.isCancellation()
              || error.errorCode() == WebKitErrorFrameLoadInterruptedByPolicyChange
@@ -871,13 +871,13 @@ void FrameLoaderClientHaiku::transitionToCommittedForNewPage()
 
     Optional<Color> backgroundColor;
     if (m_webFrame->IsTransparent())
-        backgroundColor = Color(Color::transparent);
+        backgroundColor = Color(Color::transparentBlack);
     frame->createView(size, backgroundColor, {}, {});
 
     frame->view()->setTopLevelPlatformWidget(m_webPage->WebView());
 }
 
-String FrameLoaderClientHaiku::userAgent(const URL&)
+String FrameLoaderClientHaiku::userAgent(const URL&) const
 {
     // FIXME: Get the app name from the app. Hardcoded WebPositive for now.
     // We have to look as close to Safari as possible for some sites like gmail.com 
@@ -892,9 +892,8 @@ bool FrameLoaderClientHaiku::canCachePage() const
     return true;
 }
 
-RefPtr<Frame> FrameLoaderClientHaiku::createFrame(const URL& url,
-    const String& name, HTMLFrameOwnerElement& ownerElement,
-    const String& referrer)
+RefPtr<Frame> FrameLoaderClientHaiku::createFrame(const String& name,
+    HTMLFrameOwnerElement& ownerElement)
 {
     ASSERT(m_webFrame);
     ASSERT(m_webPage);
@@ -907,15 +906,6 @@ RefPtr<Frame> FrameLoaderClientHaiku::createFrame(const URL& url,
     ASSERT(coreSubFrame);
 
     subFrame->SetListener(m_messenger);
-    m_webFrame->Frame()->loader().loadURLIntoChildFrame(url, referrer, coreSubFrame.get());
-
-    // The frame's onload handler may have removed it from the document.
-    // See fast/dom/null-page-show-modal-dialog-crash.html for an example.
-    if (!coreSubFrame->tree().parent()) {
-        // The subframe will be deleted when coreSubFrame is dereferenced.
-        return nullptr;
-    }
-
     return coreSubFrame;
 }
 
@@ -935,7 +925,7 @@ ObjectContentType FrameLoaderClientHaiku::objectContentType(const URL& url, cons
         } else {
             // For non-file URLs, try guessing from the extension (this happens
             // before the request so our content sniffing is of no use)
-            mimeType = MIMETypeRegistry::getMIMETypeForExtension(url.path().substring(url.path().reverseFind('.') + 1));
+            mimeType = MIMETypeRegistry::mimeTypeForExtension(toString(url.path().substring(url.path().reverseFind('.') + 1)));
         } 
     }
 
@@ -984,10 +974,6 @@ String FrameLoaderClientHaiku::overrideMediaType() const
 {
     // This will do, until we support printing.
     return "screen";
-}
-
-void FrameLoaderClientHaiku::dispatchDidBecomeFrameset(bool)
-{
 }
 
 void FrameLoaderClientHaiku::dispatchDidClearWindowObjectInWorld(DOMWrapperWorld& world)

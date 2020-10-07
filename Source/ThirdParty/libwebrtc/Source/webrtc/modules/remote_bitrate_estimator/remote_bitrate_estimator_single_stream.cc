@@ -11,11 +11,11 @@
 #include "modules/remote_bitrate_estimator/remote_bitrate_estimator_single_stream.h"
 
 #include <assert.h>
+
 #include <cstdint>
 #include <utility>
 
 #include "absl/types/optional.h"
-#include "common_types.h"  // NOLINT(build/include)
 #include "modules/remote_bitrate_estimator/aimd_rate_control.h"
 #include "modules/remote_bitrate_estimator/include/bwe_defines.h"
 #include "modules/remote_bitrate_estimator/inter_arrival.h"
@@ -31,7 +31,7 @@ namespace {
 absl::optional<DataRate> OptionalRateFromOptionalBps(
     absl::optional<int> bitrate_bps) {
   if (bitrate_bps) {
-    return DataRate::bps(*bitrate_bps);
+    return DataRate::BitsPerSec(*bitrate_bps);
   } else {
     return absl::nullopt;
   }
@@ -44,13 +44,14 @@ static const double kTimestampToMs = 1.0 / 90.0;
 struct RemoteBitrateEstimatorSingleStream::Detector {
   explicit Detector(int64_t last_packet_time_ms,
                     const OverUseDetectorOptions& options,
-                    bool enable_burst_grouping)
+                    bool enable_burst_grouping,
+                    const WebRtcKeyValueConfig* key_value_config)
       : last_packet_time_ms(last_packet_time_ms),
         inter_arrival(90 * kTimestampGroupLengthMs,
                       kTimestampToMs,
                       enable_burst_grouping),
         estimator(options),
-        detector() {}
+        detector(key_value_config) {}
   int64_t last_packet_time_ms;
   InterArrival inter_arrival;
   OveruseEstimator estimator;
@@ -59,11 +60,11 @@ struct RemoteBitrateEstimatorSingleStream::Detector {
 
 RemoteBitrateEstimatorSingleStream::RemoteBitrateEstimatorSingleStream(
     RemoteBitrateObserver* observer,
-    const Clock* clock)
+    Clock* clock)
     : clock_(clock),
       incoming_bitrate_(kBitrateWindowMs, 8000),
       last_valid_incoming_bitrate_(0),
-      remote_rate_(new AimdRateControl()),
+      remote_rate_(new AimdRateControl(&field_trials_)),
       observer_(observer),
       last_process_time_(-1),
       process_interval_ms_(kProcessIntervalMs),
@@ -104,8 +105,9 @@ void RemoteBitrateEstimatorSingleStream::IncomingPacket(
     // automatically cleaned up when we have one RemoteBitrateEstimator per REMB
     // group.
     std::pair<SsrcOveruseEstimatorMap::iterator, bool> insert_result =
-        overuse_detectors_.insert(std::make_pair(
-            ssrc, new Detector(now_ms, OverUseDetectorOptions(), true)));
+        overuse_detectors_.insert(
+            std::make_pair(ssrc, new Detector(now_ms, OverUseDetectorOptions(),
+                                              true, &field_trials_)));
     it = insert_result.first;
   }
   Detector* estimator = it->second;
@@ -144,7 +146,8 @@ void RemoteBitrateEstimatorSingleStream::IncomingPacket(
     if (incoming_bitrate_bps &&
         (prior_state != BandwidthUsage::kBwOverusing ||
          GetRemoteRate()->TimeToReduceFurther(
-             Timestamp::ms(now_ms), DataRate::bps(*incoming_bitrate_bps)))) {
+             Timestamp::Millis(now_ms),
+             DataRate::BitsPerSec(*incoming_bitrate_bps)))) {
       // The first overuse should immediately trigger a new estimate.
       // We also have to update the estimate immediately if we are overusing
       // and the target bitrate is too high compared to what we are receiving.
@@ -201,7 +204,7 @@ void RemoteBitrateEstimatorSingleStream::UpdateEstimate(int64_t now_ms) {
   const RateControlInput input(
       bw_state, OptionalRateFromOptionalBps(incoming_bitrate_.Rate(now_ms)));
   uint32_t target_bitrate =
-      remote_rate->Update(&input, Timestamp::ms(now_ms)).bps<uint32_t>();
+      remote_rate->Update(&input, Timestamp::Millis(now_ms)).bps<uint32_t>();
   if (remote_rate->ValidEstimate()) {
     process_interval_ms_ = remote_rate->GetFeedbackInterval().ms();
     RTC_DCHECK_GT(process_interval_ms_, 0);
@@ -215,7 +218,7 @@ void RemoteBitrateEstimatorSingleStream::UpdateEstimate(int64_t now_ms) {
 void RemoteBitrateEstimatorSingleStream::OnRttUpdate(int64_t avg_rtt_ms,
                                                      int64_t max_rtt_ms) {
   rtc::CritScope cs(&crit_sect_);
-  GetRemoteRate()->SetRtt(TimeDelta::ms(avg_rtt_ms));
+  GetRemoteRate()->SetRtt(TimeDelta::Millis(avg_rtt_ms));
 }
 
 void RemoteBitrateEstimatorSingleStream::RemoveStream(unsigned int ssrc) {
@@ -256,13 +259,13 @@ void RemoteBitrateEstimatorSingleStream::GetSsrcs(
 
 AimdRateControl* RemoteBitrateEstimatorSingleStream::GetRemoteRate() {
   if (!remote_rate_)
-    remote_rate_.reset(new AimdRateControl());
+    remote_rate_.reset(new AimdRateControl(&field_trials_));
   return remote_rate_.get();
 }
 
 void RemoteBitrateEstimatorSingleStream::SetMinBitrate(int min_bitrate_bps) {
   rtc::CritScope cs(&crit_sect_);
-  remote_rate_->SetMinBitrate(DataRate::bps(min_bitrate_bps));
+  remote_rate_->SetMinBitrate(DataRate::BitsPerSec(min_bitrate_bps));
 }
 
 }  // namespace webrtc

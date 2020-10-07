@@ -44,8 +44,10 @@ namespace WebKit {
 class DownloadProxy;
 class NetworkProcessProxy;
 class ProcessAssertion;
+class WebPageProxy;
 class WebProcessPool;
 class WebsiteDataStore;
+struct FrameInfoData;
 
 class DownloadProxyMap : public CanMakeWeakPtr<DownloadProxyMap> {
     WTF_MAKE_FAST_ALLOCATED;
@@ -55,7 +57,7 @@ public:
     explicit DownloadProxyMap(NetworkProcessProxy&);
     ~DownloadProxyMap();
 
-    DownloadProxy& createDownloadProxy(WebsiteDataStore&, WebProcessPool&, const WebCore::ResourceRequest&);
+    DownloadProxy& createDownloadProxy(WebsiteDataStore&, WebProcessPool&, const WebCore::ResourceRequest&, const FrameInfoData&, WebPageProxy* originatingPage);
     void downloadFinished(DownloadProxy&);
 
     bool isEmpty() const { return m_downloads.isEmpty(); }
@@ -69,7 +71,7 @@ private:
     void platformCreate();
     void platformDestroy();
 
-    WeakPtr<NetworkProcessProxy> m_process;
+    NetworkProcessProxy& m_process;
     HashMap<DownloadID, RefPtr<DownloadProxy>> m_downloads;
 
     bool m_shouldTakeAssertion { false };

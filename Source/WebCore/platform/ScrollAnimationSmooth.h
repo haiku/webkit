@@ -27,18 +27,21 @@
 
 #include "ScrollAnimation.h"
 
-#if ENABLE(SMOOTH_SCROLLING)
-
-#include "Timer.h"
+#include <wtf/RunLoop.h>
 
 namespace WebCore {
 
 class FloatPoint;
 class ScrollableArea;
+enum class ScrollClamping : bool;
 
 class ScrollAnimationSmooth final: public ScrollAnimation {
 public:
-    ScrollAnimationSmooth(ScrollableArea&, const FloatPoint&, WTF::Function<void (FloatPoint&&)>&& notifyPositionChangedFunction);
+    using ScrollExtentsCallback = WTF::Function<ScrollExtents(void)>;
+    using NotifyPositionChangedCallback = WTF::Function<void(FloatPoint&&)>;
+    using NotifyAnimationStoppedCallback = WTF::Function<void(void)>;
+
+    ScrollAnimationSmooth(ScrollExtentsCallback&&, const FloatPoint& position, NotifyPositionChangedCallback&&, NotifyAnimationStoppedCallback&&);
     virtual ~ScrollAnimationSmooth();
 
     enum class Curve {
@@ -51,12 +54,15 @@ public:
 
 private:
     bool scroll(ScrollbarOrientation, ScrollGranularity, float step, float multiplier) override;
+    void scroll(const FloatPoint&) override;
     void stop() override;
     void updateVisibleLengths() override;
     void setCurrentPosition(const FloatPoint&) override;
 
     struct PerAxisData {
         PerAxisData() = delete;
+
+        PerAxisData(ScrollbarOrientation, const FloatPoint& position, ScrollExtentsCallback&);
 
         PerAxisData(float position, int length)
             : currentPosition(position)
@@ -89,7 +95,7 @@ private:
         int visibleLength { 0 };
     };
 
-    bool updatePerAxisData(PerAxisData&, ScrollGranularity, float delta, float minScrollPosition, float maxScrollPosition);
+    bool updatePerAxisData(PerAxisData&, ScrollGranularity, float delta, float minScrollPosition, float maxScrollPosition, double smoothFactor = 1);
     bool animateScroll(PerAxisData&, MonotonicTime currentTime);
 
     void requestAnimationTimerFired();
@@ -97,15 +103,16 @@ private:
     void animationTimerFired();
     bool animationTimerActive() const;
 
-    WTF::Function<void (FloatPoint&&)> m_notifyPositionChangedFunction;
+    ScrollExtentsCallback m_scrollExtentsFunction;
+    NotifyPositionChangedCallback m_notifyPositionChangedFunction;
+    NotifyAnimationStoppedCallback m_notifyAnimationStoppedFunction;
 
     PerAxisData m_horizontalData;
     PerAxisData m_verticalData;
 
     MonotonicTime m_startTime;
-    Timer m_animationTimer;
+    RunLoop::Timer<ScrollAnimationSmooth> m_animationTimer;
 };
 
 } // namespace WebCore
 
-#endif // ENABLE(SMOOTH_SCROLLING)

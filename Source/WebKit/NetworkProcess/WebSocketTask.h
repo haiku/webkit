@@ -31,6 +31,10 @@
 #include "WebSocketTaskSoup.h"
 #else
 
+namespace IPC {
+class DataReference;
+}
+
 namespace WebKit {
 
 class WebSocketTask {
@@ -38,7 +42,7 @@ class WebSocketTask {
 public:
     typedef uint64_t TaskIdentifier;
 
-    void sendString(const String&, CompletionHandler<void()>&&) { }
+    void sendString(const IPC::DataReference&, CompletionHandler<void()>&&) { }
     void sendData(const IPC::DataReference&, CompletionHandler<void()>&&) { }
     void close(int32_t code, const String& reason) { }
 

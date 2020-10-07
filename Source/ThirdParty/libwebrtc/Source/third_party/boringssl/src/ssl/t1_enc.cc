@@ -236,10 +236,12 @@ int tls1_configure_aead(SSL *ssl, evp_aead_direction_t direction,
   }
 
   if (direction == evp_aead_open) {
-    return ssl->method->set_read_state(ssl, std::move(aead_ctx));
+    return ssl->method->set_read_state(ssl, ssl_encryption_application,
+                                       std::move(aead_ctx));
   }
 
-  return ssl->method->set_write_state(ssl, std::move(aead_ctx));
+  return ssl->method->set_write_state(ssl, ssl_encryption_application,
+                                      std::move(aead_ctx));
 }
 
 int tls1_change_cipher_state(SSL_HANDSHAKE *hs,
@@ -358,28 +360,4 @@ int SSL_export_keying_material(SSL *ssl, uint8_t *out, size_t out_len,
       digest, MakeSpan(out, out_len),
       MakeConstSpan(session->master_key, session->master_key_length),
       MakeConstSpan(label, label_len), seed, {});
-}
-
-int SSL_export_early_keying_material(
-    SSL *ssl, uint8_t *out, size_t out_len, const char *label, size_t label_len,
-    const uint8_t *context, size_t context_len) {
-  if (!SSL_in_early_data(ssl) &&
-      (!ssl->s3->have_version ||
-       ssl_protocol_version(ssl) < TLS1_3_VERSION)) {
-    OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_SSL_VERSION);
-    return 0;
-  }
-
-  // The early exporter only exists if we accepted early data or offered it as
-  // a client.
-  if (!SSL_in_early_data(ssl) && !SSL_early_data_accepted(ssl)) {
-    OPENSSL_PUT_ERROR(SSL, SSL_R_EARLY_DATA_NOT_IN_USE);
-    return 0;
-  }
-
-  return tls13_export_keying_material(
-      ssl, MakeSpan(out, out_len),
-      MakeConstSpan(ssl->s3->early_exporter_secret,
-                    ssl->s3->early_exporter_secret_len),
-      MakeConstSpan(label, label_len), MakeConstSpan(context, context_len));
 }

@@ -29,6 +29,7 @@ WI.loaded = function()
     // The initialization order should match the same in Main.js.
     InspectorBackend.registerAnimationDispatcher(WI.AnimationObserver);
     InspectorBackend.registerApplicationCacheDispatcher(WI.ApplicationCacheObserver);
+    InspectorBackend.registerBrowserDispatcher(WI.BrowserObserver);
     InspectorBackend.registerCPUProfilerDispatcher(WI.CPUProfilerObserver);
     InspectorBackend.registerCSSDispatcher(WI.CSSObserver);
     InspectorBackend.registerCanvasDispatcher(WI.CanvasObserver);
@@ -51,6 +52,7 @@ WI.loaded = function()
 
     // Instantiate controllers used by tests.
     WI.managers = [
+        WI.browserManager = new WI.BrowserManager,
         WI.targetManager = new WI.TargetManager,
         WI.networkManager = new WI.NetworkManager,
         WI.domStorageManager = new WI.DOMStorageManager,
@@ -70,15 +72,19 @@ WI.loaded = function()
         WI.workerManager = new WI.WorkerManager,
         WI.domDebuggerManager = new WI.DOMDebuggerManager,
         WI.canvasManager = new WI.CanvasManager,
+        WI.animationManager = new WI.AnimationManager,
     ];
 
     // Register for events.
     document.addEventListener("DOMContentLoaded", WI.contentLoaded);
+    WI.browserManager.enable();
 
     // Targets.
     WI.backendTarget = null;
+    WI._backendTargetAvailablePromise = new WI.WrappedPromise;
+
     WI.pageTarget = null;
-    WI._targetsAvailablePromise = new WI.WrappedPromise;
+    WI._pageTargetAvailablePromise = new WI.WrappedPromise;
 
     if (InspectorBackend.hasDomain("Target"))
         WI.targetManager.createMultiplexingBackendTarget();
@@ -89,6 +95,7 @@ WI.loaded = function()
 WI.contentLoaded = function()
 {
     // Things that would normally get called by the UI, that we still want to do in tests.
+    WI.animationManager.enable();
     WI.applicationCacheManager.enable();
     WI.canvasManager.enable();
     WI.databaseManager.enable();
@@ -99,7 +106,7 @@ WI.contentLoaded = function()
     WI.timelineManager.enable();
 
     // Signal that the frontend is now ready to receive messages.
-    WI.whenTargetsAvailable().then(() => {
+    WI._backendTargetAvailablePromise.promise.then(() => {
         InspectorFrontendAPI.loadCompleted();
     });
 
@@ -128,12 +135,12 @@ WI.initializeTarget = function(target)
 
 WI.targetsAvailable = function()
 {
-    return WI._targetsAvailablePromise.settled;
+    return WI._pageTargetAvailablePromise.settled;
 };
 
 WI.whenTargetsAvailable = function()
 {
-    return WI._targetsAvailablePromise.promise;
+    return WI._pageTargetAvailablePromise.promise;
 };
 
 Object.defineProperty(WI, "mainTarget",
@@ -170,6 +177,7 @@ WI.resolvedLayoutDirection = () => { return InspectorFrontendHost.userInterfaceL
 WI.updateDockedState = () => {};
 WI.updateDockingAvailability = () => {};
 WI.updateVisibilityState = () => {};
+WI.updateFindString = () => {};
 
 // FIXME: <https://webkit.org/b/201149> Web Inspector: replace all uses of `window.*Agent` with a target-specific call
 (function() {
@@ -179,6 +187,7 @@ WI.updateVisibilityState = () => {};
             get() { return WI.mainTarget._agents[domainName]; },
         });
     }
+    makeAgentGetter("Animation");
     makeAgentGetter("Audit");
     makeAgentGetter("ApplicationCache");
     makeAgentGetter("CPUProfiler");

@@ -27,45 +27,71 @@
 
 #include "ComputedEffectTiming.h"
 #include "InspectorWebAgentBase.h"
+#include "Timer.h"
 #include <JavaScriptCore/InspectorBackendDispatchers.h>
 #include <JavaScriptCore/InspectorFrontendDispatchers.h>
+#include <JavaScriptCore/InspectorProtocolObjects.h>
 #include <wtf/Forward.h>
 
 namespace WebCore {
 
+class AnimationEffect;
 class DeclarativeAnimation;
 class Element;
 class Event;
+class Frame;
 class KeyframeEffect;
+class Page;
 class WebAnimation;
-
-typedef String ErrorString;
 
 class InspectorAnimationAgent final : public InspectorAgentBase, public Inspector::AnimationBackendDispatcherHandler {
     WTF_MAKE_NONCOPYABLE(InspectorAnimationAgent);
     WTF_MAKE_FAST_ALLOCATED;
 public:
     InspectorAnimationAgent(PageAgentContext&);
-    ~InspectorAnimationAgent() override;
+    ~InspectorAnimationAgent();
 
     // InspectorAgentBase
-    void didCreateFrontendAndBackend(Inspector::FrontendRouter*, Inspector::BackendDispatcher*) override;
-    void willDestroyFrontendAndBackend(Inspector::DisconnectReason) override;
+    void didCreateFrontendAndBackend(Inspector::FrontendRouter*, Inspector::BackendDispatcher*);
+    void willDestroyFrontendAndBackend(Inspector::DisconnectReason);
 
     // AnimationBackendDispatcherHandler
-    void startTracking(ErrorString&) override;
-    void stopTracking(ErrorString&) override;
+    Inspector::Protocol::ErrorStringOr<void> enable();
+    Inspector::Protocol::ErrorStringOr<void> disable();
+    Inspector::Protocol::ErrorStringOr<Inspector::Protocol::DOM::NodeId> requestEffectTarget(const Inspector::Protocol::Animation::AnimationId&);
+    Inspector::Protocol::ErrorStringOr<Ref<Inspector::Protocol::Runtime::RemoteObject>> resolveAnimation(const Inspector::Protocol::Animation::AnimationId&, const String& objectGroup);
+    Inspector::Protocol::ErrorStringOr<void> startTracking();
+    Inspector::Protocol::ErrorStringOr<void> stopTracking();
 
     // InspectorInstrumentation
     void willApplyKeyframeEffect(Element&, KeyframeEffect&, ComputedEffectTiming);
-    void didChangeWebAnimationEffect(WebAnimation&);
+    void didChangeWebAnimationName(WebAnimation&);
+    void didSetWebAnimationEffect(WebAnimation&);
+    void didChangeWebAnimationEffectTiming(WebAnimation&);
+    void didChangeWebAnimationEffectTarget(WebAnimation&);
+    void didCreateWebAnimation(WebAnimation&);
     void willDestroyWebAnimation(WebAnimation&);
+    void frameNavigated(Frame&);
 
 private:
+    String findAnimationId(WebAnimation&);
+    WebAnimation* assertAnimation(Inspector::Protocol::ErrorString&, const String& animationId);
+    void bindAnimation(WebAnimation&, bool captureBacktrace);
+    void unbindAnimation(const String& animationId);
+    void animationDestroyedTimerFired();
+    void reset();
+
     void stopTrackingDeclarativeAnimation(DeclarativeAnimation&);
 
     std::unique_ptr<Inspector::AnimationFrontendDispatcher> m_frontendDispatcher;
     RefPtr<Inspector::AnimationBackendDispatcher> m_backendDispatcher;
+
+    Inspector::InjectedScriptManager& m_injectedScriptManager;
+    Page& m_inspectedPage;
+
+    HashMap<String, WebAnimation*> m_animationIdMap;
+    Vector<String> m_removedAnimationIds;
+    Timer m_animationDestroyedTimer;
 
     struct TrackedDeclarativeAnimationData {
         String trackingAnimationId;

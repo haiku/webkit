@@ -65,18 +65,17 @@ private:
     void didChangeViewportAttributes(WebCore::ViewportAttributes&&) override;
 #endif
 
-    bool supportsAsyncScrolling() override;
+    bool supportsAsyncScrolling() const override;
 
     WebCore::GraphicsLayerFactory* graphicsLayerFactory() override;
     void setRootCompositingLayer(WebCore::GraphicsLayer*) override;
-    void scheduleInitialDeferredPaint() override { };
-    void scheduleCompositingLayerFlush() override;
-    void scheduleCompositingLayerFlushImmediately() override { scheduleCompositingLayerFlush(); };
-    void layerHostDidFlushLayers() override;
+    void triggerRenderingUpdate() override;
 
-#if USE(REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR)
-    RefPtr<WebCore::DisplayRefreshMonitor> createDisplayRefreshMonitor(WebCore::PlatformDisplayID) override;
+#if USE(COORDINATED_GRAPHICS)
+    void layerHostDidFlushLayers() override;
 #endif
+    
+    RefPtr<WebCore::DisplayRefreshMonitor> createDisplayRefreshMonitor(WebCore::PlatformDisplayID) override;
 
     void activityStateDidChange(OptionSet<WebCore::ActivityState::Flag>, ActivityStateChangeID, const Vector<CallbackID>& /* callbackIDs */) override;
     void attachViewOverlayGraphicsLayer(WebCore::GraphicsLayer*) override;

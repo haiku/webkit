@@ -25,7 +25,7 @@
 
 #pragma once
 
-#if ENABLE(WEBGPU)
+#if ENABLE(WHLSL_COMPILER)
 
 #include <cstdint>
 #include <wtf/FastMalloc.h>
@@ -74,7 +74,7 @@ class TypeAnnotation {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     TypeAnnotation()
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
         : m_empty(true)
 #endif
     {
@@ -129,7 +129,7 @@ public:
 
 private:
     Variant<LeftValue, AbstractLeftValue, RightValue> m_inner;
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
     bool m_empty { false };
 #endif
 };
@@ -140,4 +140,4 @@ private:
 
 }
 
-#endif
+#endif // ENABLE(WHLSL_COMPILER)

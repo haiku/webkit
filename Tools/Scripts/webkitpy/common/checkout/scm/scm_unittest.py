@@ -1,5 +1,5 @@
 # Copyright (C) 2009 Google Inc. All rights reserved.
-# Copyright (C) 2009, 2016 Apple Inc. All rights reserved.
+# Copyright (C) 2009, 2016, 2020 Apple Inc. All rights reserved.
 # Copyright (C) 2011 Daniel Bates (dbates@intudata.com). All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@ import atexit
 import base64
 import codecs
 import getpass
+import logging
 import os
 import os.path
 import re
@@ -45,19 +46,20 @@ import shutil
 import unittest
 
 from datetime import date
+from webkitcorepy import Version
+
 from webkitpy.common.checkout.checkout import Checkout
 from webkitpy.common.config.committers import Committer  # FIXME: This should not be needed
 from webkitpy.common.net.bugzilla import Attachment  # FIXME: This should not be needed
 from webkitpy.common.system.executive import Executive, ScriptError
 from webkitpy.common.system.filesystem_mock import MockFileSystem
-from webkitpy.common.system.outputcapture import OutputCapture
 from webkitpy.common.system.executive_mock import MockExecutive
-from webkitpy.common.version import Version
 from webkitpy.common.checkout.scm.git import Git, AmbiguousCommitError
 from webkitpy.common.checkout.scm.detection import detect_scm_system
-from webkitpy.common.checkout.scm.scm import SCM, CheckoutNeedsUpdate, commit_error_handler, AuthenticationError
+from webkitpy.common.checkout.scm.scm import CheckoutNeedsUpdate, commit_error_handler, AuthenticationError
 from webkitpy.common.checkout.scm.svn import SVN
-from webkitpy.common.unicode_compatibility import decode_if_necessary
+
+from webkitcorepy import OutputCapture
 
 
 # We cache the mock SVN repo so that we don't create it again for each call to an SVNTest or GitTest test_ method.
@@ -359,6 +361,13 @@ class SCMTest(unittest.TestCase):
         scm.discard_untracked_files(discard_ignored_files=True)
         self.assertEqual(scm.untracked_files(True), [])
 
+        os.mkdir("WebKitBuild")
+        self.assertEqual(scm.untracked_files(True), ["WebKitBuild"])
+        scm.discard_untracked_files(discard_ignored_files=True, keep_webkitbuild_directory=True)
+        self.assertEqual(scm.untracked_files(True), ["WebKitBuild"])
+        scm.discard_untracked_files(discard_ignored_files=True, keep_webkitbuild_directory=False)
+        self.assertEqual(scm.untracked_files(True), [])
+
         if os.path.isdir("test_dir_new"):
             shutil.rmtree("test_dir_new")
         if os.path.isfile("test_file_new"):
@@ -557,6 +566,11 @@ OcmYex&reD$;sO8*F9L)B
     def _shared_test_head_svn_revision(self):
         self.assertEqual(self.scm.head_svn_revision(), '5')
 
+    def _shared_test_svn_revision(self, scm):
+        self.assertEqual(scm.svn_revision(scm.checkout_root), '5')
+
+    def _shared_test_svn_branch(self, scm):
+        self.assertEqual(scm.svn_branch(scm.checkout_root), 'trunk')
 
 # Context manager that overrides the current timezone.
 class TimezoneOverride(object):
@@ -796,7 +810,7 @@ keychain
 K 15
 svn:realmstring
 V 39
-<http://svn.webkit.org:80> Mac OS Forge
+<https://svn.webkit.org:443> Mac OS Forge
 K 8
 username
 V 17
@@ -810,7 +824,7 @@ END
 K 15
 svn:realmstring
 V 39
-<http://svn.webkit.org:80> Mac OS Forge
+<https://svn.webkit.org:443> Mac OS Forge
 K 8
 username
 V 17
@@ -840,7 +854,7 @@ END
 K 15
 svn:realmstring
 V 39
-<http://svn.webkit.org:80> Mac OS Forge
+<https://svn.webkit.org:443> Mac OS Forge
 K 8
 username
 V 17
@@ -912,6 +926,12 @@ END
 
     def test_head_svn_revision(self):
         self._shared_test_head_svn_revision()
+
+    def test_svn_revision(self):
+        self._shared_test_svn_revision(self.scm)
+
+    def test_svn_branch(self):
+        self._shared_test_svn_branch(self.scm)
 
     def test_native_revision(self):
         self.assertEqual(self.scm.head_svn_revision(), self.scm.native_revision('.'))
@@ -1699,13 +1719,16 @@ class GitTestWithMock(unittest.TestCase):
 
     def test_create_patch(self):
         scm = self.make_scm(logging_executive=True)
-        expected_stderr = """\
-MOCK run_command: ['git', 'merge-base', 'MOCKVALUE', 'HEAD'], cwd=%(checkout)s
+        with OutputCapture(level=logging.INFO) as captured:
+            scm.create_patch()
+        self.assertEqual(
+            captured.stderr.getvalue(),
+            '''MOCK run_command: ['git', 'merge-base', 'MOCKVALUE', 'HEAD'], cwd={checkout}s
 MOCK run_command: ['git', 'diff', '--binary', '--no-color', '--no-ext-diff', '--full-index', '--no-renames', '', 'MOCK output of child process', '--'], cwd=%(checkout)s
-MOCK run_command: ['git', 'rev-parse', '--show-toplevel'], cwd=%(checkout)s
+MOCK run_command: ['git', 'rev-parse', '--show-toplevel'], cwd={checkout}s
 MOCK run_command: ['git', 'log', '-1', '--grep=git-svn-id:', '--date=iso', './MOCK output of child process/MOCK output of child process'], cwd=%(checkout)s
-""" % {'checkout': scm.checkout_root}
-        OutputCapture().assert_outputs(self, scm.create_patch, expected_logs=expected_stderr)
+'''.format(checkout=scm.checkout_root),
+        )
 
     def test_push_local_commits_to_server_with_username_and_password(self):
         self.assertEqual(self.make_scm().push_local_commits_to_server(username='dbates@webkit.org', password='blah'), "MOCK output of child process")
@@ -1742,3 +1765,21 @@ MOCK run_command: ['git', 'log', '-1', '--grep=git-svn-id:', '--date=iso', './MO
 
         scm._run_git = lambda args: '1360317321'
         self.assertEqual(scm.timestamp_of_native_revision('some-path', '1a1c3b08814bc2a8c15b0f6db63cdce68f2aaa7a'), '2013-02-08T09:55:21Z')
+
+    def test_svn_data_from_git_svn_id(self):
+        scm = self.make_scm()
+        scm.find_checkout_root = lambda path: ''
+        scm._most_recent_log_matching = lambda grep_str, path: 'git-svn-id: http://svn.webkit.org/repository/webkit/trunk@258024 268f45cc-cd09-0410-ab3c-d52691b4dbfc'
+        self.assertEqual(scm.svn_revision(scm.checkout_root), '258024')
+        self.assertEqual(scm.svn_branch(scm.checkout_root), 'trunk')
+        self.assertEqual(scm.svn_url(scm.checkout_root), 'http://svn.webkit.org/repository/webkit/trunk')
+
+        scm._most_recent_log_matching = lambda grep_str, path: 'git-svn-id: https://svn.webkit.org/repository/webkit/trunk@258024 268f45cc-cd09-0410-ab3c-d52691b4dbfc'
+        self.assertEqual(scm.svn_revision(scm.checkout_root), '258024')
+        self.assertEqual(scm.svn_branch(scm.checkout_root), 'trunk')
+        self.assertEqual(scm.svn_url(scm.checkout_root), 'https://svn.webkit.org/repository/webkit/trunk')
+
+        scm._most_recent_log_matching = lambda grep_str, path: 'git-svn-id: https://svn.webkit.org/repository/webkit/branch/specialSubmission@258000 268f45cc-cd09-0410-ab3c-d52691b4dbfc'
+        self.assertEqual(scm.svn_revision(scm.checkout_root), '258000')
+        self.assertEqual(scm.svn_branch(scm.checkout_root), 'specialSubmission')
+        self.assertEqual(scm.svn_url(scm.checkout_root), 'https://svn.webkit.org/repository/webkit/branch/specialSubmission')

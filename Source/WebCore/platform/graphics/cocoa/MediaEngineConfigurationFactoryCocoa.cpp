@@ -32,6 +32,7 @@
 #include "MediaCapabilitiesDecodingInfo.h"
 #include "MediaDecodingConfiguration.h"
 #include "MediaPlayer.h"
+#include "VP9UtilitiesCocoa.h"
 
 #include "VideoToolboxSoftLink.h"
 
@@ -45,6 +46,10 @@ static CMVideoCodecType videoCodecTypeFromRFC4281Type(String type)
         return kCMVideoCodecType_H264;
     if (type.startsWith("hvc1") || type.startsWith("hev1"))
         return kCMVideoCodecType_HEVC;
+#if ENABLE(VP9)
+    if (type.startsWith("vp09"))
+        return kCMVideoCodecType_VP9;
+#endif
     return 0;
 }
 
@@ -57,7 +62,7 @@ void createMediaPlayerDecodingConfigurationCocoa(MediaDecodingConfiguration&& co
         MediaEngineSupportParameters parameters { };
         parameters.type = ContentType(videoConfiguration.contentType);
         parameters.isMediaSource = configuration.type == MediaDecodingType::MediaSource;
-        if (MediaPlayer::supportsType(parameters) != MediaPlayer::IsSupported) {
+        if (MediaPlayer::supportsType(parameters) != MediaPlayer::SupportsType::IsSupported) {
             callback({{ }, WTFMove(configuration)});
             return;
         }
@@ -91,6 +96,14 @@ void createMediaPlayerDecodingConfigurationCocoa(MediaDecodingConfiguration&& co
                 callback({{ }, WTFMove(configuration)});
                 return;
             }
+#if ENABLE(VP9)
+        } else if (videoCodecType == kCMVideoCodecType_VP9) {
+            auto codecConfiguration = parseVPCodecParameters(codec);
+            if (!codecConfiguration || !validateVPParameters(*codecConfiguration, info, videoConfiguration)) {
+                callback({{ }, WTFMove(configuration)});
+                return;
+            }
+#endif
         } else {
             if (alphaChannel || hdrSupported) {
                 callback({{ }, WTFMove(configuration)});
@@ -108,7 +121,7 @@ void createMediaPlayerDecodingConfigurationCocoa(MediaDecodingConfiguration&& co
         MediaEngineSupportParameters parameters { };
         parameters.type = ContentType(configuration.audio.value().contentType);
         parameters.isMediaSource = configuration.type == MediaDecodingType::MediaSource;
-        if (MediaPlayer::supportsType(parameters) != MediaPlayer::IsSupported) {
+        if (MediaPlayer::supportsType(parameters) != MediaPlayer::SupportsType::IsSupported) {
             callback({{ }, WTFMove(configuration)});
             return;
         }

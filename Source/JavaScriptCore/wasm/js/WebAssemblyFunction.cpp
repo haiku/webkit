@@ -28,11 +28,9 @@
 
 #if ENABLE(WEBASSEMBLY)
 
-#include "B3Compilation.h"
-#include "FrameTracers.h"
-#include "JSCInlines.h"
-#include "JSFunctionInlines.h"
+#include "JSCJSValueInlines.h"
 #include "JSObject.h"
+#include "JSObjectInlines.h"
 #include "JSToWasm.h"
 #include "JSWebAssemblyHelpers.h"
 #include "JSWebAssemblyInstance.h"
@@ -41,7 +39,8 @@
 #include "LLIntThunks.h"
 #include "LinkBuffer.h"
 #include "ProtoCallFrameInlines.h"
-#include "VM.h"
+#include "SlotVisitorInlines.h"
+#include "StructureInlines.h"
 #include "WasmCallee.h"
 #include "WasmCallingConvention.h"
 #include "WasmContextInlines.h"
@@ -50,7 +49,6 @@
 #include "WasmMemoryInformation.h"
 #include "WasmModuleInformation.h"
 #include "WasmSignatureInlines.h"
-#include <wtf/FastTLS.h>
 #include <wtf/StackPointer.h>
 #include <wtf/SystemTracing.h>
 
@@ -58,7 +56,9 @@ namespace JSC {
 
 const ClassInfo WebAssemblyFunction::s_info = { "WebAssemblyFunction", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(WebAssemblyFunction) };
 
-static EncodedJSValue JSC_HOST_CALL callWebAssemblyFunction(JSGlobalObject* globalObject, CallFrame* callFrame)
+static JSC_DECLARE_HOST_FUNCTION(callWebAssemblyFunction);
+
+JSC_DEFINE_HOST_FUNCTION(callWebAssemblyFunction, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -124,10 +124,10 @@ static EncodedJSValue JSC_HOST_CALL callWebAssemblyFunction(JSGlobalObject* glob
     {
         // We do the stack check here for the wrapper function because we don't
         // want to emit a stack check inside every wrapper function.
-        const intptr_t sp = bitwise_cast<intptr_t>(currentStackPointer());
-        const intptr_t frameSize = (boxedArgs.size() + CallFrame::headerSizeInRegisters) * sizeof(Register);
-        const intptr_t stackSpaceUsed = 2 * frameSize; // We're making two calls. One to the wrapper, and one to the actual wasm code.
-        if (UNLIKELY((sp < stackSpaceUsed) || ((sp - stackSpaceUsed) < bitwise_cast<intptr_t>(vm.softStackLimit()))))
+        const uintptr_t sp = bitwise_cast<uintptr_t>(currentStackPointer());
+        const uintptr_t frameSize = (boxedArgs.size() + CallFrame::headerSizeInRegisters) * sizeof(Register);
+        const uintptr_t stackSpaceUsed = 2 * frameSize; // We're making two calls. One to the wrapper, and one to the actual wasm code.
+        if (UNLIKELY((sp < stackSpaceUsed) || ((sp - stackSpaceUsed) < bitwise_cast<uintptr_t>(vm.softStackLimit()))))
             return JSValue::encode(throwException(globalObject, scope, createStackOverflowError(globalObject)));
     }
     vm.wasmContext.store(wasmInstance, vm.softStackLimit());
@@ -161,7 +161,8 @@ bool WebAssemblyFunction::useTagRegisters() const
 
 RegisterSet WebAssemblyFunction::calleeSaves() const
 {
-    return Wasm::PinnedRegisterInfo::get().toSave(instance()->memoryMode());
+    // Pessimistically save callee saves in BoundsChecking mode since the LLInt always bounds checks
+    return Wasm::PinnedRegisterInfo::get().toSave(Wasm::MemoryMode::BoundsChecking);
 }
 
 RegisterAtOffsetList WebAssemblyFunction::usedCalleeSaveRegisters() const
@@ -173,7 +174,7 @@ ptrdiff_t WebAssemblyFunction::previousInstanceOffset() const
 {
     ptrdiff_t result = calleeSaves().numberOfSetRegisters() * sizeof(CPURegister);
     result = -result - sizeof(CPURegister);
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
     ptrdiff_t minOffset = 1;
     for (const RegisterAtOffset& regAtOffset : usedCalleeSaveRegisters()) {
         ptrdiff_t offset = regAtOffset.offset();
@@ -243,7 +244,7 @@ MacroAssemblerCodePtr<JSEntryPtrTag> WebAssemblyFunction::jsCallEntrypointSlow()
     // FIXME: We should handle mismatched arity
     // https://bugs.webkit.org/show_bug.cgi?id=196564
     slowPath.append(jit.branch32(CCallHelpers::Below,
-        CCallHelpers::payloadFor(CallFrameSlot::argumentCount), CCallHelpers::TrustedImm32(signature.argumentCount() + 1)));
+        CCallHelpers::payloadFor(CallFrameSlot::argumentCountIncludingThis), CCallHelpers::TrustedImm32(signature.argumentCount() + 1)));
 
     if (useTagRegisters())
         jit.emitMaterializeTagCheckRegisters();
@@ -263,7 +264,7 @@ MacroAssemblerCodePtr<JSEntryPtrTag> WebAssemblyFunction::jsCallEntrypointSlow()
             if (isStack)
                 jit.store32(scratchGPR, calleeFrame.withOffset(wasmCallInfo.params[i].offsetFromSP()));
             else
-                jit.zeroExtend32ToPtr(scratchGPR, wasmCallInfo.params[i].gpr());
+                jit.zeroExtend32ToWord(scratchGPR, wasmCallInfo.params[i].gpr());
             break;
         }
         case Wasm::Funcref: {
@@ -431,9 +432,8 @@ MacroAssemblerCodePtr<JSEntryPtrTag> WebAssemblyFunction::jsCallEntrypointSlow()
 WebAssemblyFunction* WebAssemblyFunction::create(VM& vm, JSGlobalObject* globalObject, Structure* structure, unsigned length, const String& name, JSWebAssemblyInstance* instance, Wasm::Callee& jsEntrypoint, Wasm::WasmToWasmImportableFunction::LoadLocation wasmToWasmEntrypointLoadLocation, Wasm::SignatureIndex signatureIndex)
 {
     NativeExecutable* executable = vm.getHostFunction(callWebAssemblyFunction, NoIntrinsic, callHostFunctionAsConstructor, nullptr, name);
-    WebAssemblyFunction* function = new (NotNull, allocateCell<WebAssemblyFunction>(vm.heap)) WebAssemblyFunction(vm, globalObject, structure, jsEntrypoint, wasmToWasmEntrypointLoadLocation, signatureIndex);
+    WebAssemblyFunction* function = new (NotNull, allocateCell<WebAssemblyFunction>(vm.heap)) WebAssemblyFunction(vm, executable, globalObject, structure, jsEntrypoint, wasmToWasmEntrypointLoadLocation, signatureIndex);
     function->finishCreation(vm, executable, length, name, instance);
-    ASSERT_WITH_MESSAGE(!function->isLargeAllocation(), "WebAssemblyFunction should be allocated not in large allocation since it is JSCallee.");
     return function;
 }
 
@@ -443,8 +443,8 @@ Structure* WebAssemblyFunction::createStructure(VM& vm, JSGlobalObject* globalOb
     return Structure::create(vm, globalObject, prototype, TypeInfo(JSFunctionType, StructureFlags), info());
 }
 
-WebAssemblyFunction::WebAssemblyFunction(VM& vm, JSGlobalObject* globalObject, Structure* structure, Wasm::Callee& jsEntrypoint, Wasm::WasmToWasmImportableFunction::LoadLocation wasmToWasmEntrypointLoadLocation, Wasm::SignatureIndex signatureIndex)
-    : Base { vm, globalObject, structure }
+WebAssemblyFunction::WebAssemblyFunction(VM& vm, NativeExecutable* executable, JSGlobalObject* globalObject, Structure* structure, Wasm::Callee& jsEntrypoint, Wasm::WasmToWasmImportableFunction::LoadLocation wasmToWasmEntrypointLoadLocation, Wasm::SignatureIndex signatureIndex)
+    : Base { vm, executable, globalObject, structure }
     , m_jsEntrypoint { jsEntrypoint.entrypoint() }
     , m_importableFunction { signatureIndex, wasmToWasmEntrypointLoadLocation }
 { }

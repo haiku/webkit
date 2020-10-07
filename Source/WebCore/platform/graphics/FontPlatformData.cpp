@@ -31,6 +31,10 @@
 #include <CoreGraphics/CGFont.h>
 #endif
 
+#if PLATFORM(WIN) && USE(CORE_TEXT)
+#include <pal/spi/win/CoreTextSPIWin.h>
+#endif
+
 namespace WebCore {
 
 FontPlatformData::FontPlatformData(WTF::HashTableDeletedValueType)
@@ -42,7 +46,7 @@ FontPlatformData::FontPlatformData()
 {
 }
 
-FontPlatformData::FontPlatformData(float size, bool syntheticBold, bool syntheticOblique, FontOrientation orientation, FontWidthVariant widthVariant, TextRenderingMode textRenderingMode)
+FontPlatformData::FontPlatformData(float size, bool syntheticBold, bool syntheticOblique, FontOrientation orientation, FontWidthVariant widthVariant, TextRenderingMode textRenderingMode, CreationData* creationData)
     : m_size(size)
     , m_orientation(orientation)
     , m_widthVariant(widthVariant)
@@ -50,16 +54,9 @@ FontPlatformData::FontPlatformData(float size, bool syntheticBold, bool syntheti
     , m_syntheticBold(syntheticBold)
     , m_syntheticOblique(syntheticOblique)
 {
+    if (creationData)
+        m_creationData = *creationData;
 }
-
-#if USE(CG) && PLATFORM(WIN)
-FontPlatformData::FontPlatformData(CGFontRef cgFont, float size, bool syntheticBold, bool syntheticOblique, FontOrientation orientation, FontWidthVariant widthVariant, TextRenderingMode textRenderingMode)
-    : FontPlatformData(size, syntheticBold, syntheticOblique, orientation, widthVariant, textRenderingMode)
-{
-    m_cgFont = cgFont;
-    ASSERT(m_cgFont);
-}
-#endif
 
 #if !USE(FREETYPE)
 FontPlatformData FontPlatformData::cloneWithOrientation(const FontPlatformData& source, FontOrientation orientation)
@@ -84,6 +81,16 @@ FontPlatformData FontPlatformData::cloneWithSize(const FontPlatformData& source,
     return copy;
 }
 #endif
+#endif
+
+#if !USE(CORE_TEXT)
+
+String FontPlatformData::familyName() const
+{
+    // FIXME: Not implemented yet.
+    return { };
+}
+
 #endif
 
 }

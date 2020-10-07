@@ -31,6 +31,7 @@
 #include "ClipboardItemBindingsDataSource.h"
 #include "ClipboardItemPasteboardDataSource.h"
 #include "Navigator.h"
+#include "PasteboardCustomData.h"
 #include "PasteboardItemInfo.h"
 #include "SharedBuffer.h"
 
@@ -38,10 +39,10 @@ namespace WebCore {
 
 ClipboardItem::~ClipboardItem() = default;
 
-Ref<Blob> ClipboardItem::blobFromString(const String& stringData, const String& type)
+Ref<Blob> ClipboardItem::blobFromString(ScriptExecutionContext* context, const String& stringData, const String& type)
 {
     auto utf8 = stringData.utf8();
-    return Blob::create(SharedBuffer::create(utf8.data(), utf8.length()), Blob::normalizedContentType(type));
+    return Blob::create(context, SharedBuffer::create(utf8.data(), utf8.length()), Blob::normalizedContentType(type));
 }
 
 static ClipboardItem::PresentationStyle clipboardItemPresentationStyle(const PasteboardItemInfo& info)
@@ -90,6 +91,11 @@ Vector<String> ClipboardItem::types() const
 void ClipboardItem::getType(const String& type, Ref<DeferredPromise>&& promise)
 {
     m_dataSource->getType(type, WTFMove(promise));
+}
+
+void ClipboardItem::collectDataForWriting(Clipboard& destination, CompletionHandler<void(Optional<PasteboardCustomData>)>&& completion)
+{
+    m_dataSource->collectDataForWriting(destination, WTFMove(completion));
 }
 
 Navigator* ClipboardItem::navigator()

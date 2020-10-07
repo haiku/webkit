@@ -35,6 +35,7 @@
 #include "FEDropShadow.h"
 #include "FEGaussianBlur.h"
 #include "FEMerge.h"
+#include "FilterEffectRenderer.h"
 #include "Logging.h"
 #include "RenderLayer.h"
 #include "SVGElement.h"
@@ -121,7 +122,7 @@ RefPtr<FilterEffect> CSSFilter::buildReferenceFilter(RenderElement& renderer, Fi
 
         effectElement.setStandardAttributes(effect.get());
         if (effectElement.renderer())
-            effect->setOperatingColorSpace(effectElement.renderer()->style().svgStyle().colorInterpolationFilters() == ColorInterpolation::LinearRGB ? ColorSpaceLinearRGB : ColorSpaceSRGB);
+            effect->setOperatingColorSpace(effectElement.renderer()->style().svgStyle().colorInterpolationFilters() == ColorInterpolation::LinearRGB ? ColorSpace::LinearRGB : ColorSpace::SRGB);
 
         builder->add(effectElement.result(), effect);
         m_effects.append(*effect);
@@ -220,11 +221,10 @@ bool CSSFilter::build(RenderElement& renderer, const FilterOperations& operation
         case FilterOperation::INVERT: {
             auto& componentTransferOperation = downcast<BasicComponentTransferFilterOperation>(filterOperation);
             ComponentTransferFunction transferFunction;
-            transferFunction.type = FECOMPONENTTRANSFER_TYPE_TABLE;
-            Vector<float> transferParameters;
-            transferParameters.append(narrowPrecisionToFloat(componentTransferOperation.amount()));
-            transferParameters.append(narrowPrecisionToFloat(1 - componentTransferOperation.amount()));
-            transferFunction.tableValues = transferParameters;
+            transferFunction.type = FECOMPONENTTRANSFER_TYPE_LINEAR;
+            float amount = narrowPrecisionToFloat(componentTransferOperation.amount());
+            transferFunction.slope = 1 - 2 * amount;
+            transferFunction.intercept = amount;
 
             ComponentTransferFunction nullFunction;
             effect = FEComponentTransfer::create(*this, transferFunction, transferFunction, transferFunction, nullFunction);
@@ -236,11 +236,10 @@ bool CSSFilter::build(RenderElement& renderer, const FilterOperations& operation
         case FilterOperation::OPACITY: {
             auto& componentTransferOperation = downcast<BasicComponentTransferFilterOperation>(filterOperation);
             ComponentTransferFunction transferFunction;
-            transferFunction.type = FECOMPONENTTRANSFER_TYPE_TABLE;
-            Vector<float> transferParameters;
-            transferParameters.append(0);
-            transferParameters.append(narrowPrecisionToFloat(componentTransferOperation.amount()));
-            transferFunction.tableValues = transferParameters;
+            transferFunction.type = FECOMPONENTTRANSFER_TYPE_LINEAR;
+            float amount = narrowPrecisionToFloat(componentTransferOperation.amount());
+            transferFunction.slope = amount;
+            transferFunction.intercept = 0;
 
             ComponentTransferFunction nullFunction;
             effect = FEComponentTransfer::create(*this, nullFunction, nullFunction, nullFunction, transferFunction);
@@ -289,7 +288,7 @@ bool CSSFilter::build(RenderElement& renderer, const FilterOperations& operation
             // Unlike SVG Filters and CSSFilterImages, filter functions on the filter
             // property applied here should not clip to their primitive subregions.
             effect->setClipsToBounds(consumer == FilterConsumer::FilterFunction);
-            effect->setOperatingColorSpace(ColorSpaceSRGB);
+            effect->setOperatingColorSpace(ColorSpace::SRGB);
             
             if (filterOperation.type() != FilterOperation::REFERENCE) {
                 effect->inputEffects().append(WTFMove(previousEffect));
@@ -304,6 +303,10 @@ bool CSSFilter::build(RenderElement& renderer, const FilterOperations& operation
         return false;
 
     setMaxEffectRects(m_sourceDrawingRegion);
+#if USE(CORE_IMAGE)
+    if (!m_filterRenderer)
+        m_filterRenderer = FilterEffectRenderer::tryCreate(renderer.settings().coreImageAcceleratedFilterRenderEnabled(), m_effects.last().get());
+#endif
     return true;
 }
 
@@ -334,7 +337,8 @@ void CSSFilter::allocateBackingStoreIfNeeded(const GraphicsContext& targetContex
         setSourceImage(ImageBuffer::create(logicalSize, renderingMode(), &targetContext, filterScale()));
 #else
         UNUSED_PARAM(targetContext);
-        setSourceImage(ImageBuffer::create(logicalSize, renderingMode(), filterScale()));
+        RenderingMode mode = m_filterRenderer ? RenderingMode::Accelerated : renderingMode();
+        setSourceImage(ImageBuffer::create(logicalSize, mode, filterScale()));
 #endif
     }
     m_graphicsBufferAttached = true;
@@ -365,8 +369,15 @@ void CSSFilter::clearIntermediateResults()
 void CSSFilter::apply()
 {
     auto& effect = m_effects.last().get();
+    if (m_filterRenderer) {
+        m_filterRenderer->applyEffects(effect);
+        if (m_filterRenderer->hasResult()) {
+            effect.transformResultColorSpace(ColorSpace::SRGB);
+            return;
+        }
+    }
     effect.apply();
-    effect.transformResultColorSpace(ColorSpaceSRGB);
+    effect.transformResultColorSpace(ColorSpace::SRGB);
 }
 
 LayoutRect CSSFilter::computeSourceImageRectForDirtyRect(const LayoutRect& filterBoxRect, const LayoutRect& dirtyRect)
@@ -381,6 +392,9 @@ LayoutRect CSSFilter::computeSourceImageRectForDirtyRect(const LayoutRect& filte
 
 ImageBuffer* CSSFilter::output() const
 {
+    if (m_filterRenderer && m_filterRenderer->hasResult())
+        return m_filterRenderer->output();
+    
     return m_effects.last()->imageBufferResult();
 }
 
@@ -401,9 +415,11 @@ void CSSFilter::setMaxEffectRects(const FloatRect& effectRect)
 IntRect CSSFilter::outputRect() const
 {
     auto& lastEffect = m_effects.last().get();
-    if (!lastEffect.hasResult())
-        return { };
-    return lastEffect.requestedRegionOfInputImageData(IntRect { m_filterRegion });
+    
+    if (lastEffect.hasResult() || (m_filterRenderer && m_filterRenderer->hasResult()))
+        return lastEffect.requestedRegionOfInputImageData(IntRect { m_filterRegion });
+    
+    return { };
 }
 
 IntOutsets CSSFilter::outsets() const

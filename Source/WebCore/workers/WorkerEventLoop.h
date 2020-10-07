@@ -25,44 +25,33 @@
 
 #pragma once
 
-#include "AbstractEventLoop.h"
 #include "ActiveDOMObject.h"
+#include "EventLoop.h"
 
 namespace WebCore {
 
 class WorkerGlobalScope;
 class WorkletGlobalScope;
 
-class WorkerEventLoop final : public AbstractEventLoop, private ActiveDOMObject {
+class WorkerEventLoop final : public EventLoop, private ContextDestructionObserver {
 public:
     // Explicitly take WorkerGlobalScope and WorkletGlobalScope for documentation purposes.
     static Ref<WorkerEventLoop> create(WorkerGlobalScope&);
-
-#if ENABLE(CSS_PAINTING_API)
     static Ref<WorkerEventLoop> create(WorkletGlobalScope&);
-#endif
 
-    void queueTask(TaskSource, ScriptExecutionContext&, TaskFunction&&) override;
+    virtual ~WorkerEventLoop();
+
+    // FIXME: This should be removed once MicrotaskQueue is integrated with EventLoopTaskGroup.
+    void clearMicrotaskQueue();
 
 private:
     explicit WorkerEventLoop(ScriptExecutionContext&);
 
-    void scheduleToRunIfNeeded();
-    void run();
+    void scheduleToRun() final;
+    bool isContextThread() const;
+    MicrotaskQueue& microtaskQueue() final;
 
-    // ActiveDOMObject;
-    const char* activeDOMObjectName() const override;
-    void suspend(ReasonForSuspension) override;
-    void resume() override;
-    void stop() override;
-
-    struct Task {
-        TaskSource source;
-        TaskFunction task;
-    };
-
-    Vector<Task> m_tasks;
-    bool m_isScheduledToRun { false };
+    std::unique_ptr<MicrotaskQueue> m_microtaskQueue;
 };
 
 } // namespace WebCore

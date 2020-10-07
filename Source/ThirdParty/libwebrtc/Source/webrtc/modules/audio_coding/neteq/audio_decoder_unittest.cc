@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -31,7 +32,7 @@
 #include "modules/audio_coding/codecs/pcm16b/audio_encoder_pcm16b.h"
 #include "modules/audio_coding/neteq/tools/resample_input_audio_file.h"
 #include "test/gtest.h"
-#include "test/testsupport/fileutils.h"
+#include "test/testsupport/file_utils.h"
 
 namespace webrtc {
 
@@ -162,7 +163,6 @@ class AudioDecoderTest : public ::testing::Test {
     ASSERT_GE(channel_diff_tolerance, 0)
         << "Test must define a channel_diff_tolerance >= 0";
     size_t processed_samples = 0u;
-    rtc::Buffer encoded;
     size_t encoded_bytes = 0u;
     InitEncoder();
     std::vector<int16_t> input;
@@ -174,16 +174,20 @@ class AudioDecoderTest : public ::testing::Test {
       ASSERT_GE(input.size() - processed_samples, frame_size_);
       ASSERT_TRUE(input_audio_.Read(frame_size_, codec_input_rate_hz_,
                                     &input[processed_samples]));
+      rtc::Buffer encoded;
       size_t enc_len =
           EncodeFrame(&input[processed_samples], frame_size_, &encoded);
       // Make sure that frame_size_ * channels_ samples are allocated and free.
       decoded.resize((processed_samples + frame_size_) * channels_, 0);
-      AudioDecoder::SpeechType speech_type;
-      size_t dec_len = decoder_->Decode(
-          &encoded.data()[encoded_bytes], enc_len, codec_input_rate_hz_,
-          frame_size_ * channels_ * sizeof(int16_t),
-          &decoded[processed_samples * channels_], &speech_type);
-      EXPECT_EQ(frame_size_ * channels_, dec_len);
+
+      const std::vector<AudioDecoder::ParseResult> parse_result =
+          decoder_->ParsePayload(std::move(encoded), /*timestamp=*/0);
+      RTC_CHECK_EQ(parse_result.size(), size_t{1});
+      auto decode_result = parse_result[0].frame->Decode(
+          rtc::ArrayView<int16_t>(&decoded[processed_samples * channels_],
+                                  frame_size_ * channels_ * sizeof(int16_t)));
+      RTC_CHECK(decode_result.has_value());
+      EXPECT_EQ(frame_size_ * channels_, decode_result->num_decoded_samples);
       encoded_bytes += enc_len;
       processed_samples += frame_size_;
     }
@@ -210,29 +214,23 @@ class AudioDecoderTest : public ::testing::Test {
     std::unique_ptr<int16_t[]> input(new int16_t[frame_size_]);
     ASSERT_TRUE(
         input_audio_.Read(frame_size_, codec_input_rate_hz_, input.get()));
-    rtc::Buffer encoded;
-    size_t enc_len = EncodeFrame(input.get(), frame_size_, &encoded);
-    size_t dec_len;
-    AudioDecoder::SpeechType speech_type1, speech_type2;
-    decoder_->Reset();
-    std::unique_ptr<int16_t[]> output1(new int16_t[frame_size_ * channels_]);
-    dec_len = decoder_->Decode(encoded.data(), enc_len, codec_input_rate_hz_,
-                               frame_size_ * channels_ * sizeof(int16_t),
-                               output1.get(), &speech_type1);
-    ASSERT_LE(dec_len, frame_size_ * channels_);
-    EXPECT_EQ(frame_size_ * channels_, dec_len);
-    // Re-init decoder and decode again.
-    decoder_->Reset();
-    std::unique_ptr<int16_t[]> output2(new int16_t[frame_size_ * channels_]);
-    dec_len = decoder_->Decode(encoded.data(), enc_len, codec_input_rate_hz_,
-                               frame_size_ * channels_ * sizeof(int16_t),
-                               output2.get(), &speech_type2);
-    ASSERT_LE(dec_len, frame_size_ * channels_);
-    EXPECT_EQ(frame_size_ * channels_, dec_len);
-    for (unsigned int n = 0; n < frame_size_; ++n) {
-      ASSERT_EQ(output1[n], output2[n]) << "Exit test on first diff; n = " << n;
+    std::array<rtc::Buffer, 2> encoded;
+    EncodeFrame(input.get(), frame_size_, &encoded[0]);
+    // Make a copy.
+    encoded[1].SetData(encoded[0].data(), encoded[0].size());
+
+    std::array<std::vector<int16_t>, 2> outputs;
+    for (size_t i = 0; i < outputs.size(); ++i) {
+      outputs[i].resize(frame_size_ * channels_);
+      decoder_->Reset();
+      const std::vector<AudioDecoder::ParseResult> parse_result =
+          decoder_->ParsePayload(std::move(encoded[i]), /*timestamp=*/0);
+      RTC_CHECK_EQ(parse_result.size(), size_t{1});
+      auto decode_result = parse_result[0].frame->Decode(outputs[i]);
+      RTC_CHECK(decode_result.has_value());
+      EXPECT_EQ(frame_size_ * channels_, decode_result->num_decoded_samples);
     }
-    EXPECT_EQ(speech_type1, speech_type2);
+    EXPECT_EQ(outputs[0], outputs[1]);
   }
 
   // Call DecodePlc and verify that the correct number of samples is produced.
@@ -242,18 +240,20 @@ class AudioDecoderTest : public ::testing::Test {
     ASSERT_TRUE(
         input_audio_.Read(frame_size_, codec_input_rate_hz_, input.get()));
     rtc::Buffer encoded;
-    size_t enc_len = EncodeFrame(input.get(), frame_size_, &encoded);
-    AudioDecoder::SpeechType speech_type;
+    EncodeFrame(input.get(), frame_size_, &encoded);
     decoder_->Reset();
-    std::unique_ptr<int16_t[]> output(new int16_t[frame_size_ * channels_]);
-    size_t dec_len = decoder_->Decode(
-        encoded.data(), enc_len, codec_input_rate_hz_,
-        frame_size_ * channels_ * sizeof(int16_t), output.get(), &speech_type);
-    EXPECT_EQ(frame_size_ * channels_, dec_len);
+    std::vector<int16_t> output(frame_size_ * channels_);
+    const std::vector<AudioDecoder::ParseResult> parse_result =
+        decoder_->ParsePayload(std::move(encoded), /*timestamp=*/0);
+    RTC_CHECK_EQ(parse_result.size(), size_t{1});
+    auto decode_result = parse_result[0].frame->Decode(output);
+    RTC_CHECK(decode_result.has_value());
+    EXPECT_EQ(frame_size_ * channels_, decode_result->num_decoded_samples);
     // Call DecodePlc and verify that we get one frame of data.
     // (Overwrite the output from the above Decode call, but that does not
     // matter.)
-    dec_len = decoder_->DecodePlc(1, output.get());
+    size_t dec_len =
+        decoder_->DecodePlc(/*num_frames=*/1, /*decoded=*/output.data());
     EXPECT_EQ(frame_size_ * channels_, dec_len);
   }
 
@@ -353,11 +353,13 @@ class AudioDecoderIsacFloatTest : public AudioDecoderTest {
     AudioEncoderIsacFloatImpl::Config config;
     config.payload_type = payload_type_;
     config.sample_rate_hz = codec_input_rate_hz_;
-    config.adaptive_mode = false;
     config.frame_size_ms =
         1000 * static_cast<int>(frame_size_) / codec_input_rate_hz_;
     audio_encoder_.reset(new AudioEncoderIsacFloatImpl(config));
-    decoder_ = new AudioDecoderIsacFloatImpl(codec_input_rate_hz_);
+
+    AudioDecoderIsacFloatImpl::Config decoder_config;
+    decoder_config.sample_rate_hz = codec_input_rate_hz_;
+    decoder_ = new AudioDecoderIsacFloatImpl(decoder_config);
   }
 };
 
@@ -370,11 +372,13 @@ class AudioDecoderIsacSwbTest : public AudioDecoderTest {
     AudioEncoderIsacFloatImpl::Config config;
     config.payload_type = payload_type_;
     config.sample_rate_hz = codec_input_rate_hz_;
-    config.adaptive_mode = false;
     config.frame_size_ms =
         1000 * static_cast<int>(frame_size_) / codec_input_rate_hz_;
     audio_encoder_.reset(new AudioEncoderIsacFloatImpl(config));
-    decoder_ = new AudioDecoderIsacFloatImpl(codec_input_rate_hz_);
+
+    AudioDecoderIsacFloatImpl::Config decoder_config;
+    decoder_config.sample_rate_hz = codec_input_rate_hz_;
+    decoder_ = new AudioDecoderIsacFloatImpl(decoder_config);
   }
 };
 
@@ -387,11 +391,13 @@ class AudioDecoderIsacFixTest : public AudioDecoderTest {
     AudioEncoderIsacFixImpl::Config config;
     config.payload_type = payload_type_;
     config.sample_rate_hz = codec_input_rate_hz_;
-    config.adaptive_mode = false;
     config.frame_size_ms =
         1000 * static_cast<int>(frame_size_) / codec_input_rate_hz_;
     audio_encoder_.reset(new AudioEncoderIsacFixImpl(config));
-    decoder_ = new AudioDecoderIsacFixImpl(codec_input_rate_hz_);
+
+    AudioDecoderIsacFixImpl::Config decoder_config;
+    decoder_config.sample_rate_hz = codec_input_rate_hz_;
+    decoder_ = new AudioDecoderIsacFixImpl(decoder_config);
   }
 };
 
@@ -426,33 +432,34 @@ class AudioDecoderG722StereoTest : public AudioDecoderTest {
   }
 };
 
-class AudioDecoderOpusTest : public AudioDecoderTest {
+class AudioDecoderOpusTest
+    : public AudioDecoderTest,
+      public testing::WithParamInterface<std::tuple<int, int>> {
  protected:
   AudioDecoderOpusTest() : AudioDecoderTest() {
-    codec_input_rate_hz_ = 48000;
-    frame_size_ = 480;
+    channels_ = opus_num_channels_;
+    codec_input_rate_hz_ = opus_sample_rate_hz_;
+    frame_size_ = rtc::CheckedDivExact(opus_sample_rate_hz_, 100);
     data_length_ = 10 * frame_size_;
-    decoder_ = new AudioDecoderOpusImpl(1);
+    decoder_ =
+        new AudioDecoderOpusImpl(opus_num_channels_, opus_sample_rate_hz_);
     AudioEncoderOpusConfig config;
-    config.frame_size_ms = static_cast<int>(frame_size_) / 48;
-    config.application = AudioEncoderOpusConfig::ApplicationMode::kVoip;
+    config.frame_size_ms = 10;
+    config.sample_rate_hz = opus_sample_rate_hz_;
+    config.num_channels = opus_num_channels_;
+    config.application = opus_num_channels_ == 1
+                             ? AudioEncoderOpusConfig::ApplicationMode::kVoip
+                             : AudioEncoderOpusConfig::ApplicationMode::kAudio;
     audio_encoder_ = AudioEncoderOpus::MakeAudioEncoder(config, payload_type_);
   }
+  const int opus_sample_rate_hz_{std::get<0>(GetParam())};
+  const int opus_num_channels_{std::get<1>(GetParam())};
 };
 
-class AudioDecoderOpusStereoTest : public AudioDecoderOpusTest {
- protected:
-  AudioDecoderOpusStereoTest() : AudioDecoderOpusTest() {
-    channels_ = 2;
-    delete decoder_;
-    decoder_ = new AudioDecoderOpusImpl(2);
-    AudioEncoderOpusConfig config;
-    config.frame_size_ms = static_cast<int>(frame_size_) / 48;
-    config.num_channels = 2;
-    config.application = AudioEncoderOpusConfig::ApplicationMode::kAudio;
-    audio_encoder_ = AudioEncoderOpus::MakeAudioEncoder(config, payload_type_);
-  }
-};
+INSTANTIATE_TEST_SUITE_P(Param,
+                         AudioDecoderOpusTest,
+                         testing::Combine(testing::Values(16000, 48000),
+                                          testing::Values(1, 2)));
 
 TEST_F(AudioDecoderPcmUTest, EncodeDecode) {
   int tolerance = 251;
@@ -592,41 +599,22 @@ TEST_F(AudioDecoderG722StereoTest, SetTargetBitrate) {
   TestSetAndGetTargetBitratesWithFixedCodec(audio_encoder_.get(), 128000);
 }
 
-TEST_F(AudioDecoderOpusTest, EncodeDecode) {
-  int tolerance = 6176;
-  double mse = 238630.0;
-  int delay = 22;  // Delay from input to output.
-  EncodeDecodeTest(0, tolerance, mse, delay);
-  ReInitTest();
-  EXPECT_FALSE(decoder_->HasDecodePlc());
-}
-
-namespace {
-void TestOpusSetTargetBitrates(AudioEncoder* audio_encoder) {
-  EXPECT_EQ(6000, SetAndGetTargetBitrate(audio_encoder, 5999));
-  EXPECT_EQ(6000, SetAndGetTargetBitrate(audio_encoder, 6000));
-  EXPECT_EQ(32000, SetAndGetTargetBitrate(audio_encoder, 32000));
-  EXPECT_EQ(510000, SetAndGetTargetBitrate(audio_encoder, 510000));
-  EXPECT_EQ(510000, SetAndGetTargetBitrate(audio_encoder, 511000));
-}
-}  // namespace
-
-TEST_F(AudioDecoderOpusTest, SetTargetBitrate) {
-  TestOpusSetTargetBitrates(audio_encoder_.get());
-}
-
-TEST_F(AudioDecoderOpusStereoTest, EncodeDecode) {
-  int tolerance = 6176;
-  int channel_diff_tolerance = 0;
-  double mse = 238630.0;
-  int delay = 22;  // Delay from input to output.
+TEST_P(AudioDecoderOpusTest, EncodeDecode) {
+  constexpr int tolerance = 6176;
+  constexpr int channel_diff_tolerance = 6;
+  constexpr double mse = 238630.0;
+  constexpr int delay = 22;  // Delay from input to output.
   EncodeDecodeTest(0, tolerance, mse, delay, channel_diff_tolerance);
   ReInitTest();
   EXPECT_FALSE(decoder_->HasDecodePlc());
 }
 
-TEST_F(AudioDecoderOpusStereoTest, SetTargetBitrate) {
-  TestOpusSetTargetBitrates(audio_encoder_.get());
+TEST_P(AudioDecoderOpusTest, SetTargetBitrate) {
+  EXPECT_EQ(6000, SetAndGetTargetBitrate(audio_encoder_.get(), 5999));
+  EXPECT_EQ(6000, SetAndGetTargetBitrate(audio_encoder_.get(), 6000));
+  EXPECT_EQ(32000, SetAndGetTargetBitrate(audio_encoder_.get(), 32000));
+  EXPECT_EQ(510000, SetAndGetTargetBitrate(audio_encoder_.get(), 510000));
+  EXPECT_EQ(510000, SetAndGetTargetBitrate(audio_encoder_.get(), 511000));
 }
 
 }  // namespace webrtc

@@ -53,8 +53,8 @@ struct HashMapBucketDataKeyValue {
 };
 
 template <typename Data>
-class HashMapBucket : public JSCell {
-    typedef JSCell Base;
+class HashMapBucket final : public JSCell {
+    using Base = JSCell;
 
     template <typename T = Data>
     static typename std::enable_if<std::is_same<T, HashMapBucketDataKey>::value, Structure*>::type selectStructure(VM& vm)
@@ -72,16 +72,21 @@ public:
     static const HashTableType Type = Data::Type;
     static const ClassInfo s_info; // This is never accessed directly, since that would break linkage on some compilers.
 
+    template<typename CellType, SubspaceAccess mode>
+    static IsoSubspace* subspaceFor(VM& vm)
+    {
+        if constexpr (Type == HashTableType::Key)
+            return vm.setBucketSpace<mode>();
+        else
+            return vm.mapBucketSpace<mode>();
+    }
 
     static const ClassInfo* info()
     {
-        switch (Type) {
-        case HashTableType::Key:
+        if constexpr (Type == HashTableType::Key)
             return getHashMapBucketKeyClassInfo();
-        case HashTableType::KeyValue:
+        else
             return getHashMapBucketKeyValueClassInfo();
-        }
-        RELEASE_ASSERT_NOT_REACHED();
     }
 
     static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
@@ -238,8 +243,11 @@ ALWAYS_INLINE static bool areKeysEqual(JSGlobalObject* globalObject, JSValue a, 
 // Keep in sync with the implementation of DFG and FTL normalization.
 ALWAYS_INLINE JSValue normalizeMapKey(JSValue key)
 {
-    if (!key.isNumber())
+    if (!key.isNumber()) {
+        if (key.isHeapBigInt())
+            return tryConvertToBigInt32(key.asHeapBigInt());
         return key;
+    }
 
     if (key.isInt32())
         return key;
@@ -271,6 +279,11 @@ static ALWAYS_INLINE uint32_t wangsInt64Hash(uint64_t key)
     return static_cast<unsigned>(key);
 }
 
+ALWAYS_INLINE uint32_t jsMapHash(JSBigInt* bigInt)
+{
+    return bigInt->hash();
+}
+
 ALWAYS_INLINE uint32_t jsMapHash(JSGlobalObject* globalObject, VM& vm, JSValue value)
 {
     ASSERT_WITH_MESSAGE(normalizeMapKey(value) == value, "We expect normalized values flowing into this function.");
@@ -281,6 +294,9 @@ ALWAYS_INLINE uint32_t jsMapHash(JSGlobalObject* globalObject, VM& vm, JSValue v
         RETURN_IF_EXCEPTION(scope, UINT_MAX);
         return wtfString.impl()->hash();
     }
+
+    if (value.isHeapBigInt())
+        return jsMapHash(value.asHeapBigInt());
 
     return wangsInt64Hash(JSValue::encode(value));
 }
@@ -297,6 +313,9 @@ ALWAYS_INLINE Optional<uint32_t> concurrentJSMapHash(JSValue key)
             return WTF::nullopt;
         return impl->concurrentHash();
     }
+
+    if (key.isHeapBigInt())
+        return key.asHeapBigInt()->concurrentHash();
 
     uint64_t rawValue = JSValue::encode(key);
     return wangsInt64Hash(rawValue);
@@ -698,7 +717,7 @@ private:
 
     ALWAYS_INLINE void checkConsistency() const
     {
-        if (!ASSERT_DISABLED) {
+        if (ASSERT_ENABLED) {
             HashMapBucketType* iter = m_head->next();
             HashMapBucketType* end = m_tail.get();
             uint32_t size = 0;
@@ -724,7 +743,7 @@ private:
 
     ALWAYS_INLINE void assertBufferIsEmpty() const
     {
-        if (!ASSERT_DISABLED) {
+        if (ASSERT_ENABLED) {
             for (unsigned i = 0; i < m_capacity; i++)
                 ASSERT(isEmpty(buffer()[i]));
         }

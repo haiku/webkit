@@ -22,6 +22,7 @@
 
 #include "BlobRegistry.h"
 #include "BlobRegistryImpl.h"
+#include "Logging.h"
 #include "SharedBuffer.h"
 
 #include <String.h>
@@ -109,7 +110,7 @@ void BFormDataIO::computeContentLength()
     m_isContentLengthUpdated = true;
 
     for (const auto& element : m_formData->elements())
-        m_totalSize += element.lengthInBytes(blobRegistry().blobRegistryImpl());
+        m_totalSize += element.lengthInBytes();
 }
 
 
@@ -164,7 +165,7 @@ WTF::Optional<size_t> BFormDataIO::readFromData(const Vector<char>& data, char* 
 
 WTF::Optional<size_t> BFormDataIO::readFromBlob(const FormDataElement::EncodedBlobData& blob, char* buffer, size_t size)
 {
-    auto* blobData = blobRegistry().blobRegistryImpl()->getBlobDataFromURL(blob.url);
+    BlobData* blobData = blobRegistry().blobRegistryImpl()->getBlobDataFromURL(blob.url);
 
 	if (!blobData)
 		return WTF::nullopt;
@@ -204,7 +205,7 @@ WTF::Optional<size_t> BFormDataIO::readFromBlob(const FormDataElement::EncodedBl
 
 
 		if (!FileSystem::isHandleValid(m_fileHandle)) {
-			LOG(Network, "Haiku - Failed while trying to open %s for upload\n", fileData.filename.utf8().data());
+			LOG(Network, "Haiku - Failed while trying to open %s for upload\n", blobItem.file()->path().utf8().data());
 			m_fileHandle = FileSystem::invalidPlatformFileHandle;
 			readBytes = -1;
 		} else {
@@ -212,7 +213,7 @@ WTF::Optional<size_t> BFormDataIO::readFromBlob(const FormDataElement::EncodedBl
 			// handle open and read from the current position.
 			readBytes = FileSystem::readFromFile(m_fileHandle, buffer, size);
 			if (readBytes < 0) {
-				LOG(Network, "Haiku - Failed while trying to read %s for upload\n", fileData.filename.utf8().data());
+				LOG(Network, "Haiku - Failed while trying to read %s for upload\n", blobItem.file()->path().utf8().data());
 			}
 		}
 

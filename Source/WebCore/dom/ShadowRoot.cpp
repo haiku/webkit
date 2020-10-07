@@ -41,6 +41,7 @@
 #include "StyleResolver.h"
 #include "StyleScope.h"
 #include "StyleSheetList.h"
+#include "WebAnimation.h"
 #include "markup.h"
 #include <wtf/IsoMallocInlines.h>
 
@@ -252,7 +253,7 @@ void ShadowRoot::slotFallbackDidChange(HTMLSlotElement& slot)
     return m_slotAssignment->slotFallbackDidChange(slot, *this);
 }
 
-const Vector<Node*>* ShadowRoot::assignedNodesForSlot(const HTMLSlotElement& slot)
+const Vector<WeakPtr<Node>>* ShadowRoot::assignedNodesForSlot(const HTMLSlotElement& slot)
 {
     if (!m_slotAssignment)
         return nullptr;
@@ -308,9 +309,6 @@ static Optional<std::pair<AtomString, AtomString>> parsePartMapping(StringView m
 
 static ShadowRoot::PartMappings parsePartMappingsList(StringView mappingsListString)
 {
-    if (!RuntimeEnabledFeatures::sharedFeatures().cssShadowPartsEnabled())
-        return { };
-
     ShadowRoot::PartMappings mappings;
 
     const auto end = mappingsListString.length();
@@ -366,5 +364,12 @@ HTMLVideoElement* ShadowRoot::pictureInPictureElement() const
     return nullptr;
 }
 #endif
+
+Vector<RefPtr<WebAnimation>> ShadowRoot::getAnimations()
+{
+    return document().matchingAnimations([&] (Element& target) -> bool {
+        return target.containingShadowRoot() == this;
+    });
+}
 
 }

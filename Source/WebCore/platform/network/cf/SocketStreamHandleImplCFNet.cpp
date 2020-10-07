@@ -51,7 +51,7 @@
 
 #if PLATFORM(WIN)
 #include "LoaderRunLoopCF.h"
-#include <pal/spi/cf/CFNetworkSPI.h>
+#include <pal/spi/win/CFNetworkSPIWin.h>
 #endif
 
 #if PLATFORM(IOS_FAMILY)
@@ -64,7 +64,7 @@ extern "C" const CFStringRef _kCFStreamSocketSetNoDelay;
 #endif
 
 #if PLATFORM(COCOA)
-#import <pal/spi/cf/CFNetworkSPI.h>
+#include <pal/spi/cf/CFNetworkSPI.h>
 #endif
 
 #if PLATFORM(WIN)
@@ -154,6 +154,7 @@ void SocketStreamHandleImpl::scheduleStreams()
         removePACRunLoopSource();
 
     m_connectingSubstate = WaitingForConnect;
+    RELEASE_LOG(Network, "SocketStreamHandleImpl::scheduleStreams - m_connectionSubState is WaitingForConnect");
 }
 
 void* SocketStreamHandleImpl::retainSocketStreamHandle(void* info)
@@ -578,6 +579,7 @@ void SocketStreamHandleImpl::readStreamCallback(CFStreamEventType type)
                     return;
                 }
             }
+            RELEASE_LOG(Network, "SocketStreamHandleImpl::readStreamCallback - m_connectionSubState is Connected");
             m_connectingSubstate = Connected;
             m_state = Open;
             m_client.didOpenSocketStream(*this);

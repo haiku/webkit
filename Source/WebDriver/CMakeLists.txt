@@ -24,6 +24,7 @@ set(WebDriver_LIBRARIES
 set(WebDriver_SCRIPTS
     ${WEBKIT_DIR}/UIProcess/Automation/atoms/ElementAttribute.js
     ${WEBKIT_DIR}/UIProcess/Automation/atoms/ElementDisplayed.js
+    ${WEBKIT_DIR}/UIProcess/Automation/atoms/ElementEnabled.js
     ${WEBKIT_DIR}/UIProcess/Automation/atoms/EnterFullscreen.js
     ${WEBKIT_DIR}/UIProcess/Automation/atoms/FindNodes.js
     ${WEBKIT_DIR}/UIProcess/Automation/atoms/FormElementClear.js
@@ -40,6 +41,8 @@ MAKE_JS_FILE_ARRAYS(
 list(APPEND WebDriver_SOURCES ${DERIVED_SOURCES_WEBDRIVER_DIR}/WebDriverAtoms.cpp)
 
 WEBKIT_EXECUTABLE_DECLARE(WebDriver)
+
+add_dependencies(WebDriver JavaScriptCoreSharedScripts)
 
 WEBKIT_INCLUDE_CONFIG_FILES_IF_EXISTS()
 

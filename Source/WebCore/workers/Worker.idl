@@ -26,13 +26,14 @@
 
 [
     ActiveDOMObject,
-    Constructor(USVString scriptUrl, optional WorkerOptions options),
-    ConstructorCallWith=ScriptExecutionContext&RuntimeFlags,
-    ConstructorMayThrowException
+    Exposed=Window
 ] interface Worker : EventTarget {
-    void terminate();
+    [CallWith=ScriptExecutionContext&RuntimeFlags] constructor(USVString scriptUrl, optional WorkerOptions options);
 
-    [CallWith=GlobalObject, MayThrowException] void postMessage(any message, optional sequence<object> transfer = []);
+    undefined terminate();
+
+    [CallWith=GlobalObject, MayThrowException] undefined postMessage(any message, sequence<object> transfer);
+    [CallWith=GlobalObject, MayThrowException] undefined postMessage(any message, optional PostMessageOptions options);
     attribute EventHandler onmessage;
 };
 
@@ -40,4 +41,4 @@ dictionary WorkerOptions {
     DOMString name = "";
 };
 
-Worker implements AbstractWorker;
+Worker includes AbstractWorker;

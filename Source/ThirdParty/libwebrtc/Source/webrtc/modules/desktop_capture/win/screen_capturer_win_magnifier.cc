@@ -22,7 +22,7 @@
 #include "modules/desktop_capture/win/screen_capture_utils.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/timeutils.h"
+#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
@@ -37,10 +37,10 @@ DWORD GetTlsIndex() {
 
 // kMagnifierWindowClass has to be "Magnifier" according to the Magnification
 // API. The other strings can be anything.
-static LPCTSTR kMagnifierHostClass = L"ScreenCapturerWinMagnifierHost";
-static LPCTSTR kHostWindowName = L"MagnifierHost";
-static LPCTSTR kMagnifierWindowClass = L"Magnifier";
-static LPCTSTR kMagnifierWindowName = L"MagnifierWindow";
+static wchar_t kMagnifierHostClass[] = L"ScreenCapturerWinMagnifierHost";
+static wchar_t kHostWindowName[] = L"MagnifierHost";
+static wchar_t kMagnifierWindowClass[] = L"Magnifier";
+static wchar_t kMagnifierWindowName[] = L"MagnifierWindow";
 
 ScreenCapturerWinMagnifier::ScreenCapturerWinMagnifier() = default;
 ScreenCapturerWinMagnifier::~ScreenCapturerWinMagnifier() {
@@ -209,7 +209,7 @@ bool ScreenCapturerWinMagnifier::InitializeMagnifier() {
 
   desktop_dc_ = GetDC(nullptr);
 
-  mag_lib_handle_ = LoadLibrary(L"Magnification.dll");
+  mag_lib_handle_ = LoadLibraryW(L"Magnification.dll");
   if (!mag_lib_handle_)
     return false;
 
@@ -230,14 +230,15 @@ bool ScreenCapturerWinMagnifier::InitializeMagnifier() {
       !set_window_source_func_ || !set_window_filter_list_func_ ||
       !set_image_scaling_callback_func_) {
     RTC_LOG_F(LS_WARNING) << "Failed to initialize ScreenCapturerWinMagnifier: "
-                          << "library functions missing.";
+                             "library functions missing.";
     return false;
   }
 
   BOOL result = mag_initialize_func_();
   if (!result) {
     RTC_LOG_F(LS_WARNING) << "Failed to initialize ScreenCapturerWinMagnifier: "
-                          << "error from MagInitialize " << GetLastError();
+                             "error from MagInitialize "
+                          << GetLastError();
     return false;
   }
 
@@ -249,13 +250,14 @@ bool ScreenCapturerWinMagnifier::InitializeMagnifier() {
   if (!result) {
     mag_uninitialize_func_();
     RTC_LOG_F(LS_WARNING) << "Failed to initialize ScreenCapturerWinMagnifier: "
-                          << "error from GetModulehandleExA " << GetLastError();
+                             "error from GetModulehandleExA "
+                          << GetLastError();
     return false;
   }
 
   // Register the host window class. See the MSDN documentation of the
   // Magnification API for more infomation.
-  WNDCLASSEX wcex = {};
+  WNDCLASSEXW wcex = {};
   wcex.cbSize = sizeof(WNDCLASSEX);
   wcex.lpfnWndProc = &DefWindowProc;
   wcex.hInstance = hInstance;
@@ -263,28 +265,28 @@ bool ScreenCapturerWinMagnifier::InitializeMagnifier() {
   wcex.lpszClassName = kMagnifierHostClass;
 
   // Ignore the error which may happen when the class is already registered.
-  RegisterClassEx(&wcex);
+  RegisterClassExW(&wcex);
 
   // Create the host window.
   host_window_ =
-      CreateWindowEx(WS_EX_LAYERED, kMagnifierHostClass, kHostWindowName, 0, 0,
-                     0, 0, 0, nullptr, nullptr, hInstance, nullptr);
+      CreateWindowExW(WS_EX_LAYERED, kMagnifierHostClass, kHostWindowName, 0, 0,
+                      0, 0, 0, nullptr, nullptr, hInstance, nullptr);
   if (!host_window_) {
     mag_uninitialize_func_();
     RTC_LOG_F(LS_WARNING) << "Failed to initialize ScreenCapturerWinMagnifier: "
-                          << "error from creating host window "
+                             "error from creating host window "
                           << GetLastError();
     return false;
   }
 
   // Create the magnifier control.
-  magnifier_window_ = CreateWindow(kMagnifierWindowClass, kMagnifierWindowName,
-                                   WS_CHILD | WS_VISIBLE, 0, 0, 0, 0,
-                                   host_window_, nullptr, hInstance, nullptr);
+  magnifier_window_ = CreateWindowW(kMagnifierWindowClass, kMagnifierWindowName,
+                                    WS_CHILD | WS_VISIBLE, 0, 0, 0, 0,
+                                    host_window_, nullptr, hInstance, nullptr);
   if (!magnifier_window_) {
     mag_uninitialize_func_();
     RTC_LOG_F(LS_WARNING) << "Failed to initialize ScreenCapturerWinMagnifier: "
-                          << "error from creating magnifier window "
+                             "error from creating magnifier window "
                           << GetLastError();
     return false;
   }
@@ -299,7 +301,7 @@ bool ScreenCapturerWinMagnifier::InitializeMagnifier() {
   if (!result) {
     mag_uninitialize_func_();
     RTC_LOG_F(LS_WARNING) << "Failed to initialize ScreenCapturerWinMagnifier: "
-                          << "error from MagSetImageScalingCallback "
+                             "error from MagSetImageScalingCallback "
                           << GetLastError();
     return false;
   }
@@ -311,7 +313,8 @@ bool ScreenCapturerWinMagnifier::InitializeMagnifier() {
       mag_uninitialize_func_();
       RTC_LOG_F(LS_WARNING)
           << "Failed to initialize ScreenCapturerWinMagnifier: "
-          << "error from MagSetWindowFilterList " << GetLastError();
+             "error from MagSetWindowFilterList "
+          << GetLastError();
       return false;
     }
   }
@@ -334,11 +337,19 @@ void ScreenCapturerWinMagnifier::OnCaptured(void* data,
       captured_bytes_per_pixel != DesktopFrame::kBytesPerPixel) {
     RTC_LOG_F(LS_WARNING)
         << "Output format does not match the captured format: "
-        << "width = " << header.width << ", "
-        << "height = " << header.height << ", "
-        << "stride = " << header.stride << ", "
-        << "bpp = " << captured_bytes_per_pixel << ", "
-        << "pixel format RGBA ? "
+           "width = "
+        << header.width
+        << ", "
+           "height = "
+        << header.height
+        << ", "
+           "stride = "
+        << header.stride
+        << ", "
+           "bpp = "
+        << captured_bytes_per_pixel
+        << ", "
+           "pixel format RGBA ? "
         << (header.format == GUID_WICPixelFormat32bppRGBA) << ".";
     return;
   }

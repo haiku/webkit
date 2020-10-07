@@ -35,6 +35,13 @@
 namespace WebCore {
 using namespace JSC;
 
+static JSC_DECLARE_CUSTOM_GETTER(jsLocationInstanceFunctionReplaceNonCaching);
+
+JSC_DEFINE_CUSTOM_GETTER(jsLocationInstanceFunctionReplaceNonCaching, (JSGlobalObject* globalObject, EncodedJSValue, PropertyName propertyName))
+{
+    return nonCachingStaticFunctionGetterImpl<jsLocationInstanceFunctionReplace, 1>(globalObject, propertyName);
+}
+
 static bool getOwnPropertySlotCommon(JSLocation& thisObject, JSGlobalObject& lexicalGlobalObject, PropertyName propertyName, PropertySlot& slot)
 {
     VM& vm = lexicalGlobalObject.vm();
@@ -55,7 +62,7 @@ static bool getOwnPropertySlotCommon(JSLocation& thisObject, JSGlobalObject& lex
 
     // We only allow access to Location.replace() cross origin.
     if (propertyName == vm.propertyNames->replace) {
-        slot.setCustom(&thisObject, static_cast<unsigned>(PropertyAttribute::ReadOnly | PropertyAttribute::DontEnum), nonCachingStaticFunctionGetter<jsLocationInstanceFunctionReplace, 1>);
+        slot.setCustom(&thisObject, static_cast<unsigned>(PropertyAttribute::ReadOnly | PropertyAttribute::DontEnum), jsLocationInstanceFunctionReplaceNonCaching);
         return true;
     }
 
@@ -109,9 +116,6 @@ bool JSLocation::getOwnPropertySlotByIndex(JSObject* object, JSGlobalObject* lex
 static bool putCommon(JSLocation& thisObject, JSGlobalObject& lexicalGlobalObject, PropertyName propertyName)
 {
     VM& vm = lexicalGlobalObject.vm();
-    // Silently block access to toString and valueOf.
-    if (propertyName == vm.propertyNames->toString || propertyName == vm.propertyNames->valueOf)
-        return true;
 
     // Always allow assigning to the whole location.
     // However, alllowing assigning of pieces might inadvertently disclose parts of the original location.
@@ -166,13 +170,13 @@ bool JSLocation::putByIndex(JSCell* cell, JSGlobalObject* lexicalGlobalObject, u
     return JSObject::putByIndex(cell, lexicalGlobalObject, index, value, shouldThrow);
 }
 
-bool JSLocation::deleteProperty(JSCell* cell, JSGlobalObject* lexicalGlobalObject, PropertyName propertyName)
+bool JSLocation::deleteProperty(JSCell* cell, JSGlobalObject* lexicalGlobalObject, PropertyName propertyName, DeletePropertySlot& slot)
 {
     JSLocation* thisObject = jsCast<JSLocation*>(cell);
     // Only allow deleting by frames in the same origin.
     if (!BindingSecurity::shouldAllowAccessToDOMWindow(lexicalGlobalObject, thisObject->wrapped().window(), ThrowSecurityError))
         return false;
-    return Base::deleteProperty(thisObject, lexicalGlobalObject, propertyName);
+    return Base::deleteProperty(thisObject, lexicalGlobalObject, propertyName, slot);
 }
 
 bool JSLocation::deletePropertyByIndex(JSCell* cell, JSGlobalObject* lexicalGlobalObject, unsigned propertyName)

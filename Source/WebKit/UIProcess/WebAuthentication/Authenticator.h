@@ -29,17 +29,24 @@
 
 #include "WebAuthenticationFlags.h"
 #include "WebAuthenticationRequestData.h"
+#include <WebCore/AuthenticatorResponse.h>
 #include <WebCore/ExceptionData.h>
-#include <WebCore/PublicKeyCredentialData.h>
 #include <wtf/Forward.h>
 #include <wtf/RefCounted.h>
 #include <wtf/WeakPtr.h>
+#include <wtf/spi/cocoa/SecuritySPI.h>
+
+OBJC_CLASS LAContext;
+
+namespace WebCore {
+class AuthenticatorAssertionResponse;
+}
 
 namespace WebKit {
 
 class Authenticator : public RefCounted<Authenticator>, public CanMakeWeakPtr<Authenticator> {
 public:
-    using Respond = Variant<WebCore::PublicKeyCredentialData, WebCore::ExceptionData>;
+    using Respond = Variant<Ref<WebCore::AuthenticatorResponse>, WebCore::ExceptionData>;
 
     class Observer : public CanMakeWeakPtr<Observer> {
     public:
@@ -47,6 +54,10 @@ public:
         virtual void respondReceived(Respond&&) = 0;
         virtual void downgrade(Authenticator* id, Ref<Authenticator>&& downgradedAuthenticator) = 0;
         virtual void authenticatorStatusUpdated(WebAuthenticationStatus) = 0;
+        virtual void requestPin(uint64_t retries, CompletionHandler<void(const WTF::String&)>&&) = 0;
+        virtual void selectAssertionResponse(Vector<Ref<WebCore::AuthenticatorAssertionResponse>>&&, WebAuthenticationSource, CompletionHandler<void(WebCore::AuthenticatorAssertionResponse*)>&&) = 0;
+        virtual void decidePolicyForLocalAuthenticator(CompletionHandler<void(LocalAuthenticatorPolicy)>&&) = 0;
+        virtual void cancelRequest() = 0;
     };
 
     virtual ~Authenticator() = default;

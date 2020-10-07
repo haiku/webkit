@@ -37,7 +37,8 @@ WI.CallFrameTreeElement = class CallFrameTreeElement extends WI.GeneralTreeEleme
         this._callFrame = callFrame;
         this._isActiveCallFrame = false;
 
-         if (isAsyncBoundaryCallFrame) {
+        this._isAsyncBoundaryCallFrame = isAsyncBoundaryCallFrame;
+         if (this._isAsyncBoundaryCallFrame) {
             this.addClassName("async-boundary");
             this.selectable = false;
          }
@@ -55,12 +56,23 @@ WI.CallFrameTreeElement = class CallFrameTreeElement extends WI.GeneralTreeEleme
             // Set the tooltip on the entire tree element in onattach, once the element is created.
             this.tooltipHandledSeparately = true;
         }
+
+        this._isBlackboxed = WI.debuggerManager.blackboxDataForSourceCode(this._callFrame.sourceCodeLocation.sourceCode);
+        if (this._isBlackboxed) {
+            this.addClassName("blackboxed");
+            this.tooltipHandledSeparately = true;
+        }
     }
 
     // Public
 
     get callFrame() { return this._callFrame; }
-    get isActiveCallFrame() { return this._isActiveCallFrame; }
+    get isAsyncBoundaryCallFrame() { return this._isAsyncBoundaryCallFrame; }
+
+    get isActiveCallFrame()
+    {
+        return this._isActiveCallFrame;
+    }
 
     set isActiveCallFrame(x)
     {
@@ -84,10 +96,23 @@ WI.CallFrameTreeElement = class CallFrameTreeElement extends WI.GeneralTreeEleme
             if (this._callFrame.isTailDeleted)
                 tailCallSuffix = " " + WI.UIString("(Tail Call)");
             let tooltipPrefix = this.mainTitle + tailCallSuffix + "\n";
-            this._callFrame.sourceCodeLocation.populateLiveDisplayLocationTooltip(this.element, tooltipPrefix);
+
+            let tooltipSuffix = "";
+            if (this._isBlackboxed)
+                tooltipSuffix += "\n\n" + WI.UIString("Script ignored due to blackbox");
+
+            this._callFrame.sourceCodeLocation.populateLiveDisplayLocationTooltip(this.element, tooltipPrefix, tooltipSuffix);
         }
 
         this._updateStatus();
+    }
+
+    populateContextMenu(contextMenu, event)
+    {
+        if (this._callFrame.sourceCodeLocation)
+            WI.appendContextMenuItemsForSourceCode(contextMenu, this._callFrame.sourceCodeLocation);
+
+        super.populateContextMenu(contextMenu, event);
     }
 
     // Private

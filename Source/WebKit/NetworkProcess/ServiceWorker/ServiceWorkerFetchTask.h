@@ -51,17 +51,17 @@ class FormDataReference;
 namespace WebKit {
 
 class NetworkResourceLoader;
+class WebSWServerConnection;
 class WebSWServerToContextConnection;
 
 class ServiceWorkerFetchTask : public CanMakeWeakPtr<ServiceWorkerFetchTask> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    ServiceWorkerFetchTask(NetworkResourceLoader&, WebCore::ResourceRequest&&, WebCore::SWServerConnectionIdentifier, WebCore::ServiceWorkerIdentifier, WebCore::ServiceWorkerRegistrationIdentifier);
+    ServiceWorkerFetchTask(WebSWServerConnection&, NetworkResourceLoader&, WebCore::ResourceRequest&&, WebCore::SWServerConnectionIdentifier, WebCore::ServiceWorkerIdentifier, WebCore::ServiceWorkerRegistrationIdentifier, bool shouldSoftUpdate);
     ~ServiceWorkerFetchTask();
 
     void start(WebSWServerToContextConnection&);
     void cancelFromClient();
-    void fail(const WebCore::ResourceError& error) { didFail(error); }
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&);
 
     void continueDidReceiveFetchResponse();
@@ -70,11 +70,9 @@ public:
     WebCore::FetchIdentifier fetchIdentifier() const { return m_fetchIdentifier; }
     WebCore::ServiceWorkerIdentifier serviceWorkerIdentifier() const { return m_serviceWorkerIdentifier; }
 
-    void didNotHandle();
-
     WebCore::ResourceRequest takeRequest() { return WTFMove(m_currentRequest); }
-    bool wasHandled() const { return m_wasHandled; }
 
+    void cannotHandle();
     void contextClosed();
 
 private:
@@ -84,14 +82,17 @@ private:
     void didReceiveFormData(const IPC::FormDataReference&);
     void didFinish();
     void didFail(const WebCore::ResourceError&);
+    void didNotHandle();
 
     void startFetch();
 
     void timeoutTimerFired();
+    void softUpdateIfNeeded();
 
     template<typename Message> bool sendToServiceWorker(Message&&);
     template<typename Message> bool sendToClient(Message&&);
 
+    WeakPtr<WebSWServerConnection> m_swServerConnection;
     NetworkResourceLoader& m_loader;
     WeakPtr<WebSWServerToContextConnection> m_serviceWorkerConnection;
     WebCore::FetchIdentifier m_fetchIdentifier;
@@ -100,6 +101,9 @@ private:
     WebCore::ResourceRequest m_currentRequest;
     WebCore::Timer m_timeoutTimer;
     bool m_wasHandled { false };
+    bool m_isDone { false };
+    WebCore::ServiceWorkerRegistrationIdentifier m_serviceWorkerRegistrationIdentifier;
+    bool m_shouldSoftUpdate { false };
 };
 
 }

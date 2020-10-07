@@ -8,6 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <memory>
+
 #include "modules/desktop_capture/desktop_capture_options.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 
@@ -15,9 +17,9 @@
 #include "modules/desktop_capture/linux/screen_capturer_pipewire.h"
 #endif  // defined(WEBRTC_USE_PIPEWIRE)
 
-#if defined(USE_X11)
+#if defined(WEBRTC_USE_X11)
 #include "modules/desktop_capture/linux/screen_capturer_x11.h"
-#endif  // defined(USE_X11)
+#endif  // defined(WEBRTC_USE_X11)
 
 namespace webrtc {
 
@@ -30,9 +32,9 @@ std::unique_ptr<DesktopCapturer> DesktopCapturer::CreateRawScreenCapturer(
   }
 #endif  // defined(WEBRTC_USE_PIPEWIRE)
 
-#if defined(USE_X11)
+#if defined(WEBRTC_USE_X11)
   return ScreenCapturerX11::CreateRawScreenCapturer(options);
-#endif  // defined(USE_X11)
+#endif  // defined(WEBRTC_USE_X11)
 
   return nullptr;
 }

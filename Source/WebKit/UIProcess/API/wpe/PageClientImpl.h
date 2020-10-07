@@ -41,7 +41,7 @@ enum class DOMPasteAccessResponse : uint8_t;
 
 namespace WebKit {
 
-class ScrollGestureController;
+struct InputMethodState;
 struct UserMessage;
 
 enum class UndoOrRedo : bool;
@@ -62,6 +62,7 @@ public:
 #endif
 
     void sendMessageToWebView(UserMessage&&, CompletionHandler<void(UserMessage&&)>&&);
+    void setInputMethodState(Optional<InputMethodState>&&);
 
 private:
     // PageClient
@@ -128,8 +129,8 @@ private:
 
     void didStartProvisionalLoadForMainFrame() override;
     void didFirstVisuallyNonEmptyLayoutForMainFrame() override;
-    void didFinishLoadForMainFrame() override;
-    void didFailLoadForMainFrame() override;
+    void didFinishNavigation(API::Navigation*) override;
+    void didFailNavigation(API::Navigation*) override;
     void didSameDocumentNavigationForMainFrame(SameDocumentNavigationType) override;
 
     void didChangeBackgroundColor() override;
@@ -156,8 +157,6 @@ private:
     void beganExitFullScreen(const WebCore::IntRect& initialFrame, const WebCore::IntRect& finalFrame) override;
 #endif
 
-    void didFinishProcessingAllPendingMouseEvents() final { }
-
     IPC::Attachment hostFileDescriptor() final;
     void requestDOMPasteAccess(const WebCore::IntRect&, const String&, CompletionHandler<void(WebCore::DOMPasteAccessResponse)>&&) final;
 
@@ -165,9 +164,9 @@ private:
 
     void didChangeWebPageID() const override;
 
-    WKWPE::View& m_view;
+    void selectionDidChange() override;
 
-    std::unique_ptr<ScrollGestureController> m_scrollGestureController;
+    WKWPE::View& m_view;
 };
 
 } // namespace WebKit

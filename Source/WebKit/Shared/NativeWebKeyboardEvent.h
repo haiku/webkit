@@ -26,23 +26,22 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NativeWebKeyboardEvent_h
-#define NativeWebKeyboardEvent_h
+#pragma once
 
-#include "WebEvent.h"
+#include "WebKeyboardEvent.h"
 
 #if USE(APPKIT)
 #include <wtf/RetainPtr.h>
 OBJC_CLASS NSView;
-
-namespace WebCore {
-struct KeypressCommand;
-}
 #endif
 
 #if PLATFORM(GTK)
 #include <WebCore/GUniquePtrGtk.h>
+#if USE(GTK4)
+typedef struct _GdkEvent GdkEvent;
+#else
 typedef union _GdkEvent GdkEvent;
+#endif
 #endif
 
 #if PLATFORM(HAIKU)
@@ -63,6 +62,7 @@ struct wpe_input_keyboard_event;
 #endif
 
 namespace WebKit {
+struct EditingRange;
 
 class NativeWebKeyboardEvent : public WebKeyboardEvent {
 public:
@@ -71,31 +71,30 @@ public:
     NativeWebKeyboardEvent(NSEvent *, bool handledByInputMethod, bool replacesSoftSpace, const Vector<WebCore::KeypressCommand>&);
 #elif PLATFORM(GTK)
     NativeWebKeyboardEvent(const NativeWebKeyboardEvent&);
-    enum class HandledByInputMethod : bool { No, Yes };
-    enum class FakedForComposition : bool { No, Yes };
-    NativeWebKeyboardEvent(GdkEvent*, const String&, HandledByInputMethod, FakedForComposition, Vector<String>&& commands);
+    NativeWebKeyboardEvent(GdkEvent*, const String&, Vector<String>&& commands);
+    NativeWebKeyboardEvent(const String&, Optional<Vector<WebCore::CompositionUnderline>>&&, Optional<EditingRange>&&);
+    NativeWebKeyboardEvent(Type, const String& text, const String& key, const String& code, const String& keyIdentifier, int windowsVirtualKeyCode, int nativeVirtualKeyCode, Vector<String>&& commands, bool isKeypad, OptionSet<Modifier>);
 #elif PLATFORM(IOS_FAMILY)
     enum class HandledByInputMethod : bool { No, Yes };
     NativeWebKeyboardEvent(::WebEvent *, HandledByInputMethod);
 #elif USE(LIBWPE)
-    NativeWebKeyboardEvent(struct wpe_input_keyboard_event*);
+    enum class HandledByInputMethod : bool { No, Yes };
+    NativeWebKeyboardEvent(struct wpe_input_keyboard_event*, const String&, HandledByInputMethod, Optional<Vector<WebCore::CompositionUnderline>>&&, Optional<EditingRange>&&);
 #elif PLATFORM(WIN)
-    NativeWebKeyboardEvent(HWND, UINT message, WPARAM, LPARAM);
+    NativeWebKeyboardEvent(HWND, UINT message, WPARAM, LPARAM, Vector<MSG>&& pendingCharEvents);
 #endif
 
 #if USE(APPKIT)
     NSEvent *nativeEvent() const { return m_nativeEvent.get(); }
 #elif PLATFORM(GTK)
     GdkEvent* nativeEvent() const { return m_nativeEvent.get(); }
-    const String& text() const { return m_text; }
-    bool handledByInputMethod() const { return m_handledByInputMethod == HandledByInputMethod::Yes; }
-    bool fakedForComposition() const { return m_fakedForComposition == FakedForComposition::Yes; }
 #elif PLATFORM(HAIKU)
     const BMessage* nativeEvent() const { return m_nativeEvent; }
 #elif PLATFORM(IOS_FAMILY)
     ::WebEvent* nativeEvent() const { return m_nativeEvent.get(); }
 #elif PLATFORM(WIN)
     const MSG* nativeEvent() const { return &m_nativeEvent; }
+    const Vector<MSG>& pendingCharEvents() const { return m_pendingCharEvents; }
 #else
     const void* nativeEvent() const { return nullptr; }
 #endif
@@ -105,18 +104,14 @@ private:
     RetainPtr<NSEvent> m_nativeEvent;
 #elif PLATFORM(GTK)
     GUniquePtr<GdkEvent> m_nativeEvent;
-    String m_text;
-    HandledByInputMethod m_handledByInputMethod;
-    FakedForComposition m_fakedForComposition;
 #elif PLATFORM(HAIKU)
     BMessage* m_nativeEvent;
 #elif PLATFORM(IOS_FAMILY)
     RetainPtr<::WebEvent> m_nativeEvent;
 #elif PLATFORM(WIN)
     MSG m_nativeEvent;
+    Vector<MSG> m_pendingCharEvents;
 #endif
 };
 
 } // namespace WebKit
-
-#endif // NativeWebKeyboardEvent_h

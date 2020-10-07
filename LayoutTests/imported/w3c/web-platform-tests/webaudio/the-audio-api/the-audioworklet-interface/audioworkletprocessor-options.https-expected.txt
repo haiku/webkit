@@ -1,7 +1,9 @@
-CONSOLE MESSAGE: line 22: TypeError: undefined is not an object (evaluating 'context.audioWorklet.addModule')
 
-Harness Error (FAIL), message = TypeError: undefined is not an object (evaluating 'context.audioWorklet.addModule')
+Harness Error (TIMEOUT), message = null
 
-PASS # AUDIT TASK RUNNER STARTED. 
-PASS > [valid-processor-data]  
+PASS # AUDIT TASK RUNNER STARTED.
+TIMEOUT Executing "valid-processor-data" Test timed out
+NOTRUN Executing "empty-option"
+NOTRUN Audit report
+PASS > [valid-processor-data]
 

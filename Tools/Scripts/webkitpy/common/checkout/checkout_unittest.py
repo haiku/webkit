@@ -1,4 +1,5 @@
 # Copyright (C) 2010 Google Inc. All rights reserved.
+# Copyright (C) 2020 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -26,11 +27,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import codecs
+import logging
 import os
-import shutil
-import tempfile
 import unittest
+
+from webkitcorepy import string_utils
 
 from webkitpy.common.checkout.checkout import Checkout
 from webkitpy.common.checkout.changelog import ChangeLogEntry
@@ -41,9 +42,9 @@ from webkitpy.common.system.executive import Executive, ScriptError
 from webkitpy.common.system.filesystem import FileSystem  # FIXME: This should not be needed.
 from webkitpy.common.system.filesystem_mock import MockFileSystem
 from webkitpy.common.system.executive_mock import MockExecutive
-from webkitpy.common.system.outputcapture import OutputCapture
-from webkitpy.common.unicode_compatibility import encode_if_necessary
 from webkitpy.thirdparty.mock import Mock
+
+from webkitcorepy import OutputCapture
 
 
 _changelog1entry1 = u"""2010-03-25  Fr\u00e9d\u00e9ric Wang  <fred.wang@free.fr>
@@ -115,7 +116,7 @@ _changelog5 = u"""2014-07-17  David Kilzer  <ddkilzer@apple.com>
 
 _changelog6 = u"""2014-06-23  Daniel Bates  <dabates@apple.com>
 
-        Rolling out r170340 and r170339.
+        Reverting r170340 and r170339.
 
         Changeset r170339 broke the Apple Windows Debug and Release builds.
 
@@ -279,8 +280,8 @@ Filler change.
         commit_message.message_lines = commit_message.message_lines[1:]
         self.assertMultiLineEqual(commit_message.message(), expected_commit_message)
 
-    def test_commit_message_for_one_rollout_changelog(self):
-        expected_commit_message = u"""Rolling out r170340 and r170339.
+    def test_commit_message_for_one_revert_changelog(self):
+        expected_commit_message = u"""Reverting r170340 and r170339.
 
 Changeset r170339 broke the Apple Windows Debug and Release builds.
 
@@ -305,8 +306,8 @@ Patch by Daniel Bates <dabates@apple.com> on 2014-06-23
         commit_message.message_lines = commit_message.message_lines[1:]
         self.assertMultiLineEqual(commit_message.message(), expected_commit_message)
 
-    def test_commit_message_for_rollout_changelogs_with_different_directories(self):
-        expected_commit_message = u"""Rolling out r170340 and r170339.
+    def test_commit_message_for_revert_changelogs_with_different_directories(self):
+        expected_commit_message = u"""Reverting r170340 and r170339.
 
 Changeset r170339 broke the Apple Windows Debug and Release builds.
 
@@ -344,7 +345,7 @@ class CheckoutTest(unittest.TestCase):
             # so we encode our unicode ChangeLog down to a utf-8 stream.
             # The ChangeLog utf-8 decoding should ignore invalid codepoints.
             invalid_utf8 = b'\255'
-            return encode_if_necessary(_changelog1) + invalid_utf8
+            return string_utils.encode(_changelog1) + invalid_utf8
         checkout = self._make_checkout()
         checkout._scm.contents_at_revision = mock_contents_at_revision
         entry = checkout._latest_entry_for_changelog_at_revision("foo", "bar")
@@ -448,5 +449,9 @@ class CheckoutTest(unittest.TestCase):
         mock_patch = Mock()
         mock_patch.contents = lambda: "foo"
         mock_patch.reviewer = lambda: None
-        expected_logs = "MOCK run_command: ['svn-apply', '--force'], cwd=/mock-checkout, input=foo\n"
-        OutputCapture().assert_outputs(self, checkout.apply_patch, [mock_patch], expected_logs=expected_logs)
+        with OutputCapture(level=logging.INFO) as captured:
+            checkout.apply_patch(mock_patch)
+        self.assertEqual(
+            captured.root.log.getvalue(),
+            "MOCK run_command: ['svn-apply', '--force'], cwd=/mock-checkout, input=foo\n",
+        )

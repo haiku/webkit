@@ -361,7 +361,7 @@ TEST_P(TextureUploadFormatTest, All)
             (EncodeNormUint<4>(srcVals[2]) << 4) | (EncodeNormUint<4>(srcVals[3]) << 0))};
         ZeroAndCopy(srcBuffer, src);
 
-        // fnTest({GL_RGBA4, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4}, {16,16,16,16});
+        fnTest({GL_RGBA4, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4}, {16, 16, 16, 16});
         fnTest({GL_RGBA, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4}, {16, 16, 16, 16});
     }
 
@@ -372,7 +372,6 @@ TEST_P(TextureUploadFormatTest, All)
             (EncodeNormUint<5>(srcVals[2]) << 1) | (EncodeNormUint<1>(srcVals[3]) << 0))};
         ZeroAndCopy(srcBuffer, src);
 
-        fnTest({GL_RGBA4, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1}, {8, 8, 8, 255});
         fnTest({GL_RGBA, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1}, {8, 8, 8, 255});
     }
 
@@ -608,11 +607,4 @@ TEST_P(TextureUploadFormatTest, All)
     EXPECT_GL_NO_ERROR();
 }
 
-ANGLE_INSTANTIATE_TEST(TextureUploadFormatTest,
-                       ES3_D3D11(),
-                       ES2_D3D9(),
-                       ES2_OPENGL(),
-                       ES3_OPENGL(),
-                       ES2_OPENGLES(),
-                       ES3_OPENGLES(),
-                       ES2_VULKAN());
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(TextureUploadFormatTest);

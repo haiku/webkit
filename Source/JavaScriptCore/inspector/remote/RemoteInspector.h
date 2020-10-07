@@ -51,10 +51,9 @@ typedef void* TargetListing;
 
 #if USE(GLIB)
 #include <wtf/glib/GRefPtr.h>
+#include <wtf/glib/SocketConnection.h>
 typedef GRefPtr<GVariant> TargetListing;
 typedef struct _GCancellable GCancellable;
-typedef struct _GDBusConnection GDBusConnection;
-typedef struct _GDBusInterfaceVTable GDBusInterfaceVTable;
 #endif
 
 #if USE(INSPECTOR_SOCKET_SERVER)
@@ -84,7 +83,7 @@ class JS_EXPORT_PRIVATE RemoteInspector final
 #endif
 {
 public:
-    class Client {
+    class JS_EXPORT_PRIVATE Client {
     public:
         struct Capabilities {
             bool remoteAutomationAllowed : 1;
@@ -94,8 +93,17 @@ public:
 
         struct SessionCapabilities {
             bool acceptInsecureCertificates { false };
-#if USE(GLIB)
+#if USE(GLIB) || USE(INSPECTOR_SOCKET_SERVER)
             Vector<std::pair<String, String>> certificates;
+            struct Proxy {
+                String type;
+                Optional<String> ftpURL;
+                Optional<String> httpURL;
+                Optional<String> httpsURL;
+                Optional<String> socksURL;
+                Vector<String> ignoreAddressList;
+            };
+            Optional<Proxy> proxy;
 #endif
 #if PLATFORM(COCOA)
             Optional<bool> allowInsecureMediaCapture;
@@ -108,11 +116,17 @@ public:
         virtual String browserName() const { return { }; }
         virtual String browserVersion() const { return { }; }
         virtual void requestAutomationSession(const String& sessionIdentifier, const SessionCapabilities&) = 0;
+#if USE(INSPECTOR_SOCKET_SERVER)
+        virtual void closeAutomationSession() = 0;
+#endif
     };
 
+#if PLATFORM(COCOA)
+    static void setNeedMachSandboxExtension(bool needExtension) { needMachSandboxExtension = needExtension; }
+#endif
     static void startDisabled();
     static RemoteInspector& singleton();
-    friend class NeverDestroyed<RemoteInspector>;
+    friend class LazyNeverDestroyed<RemoteInspector>;
 
     void registerTarget(RemoteControllableTarget*);
     void unregisterTarget(RemoteControllableTarget*);
@@ -153,7 +167,7 @@ public:
     void sendMessageToTarget(TargetID, const char* message);
 #endif
 #if USE(INSPECTOR_SOCKET_SERVER)
-    void requestAutomationSession(const String& sessionID, const Client::SessionCapabilities&);
+    void requestAutomationSession(String&& sessionID, const Client::SessionCapabilities&);
 
     bool isConnected() const { return !!m_clientConnection; }
     void connect(ConnectionID);
@@ -173,8 +187,8 @@ private:
     void setupXPCConnectionIfNeeded();
 #endif
 #if USE(GLIB)
-    void setupConnection(GRefPtr<GDBusConnection>&&);
-    static const GDBusInterfaceVTable s_interfaceVTable;
+    void setupConnection(Ref<SocketConnection>&&);
+    static const SocketConnection::MessageHandlers& messageHandlers();
 
     void receivedGetTargetListMessage();
     void receivedSetupMessage(TargetID);
@@ -200,9 +214,9 @@ private:
     void sendAutomaticInspectionCandidateMessage();
 
 #if PLATFORM(COCOA)
-    void xpcConnectionReceivedMessage(RemoteInspectorXPCConnection*, NSString *messageName, NSDictionary *userInfo) override;
-    void xpcConnectionFailed(RemoteInspectorXPCConnection*) override;
-    void xpcConnectionUnhandledMessage(RemoteInspectorXPCConnection*, xpc_object_t) override;
+    void xpcConnectionReceivedMessage(RemoteInspectorXPCConnection*, NSString *messageName, NSDictionary *userInfo) final;
+    void xpcConnectionFailed(RemoteInspectorXPCConnection*) final;
+    void xpcConnectionUnhandledMessage(RemoteInspectorXPCConnection*, xpc_object_t) final;
 
     void receivedSetupMessage(NSDictionary *userInfo);
     void receivedDataMessage(NSDictionary *userInfo);
@@ -216,8 +230,8 @@ private:
     void receivedAutomationSessionRequestMessage(NSDictionary *userInfo);
 #endif
 #if USE(INSPECTOR_SOCKET_SERVER)
-    HashMap<String, CallHandler>& dispatchMap() override;
-    void didClose(ConnectionID) override;
+    HashMap<String, CallHandler>& dispatchMap() final;
+    void didClose(RemoteInspectorSocketEndpoint&, ConnectionID) final;
 
     void sendWebInspectorEvent(const String&);
 
@@ -232,6 +246,9 @@ private:
     String backendCommands() const;
 #endif
     static bool startEnabled;
+#if PLATFORM(COCOA)
+    static std::atomic<bool> needMachSandboxExtension;
+#endif
 
     // Targets can be registered from any thread at any time.
     // Any target can send messages over the XPC connection.
@@ -247,7 +264,7 @@ private:
     RefPtr<RemoteInspectorXPCConnection> m_relayConnection;
 #endif
 #if USE(GLIB)
-    GRefPtr<GDBusConnection> m_dbusConnection;
+    RefPtr<SocketConnection> m_socketConnection;
     GRefPtr<GCancellable> m_cancellable;
 #endif
 

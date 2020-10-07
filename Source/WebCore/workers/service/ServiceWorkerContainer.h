@@ -29,14 +29,13 @@
 
 #include "ActiveDOMObject.h"
 #include "EventTarget.h"
-#include "GenericEventQueue.h"
 #include "IDLTypes.h"
+#include "JSDOMPromiseDeferred.h"
 #include "SWClientConnection.h"
 #include "SWServer.h"
 #include "ServiceWorkerJobClient.h"
 #include "ServiceWorkerRegistration.h"
 #include "ServiceWorkerRegistrationOptions.h"
-#include "SuspendableTaskQueue.h"
 #include "WorkerType.h"
 #include <wtf/Threading.h>
 
@@ -65,13 +64,14 @@ public:
 
     using RegistrationOptions = ServiceWorkerRegistrationOptions;
     void addRegistration(const String& scriptURL, const RegistrationOptions&, Ref<DeferredPromise>&&);
-    void removeRegistration(const URL& scopeURL, Ref<DeferredPromise>&&);
+    void unregisterRegistration(ServiceWorkerRegistrationIdentifier, DOMPromiseDeferred<IDLBoolean>&&);
     void updateRegistration(const URL& scopeURL, const URL& scriptURL, WorkerType, RefPtr<DeferredPromise>&&);
 
     void getRegistration(const String& clientURL, Ref<DeferredPromise>&&);
     void updateRegistrationState(ServiceWorkerRegistrationIdentifier, ServiceWorkerRegistrationState, const Optional<ServiceWorkerData>&);
-    void fireUpdateFoundEvent(ServiceWorkerRegistrationIdentifier);
-    void fireControllerChangeEvent();
+    void updateWorkerState(ServiceWorkerIdentifier, ServiceWorkerState);
+    void queueTaskToFireUpdateFoundEvent(ServiceWorkerRegistrationIdentifier);
+    void queueTaskToDispatchControllerChangeEvent();
 
     void postMessage(MessageWithMessagePorts&&, ServiceWorkerData&& sourceData, String&& sourceOrigin);
 
@@ -94,7 +94,6 @@ public:
 
 private:
     bool addEventListener(const AtomString& eventType, Ref<EventListener>&&, const AddEventListenerOptions& = { }) final;
-    void enqueueTask(Function<void()>&&);
 
     void scheduleJob(std::unique_ptr<ServiceWorkerJob>&&);
 
@@ -102,7 +101,7 @@ private:
     void jobResolvedWithRegistration(ServiceWorkerJob&, ServiceWorkerRegistrationData&&, ShouldNotifyWhenResolved) final;
     void jobResolvedWithUnregistrationResult(ServiceWorkerJob&, bool unregistrationResult) final;
     void startScriptFetchForJob(ServiceWorkerJob&, FetchOptions::Cache) final;
-    void jobFinishedLoadingScript(ServiceWorkerJob&, const String& script, const ContentSecurityPolicyResponseHeaders&, const String& referrerPolicy) final;
+    void jobFinishedLoadingScript(ServiceWorkerJob&, const String& script, const CertificateInfo&, const ContentSecurityPolicyResponseHeaders&, const String& referrerPolicy) final;
     void jobFailedLoadingScript(ServiceWorkerJob&, const ResourceError&, Exception&&) final;
 
     void notifyFailedFetchingScript(ServiceWorkerJob&, const ResourceError&);
@@ -144,7 +143,8 @@ private:
 
     uint64_t m_lastOngoingSettledRegistrationIdentifier { 0 };
     HashMap<uint64_t, ServiceWorkerRegistrationKey> m_ongoingSettledRegistrations;
-    UniqueRef<GenericEventQueue> m_messageQueue;
+    bool m_shouldDeferMessageEvents { false };
+    Vector<Ref<Event>> m_deferredMessageEvents;
 };
 
 } // namespace WebCore

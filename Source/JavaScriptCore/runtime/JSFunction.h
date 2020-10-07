@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 1999-2000 Harri Porten (porten@kde.org)
- *  Copyright (C) 2003-2019 Apple Inc. All rights reserved.
+ *  Copyright (C) 2003-2020 Apple Inc. All rights reserved.
  *  Copyright (C) 2007 Cameron Zwarich (cwzwarich@uwaterloo.ca)
  *  Copyright (C) 2007 Maks Orlovich
  *
@@ -49,7 +49,7 @@ class Signature;
 }
 
 
-JS_EXPORT_PRIVATE EncodedJSValue JSC_HOST_CALL callHostFunctionAsConstructor(JSGlobalObject*, CallFrame*);
+JS_EXPORT_PRIVATE JSC_DECLARE_HOST_FUNCTION(callHostFunctionAsConstructor);
 
 JS_EXPORT_PRIVATE String getCalculatedDisplayName(VM&, JSObject*);
 
@@ -61,6 +61,7 @@ class JSFunction : public JSCallee {
     friend class InternalFunction;
 
 public:
+    static constexpr uintptr_t rareDataTag = 0x1;
     
     template<typename CellType, SubspaceAccess>
     static IsoSubspace* subspaceFor(VM& vm)
@@ -69,7 +70,7 @@ public:
     }
     
     typedef JSCallee Base;
-    static constexpr unsigned StructureFlags = Base::StructureFlags | OverridesGetOwnPropertySlot | OverridesGetPropertyNames | OverridesGetCallData;
+    static constexpr unsigned StructureFlags = Base::StructureFlags | OverridesGetOwnPropertySlot | OverridesAnyFormOfGetPropertyNames | OverridesGetCallData;
 
     static size_t allocationSize(Checked<size_t> inlineCapacity)
     {
@@ -79,8 +80,7 @@ public:
 
     static Structure* selectStructureForNewFuncExp(JSGlobalObject*, FunctionExecutable*);
 
-    JS_EXPORT_PRIVATE static JSFunction* create(VM&, JSGlobalObject*, int length, const String& name, NativeFunction, Intrinsic = NoIntrinsic, NativeFunction nativeConstructor = callHostFunctionAsConstructor, const DOMJIT::Signature* = nullptr);
-    JS_EXPORT_PRIVATE static JSFunction* createFunctionThatMasqueradesAsUndefined(VM&, JSGlobalObject*, int length, const String& name, NativeFunction, Intrinsic = NoIntrinsic, NativeFunction nativeConstructor = callHostFunctionAsConstructor, const DOMJIT::Signature* = nullptr);
+    JS_EXPORT_PRIVATE static JSFunction* create(VM&, JSGlobalObject*, unsigned length, const String& name, NativeFunction, Intrinsic = NoIntrinsic, NativeFunction nativeConstructor = callHostFunctionAsConstructor, const DOMJIT::Signature* = nullptr);
     
     static JSFunction* createWithInvalidatedReallocationWatchpoint(VM&, FunctionExecutable*, JSScope*);
 
@@ -91,7 +91,13 @@ public:
     JS_EXPORT_PRIVATE String displayName(VM&);
     JS_EXPORT_PRIVATE const String calculatedDisplayName(VM&);
 
-    ExecutableBase* executable() const { return m_executable.get(); }
+    ExecutableBase* executable() const
+    {
+        uintptr_t executableOrRareData = m_executableOrRareData;
+        if (executableOrRareData & rareDataTag)
+            return bitwise_cast<FunctionRareData*>(executableOrRareData & ~rareDataTag)->executable();
+        return bitwise_cast<ExecutableBase*>(executableOrRareData);
+    }
 
     // To call any of these methods include JSFunctionInlines.h
     bool isHostFunction() const;
@@ -111,49 +117,34 @@ public:
     TaggedNativeFunction nativeFunction();
     TaggedNativeFunction nativeConstructor();
 
-    static ConstructType getConstructData(JSCell*, ConstructData&);
-    static CallType getCallData(JSCell*, CallData&);
+    JS_EXPORT_PRIVATE static CallData getConstructData(JSCell*);
+    JS_EXPORT_PRIVATE static CallData getCallData(JSCell*);
 
-    static inline ptrdiff_t offsetOfExecutable()
+    static inline ptrdiff_t offsetOfExecutableOrRareData()
     {
-        return OBJECT_OFFSETOF(JSFunction, m_executable);
+        return OBJECT_OFFSETOF(JSFunction, m_executableOrRareData);
     }
 
-    static inline ptrdiff_t offsetOfRareData()
+    FunctionRareData* ensureRareData(VM& vm)
     {
-        return OBJECT_OFFSETOF(JSFunction, m_rareData);
-    }
-
-    static inline ptrdiff_t offsetOfGlobalObject()
-    {
-        return OBJECT_OFFSETOF(JSFunction, m_globalObject);
-    }
-
-    FunctionRareData* rareData(VM& vm)
-    {
-        if (UNLIKELY(!m_rareData))
+        uintptr_t executableOrRareData = m_executableOrRareData;
+        if (UNLIKELY(!(executableOrRareData & rareDataTag)))
             return allocateRareData(vm);
-        return m_rareData.get();
+        return bitwise_cast<FunctionRareData*>(executableOrRareData & ~rareDataTag);
     }
 
     FunctionRareData* ensureRareDataAndAllocationProfile(JSGlobalObject*, unsigned inlineCapacity);
 
-    FunctionRareData* rareData()
+    FunctionRareData* rareData() const
     {
-        FunctionRareData* rareData = m_rareData.get();
-
-        // The JS thread may be concurrently creating the rare data
-        // If we see it, we want to ensure it has been properly created
-        WTF::loadLoadFence();
-
-        return rareData;
+        uintptr_t executableOrRareData = m_executableOrRareData;
+        if (executableOrRareData & rareDataTag)
+            return bitwise_cast<FunctionRareData*>(executableOrRareData & ~rareDataTag);
+        return nullptr;
     }
-
-    JSGlobalObject* globalObject() const { return m_globalObject.get(); }
 
     bool isHostOrBuiltinFunction() const;
     bool isBuiltinFunction() const;
-    bool isAnonymousBuiltinFunction() const;
     JS_EXPORT_PRIVATE bool isHostFunctionNonInline() const;
     bool isClassConstructorFunction() const;
 
@@ -172,11 +163,13 @@ public:
     };
     PropertyStatus reifyLazyPropertyIfNeeded(VM&, JSGlobalObject*, PropertyName);
 
+    bool canAssumeNameAndLengthAreOriginal(VM&);
+
 protected:
-    JS_EXPORT_PRIVATE JSFunction(VM&, JSGlobalObject*, Structure*);
+    JS_EXPORT_PRIVATE JSFunction(VM&, NativeExecutable*, JSGlobalObject*, Structure*);
     JSFunction(VM&, FunctionExecutable*, JSScope*, Structure*);
 
-    void finishCreation(VM&, NativeExecutable*, int length, const String& name);
+    void finishCreation(VM&, NativeExecutable*, unsigned length, const String& name);
     void finishCreation(VM&);
 
     static bool getOwnPropertySlot(JSObject*, JSGlobalObject*, PropertyName, PropertySlot&);
@@ -185,7 +178,7 @@ protected:
 
     static bool put(JSCell*, JSGlobalObject*, PropertyName, JSValue, PutPropertySlot&);
 
-    static bool deleteProperty(JSCell*, JSGlobalObject*, PropertyName);
+    static bool deleteProperty(JSCell*, JSGlobalObject*, PropertyName, DeletePropertySlot&);
 
     static void visitChildren(JSCell*, SlotVisitor&);
 
@@ -216,20 +209,15 @@ private:
     PropertyStatus reifyLazyNameIfNeeded(VM&, JSGlobalObject*, PropertyName);
     PropertyStatus reifyLazyBoundNameIfNeeded(VM&, JSGlobalObject*, PropertyName);
 
-#if ASSERT_DISABLED
-    void assertTypeInfoFlagInvariants() { }
-#else
+#if ASSERT_ENABLED
     void assertTypeInfoFlagInvariants();
+#else
+    void assertTypeInfoFlagInvariants() { }
 #endif
 
     friend class LLIntOffsetsExtractor;
 
-    static EncodedJSValue argumentsGetter(JSGlobalObject*, EncodedJSValue, PropertyName);
-    static EncodedJSValue callerGetter(JSGlobalObject*, EncodedJSValue, PropertyName);
-
-    WriteBarrier<ExecutableBase> m_executable;
-    WriteBarrier<FunctionRareData> m_rareData;
-    WriteBarrier<JSGlobalObject> m_globalObject;
+    uintptr_t m_executableOrRareData;
 };
 
 class JSStrictFunction final : public JSFunction {

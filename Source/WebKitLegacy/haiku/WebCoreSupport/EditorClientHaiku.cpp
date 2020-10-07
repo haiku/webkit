@@ -56,10 +56,11 @@ EditorClientHaiku::EditorClientHaiku(BWebPage* page)
 {
 }
 
-bool EditorClientHaiku::shouldDeleteRange(Range* range)
+bool EditorClientHaiku::shouldDeleteRange(const Optional<SimpleRange>& range)
 {
     BMessage message(EDITOR_DELETE_RANGE);
-    message.AddPointer("range", range);
+    if (range)
+        message.AddPointer("range", &*range);
     dispatchMessage(message);
     return true;
 }
@@ -98,65 +99,70 @@ int EditorClientHaiku::spellCheckerDocumentTag()
     return 0;
 }
 
-bool EditorClientHaiku::shouldBeginEditing(WebCore::Range* range)
+bool EditorClientHaiku::shouldBeginEditing(const SimpleRange& range)
 {
     BMessage message(EDITOR_BEGIN_EDITING);
-    message.AddPointer("range", range);
+    message.AddPointer("range", &range);
     dispatchMessage(message);
     return true;
 }
 
-bool EditorClientHaiku::shouldEndEditing(WebCore::Range* range)
+bool EditorClientHaiku::shouldEndEditing(const SimpleRange& range)
 {
     BMessage message(EDITOR_END_EDITING);
-    message.AddPointer("range", range);
+    message.AddPointer("range", &range);
     dispatchMessage(message);
     return true;
 }
 
-bool EditorClientHaiku::shouldInsertNode(Node* node, Range* range, EditorInsertAction action)
+bool EditorClientHaiku::shouldInsertNode(Node& node, const Optional<SimpleRange>& range, EditorInsertAction action)
 {
     BMessage message(EDITOR_INSERT_NODE);
-    message.AddPointer("node", node);
-    message.AddPointer("range", range);
+    message.AddPointer("node", &node);
+    if (range)
+        message.AddPointer("range", &*range);
     message.AddInt32("action", (int32)action);
     dispatchMessage(message);
     return true;
 }
 
-bool EditorClientHaiku::shouldInsertText(const String& text, Range* range, EditorInsertAction action)
+bool EditorClientHaiku::shouldInsertText(const String& text, const Optional<SimpleRange>& range, EditorInsertAction action)
 {
     BMessage message(EDITOR_INSERT_TEXT);
     message.AddString("text", text);
-    message.AddPointer("range", range);
+    if (range)
+        message.AddPointer("range", &*range);
     message.AddInt32("action", (int32)action);
     dispatchMessage(message);
     return true;
 }
 
-bool EditorClientHaiku::shouldChangeSelectedRange(Range* fromRange, Range* toRange,
+bool EditorClientHaiku::shouldChangeSelectedRange(const Optional<SimpleRange>& fromRange, const Optional<SimpleRange>& toRange,
     EAffinity affinity, bool stillSelecting)
 {
     BMessage message(EDITOR_CHANGE_SELECTED_RANGE);
-    message.AddPointer("from", fromRange);
-    message.AddPointer("to", toRange);
+    if (fromRange)
+        message.AddPointer("from", &*fromRange);
+    if (toRange)
+        message.AddPointer("to", &*toRange);
     message.AddInt32("affinity", affinity);
     message.AddInt32("stillEditing", stillSelecting);
     dispatchMessage(message);
     return true;
 }
 
-bool EditorClientHaiku::shouldApplyStyle(WebCore::StyleProperties* style,
-                                      WebCore::Range* range)
+bool EditorClientHaiku::shouldApplyStyle(const WebCore::StyleProperties& style,
+                                      const Optional<SimpleRange>& range)
 {
     BMessage message(EDITOR_APPLY_STYLE);
-    message.AddPointer("style", style);
-    message.AddPointer("range", range);
+    message.AddPointer("style", &style);
+    if (range)
+        message.AddPointer("range", &*range);
     dispatchMessage(message);
     return true;
 }
 
-bool EditorClientHaiku::shouldMoveRangeAfterDelete(Range*, Range*)
+bool EditorClientHaiku::shouldMoveRangeAfterDelete(const SimpleRange&, const SimpleRange&)
 {
     notImplemented();
     return true;
@@ -200,11 +206,11 @@ bool EditorClientHaiku::isSelectTrailingWhitespaceEnabled() const
 	return false;
 }
 
-void EditorClientHaiku::willWriteSelectionToPasteboard(WebCore::Range*)
+void EditorClientHaiku::willWriteSelectionToPasteboard(const Optional<SimpleRange>&)
 {
 }
 
-void EditorClientHaiku::getClientPasteboardDataForRange(WebCore::Range*, Vector<String>&, Vector<RefPtr<WebCore::SharedBuffer> >&)
+void EditorClientHaiku::getClientPasteboardData(const Optional<SimpleRange>&, Vector<String>&, Vector<RefPtr<WebCore::SharedBuffer> >&)
 {
 }
 
@@ -276,125 +282,15 @@ void EditorClientHaiku::redo()
     }
 }
 
-#if 0
-static const unsigned CtrlKey = 1 << 0;
-static const unsigned AltKey = 1 << 1;
-static const unsigned ShiftKey = 1 << 2;
-
-struct KeyDownEntry {
-    unsigned virtualKey;
-    unsigned modifiers;
-    const char* name;
-};
-
-struct KeyPressEntry {
-    unsigned charCode;
-    unsigned modifiers;
-    const char* name;
-};
-
-static const KeyDownEntry keyDownEntries[] = {
-    { VK_LEFT,   0,                  "MoveLeft"                                    },
-    { VK_LEFT,   ShiftKey,           "MoveLeftAndModifySelection"                  },
-    { VK_LEFT,   CtrlKey,            "MoveWordLeft"                                },
-    { VK_LEFT,   CtrlKey | ShiftKey, "MoveWordLeftAndModifySelection"              },
-    { VK_RIGHT,  0,                  "MoveRight"                                   },
-    { VK_RIGHT,  ShiftKey,           "MoveRightAndModifySelection"                 },
-    { VK_RIGHT,  CtrlKey,            "MoveWordRight"                               },
-    { VK_RIGHT,  CtrlKey | ShiftKey, "MoveWordRightAndModifySelection"             },
-    { VK_UP,     0,                  "MoveUp"                                      },
-    { VK_UP,     ShiftKey,           "MoveUpAndModifySelection"                    },
-    { VK_PRIOR,  ShiftKey,           "MovePageUpAndModifySelection"                },
-    { VK_DOWN,   0,                  "MoveDown"                                    },
-    { VK_DOWN,   ShiftKey,           "MoveDownAndModifySelection"                  },
-    { VK_NEXT,   ShiftKey,           "MovePageDownAndModifySelection"              },
-    { VK_PRIOR,  0,                  "MovePageUp"                                  },
-    { VK_NEXT,   0,                  "MovePageDown"                                },
-    { VK_HOME,   0,                  "MoveToBeginningOfLine"                       },
-    { VK_HOME,   ShiftKey,           "MoveToBeginningOfLineAndModifySelection"     },
-    { VK_HOME,   CtrlKey,            "MoveToBeginningOfDocument"                   },
-    { VK_HOME,   CtrlKey | ShiftKey, "MoveToBeginningOfDocumentAndModifySelection" },
-
-    { VK_END,    0,                  "MoveToEndOfLine"                             },
-    { VK_END,    ShiftKey,           "MoveToEndOfLineAndModifySelection"           },
-    { VK_END,    CtrlKey,            "MoveToEndOfDocument"                         },
-    { VK_END,    CtrlKey | ShiftKey, "MoveToEndOfDocumentAndModifySelection"       },
-
-    { VK_BACK,   0,                  "DeleteBackward"                              },
-    { VK_BACK,   ShiftKey,           "DeleteBackward"                              },
-    { VK_DELETE, 0,                  "DeleteForward"                               },
-    { VK_BACK,   CtrlKey,            "DeleteWordBackward"                          },
-    { VK_DELETE, CtrlKey,            "DeleteWordForward"                           },
-
-    { 'B',       CtrlKey,            "ToggleBold"                                  },
-    { 'I',       CtrlKey,            "ToggleItalic"                                },
-
-    { VK_ESCAPE, 0,                  "Cancel"                                      },
-    { VK_OEM_PERIOD, CtrlKey,        "Cancel"                                      },
-    { VK_TAB,    0,                  "InsertTab"                                   },
-    { VK_TAB,    ShiftKey,           "InsertBacktab"                               },
-    { VK_RETURN, 0,                  "InsertNewline"                               },
-    { VK_RETURN, ShiftKey,           "InsertLineBreak"                             },
-    { VK_RETURN, CtrlKey,            "InsertNewline"                               },
-    { VK_RETURN, AltKey,             "InsertNewline"                               },
-    { VK_RETURN, AltKey | ShiftKey,  "InsertNewline"                               },
-};
-
-static const KeyPressEntry keyPressEntries[] = {
-    { '\t',   0,                  "InsertTab"                                   },
-    { '\t',   ShiftKey,           "InsertBacktab"                               },
-    { '\r',   0,                  "InsertNewline"                               },
-    { '\r',   ShiftKey,           "InsertLineBreak"                             },
-    { '\r',   CtrlKey,            "InsertNewline"                               },
-    { '\r',   AltKey,             "InsertNewline"                               },
-    { '\r',   AltKey | ShiftKey,  "InsertNewline"                               },
-};
-
-static const char* interpretEditorCommandKeyEvent(const KeyboardEvent* evt)
-{
-    ASSERT(evt->type() == eventNames().keydownEvent || evt->type() == eventNames().keypressEvent);
-
-    static HashMap<int, const char*>* keyDownCommandsMap = 0;
-    static HashMap<int, const char*>* keyPressCommandsMap = 0;
-
-    if (!keyDownCommandsMap) {
-        keyDownCommandsMap = new HashMap<int, const char*>;
-        keyPressCommandsMap = new HashMap<int, const char*>;
-
-        for (unsigned i = 0; i < sizeof(keyDownEntries) / sizeof(KeyDownEntry); i++)
-            keyDownCommandsMap->set(keyDownEntries[i].modifiers << 16 | keyDownEntries[i].virtualKey, keyDownEntries[i].name);
-
-        for (unsigned i = 0; i < sizeof(keyPressEntries) / sizeof(KeyPressEntry); i++)
-            keyPressCommandsMap->set(keyPressEntries[i].modifiers << 16 | keyPressEntries[i].charCode, keyPressEntries[i].name);
-    }
-
-    unsigned modifiers = 0;
-    if (evt->shiftKey())
-        modifiers |= ShiftKey;
-    if (evt->altKey())
-        modifiers |= AltKey;
-    if (evt->controlKey())
-        modifiers |= CtrlKey;
-
-    if (evt->type() == eventNames().keydownEvent) {
-        int mapKey = modifiers << 16 | evt->keyCode();
-        return mapKey ? keyDownCommandsMap->get(mapKey) : 0;
-    }
-
-    int mapKey = modifiers << 16 | evt->charCode();
-    return mapKey ? keyPressCommandsMap->get(mapKey) : 0;
-}
-#endif
-
 void EditorClientHaiku::handleKeyboardEvent(KeyboardEvent& event)
 {
     const PlatformKeyboardEvent* platformEvent = event.underlyingPlatformEvent();
     if (!platformEvent || platformEvent->type() == PlatformKeyboardEvent::KeyUp)
         return;
 
-	if (handleEditingKeyboardEvent(&event, platformEvent)) {
-	    event.setDefaultHandled();
-	}
+    if (handleEditingKeyboardEvent(&event, platformEvent)) {
+        event.setDefaultHandled();
+    }
 }
 
 void EditorClientHaiku::handleInputMethodKeydown(KeyboardEvent&)
@@ -501,12 +397,12 @@ void EditorClientHaiku::willSetInputMethodState()
     notImplemented();
 }
 
-void EditorClientHaiku::setInputMethodState(bool /*enabled*/)
+void EditorClientHaiku::setInputMethodState(Element*)
 {
     notImplemented();
 }
 
-bool EditorClientHaiku::performTwoStepDrop(DocumentFragment&, Range& destination, bool isMove)
+bool EditorClientHaiku::performTwoStepDrop(DocumentFragment&, const SimpleRange& destination, bool isMove)
 {
 	notImplemented();
 	return false;
@@ -533,38 +429,48 @@ bool EditorClientHaiku::handleEditingKeyboardEvent(KeyboardEvent* event,
 
     switch (platformEvent->windowsVirtualKeyCode()) {
     case VK_BACK:
-        frame.editor().deleteWithDirection(DirectionBackward,
-                                             platformEvent->controlKey() ? WordGranularity : CharacterGranularity,
-                                             false, true);
+        frame.editor().deleteWithDirection(SelectionDirection::Backward,
+            platformEvent->controlKey() ? TextGranularity::WordGranularity
+                : TextGranularity::CharacterGranularity,
+            false, true);
         break;
     case VK_DELETE:
-        frame.editor().deleteWithDirection(DirectionForward,
-                                             platformEvent->controlKey() ? WordGranularity : CharacterGranularity,
-                                             false, true);
+        frame.editor().deleteWithDirection(SelectionDirection::Forward,
+            platformEvent->controlKey() ? TextGranularity::WordGranularity
+                : TextGranularity::CharacterGranularity,
+            false, true);
         break;
     case VK_LEFT:
-        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend : FrameSelection::AlterationMove,
-                                   DirectionLeft,
-                                   platformEvent->controlKey() ? WordGranularity : CharacterGranularity,
-                                   UserTriggered);
+        frame.selection().modify(platformEvent->shiftKey()
+                ? FrameSelection::AlterationExtend : FrameSelection::AlterationMove,
+            SelectionDirection::Left,
+            platformEvent->controlKey() ? TextGranularity::WordGranularity
+                : TextGranularity::CharacterGranularity,
+            UserTriggered);
         break;
     case VK_RIGHT:
-        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend : FrameSelection::AlterationMove,
-                                   DirectionRight,
-                                   platformEvent->controlKey() ? WordGranularity : CharacterGranularity,
-                                   UserTriggered);
+        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend
+                : FrameSelection::AlterationMove,
+            SelectionDirection::Right,
+            platformEvent->controlKey() ? TextGranularity::WordGranularity
+                : TextGranularity::CharacterGranularity,
+            UserTriggered);
         break;
     case VK_UP:
-        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend : FrameSelection::AlterationMove,
-                                   DirectionBackward,
-                                   platformEvent->controlKey() ? ParagraphGranularity : LineGranularity,
-                                   UserTriggered);
+        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend
+                : FrameSelection::AlterationMove,
+            SelectionDirection::Backward,
+            platformEvent->controlKey() ? TextGranularity::ParagraphGranularity
+                : TextGranularity::LineGranularity,
+            UserTriggered);
         break;
     case VK_DOWN:
-        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend : FrameSelection::AlterationMove,
-                                   DirectionForward,
-                                   platformEvent->controlKey() ? ParagraphGranularity : LineGranularity,
-                                   UserTriggered);
+        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend
+                : FrameSelection::AlterationMove,
+            SelectionDirection::Forward,
+            platformEvent->controlKey() ? TextGranularity::ParagraphGranularity
+                : TextGranularity::LineGranularity,
+            UserTriggered);
         break;
     case VK_HOME:
         if (platformEvent->shiftKey() && platformEvent->controlKey())

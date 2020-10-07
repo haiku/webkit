@@ -67,6 +67,10 @@ class IOSurface;
 }
 #endif
 
+namespace API {
+class Navigation;
+}
+
 #if PLATFORM(MAC)
 typedef NSEvent* PlatformScrollEvent;
 #elif PLATFORM(GTK)
@@ -137,6 +141,7 @@ public:
     bool isNavigationSwipeGestureRecognizer(UIGestureRecognizer *) const;
     void installSwipeHandler(UIView *gestureRecognizerView, UIView *swipingView);
     void beginSwipeGesture(_UINavigationInteractiveTransitionBase *, SwipeDirection);
+    void willEndSwipeGesture(WebBackForwardListItem& targetItem, bool cancelled);
     void endSwipeGesture(WebBackForwardListItem* targetItem, _UIViewControllerTransitionContext *, bool cancelled);
     void willCommitPostSwipeTransitionLayerTree(bool);
     void setRenderTreeSize(uint64_t);
@@ -149,18 +154,19 @@ public:
     WebCore::Color backgroundColorForCurrentSnapshot() const { return m_backgroundColorForCurrentSnapshot; }
 
     void didStartProvisionalLoadForMainFrame();
-    void didFinishLoadForMainFrame() { didReachMainFrameLoadTerminalState(); }
-    void didFailLoadForMainFrame() { didReachMainFrameLoadTerminalState(); }
+    void didFinishNavigation(API::Navigation* navigation) { didReachNavigationTerminalState(navigation); }
+    void didFailNavigation(API::Navigation* navigation) { didReachNavigationTerminalState(navigation); }
     void didFirstVisuallyNonEmptyLayoutForMainFrame();
     void didRepaintAfterNavigation();
     void didHitRenderTreeSizeThreshold();
     void didRestoreScrollPosition();
-    void didReachMainFrameLoadTerminalState();
+    void didReachNavigationTerminalState(API::Navigation*);
     void didSameDocumentNavigationForMainFrame(SameDocumentNavigationType);
 
     void checkForActiveLoads();
 
     void removeSwipeSnapshot();
+    void reset();
 
     void setSwipeGestureEnabled(bool enabled) { m_swipeGestureEnabled = enabled; }
     bool isSwipeGestureEnabled() { return m_swipeGestureEnabled; }
@@ -183,6 +189,7 @@ private:
     static GestureID takeNextGestureID();
     void willBeginGesture(ViewGestureType);
     void didEndGesture();
+    void resetState();
 
     void didStartProvisionalOrSameDocumentLoadForMainFrame();
 
@@ -194,7 +201,8 @@ private:
             RepaintAfterNavigation = 1 << 2,
             MainFrameLoad = 1 << 3,
             SubresourceLoads = 1 << 4,
-            ScrollPositionRestoration = 1 << 5
+            ScrollPositionRestoration = 1 << 5,
+            SwipeAnimationEnd = 1 << 6
         };
         typedef uint8_t Events;
 
@@ -208,7 +216,8 @@ private:
         bool isPaused() const { return m_paused; }
         bool hasRemovalCallback() const { return !!m_removalCallback; }
 
-        bool eventOccurred(Events);
+        enum class ShouldIgnoreEventIfPaused : bool { No, Yes };
+        bool eventOccurred(Events, ShouldIgnoreEventIfPaused = ShouldIgnoreEventIfPaused::Yes);
         bool cancelOutstandingEvent(Events);
         bool hasOutstandingEvent(Event);
 
@@ -225,7 +234,7 @@ private:
         void fireRemovalCallbackIfPossible();
         void watchdogTimerFired();
 
-        bool stopWaitingForEvent(Events, const String& logReason);
+        bool stopWaitingForEvent(Events, const String& logReason, ShouldIgnoreEventIfPaused = ShouldIgnoreEventIfPaused::Yes);
 
         Events m_outstandingEvents { 0 };
         WTF::Function<void()> m_removalCallback;
@@ -310,8 +319,6 @@ private:
     GRefPtr<GtkStyleContext> createStyleContext(const char*);
 #endif
 
-    void makeSnapshotBlank();
-
     WebPageProxy& m_webPageProxy;
     ViewGestureType m_activeGestureType { ViewGestureType::None };
 
@@ -323,6 +330,8 @@ private:
 
     WeakPtr<WebPageProxy> m_alternateBackForwardListSourcePage;
     RefPtr<WebPageProxy> m_webPageProxyForBackForwardListForCurrentSwipe;
+
+    RefPtr<API::Navigation> m_pendingNavigation;
 
     GestureID m_currentGestureID;
 
@@ -366,6 +375,7 @@ private:
     RetainPtr<WKSwipeTransitionController> m_swipeInteractiveTransitionDelegate;
     RetainPtr<_UIViewControllerOneToOneTransitionContext> m_swipeTransitionContext;
     uint64_t m_snapshotRemovalTargetRenderTreeSize { 0 };
+    bool m_didCallWillEndSwipeGesture { false };
 #endif
 
 #if PLATFORM(GTK)
@@ -431,6 +441,10 @@ private:
 #endif
 
     bool m_isConnectedToProcess { false };
+    bool m_didStartProvisionalLoad { false };
+
+    bool m_didCallEndSwipeGesture { false };
+    bool m_removeSnapshotImmediatelyWhenGestureEnds { false };
 
     SnapshotRemovalTracker m_snapshotRemovalTracker;
     WTF::Function<void()> m_loadCallback;

@@ -29,18 +29,13 @@
 #include "JSBasePrivate.h"
 
 #include "APICast.h"
-#include "CallFrame.h"
 #include "Completion.h"
-#include "Exception.h"
 #include "GCActivityCallback.h"
-#include "InitializeThreading.h"
-#include "JSGlobalObject.h"
-#include "JSLock.h"
-#include "JSObject.h"
-#include "OpaqueJSString.h"
 #include "JSCInlines.h"
+#include "JSLock.h"
+#include "ObjectConstructor.h"
+#include "OpaqueJSString.h"
 #include "SourceCode.h"
-#include <wtf/text/StringHash.h>
 
 #if ENABLE(REMOTE_INSPECTOR)
 #include "JSGlobalObjectInspectorController.h"
@@ -78,7 +73,7 @@ JSValueRef JSEvaluateScriptInternal(const JSLockHolder&, JSContextRef ctx, JSObj
     return toRef(globalObject, jsUndefined());
 }
 
-JSValueRef JSEvaluateScript(JSContextRef ctx, JSStringRef script, JSObjectRef thisObject, JSStringRef sourceURL, int startingLineNumber, JSValueRef* exception)
+JSValueRef JSEvaluateScript(JSContextRef ctx, JSStringRef script, JSObjectRef thisObject, JSStringRef sourceURLString, int startingLineNumber, JSValueRef* exception)
 {
     if (!ctx) {
         ASSERT_NOT_REACHED();
@@ -90,13 +85,13 @@ JSValueRef JSEvaluateScript(JSContextRef ctx, JSStringRef script, JSObjectRef th
 
     startingLineNumber = std::max(1, startingLineNumber);
 
-    auto sourceURLString = sourceURL ? sourceURL->string() : String();
-    SourceCode source = makeSource(script->string(), SourceOrigin { sourceURLString }, URL({ }, sourceURLString), TextPosition(OrdinalNumber::fromOneBasedInt(startingLineNumber), OrdinalNumber()));
+    auto sourceURL = sourceURLString ? URL({ }, sourceURLString->string()) : URL();
+    SourceCode source = makeSource(script->string(), SourceOrigin { sourceURL }, sourceURL.string(), TextPosition(OrdinalNumber::fromOneBasedInt(startingLineNumber), OrdinalNumber()));
 
     return JSEvaluateScriptInternal(locker, ctx, thisObject, source, exception);
 }
 
-bool JSCheckScriptSyntax(JSContextRef ctx, JSStringRef script, JSStringRef sourceURL, int startingLineNumber, JSValueRef* exception)
+bool JSCheckScriptSyntax(JSContextRef ctx, JSStringRef script, JSStringRef sourceURLString, int startingLineNumber, JSValueRef* exception)
 {
     if (!ctx) {
         ASSERT_NOT_REACHED();
@@ -108,8 +103,8 @@ bool JSCheckScriptSyntax(JSContextRef ctx, JSStringRef script, JSStringRef sourc
 
     startingLineNumber = std::max(1, startingLineNumber);
 
-    auto sourceURLString = sourceURL ? sourceURL->string() : String();
-    SourceCode source = makeSource(script->string(), SourceOrigin { sourceURLString }, URL({ }, sourceURLString), TextPosition(OrdinalNumber::fromOneBasedInt(startingLineNumber), OrdinalNumber()));
+    auto sourceURL = sourceURLString ? URL({ }, sourceURLString->string()) : URL();
+    SourceCode source = makeSource(script->string(), SourceOrigin { sourceURL }, sourceURL.string(), TextPosition(OrdinalNumber::fromOneBasedInt(startingLineNumber), OrdinalNumber()));
     
     JSValue syntaxException;
     bool isValidSyntax = checkSyntax(globalObject, source, &syntaxException);
@@ -185,6 +180,29 @@ void JSSynchronousEdenCollectForDebugging(JSContextRef ctx)
 void JSDisableGCTimer(void)
 {
     GCActivityCallback::s_shouldCreateGCTimer = false;
+}
+
+JSObjectRef JSGetMemoryUsageStatistics(JSContextRef ctx)
+{
+    if (!ctx) {
+        ASSERT_NOT_REACHED();
+        return nullptr;
+    }
+
+    JSGlobalObject* globalObject = toJS(ctx);
+    VM& vm = globalObject->vm();
+    JSLockHolder locker(vm);
+
+    JSObject* object = constructEmptyObject(globalObject);
+    object->putDirect(vm, Identifier::fromString(vm, "heapSize"), jsNumber(vm.heap.size()));
+    object->putDirect(vm, Identifier::fromString(vm, "heapCapacity"), jsNumber(vm.heap.capacity()));
+    object->putDirect(vm, Identifier::fromString(vm, "extraMemorySize"), jsNumber(vm.heap.extraMemorySize()));
+    object->putDirect(vm, Identifier::fromString(vm, "objectCount"), jsNumber(vm.heap.objectCount()));
+    object->putDirect(vm, Identifier::fromString(vm, "protectedObjectCount"), jsNumber(vm.heap.protectedObjectCount()));
+    object->putDirect(vm, Identifier::fromString(vm, "globalObjectCount"), jsNumber(vm.heap.globalObjectCount()));
+    object->putDirect(vm, Identifier::fromString(vm, "protectedGlobalObjectCount"), jsNumber(vm.heap.protectedGlobalObjectCount()));
+
+    return toRef(object);
 }
 
 #if PLATFORM(IOS_FAMILY) && TARGET_OS_IOS

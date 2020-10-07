@@ -69,7 +69,6 @@ inline Worker::Worker(ScriptExecutionContext& context, JSC::RuntimeFlags runtime
     , m_identifier("worker:" + Inspector::IdentifiersFactory::createIdentifier())
     , m_contextProxy(WorkerGlobalScopeProxy::create(*this))
     , m_runtimeFlags(runtimeFlags)
-    , m_eventQueue(GenericEventQueue::create(*this))
 {
     static bool addedListener;
     if (!addedListener) {
@@ -128,10 +127,10 @@ Worker::~Worker()
     m_contextProxy.workerObjectDestroyed();
 }
 
-ExceptionOr<void> Worker::postMessage(JSC::JSGlobalObject& state, JSC::JSValue messageValue, Vector<JSC::Strong<JSC::JSObject>>&& transfer)
+ExceptionOr<void> Worker::postMessage(JSC::JSGlobalObject& state, JSC::JSValue messageValue, PostMessageOptions&& options)
 {
     Vector<RefPtr<MessagePort>> ports;
-    auto message = SerializedScriptValue::create(state, messageValue, WTFMove(transfer), ports, SerializationContext::WorkerPostMessage);
+    auto message = SerializedScriptValue::create(state, messageValue, WTFMove(options.transfer), ports, SerializationContext::WorkerPostMessage);
     if (message.hasException())
         return message.releaseException();
 
@@ -147,7 +146,7 @@ ExceptionOr<void> Worker::postMessage(JSC::JSGlobalObject& state, JSC::JSValue m
 void Worker::terminate()
 {
     m_contextProxy.terminateWorkerGlobalScope();
-    m_eventQueue->cancelAllEvents();
+    m_wasTerminated = true;
 }
 
 const char* Worker::activeDOMObjectName() const
@@ -176,9 +175,9 @@ void Worker::resume()
     }
 }
 
-bool Worker::hasPendingActivity() const
+bool Worker::virtualHasPendingActivity() const
 {
-    return m_contextProxy.hasPendingActivity() || ActiveDOMObject::hasPendingActivity() || m_eventQueue->hasPendingEvents();
+    return m_contextProxy.hasPendingActivity();
 }
 
 void Worker::notifyNetworkStateChange(bool isOnLine)
@@ -206,24 +205,23 @@ void Worker::notifyFinished()
         return;
 
     if (m_scriptLoader->failed()) {
-        enqueueEvent(Event::create(eventNames().errorEvent, Event::CanBubble::No, Event::IsCancelable::Yes));
+        queueTaskToDispatchEvent(*this, TaskSource::DOMManipulation, Event::create(eventNames().errorEvent, Event::CanBubble::No, Event::IsCancelable::Yes));
         return;
     }
 
     bool isOnline = platformStrategies()->loaderStrategy()->isOnLine();
     const ContentSecurityPolicyResponseHeaders& contentSecurityPolicyResponseHeaders = m_contentSecurityPolicyResponseHeaders ? m_contentSecurityPolicyResponseHeaders.value() : context->contentSecurityPolicy()->responseHeaders();
-    m_contextProxy.startWorkerGlobalScope(m_scriptLoader->url(), m_name, context->userAgent(m_scriptLoader->url()), isOnline, m_scriptLoader->script(), contentSecurityPolicyResponseHeaders, m_shouldBypassMainWorldContentSecurityPolicy, m_workerCreationTime, m_runtimeFlags);
+    ReferrerPolicy referrerPolicy = ReferrerPolicy::EmptyString;
+    if (auto policy = parseReferrerPolicy(m_scriptLoader->referrerPolicy(), ReferrerPolicySource::HTTPHeader))
+        referrerPolicy = *policy;
+    m_contextProxy.startWorkerGlobalScope(m_scriptLoader->url(), m_name, context->userAgent(m_scriptLoader->url()), isOnline, m_scriptLoader->script(), contentSecurityPolicyResponseHeaders, m_shouldBypassMainWorldContentSecurityPolicy, m_workerCreationTime, referrerPolicy, m_runtimeFlags);
     InspectorInstrumentation::scriptImported(*context, m_scriptLoader->identifier(), m_scriptLoader->script());
-}
-
-void Worker::enqueueEvent(Ref<Event>&& event)
-{
-    m_eventQueue->enqueueEvent(WTFMove(event));
 }
 
 void Worker::dispatchEvent(Event& event)
 {
-    RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(!m_eventQueue->isSuspended());
+    if (m_wasTerminated)
+        return;
 
     AbstractWorker::dispatchEvent(event);
     if (is<ErrorEvent>(event) && !event.defaultPrevented() && event.isTrusted() && scriptExecutionContext()) {

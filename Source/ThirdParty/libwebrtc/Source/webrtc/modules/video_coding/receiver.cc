@@ -12,13 +12,16 @@
 
 #include <assert.h>
 
+#include <cstdint>
 #include <cstdlib>
 #include <utility>
 #include <vector>
 
+#include "absl/memory/memory.h"
+#include "api/video/encoded_image.h"
 #include "modules/video_coding/encoded_frame.h"
 #include "modules/video_coding/internal_defines.h"
-#include "modules/video_coding/media_opt_util.h"
+#include "modules/video_coding/jitter_buffer_common.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/trace_event.h"
@@ -32,66 +35,22 @@ VCMReceiver::VCMReceiver(VCMTiming* timing, Clock* clock)
     : VCMReceiver::VCMReceiver(timing,
                                clock,
                                absl::WrapUnique(EventWrapper::Create()),
-                               absl::WrapUnique(EventWrapper::Create()),
-                               nullptr,  // NackSender
-                               nullptr)  // KeyframeRequestSender
-{}
-
-VCMReceiver::VCMReceiver(VCMTiming* timing,
-                         Clock* clock,
-                         NackSender* nack_sender,
-                         KeyFrameRequestSender* keyframe_request_sender)
-    : VCMReceiver(timing,
-                  clock,
-                  absl::WrapUnique(EventWrapper::Create()),
-                  absl::WrapUnique(EventWrapper::Create()),
-                  nack_sender,
-                  keyframe_request_sender) {}
+                               absl::WrapUnique(EventWrapper::Create())) {}
 
 VCMReceiver::VCMReceiver(VCMTiming* timing,
                          Clock* clock,
                          std::unique_ptr<EventWrapper> receiver_event,
                          std::unique_ptr<EventWrapper> jitter_buffer_event)
-    : VCMReceiver::VCMReceiver(timing,
-                               clock,
-                               std::move(receiver_event),
-                               std::move(jitter_buffer_event),
-                               nullptr,  // NackSender
-                               nullptr)  // KeyframeRequestSender
-{}
-
-VCMReceiver::VCMReceiver(VCMTiming* timing,
-                         Clock* clock,
-                         std::unique_ptr<EventWrapper> receiver_event,
-                         std::unique_ptr<EventWrapper> jitter_buffer_event,
-                         NackSender* nack_sender,
-                         KeyFrameRequestSender* keyframe_request_sender)
     : clock_(clock),
-      jitter_buffer_(clock_,
-                     std::move(jitter_buffer_event),
-                     nack_sender,
-                     keyframe_request_sender),
+      jitter_buffer_(clock_, std::move(jitter_buffer_event)),
       timing_(timing),
       render_wait_event_(std::move(receiver_event)),
       max_video_delay_ms_(kMaxVideoDelayMs) {
-  Reset();
+  jitter_buffer_.Start();
 }
 
 VCMReceiver::~VCMReceiver() {
   render_wait_event_->Set();
-}
-
-void VCMReceiver::Reset() {
-  rtc::CritScope cs(&crit_sect_);
-  if (!jitter_buffer_.Running()) {
-    jitter_buffer_.Start();
-  } else {
-    jitter_buffer_.Flush();
-  }
-}
-
-void VCMReceiver::UpdateRtt(int64_t rtt) {
-  jitter_buffer_.UpdateRtt(rtt);
 }
 
 int32_t VCMReceiver::InsertPacket(const VCMPacket& packet) {
@@ -116,11 +75,6 @@ int32_t VCMReceiver::InsertPacket(const VCMPacket& packet) {
   return VCM_OK;
 }
 
-void VCMReceiver::TriggerDecoderShutdown() {
-  jitter_buffer_.Stop();
-  render_wait_event_->Set();
-}
-
 VCMEncodedFrame* VCMReceiver::FrameForDecoding(uint16_t max_wait_time_ms,
                                                bool prefer_late_decoding) {
   const int64_t start_time_ms = clock_->TimeInMilliseconds();
@@ -137,8 +91,7 @@ VCMEncodedFrame* VCMReceiver::FrameForDecoding(uint16_t max_wait_time_ms,
     min_playout_delay_ms = found_frame->EncodedImage().playout_delay_.min_ms;
     max_playout_delay_ms = found_frame->EncodedImage().playout_delay_.max_ms;
   } else {
-    if (!jitter_buffer_.NextMaybeIncompleteTimestamp(&frame_timestamp))
-      return nullptr;
+    return nullptr;
   }
 
   if (min_playout_delay_ms >= 0)
@@ -161,7 +114,8 @@ VCMEncodedFrame* VCMReceiver::FrameForDecoding(uint16_t max_wait_time_ms,
     int frame_delay = static_cast<int>(std::abs(render_time_ms - now_ms));
     RTC_LOG(LS_WARNING)
         << "A frame about to be decoded is out of the configured "
-        << "delay bounds (" << frame_delay << " > " << max_video_delay_ms_
+           "delay bounds ("
+        << frame_delay << " > " << max_video_delay_ms_
         << "). Resetting the video jitter buffer.";
     timing_error = true;
   } else if (static_cast<int>(timing_->TargetVideoDelay()) >
@@ -226,21 +180,6 @@ void VCMReceiver::ReleaseFrame(VCMEncodedFrame* frame) {
   jitter_buffer_.ReleaseFrame(frame);
 }
 
-void VCMReceiver::ReceiveStatistics(uint32_t* bitrate, uint32_t* framerate) {
-  assert(bitrate);
-  assert(framerate);
-  jitter_buffer_.IncomingRateStatistics(framerate, bitrate);
-}
-
-void VCMReceiver::SetNackMode(VCMNackMode nackMode,
-                              int64_t low_rtt_nack_threshold_ms,
-                              int64_t high_rtt_nack_threshold_ms) {
-  rtc::CritScope cs(&crit_sect_);
-  // Default to always having NACK enabled in hybrid mode.
-  jitter_buffer_.SetNackMode(nackMode, low_rtt_nack_threshold_ms,
-                             high_rtt_nack_threshold_ms);
-}
-
 void VCMReceiver::SetNackSettings(size_t max_nack_list_size,
                                   int max_packet_age_to_nack,
                                   int max_incomplete_time_ms) {
@@ -248,26 +187,8 @@ void VCMReceiver::SetNackSettings(size_t max_nack_list_size,
                                  max_incomplete_time_ms);
 }
 
-VCMNackMode VCMReceiver::NackMode() const {
-  rtc::CritScope cs(&crit_sect_);
-  return jitter_buffer_.nack_mode();
-}
-
 std::vector<uint16_t> VCMReceiver::NackList(bool* request_key_frame) {
   return jitter_buffer_.GetNackList(request_key_frame);
-}
-
-void VCMReceiver::SetDecodeErrorMode(VCMDecodeErrorMode decode_error_mode) {
-  jitter_buffer_.SetDecodeErrorMode(decode_error_mode);
-}
-
-VCMDecodeErrorMode VCMReceiver::DecodeErrorMode() const {
-  return jitter_buffer_.decode_error_mode();
-}
-
-void VCMReceiver::RegisterStatsCallback(
-    VCMReceiveStatisticsCallback* callback) {
-  jitter_buffer_.RegisterStatsCallback(callback);
 }
 
 }  // namespace webrtc

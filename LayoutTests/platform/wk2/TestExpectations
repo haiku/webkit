@@ -137,10 +137,8 @@ http/tests/globalhistory/history-delegate-basic-visited-links.html
 http/tests/globalhistory/history-delegate-basic-refresh-redirect.html
 
 # transitions/default-timing-function.html failing on WebKit2 since it was added
-# legacy-animation-engine/transitions/default-timing-function.html failing on WebKit2 since it was added
 # <https://bugs.webkit.org/show_bug.cgi?id=56531>
 transitions/default-timing-function.html
-legacy-animation-engine/transitions/default-timing-function.html
 
 # Sometimes fails
 # http://webkit.org/b/58990
@@ -279,8 +277,6 @@ http/tests/security/javascriptURL/xss-ALLOWED-to-javascript-url-sub-frame-2-leve
 
 # These tests use Flash, which is not a good idea, because it is not installed on all machines that run tests.
 # WebKitTestRunner detects attempts to use Flash, and raises an assertion.
-fast/dom/beforeload/flash-before-load.html [ Skip ]
-fast/dom/beforeload/remove-flash-in-beforeload-listener.html [ Skip ]
 fast/loader/sandboxed-plugin-crash.html [ Skip ]
 plugins/hidden-iframe-with-swf-plugin.html [ Skip ]
 plugins/plugin-document-load-prevented-userscript.html [ Skip ]
@@ -362,9 +358,6 @@ http/tests/navigation/timerredirect-subframeload.html
 # Unexpected output from scrolling. Might be EFL port specific issue.
 http/tests/navigation/relativeanchor-frames.html
 
-# Scrollbars appear, even though they should not.
-fast/dynamic/window-resize-scrollbars-test.html [ Failure ]
-
 # Machinery for updating view size has a race condition, a problem when moving between
 # SVG tests that have a special view size and all the other tests that use a 800x600 view.
 # This test is not the cause of the problem, just the one that happens to currently be the victim.
@@ -372,6 +365,10 @@ svg/filters/filter-hidden-content.svg [ Pass Failure ]
 
 # No good way to test private browsing in WKTR right now
 http/tests/security/private-browsing-http-auth.html
+
+# These tests are timing out in debug builds, with console errors saying "null is not an object". Not clear what the cause is.
+[ Debug ] editing/inserting/typing-003.html [ Timeout ]
+[ Debug ] editing/pasteboard/4076267-3.html [ Timeout ]
 
 ### END OF (2) Classified failures without bug reports (yet)
 ########################################
@@ -426,14 +423,12 @@ http/tests/cache/subresource-expiration-2.html
 fast/frames/sandboxed-iframe-plugins.html
 fast/frames/sandboxed-iframe-storage.html
 fast/overflow/overflow_hidden.html
-media/controls-styling.html
 platform/mac/fast/loader/non-html-load-event.html
 plugins/embed-attributes-style.html
 plugins/plugin-initiate-popup-window.html
 storage/websql/open-database-while-transaction-in-progress.html
 svg/hixie/cascade/002.xml
 transitions/font-family-during-transition.html
-legacy-animation-engine/transitions/font-family-during-transition.html
 
 # [WK2] http/tests/navigation/anchor-frames-cross-origin.html fails.
 # https://bugs.webkit.org/show_bug.cgi?id=83581
@@ -471,11 +466,8 @@ webkit.org/b/158703 userscripts/window-onerror-for-isolated-world-3.html [ Skip 
 # These transition tests are flaky, sometimes it seems like the transition timing
 # is off when the test completes
 transitions/color-transition-all.html
-legacy-animation-engine/transitions/color-transition-all.html
 transitions/min-max-width-height-transitions.html
-legacy-animation-engine/transitions/min-max-width-height-transitions.html
 transitions/text-indent-transition.html
-legacy-animation-engine/transitions/text-indent-transition.html
 
 # These storage tests fail in WebKit2 on the bot, but not running locally
 storage/websql/multiple-databases-garbage-collection.html
@@ -483,9 +475,9 @@ storage/websql/multiple-databases-garbage-collection.html
 # Mysterious failure after enabling paste tests
 editing/mac/pasteboard/text-precomposed.html
 
-# [WK2] http/tests/security/local-image-from-remote-whitelisted.html crashes
+# [WK2] http/tests/security/local-image-from-remote-allow-list.html crashes
 # https://bugs.webkit.org/show_bug.cgi?id=73435
-http/tests/security/local-image-from-remote-whitelisted.html
+http/tests/security/local-image-from-remote-allow-list.html
 
 # Editing input tests that time out unexpectedly.
 # https://bugs.webkit.org/show_bug.cgi?id=81547
@@ -669,8 +661,8 @@ media/video-src-blob.html
 security/contentSecurityPolicy/image-with-blob-url-allowed-by-img-src-star-with-AllowContentSecurityPolicySourceStarToMatchAnyProtocol-enabled.html
 security/contentSecurityPolicy/image-with-blob-url-blocked-by-img-src-star.html
 security/contentSecurityPolicy/video-with-blob-url-allowed-by-media-src-star.html
-storage/indexeddb/structured-clone.html
-storage/indexeddb/structured-clone-private.html
+fast/forms/file/entries-api/image-no-transcode-drag-drop.html
+fast/forms/file/entries-api/image-transcode-drag-drop.html
 
 # WebKitTestRunner doesn't have eventSender.fireKeyboardEventsToElement
 platform/mac/fast/events/objc-keyboard-event-creation.html
@@ -701,6 +693,9 @@ webkit.org/b/115274 http/tests/security/contentSecurityPolicy/report-same-origin
 # DumpRenderTree does not allow GIFs to animate, thus animated GIF tests don't work in WebKit1.
 fast/images/animated-gif-no-layout.html [ Pass ]
 fast/images/gif-loop-count.html [ Pass ]
+
+# Only relevant for WebKit2
+http/tests/storage/storage-map-leaking.html [ Pass ]
 
 # DumpRenderTree does not implement setWillSendRequestHTTPBody
 http/tests/misc/will-send-request-with-client-provided-http-body.html [ Pass ]
@@ -735,9 +730,30 @@ http/tests/resourceLoadStatistics/grandfathering.html [ Pass ]
 webkit.org/b/180703 http/tests/resourceLoadStatistics/telemetry-generation.html [ Pass Failure ]
 http/tests/resourceLoadStatistics/prune-statistics.html [ Pass ]
 http/tests/resourceLoadStatistics [ Pass ]
+
+# App Bound Domains is for iOS only, so we should skip
+# them here and enable them in the iOS platform specific file.
+http/tests/resourceLoadStatistics/exemptDomains/ [ Skip ]
+
+# The SameSite cookie API is only available in macOS Catalina and above.
+http/tests/resourceLoadStatistics/set-all-cookies-to-same-site-strict.html [ Skip ]
+http/tests/resourceLoadStatistics/enforce-samesite-strict-based-on-top-frame-unique-redirects-to.html [ Skip ]
+
+# This test is flaky. <rdar://problem/69748720>
+http/tests/resourceLoadStatistics/operating-dates-all-but-cookies-removed-statistics-with-no-user-interaction.html [ Pass Failure ]
+
+# The CNAME and cookie transform SPIs are only available in macOS Big Sur + iOS 14 and above.
+http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-1p-cname.html [ Skip ]
+http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-3p-cname.html [ Skip ]
+http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-matching-cname.html [ Skip ]
+http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-no-cname.html [ Skip ]
+http/tests/resourceLoadStatistics/cname-cloaking-top-no-cname-sub-1p-cname.html [ Skip ]
+http/tests/resourceLoadStatistics/cname-cloaking-top-no-cname-sub-3p-cname.html [ Skip ]
+http/tests/resourceLoadStatistics/cname-cloaking-top-no-cname-sub-no-cname.html [ Skip ]
+
 http/tests/websocket/connection-refusal-in-frame-resource-load-statistics.html [ Pass ]
 # These are only supported behind a compile time flag in macOS High Sierra + iOS 11, and above.
-http/tests/resourceLoadStatistics/cookie-deletion.html [ Skip ]
+http/tests/resourceLoadStatistics/cookie-deletion.html [ Pass Timeout ]
 http/tests/resourceLoadStatistics/cookies-with-and-without-user-interaction.html [ Skip ]
 http/tests/resourceLoadStatistics/strip-referrer-to-origin-for-third-party-redirects.html [ Skip ]
 http/tests/resourceLoadStatistics/strip-referrer-to-origin-for-third-party-requests.html [ Skip ]
@@ -768,6 +784,21 @@ inspector/runtime/callFunctionOn-emulateUserGesture-userIsInteracting.html [ Pas
 # Target domain is only present in WebKit2.
 http/tests/inspector/target [ Pass ]
 
+# ITP and AdClickAttribution are WK2 only.
+inspector/page/overrideSetting-AdClickAttributionDebugModeEnabled.html [ Pass ]
+inspector/page/overrideSetting-ITPDebugModeEnabled.html [ Pass ]
+
+# Highlighting marked text ranges from layout tests is only supported in WebKit2.
+editing/input/composition-highlights.html [ Pass ]
+
+# Tests a setting behind the ENABLE_FULLSCREEN_API flag, which is WK2-only
+media/video-supports-fullscreen.html [ Pass ]
+
+imported/w3c/web-platform-tests/service-workers/service-worker/svg-target-reftest.https.html [ Pass ]
+
+# These tests rely on webkit-test-runner flags that aren't implemented for DumpRenderTree, so they will fail under legacy WebKit.
+editing/selection/expando.html [ Pass ]
+
 ### END OF (5) Progressions, expected successes that are expected failures in WebKit1.
 ########################################
 
@@ -785,17 +816,18 @@ webkit.org/b/168092 media/track/track-cues-sorted-before-dispatch.html [ Pass Fa
 webkit.org/b/172662 [ Debug ] http/tests/cache/disk-cache/disk-cache-vary-cookie.html [ Pass Failure ]
 webkit.org/b/172662 [ Debug ] http/tests/cache/disk-cache/redirect-chain-limits.html [ Pass Failure ]
 
-webkit.org/b/174471 webrtc/filtering-ice-candidate-after-reload.html [ Pass Timeout ]
-
 webkit.org/b/183139 fast/events/blur-focus-window-should-blur-focus-element.html
 webkit.org/b/183140 fast/selectors/querySelector-window-inactive.html
 
-webkit.org/b/183801 http/wpt/webrtc/third-party-frame-ice-candidate-filtering.html [ Pass Failure ]
-
 webkit.org/b/186406 compositing/iframes/display-none-subframe.html [ Pass Failure ]
 
-webkit.org/b/187766 http/wpt/service-workers/update-service-worker.https.html [ Pass Timeout ]
+webkit.org/b/187766 http/wpt/service-workers/update-service-worker.https.html [ Pass Failure Timeout ]
 
 # Newly imported test that is flaky on WebKit2 only.
 imported/w3c/web-platform-tests/html/browsers/the-window-object/apis-for-creating-and-navigating-browsing-contexts-by-name/no_window_open_when_term_nesting_level_nonzero.window.html [ Pass Failure ]
 
+# Closed port web socket delays are only supported on wk2.
+http/tests/websocket/tests/hybi/closed-port-delay.html [ Pass ]
+
+# WebKit2 only.
+js/throw-large-string-oom.html [ Pass ]

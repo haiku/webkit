@@ -128,7 +128,7 @@ JSExportAs(testArgumentTypes,
 }
 - (void)callback:(JSValue *)function
 {
-    [function callWithArguments:[NSArray arrayWithObject:[NSNumber numberWithInt:42]]];
+    [function callWithArguments:@[@(42)]];
 }
 - (void)bogusCallback:(void(^)(int))function
 {
@@ -199,7 +199,7 @@ bool testXYZTested = false;
         return;
 
     JSValue *function = [m_onclickHandler value];
-    [function callWithArguments:[NSArray array]];
+    [function callWithArguments:@[]];
 }
 @end
 
@@ -1014,7 +1014,7 @@ static void testObjectiveCAPIMain()
     @autoreleasepool {
         JSContext *context = [[JSContext alloc] init];
         JSValue *result = [context evaluateScript:@"String(console)"];
-        checkResult(@"String(console)", [result isEqualToObject:@"[object Console]"]);
+        checkResult(@"String(console)", [result isEqualToObject:@"[object console]"]);
         result = [context evaluateScript:@"typeof console.log"];
         checkResult(@"typeof console.log", [result isEqualToObject:@"function"]);
     }
@@ -1171,10 +1171,8 @@ static void testObjectiveCAPIMain()
         JSContext *context = [[JSContext alloc] init];
         context[@"handleTheDictionary"] = ^(NSDictionary *dict) {
             NSDictionary *expectedDict = @{
-                @"foo" : [NSNumber numberWithInt:1],
-                @"bar" : @{
-                    @"baz": [NSNumber numberWithInt:2]
-                }
+                @"foo": @(1),
+                @"bar": @{ @"baz": @(2) }
             };
             checkResult(@"recursively convert nested dictionaries", [dict isEqualToDictionary:expectedDict]);
         };
@@ -2861,7 +2859,8 @@ void testObjectiveCAPI(const char* filter)
     RUN(promiseCreateRejected());
     RUN(parallelPromiseResolveTest());
 
-    testObjectiveCAPIMain();
+    if (!filter)
+        testObjectiveCAPIMain();
 }
 
 #else

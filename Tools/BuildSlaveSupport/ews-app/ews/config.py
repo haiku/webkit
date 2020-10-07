@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Apple Inc. All rights reserved.
+# Copyright (C) 2018-2020 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -33,6 +33,7 @@ if is_test_mode_enabled:
 else:
     BUILDBOT_SERVER_HOST = 'ews-build.webkit.org'
 BUILDBOT_SERVER_PORT = '5555'
+COMMIT_QUEUE_PORT = '5557'
 BUILDBOT_TRY_USERNAME = os.getenv('BUILDBOT_TRY_USERNAME', 'sampleuser')
 BUILDBOT_TRY_PASSWORD = os.getenv('BUILDBOT_TRY_PASSWORD', 'samplepass')
 
@@ -41,3 +42,6 @@ ERR_UNEXPECTED = -1
 ERR_EXISTING_PATCH = -2
 ERR_NON_EXISTING_PATCH = -3
 ERR_INVALID_PATCH_ID = -4
+ERR_OBSOLETE_PATCH = -5
+ERR_UNABLE_TO_FETCH_PATCH = -6
+ERR_BUG_CLOSED = -7

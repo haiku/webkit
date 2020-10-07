@@ -63,7 +63,7 @@ void PlatformWebView::focus()
 
 WKRect PlatformWebView::windowFrame()
 {
-    return WKRect { 0, 0, 1, 1 };
+    return { { 0, 0 }, { 1, 1 } };
 }
 
 void PlatformWebView::setWindowFrame(WKRect, WebViewSizingMode)
@@ -84,10 +84,12 @@ void PlatformWebView::removeChromeInputField()
 
 void PlatformWebView::addToWindow()
 {
+    m_window->addActivityState(wpe_view_activity_state_in_window);
 }
 
 void PlatformWebView::removeFromWindow()
 {
+    m_window->removeActivityState(wpe_view_activity_state_in_window);
 }
 
 void PlatformWebView::setWindowIsKey(bool windowIsKey)
@@ -116,8 +118,7 @@ cairo_surface_t* PlatformWebView::windowSnapshotImage()
         RunLoop::main().run();
     }
 
-    cairo_surface_t* imageSurface = m_window->createSnapshot();
-    return imageSurface;
+    return m_window->snapshot();
 }
 
 void PlatformWebView::changeWindowScaleIfNeeded(float)

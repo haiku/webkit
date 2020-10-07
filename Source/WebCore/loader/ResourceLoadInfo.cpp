@@ -54,9 +54,7 @@ ResourceType toResourceType(CachedResource::Type type)
         return ResourceType::Script;
 
     case CachedResource::Type::FontResource:
-#if ENABLE(SVG_FONTS)
     case CachedResource::Type::SVGFontResource:
-#endif
         return ResourceType::Font;
 
     case CachedResource::Type::MediaResource:
@@ -68,10 +66,9 @@ ResourceType toResourceType(CachedResource::Type type)
     case CachedResource::Type::RawResource:
         return ResourceType::Raw;
 
-#if ENABLE(VIDEO_TRACK)
     case CachedResource::Type::TextTrackResource:
         return ResourceType::Media;
-#endif
+
 #if ENABLE(APPLICATION_MANIFEST)
     case CachedResource::Type::ApplicationManifest:
         return ResourceType::Raw;

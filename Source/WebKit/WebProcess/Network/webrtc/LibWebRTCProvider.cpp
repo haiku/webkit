@@ -28,10 +28,15 @@
 
 #if USE(LIBWEBRTC)
 
+#if ENABLE(GPU_PROCESS) && PLATFORM(COCOA)
+#include "LibWebRTCCodecs.h"
+#endif
+
 #include "LibWebRTCNetwork.h"
 #include "WebProcess.h"
-#include <webrtc/api/asyncresolverfactory.h>
-#include <webrtc/pc/peerconnectionfactory.h>
+#include <WebCore/RuntimeEnabledFeatures.h>
+#include <webrtc/api/async_resolver_factory.h>
+#include <webrtc/pc/peer_connection_factory.h>
 
 namespace WebKit {
 using namespace WebCore;
@@ -55,12 +60,12 @@ void LibWebRTCProvider::disableNonLocalhostConnections()
     WebProcess::singleton().libWebRTCNetwork().disableNonLocalhostConnections();
 }
 
-void LibWebRTCProvider::unregisterMDNSNames(uint64_t documentIdentifier)
+void LibWebRTCProvider::unregisterMDNSNames(DocumentIdentifier documentIdentifier)
 {
     WebProcess::singleton().libWebRTCNetwork().mdnsRegister().unregisterMDNSNames(documentIdentifier);
 }
 
-void LibWebRTCProvider::registerMDNSName(uint64_t documentIdentifier, const String& ipAddress, CompletionHandler<void(MDNSNameOrError&&)>&& callback)
+void LibWebRTCProvider::registerMDNSName(DocumentIdentifier documentIdentifier, const String& ipAddress, CompletionHandler<void(MDNSNameOrError&&)>&& callback)
 {
     WebProcess::singleton().libWebRTCNetwork().mdnsRegister().registerMDNSName(documentIdentifier, ipAddress, WTFMove(callback));
 }
@@ -74,7 +79,7 @@ private:
     // SuspendableSocketFactory
     rtc::AsyncPacketSocket* CreateUdpSocket(const rtc::SocketAddress&, uint16_t minPort, uint16_t maxPort) final;
     rtc::AsyncPacketSocket* CreateServerTcpSocket(const rtc::SocketAddress&, uint16_t minPort, uint16_t maxPort, int options) final;
-    rtc::AsyncPacketSocket* CreateClientTcpSocket(const rtc::SocketAddress& localAddress, const rtc::SocketAddress& remoteAddress, const rtc::ProxyInfo&, const std::string&, int options) final;
+    rtc::AsyncPacketSocket* CreateClientTcpSocket(const rtc::SocketAddress& localAddress, const rtc::SocketAddress& remoteAddress, const rtc::ProxyInfo&, const std::string&, const rtc::PacketSocketTcpOptions&) final;
     rtc::AsyncResolverInterface* CreateAsyncResolver() final;
     void suspend() final;
     void resume() final;
@@ -98,7 +103,7 @@ rtc::AsyncPacketSocket* RTCSocketFactory::CreateServerTcpSocket(const rtc::Socke
     return WebProcess::singleton().libWebRTCNetwork().socketFactory().createServerTcpSocket(this, address, minPort, maxPort, options);
 }
 
-rtc::AsyncPacketSocket* RTCSocketFactory::CreateClientTcpSocket(const rtc::SocketAddress& localAddress, const rtc::SocketAddress& remoteAddress, const rtc::ProxyInfo&, const std::string&, int options)
+rtc::AsyncPacketSocket* RTCSocketFactory::CreateClientTcpSocket(const rtc::SocketAddress& localAddress, const rtc::SocketAddress& remoteAddress, const rtc::ProxyInfo&, const std::string&, const rtc::PacketSocketTcpOptions& options)
 {
     return WebProcess::singleton().libWebRTCNetwork().socketFactory().createClientTcpSocket(this, localAddress, remoteAddress, String { m_userAgent }, options);
 }
@@ -126,10 +131,27 @@ void RTCSocketFactory::resume()
     });
 }
 
+void LibWebRTCProvider::startedNetworkThread()
+{
+    WebProcess::singleton().libWebRTCNetwork().setAsActive();
+}
+
 std::unique_ptr<LibWebRTCProvider::SuspendableSocketFactory> LibWebRTCProvider::createSocketFactory(String&& userAgent)
 {
     return makeUnique<RTCSocketFactory>(WTFMove(userAgent));
 }
+
+#if PLATFORM(COCOA)
+
+std::unique_ptr<webrtc::VideoDecoderFactory> LibWebRTCProvider::createDecoderFactory()
+{
+#if ENABLE(GPU_PROCESS) && !PLATFORM(MACCATALYST)
+    LibWebRTCCodecs::setCallbacks(RuntimeEnabledFeatures::sharedFeatures().webRTCPlatformCodecsInGPUProcessEnabled());
+#endif
+    return LibWebRTCProviderCocoa::createDecoderFactory();
+}
+
+#endif
 
 } // namespace WebKit
 

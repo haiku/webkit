@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include <wtf/EnumTraits.h>
 #include <wtf/RetainPtr.h>
 
 namespace IPC {
@@ -44,12 +45,12 @@ public:
         Delete,
     };
 
-    SecItemRequestData();
+    SecItemRequestData() = default;
     SecItemRequestData(Type, CFDictionaryRef query);
     SecItemRequestData(Type, CFDictionaryRef query, CFDictionaryRef attributesToMatch);
 
     void encode(IPC::Encoder&) const;
-    static bool decode(IPC::Decoder&, SecItemRequestData&);
+    static WARN_UNUSED_RETURN bool decode(IPC::Decoder&, SecItemRequestData&);
 
     Type type() const { return m_type; }
 
@@ -57,9 +58,24 @@ public:
     CFDictionaryRef attributesToMatch() const { return m_attributesToMatch.get(); }
 
 private:
-    Type m_type;
+    Type m_type { Invalid };
     RetainPtr<CFDictionaryRef> m_queryDictionary;
     RetainPtr<CFDictionaryRef> m_attributesToMatch;
 };
     
 } // namespace WebKit
+
+namespace WTF {
+
+template<> struct EnumTraits<WebKit::SecItemRequestData::Type> {
+    using values = EnumValues<
+        WebKit::SecItemRequestData::Type,
+        WebKit::SecItemRequestData::Type::Invalid,
+        WebKit::SecItemRequestData::Type::CopyMatching,
+        WebKit::SecItemRequestData::Type::Add,
+        WebKit::SecItemRequestData::Type::Update,
+        WebKit::SecItemRequestData::Type::Delete
+    >;
+};
+
+} // namespace WTF

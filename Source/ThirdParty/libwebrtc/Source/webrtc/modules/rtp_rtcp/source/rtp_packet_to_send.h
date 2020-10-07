@@ -12,10 +12,13 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <vector>
 
+#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "api/video/video_timing.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_packet.h"
 
@@ -23,6 +26,9 @@ namespace webrtc {
 // Class to hold rtp packet with metadata for sender side.
 class RtpPacketToSend : public RtpPacket {
  public:
+  // RtpPacketToSend::Type is deprecated. Use RtpPacketMediaType directly.
+  using Type = RtpPacketMediaType;
+
   explicit RtpPacketToSend(const ExtensionManager* extensions);
   RtpPacketToSend(const ExtensionManager* extensions, size_t capacity);
   RtpPacketToSend(const RtpPacketToSend& packet);
@@ -38,6 +44,26 @@ class RtpPacketToSend : public RtpPacket {
 
   void set_capture_time_ms(int64_t time) { capture_time_ms_ = time; }
 
+  void set_packet_type(RtpPacketMediaType type) { packet_type_ = type; }
+  absl::optional<RtpPacketMediaType> packet_type() const {
+    return packet_type_;
+  }
+
+  // If this is a retransmission, indicates the sequence number of the original
+  // media packet that this packet represents. If RTX is used this will likely
+  // be different from SequenceNumber().
+  void set_retransmitted_sequence_number(uint16_t sequence_number) {
+    retransmitted_sequence_number_ = sequence_number;
+  }
+  absl::optional<uint16_t> retransmitted_sequence_number() {
+    return retransmitted_sequence_number_;
+  }
+
+  void set_allow_retransmission(bool allow_retransmission) {
+    allow_retransmission_ = allow_retransmission;
+  }
+  bool allow_retransmission() { return allow_retransmission_; }
+
   // Additional data bound to the RTP packet for use in application code,
   // outside of WebRTC.
   rtc::ArrayView<const uint8_t> application_data() const {
@@ -51,30 +77,45 @@ class RtpPacketToSend : public RtpPacket {
   void set_packetization_finish_time_ms(int64_t time) {
     SetExtension<VideoTimingExtension>(
         VideoSendTiming::GetDeltaCappedMs(capture_time_ms_, time),
-        VideoSendTiming::kPacketizationFinishDeltaOffset);
+        VideoTimingExtension::kPacketizationFinishDeltaOffset);
   }
 
   void set_pacer_exit_time_ms(int64_t time) {
     SetExtension<VideoTimingExtension>(
         VideoSendTiming::GetDeltaCappedMs(capture_time_ms_, time),
-        VideoSendTiming::kPacerExitDeltaOffset);
+        VideoTimingExtension::kPacerExitDeltaOffset);
   }
 
   void set_network_time_ms(int64_t time) {
     SetExtension<VideoTimingExtension>(
         VideoSendTiming::GetDeltaCappedMs(capture_time_ms_, time),
-        VideoSendTiming::kNetworkTimestampDeltaOffset);
+        VideoTimingExtension::kNetworkTimestampDeltaOffset);
   }
 
   void set_network2_time_ms(int64_t time) {
     SetExtension<VideoTimingExtension>(
         VideoSendTiming::GetDeltaCappedMs(capture_time_ms_, time),
-        VideoSendTiming::kNetwork2TimestampDeltaOffset);
+        VideoTimingExtension::kNetwork2TimestampDeltaOffset);
   }
+
+  // Indicates if packet is the first packet of a video frame.
+  void set_first_packet_of_frame(bool is_first_packet) {
+    is_first_packet_of_frame_ = is_first_packet;
+  }
+  bool is_first_packet_of_frame() const { return is_first_packet_of_frame_; }
+
+  // Indicates if packet contains payload for a video key-frame.
+  void set_is_key_frame(bool is_key_frame) { is_key_frame_ = is_key_frame; }
+  bool is_key_frame() const { return is_key_frame_; }
 
  private:
   int64_t capture_time_ms_ = 0;
+  absl::optional<RtpPacketMediaType> packet_type_;
+  bool allow_retransmission_ = false;
+  absl::optional<uint16_t> retransmitted_sequence_number_;
   std::vector<uint8_t> application_data_;
+  bool is_first_packet_of_frame_ = false;
+  bool is_key_frame_ = false;
 };
 
 }  // namespace webrtc

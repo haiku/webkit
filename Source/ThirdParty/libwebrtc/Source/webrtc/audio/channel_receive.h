@@ -13,6 +13,7 @@
 
 #include <map>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "absl/types/optional.h"
@@ -20,12 +21,13 @@
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/call/audio_sink.h"
 #include "api/call/transport.h"
-#include "api/crypto/cryptooptions.h"
-#include "api/media_transport_interface.h"
-#include "api/rtpreceiverinterface.h"
+#include "api/crypto/crypto_options.h"
+#include "api/neteq/neteq_factory.h"
+#include "api/transport/rtp/rtp_source.h"
 #include "call/rtp_packet_sink_interface.h"
 #include "call/syncable.h"
-#include "modules/audio_coding/include/audio_coding_module.h"
+#include "modules/audio_coding/include/audio_coding_module_typedefs.h"
+#include "system_wrappers/include/clock.h"
 
 // TODO(solenberg, nisse): This file contains a few NOLINT marks, to silence
 // warnings about use of unsigned short.
@@ -48,16 +50,19 @@ class RtpPacketReceived;
 class RtpRtcp;
 
 struct CallReceiveStatistics {
-  unsigned short fractionLost;  // NOLINT
   unsigned int cumulativeLost;
-  unsigned int extendedMax;
   unsigned int jitterSamples;
   int64_t rttMs;
-  size_t bytesReceived;
+  int64_t payload_bytes_rcvd = 0;
+  int64_t header_and_padding_bytes_rcvd = 0;
   int packetsReceived;
   // The capture ntp time (in local timebase) of the first played out audio
   // frame.
   int64_t capture_start_ntp_time_ms_;
+  // The timestamp at which the last packet was received, i.e. the time of the
+  // local clock when it was received - not the RTP timestamp of that packet.
+  // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-lastpacketreceivedtimestamp
+  absl::optional<int64_t> last_packet_received_timestamp_ms;
 };
 
 namespace voe {
@@ -79,9 +84,11 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
   virtual void StartPlayout() = 0;
   virtual void StopPlayout() = 0;
 
-  virtual bool GetRecCodec(CodecInst* codec) const = 0;
+  // Payload type and format of last received RTP packet, if any.
+  virtual absl::optional<std::pair<int, SdpAudioFormat>> GetReceiveCodec()
+      const = 0;
 
-  virtual bool ReceivedRTCPPacket(const uint8_t* data, size_t length) = 0;
+  virtual void ReceivedRTCPPacket(const uint8_t* data, size_t length) = 0;
 
   virtual void SetChannelOutputVolumeScaling(float scaling) = 0;
   virtual int GetSpeechOutputLevelFullRange() const = 0;
@@ -97,13 +104,21 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
   // Audio+Video Sync.
   virtual uint32_t GetDelayEstimate() const = 0;
   virtual void SetMinimumPlayoutDelay(int delay_ms) = 0;
-  virtual uint32_t GetPlayoutTimestamp() const = 0;
+  virtual bool GetPlayoutRtpTimestamp(uint32_t* rtp_timestamp,
+                                      int64_t* time_ms) const = 0;
+  virtual void SetEstimatedPlayoutNtpTimestampMs(int64_t ntp_timestamp_ms,
+                                                 int64_t time_ms) = 0;
+  virtual absl::optional<int64_t> GetCurrentEstimatedPlayoutNtpTimestampMs(
+      int64_t now_ms) const = 0;
+
+  // Audio quality.
+  // Base minimum delay sets lower bound on minimum delay value which
+  // determines minimum delay until audio playout.
+  virtual bool SetBaseMinimumPlayoutDelayMs(int delay_ms) = 0;
+  virtual int GetBaseMinimumPlayoutDelayMs() const = 0;
 
   // Produces the transport-related timestamps; current_delay_ms is left unset.
   virtual absl::optional<Syncable::Info> GetSyncInfo() const = 0;
-
-  // RTP+RTCP
-  virtual void SetLocalSSRC(uint32_t ssrc) = 0;
 
   virtual void RegisterReceiverCongestionControlObjects(
       PacketRouter* packet_router) = 0;
@@ -122,20 +137,21 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
   // Used for obtaining RTT for a receive-only channel.
   virtual void SetAssociatedSendChannel(
       const ChannelSendInterface* channel) = 0;
-
-  virtual std::vector<RtpSource> GetSources() const = 0;
 };
 
 std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
+    Clock* clock,
     ProcessThread* module_process_thread,
+    NetEqFactory* neteq_factory,
     AudioDeviceModule* audio_device_module,
-    MediaTransportInterface* media_transport,
     Transport* rtcp_send_transport,
     RtcEventLog* rtc_event_log,
+    uint32_t local_ssrc,
     uint32_t remote_ssrc,
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,
     int jitter_buffer_min_delay_ms,
+    bool jitter_buffer_enable_rtx_handling,
     rtc::scoped_refptr<AudioDecoderFactory> decoder_factory,
     absl::optional<AudioCodecPairId> codec_pair_id,
     rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor,

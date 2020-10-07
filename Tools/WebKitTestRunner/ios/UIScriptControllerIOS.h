@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2019-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,10 +25,10 @@
 
 #pragma once
 
+#if PLATFORM(IOS_FAMILY)
+
 #import "UIScriptControllerCocoa.h"
 #import <wtf/BlockPtr.h>
-
-#if PLATFORM(IOS_FAMILY)
 
 namespace WebCore {
 class FloatPoint;
@@ -37,14 +37,15 @@ class FloatRect;
 
 namespace WTR {
 
-class UIScriptControllerIOS : public UIScriptControllerCocoa {
+class UIScriptControllerIOS final : public UIScriptControllerCocoa {
 public:
     explicit UIScriptControllerIOS(UIScriptContext& context)
         : UIScriptControllerCocoa(context)
     {
     }
 
-    void checkForOutstandingCallbacks() override;
+private:
+    void waitForOutstandingCallbacks() override;
     void doAfterPresentationUpdate(JSValueRef) override;
     void doAfterNextStablePresentationUpdate(JSValueRef) override;
     void ensurePositionInformationIsUpToDateAt(long x, long y, JSValueRef) override;
@@ -84,7 +85,10 @@ public:
     JSRetainPtr<JSStringRef> textContentType() const override;
     JSRetainPtr<JSStringRef> formInputLabel() const override;
     void selectFormAccessoryPickerRow(long rowIndex) override;
+    bool selectFormAccessoryHasCheckedItemAtRow(long rowIndex) const override;
     void setTimePickerValue(long hour, long minute) override;
+    double timePickerValueHour() const override;
+    double timePickerValueMinute() const override;
     bool isPresentingModally() const override;
     double contentOffsetX() const override;
     double contentOffsetY() const override;
@@ -111,7 +115,6 @@ public:
     JSObjectRef selectionCaretViewRect() const override;
     JSObjectRef selectionRangeViewRects() const override;
     JSObjectRef inputViewBounds() const override;
-    void removeAllDynamicDictionaries() override;
     JSRetainPtr<JSStringRef> scrollingTreeAsText() const override;
     JSObjectRef propertiesOfLayerWithID(uint64_t layerID) const override;
     void simulateRotation(DeviceOrientation*, JSValueRef) override;
@@ -125,16 +128,21 @@ public:
     void beginBackSwipe(JSValueRef) override;
     void completeBackSwipe(JSValueRef) override;
     bool isShowingDataListSuggestions() const override;
-    void drawSquareInEditableImage() override;
-    long numberOfStrokesInEditableImage() override;
+    void activateDataListSuggestion(unsigned, JSValueRef) override;
     void setKeyboardInputModeIdentifier(JSStringRef) override;
     void toggleCapsLock(JSValueRef) override;
+    bool keyboardIsAutomaticallyShifted() const override;
     JSObjectRef attachmentInfo(JSStringRef) override;
     UIView *platformContentView() const override;
     JSObjectRef calendarType() const override;
     void setHardwareKeyboardAttached(bool) override;
     void setAllowsViewportShrinkToFit(bool) override;
     void copyText(JSStringRef) override;
+    void installTapGestureOnWindow(JSValueRef) override;
+    bool isShowingContextMenu() const override;
+    void setSpellCheckerResults(JSValueRef) override { }
+
+    bool mayContainEditableElementsInRect(unsigned x, unsigned y, unsigned width, unsigned height) override;
 
     void setDidStartFormControlInteractionCallback(JSValueRef) override;
     void setDidEndFormControlInteractionCallback(JSValueRef) override;
@@ -149,7 +157,7 @@ public:
     void setDidEndScrollingCallback(JSValueRef) override;
     void clearAllCallbacks() override;
 
-private:
+    void waitForModalTransitionToFinish() const;
     void waitForSingleTapToReset() const;
     WebCore::FloatRect rectForMenuAction(CFStringRef) const;
     void singleTapAtPointWithModifiers(WebCore::FloatPoint location, Vector<String>&& modifierFlags, BlockPtr<void()>&&);

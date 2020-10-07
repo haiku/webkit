@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 1999-2001 Harri Porten (porten@kde.org)
  *  Copyright (C) 2001 Peter Kelly (pmk@post.com)
- *  Copyright (C) 2003-2019 Apple Inc. All rights reserved.
+ *  Copyright (C) 2003-2020 Apple Inc. All rights reserved.
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Library General Public
@@ -73,7 +73,7 @@ JSString* asString(JSValue);
 // are not one pointer load operation. To make concurrent collector work correctly, we must initialize 2nd and 3rd fibers at JSRopeString creation
 // and we must not modify these part later.
 //
-//              0                        8        10               16                       32                                     48
+//              0                        8        10               16          20           24           26           28           32
 // JSString     [   ID      ][  header  ][   String pointer      0]
 // JSRopeString [   ID      ][  header  ][   1st fiber         xyz][  length  ][2nd lower32][2nd upper16][3rd lower16][3rd upper32]
 //                                                               ^
@@ -89,15 +89,22 @@ public:
     friend class SmallStrings;
 
     typedef JSCell Base;
+    // Do we really need OverridesGetOwnPropertySlot?
+    // FIXME: https://bugs.webkit.org/show_bug.cgi?id=212956
+    // Do we really need InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero?
+    // FIXME: https://bugs.webkit.org/show_bug.cgi?id=212958
     static constexpr unsigned StructureFlags = Base::StructureFlags | OverridesGetOwnPropertySlot | InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | StructureIsImmortal | OverridesToThis;
 
     static constexpr bool needsDestruction = true;
-    static void destroy(JSCell*);
+    static ALWAYS_INLINE void destroy(JSCell* cell)
+    {
+        static_cast<JSString*>(cell)->JSString::~JSString();
+    }
     
     // We specialize the string subspace to get the fastest possible sweep. This wouldn't be
     // necessary if JSString didn't have a destructor.
     template<typename, SubspaceAccess>
-    static CompleteSubspace* subspaceFor(VM& vm)
+    static IsoSubspace* subspaceFor(VM& vm)
     {
         return &vm.stringSpace;
     }
@@ -186,6 +193,7 @@ public:
     inline bool equal(JSGlobalObject*, JSString* other) const;
     const String& value(JSGlobalObject*) const;
     inline const String& tryGetValue(bool allocationAllowed = true) const;
+    const StringImpl* getValueImpl() const;
     const StringImpl* tryGetValueImpl() const;
     ALWAYS_INLINE unsigned length() const;
 
@@ -255,6 +263,12 @@ private:
 class JSRopeString final : public JSString {
     friend class JSString;
 public:
+    template<typename, SubspaceAccess>
+    static IsoSubspace* subspaceFor(VM& vm)
+    {
+        return &vm.ropeStringSpace;
+    }
+
     // We use lower 3bits of fiber0 for flags. These bits are usable due to alignment, and it is OK even in 32bit architecture.
     static constexpr uintptr_t is8BitInPointer = static_cast<uintptr_t>(StringImpl::flagIs8Bit());
     static constexpr uintptr_t isSubstringInPointer = 0x2;
@@ -266,7 +280,7 @@ public:
     static_assert(sizeof(uintptr_t) == sizeof(uint64_t), "");
     class CompactFibers {
     public:
-        static constexpr uintptr_t addressMask = (1ULL << WTF_CPU_EFFECTIVE_ADDRESS_WIDTH) - 1;
+        static constexpr uintptr_t addressMask = (1ULL << OS_CONSTANT(EFFECTIVE_ADDRESS_WIDTH)) - 1;
         JSString* fiber1() const
         {
 #if CPU(LITTLE_ENDIAN)
@@ -286,10 +300,7 @@ public:
         JSString* fiber2() const
         {
 #if CPU(LITTLE_ENDIAN)
-            // This access exceeds the sizeof(JSRopeString). But this is OK because JSRopeString is always allocated in MarkedBlock,
-            // and the last JSRopeString cell in the block has some subsequent bytes which are used for MarkedBlock::Footer.
-            // So the following access does not step over the page boundary in which the latter page does not have read permission.
-            return bitwise_cast<JSString*>(WTF::unalignedLoad<uintptr_t>(&m_fiber2Lower) & addressMask);
+            return bitwise_cast<JSString*>(WTF::unalignedLoad<uintptr_t>(&m_fiber1Upper) >> 16);
 #else
             return bitwise_cast<JSString*>(static_cast<uintptr_t>(m_fiber2Lower) | (static_cast<uintptr_t>(m_fiber2Upper) << 16));
 #endif
@@ -585,13 +596,11 @@ private:
     template<typename Function> const String& resolveRopeWithFunction(JSGlobalObject* nullOrGlobalObjectForOOM, Function&&) const;
     JS_EXPORT_PRIVATE AtomString resolveRopeToAtomString(JSGlobalObject*) const;
     JS_EXPORT_PRIVATE RefPtr<AtomStringImpl> resolveRopeToExistingAtomString(JSGlobalObject*) const;
-    void resolveRopeSlowCase8(LChar*) const;
-    void resolveRopeSlowCase(UChar*) const;
+    template<typename CharacterType> NEVER_INLINE void resolveRopeSlowCase(CharacterType*) const;
+    template<typename CharacterType> void resolveRopeInternalNoSubstring(CharacterType*) const;
     void outOfMemory(JSGlobalObject* nullOrGlobalObjectForOOM) const;
     void resolveRopeInternal8(LChar*) const;
-    void resolveRopeInternal8NoSubstring(LChar*) const;
     void resolveRopeInternal16(UChar*) const;
-    void resolveRopeInternal16NoSubstring(UChar*) const;
     StringView unsafeView(JSGlobalObject*) const;
     StringViewWithUnderlyingString viewWithUnderlyingString(JSGlobalObject*) const;
 
@@ -699,6 +708,12 @@ ALWAYS_INLINE unsigned JSString::length() const
     return bitwise_cast<StringImpl*>(pointer)->length();
 }
 
+inline const StringImpl* JSString::getValueImpl() const
+{
+    ASSERT(!isRope());
+    return bitwise_cast<StringImpl*>(m_fiber);
+}
+
 inline const StringImpl* JSString::tryGetValueImpl() const
 {
     uintptr_t pointer = m_fiber;
@@ -721,8 +736,8 @@ inline JSString* jsEmptyString(VM& vm)
 
 ALWAYS_INLINE JSString* jsSingleCharacterString(VM& vm, UChar c)
 {
-    if (validateDFGDoesGC)
-        RELEASE_ASSERT(vm.heap.expectDoesGC());
+    if constexpr (validateDFGDoesGC)
+        vm.heap.verifyCanGC();
     if (c <= maxSingleCharacterString)
         return vm.smallStrings.singleCharacterString(c);
     return JSString::create(vm, StringImpl::create(&c, 1));
@@ -751,8 +766,8 @@ ALWAYS_INLINE Identifier JSString::toIdentifier(JSGlobalObject* globalObject) co
 
 ALWAYS_INLINE AtomString JSString::toAtomString(JSGlobalObject* globalObject) const
 {
-    if (validateDFGDoesGC)
-        RELEASE_ASSERT(vm().heap.expectDoesGC());
+    if constexpr (validateDFGDoesGC)
+        vm().heap.verifyCanGC();
     if (isRope())
         return static_cast<const JSRopeString*>(this)->resolveRopeToAtomString(globalObject);
     return AtomString(valueInternal());
@@ -760,8 +775,8 @@ ALWAYS_INLINE AtomString JSString::toAtomString(JSGlobalObject* globalObject) co
 
 ALWAYS_INLINE RefPtr<AtomStringImpl> JSString::toExistingAtomString(JSGlobalObject* globalObject) const
 {
-    if (validateDFGDoesGC)
-        RELEASE_ASSERT(vm().heap.expectDoesGC());
+    if constexpr (validateDFGDoesGC)
+        vm().heap.verifyCanGC();
     if (isRope())
         return static_cast<const JSRopeString*>(this)->resolveRopeToExistingAtomString(globalObject);
     if (valueInternal().impl()->isAtom())
@@ -771,8 +786,8 @@ ALWAYS_INLINE RefPtr<AtomStringImpl> JSString::toExistingAtomString(JSGlobalObje
 
 inline const String& JSString::value(JSGlobalObject* globalObject) const
 {
-    if (validateDFGDoesGC)
-        RELEASE_ASSERT(vm().heap.expectDoesGC());
+    if constexpr (validateDFGDoesGC)
+        vm().heap.verifyCanGC();
     if (isRope())
         return static_cast<const JSRopeString*>(this)->resolveRope(globalObject);
     return valueInternal();
@@ -781,8 +796,8 @@ inline const String& JSString::value(JSGlobalObject* globalObject) const
 inline const String& JSString::tryGetValue(bool allocationAllowed) const
 {
     if (allocationAllowed) {
-        if (validateDFGDoesGC)
-            RELEASE_ASSERT(vm().heap.expectDoesGC());
+        if constexpr (validateDFGDoesGC)
+            vm().heap.verifyCanGC();
         if (isRope()) {
             // Pass nullptr for the JSGlobalObject so that resolveRope does not throw in the event of an OOM error.
             return static_cast<const JSRopeString*>(this)->resolveRope(nullptr);
@@ -902,9 +917,8 @@ inline JSString* jsOwnedString(VM& vm, const String& s)
     return JSString::createHasOtherOwner(vm, *s.impl());
 }
 
-ALWAYS_INLINE JSString* jsStringWithCache(JSGlobalObject* globalObject, const String& s)
+ALWAYS_INLINE JSString* jsStringWithCache(VM& vm, const String& s)
 {
-    VM& vm = getVM(globalObject);
     StringImpl* stringImpl = s.impl();
     if (!stringImpl || !stringImpl->length())
         return jsEmptyString(vm);
@@ -971,8 +985,8 @@ inline bool isJSString(JSValue v)
 
 ALWAYS_INLINE StringView JSRopeString::unsafeView(JSGlobalObject* globalObject) const
 {
-    if (validateDFGDoesGC)
-        RELEASE_ASSERT(vm().heap.expectDoesGC());
+    if constexpr (validateDFGDoesGC)
+        vm().heap.verifyCanGC();
     if (isSubstring()) {
         auto& base = substringBase()->valueInternal();
         if (base.is8Bit())
@@ -984,8 +998,8 @@ ALWAYS_INLINE StringView JSRopeString::unsafeView(JSGlobalObject* globalObject) 
 
 ALWAYS_INLINE StringViewWithUnderlyingString JSRopeString::viewWithUnderlyingString(JSGlobalObject* globalObject) const
 {
-    if (validateDFGDoesGC)
-        RELEASE_ASSERT(vm().heap.expectDoesGC());
+    if constexpr (validateDFGDoesGC)
+        vm().heap.verifyCanGC();
     if (isSubstring()) {
         auto& base = substringBase()->valueInternal();
         if (base.is8Bit())
@@ -998,8 +1012,8 @@ ALWAYS_INLINE StringViewWithUnderlyingString JSRopeString::viewWithUnderlyingStr
 
 ALWAYS_INLINE StringView JSString::unsafeView(JSGlobalObject* globalObject) const
 {
-    if (validateDFGDoesGC)
-        RELEASE_ASSERT(vm().heap.expectDoesGC());
+    if constexpr (validateDFGDoesGC)
+        vm().heap.verifyCanGC();
     if (isRope())
         return static_cast<const JSRopeString*>(this)->unsafeView(globalObject);
     return valueInternal();
@@ -1027,6 +1041,10 @@ inline bool JSValue::toBoolean(JSGlobalObject* globalObject) const
         return asDouble() > 0.0 || asDouble() < 0.0; // false for NaN
     if (isCell())
         return asCell()->toBoolean(globalObject);
+#if USE(BIGINT32)
+    if (isBigInt32())
+        return !!bigInt32AsInt32();
+#endif
     return isTrue(); // false, null, and undefined all convert to false.
 }
 

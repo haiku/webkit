@@ -41,6 +41,17 @@ StringView stringViewFromUTF8(String& ref, const char* characters)
     return ref;
 }
 
+TEST(WTF, StringViewStartsWithEmptyVsNull)
+{
+    StringView nullView;
+    StringView emptyView = StringView::empty();
+    String stringWithCharacters("hello");
+    StringView viewWithCharacters(stringWithCharacters);
+
+    EXPECT_TRUE(viewWithCharacters.startsWith(nullView));
+    EXPECT_TRUE(viewWithCharacters.startsWith(emptyView));
+}
+
 TEST(WTF, StringViewEmptyVsNull)
 {
     StringView nullView;
@@ -885,7 +896,6 @@ TEST(WTF, StringViewEndsWithIgnoringASCIICaseWithLatin1Characters)
 
 TEST(WTF, StringView8Bit)
 {
-    StringView nullView;
     EXPECT_TRUE(StringView().is8Bit());
     EXPECT_TRUE(StringView::empty().is8Bit());
 

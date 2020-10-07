@@ -29,7 +29,6 @@
 
 #include "IDBResourceIdentifier.h"
 #include <wtf/Forward.h>
-#include <wtf/WeakPtr.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -37,11 +36,13 @@ namespace WebCore {
 class IDBError;
 class IDBResultData;
 
+struct IDBDatabaseNameAndVersion;
+
 namespace IDBServer {
 
 class UniqueIDBDatabaseConnection;
 
-class IDBConnectionToClientDelegate : public CanMakeWeakPtr<IDBConnectionToClientDelegate> {
+class IDBConnectionToClientDelegate {
 public:
     virtual ~IDBConnectionToClientDelegate() = default;
     
@@ -71,7 +72,7 @@ public:
     virtual void didCloseFromServer(UniqueIDBDatabaseConnection&, const IDBError&) = 0;
     virtual void notifyOpenDBRequestBlocked(const IDBResourceIdentifier& requestIdentifier, uint64_t oldVersion, uint64_t newVersion) = 0;
 
-    virtual void didGetAllDatabaseNames(uint64_t callbackID, const Vector<String>& databaseNames) = 0;
+    virtual void didGetAllDatabaseNamesAndVersions(const IDBResourceIdentifier&, const Vector<IDBDatabaseNameAndVersion>&) = 0;
 };
 
 } // namespace IDBServer

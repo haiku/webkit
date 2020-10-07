@@ -11,6 +11,8 @@
 #ifndef RTC_BASE_BUFFER_H_
 #define RTC_BASE_BUFFER_H_
 
+#include <stdint.h>
+
 #include <algorithm>
 #include <cstring>
 #include <memory>
@@ -62,6 +64,7 @@ class BufferT {
 
  public:
   using value_type = T;
+  using const_iterator = const T*;
 
   // An empty BufferT.
   BufferT() : size_(0), capacity_(0), data_(nullptr) {

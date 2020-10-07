@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2010-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,7 +28,9 @@
 #include "APIUserInitiatedAction.h"
 #include "AuxiliaryProcessProxy.h"
 #include "BackgroundProcessResponsivenessTimer.h"
+#include "DisplayLinkObserverID.h"
 #include "MessageReceiverMap.h"
+#include "NetworkProcessProxy.h"
 #include "PluginInfoStore.h"
 #include "ProcessLauncher.h"
 #include "ProcessTerminationReason.h"
@@ -46,13 +48,20 @@
 #include <WebCore/ProcessIdentifier.h>
 #include <WebCore/RegistrableDomain.h>
 #include <WebCore/SharedStringHash.h>
+#include <WebCore/SleepDisabler.h>
 #include <memory>
 #include <pal/SessionID.h>
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
+#include <wtf/Logger.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
+#include <wtf/WeakHashSet.h>
+
+#if HAVE(VISIBILITY_PROPAGATION_VIEW)
+#include "LayerHostingContext.h"
+#endif
 
 namespace API {
 class Navigation;
@@ -65,11 +74,13 @@ class ResourceRequest;
 struct PluginInfo;
 struct PrewarmInformation;
 struct SecurityOriginData;
+enum class ThirdPartyCookieBlockingMode : uint8_t;
+using PlatformDisplayID = uint32_t;
 }
 
 namespace WebKit {
 
-class NetworkProcessProxy;
+class AudioSessionRoutingArbitratorProxy;
 class ObjCObjectGraph;
 class PageClient;
 class ProvisionalPageProxy;
@@ -83,7 +94,7 @@ class WebPageProxy;
 class WebProcessPool;
 class WebUserContentControllerProxy;
 class WebsiteDataStore;
-enum class WebsiteDataType;
+enum class WebsiteDataType : uint32_t;
 struct BackForwardListItemState;
 struct UserMessage;
 struct WebNavigationDataStore;
@@ -91,14 +102,16 @@ struct WebPageCreationParameters;
 struct WebPreferencesStore;
 struct WebsiteData;
 
-#if PLATFORM(IOS_FAMILY)
 enum ForegroundWebProcessCounterType { };
 typedef RefCounter<ForegroundWebProcessCounterType> ForegroundWebProcessCounter;
 typedef ForegroundWebProcessCounter::Token ForegroundWebProcessToken;
 enum BackgroundWebProcessCounterType { };
 typedef RefCounter<BackgroundWebProcessCounterType> BackgroundWebProcessCounter;
 typedef BackgroundWebProcessCounter::Token BackgroundWebProcessToken;
-#endif
+enum WebProcessWithAudibleMediaCounterType { };
+using WebProcessWithAudibleMediaCounter = RefCounter<WebProcessWithAudibleMediaCounterType>;
+using WebProcessWithAudibleMediaToken = WebProcessWithAudibleMediaCounter::Token;
+enum class CheckBackForwardList : bool { No, Yes };
 
 class WebProcessProxy : public AuxiliaryProcessProxy, public ResponsivenessTimer::Client, public ThreadSafeRefCounted<WebProcessProxy>, public CanMakeWeakPtr<WebProcessProxy>, private ProcessThrottlerClient {
 public:
@@ -163,18 +176,20 @@ public:
     void activePagesDomainsForTesting(CompletionHandler<void(Vector<String>&&)>&&); // This is what is reported to ActivityMonitor.
 
     bool isRunningServiceWorkers() const { return !!m_serviceWorkerInformation; }
+    bool isStandaloneServiceWorkerProcess() const { return isRunningServiceWorkers() && !pageCount(); }
+
+    bool isDummyProcessProxy() const;
 
     void didCreateWebPageInProcess(WebCore::PageIdentifier);
 
     void addVisitedLinkStoreUser(VisitedLinkStore&, WebPageProxyIdentifier);
     void removeVisitedLinkStoreUser(VisitedLinkStore&, WebPageProxyIdentifier);
 
-    void addWebUserContentControllerProxy(WebUserContentControllerProxy&, WebPageCreationParameters&);
+    void addWebUserContentControllerProxy(WebUserContentControllerProxy&);
     void didDestroyWebUserContentControllerProxy(WebUserContentControllerProxy&);
 
     RefPtr<API::UserInitiatedAction> userInitiatedActivity(uint64_t);
 
-    ResponsivenessTimer& responsivenessTimer() { return m_responsivenessTimer; }
     bool isResponsive() const;
 
     WebFrameProxy* webFrame(WebCore::FrameIdentifier) const;
@@ -191,10 +206,14 @@ public:
     void assumeReadAccessToBaseURL(WebPageProxy&, const String&);
     bool hasAssumedReadAccessToURL(const URL&) const;
 
-    bool checkURLReceivedFromWebProcess(const String&);
-    bool checkURLReceivedFromWebProcess(const URL&);
+    bool checkURLReceivedFromWebProcess(const String&, CheckBackForwardList = CheckBackForwardList::Yes);
+    bool checkURLReceivedFromWebProcess(const URL&, CheckBackForwardList = CheckBackForwardList::Yes);
 
     static bool fullKeyboardAccessEnabled();
+
+#if HAVE(UIKIT_WITH_MOUSE_SUPPORT) && PLATFORM(IOS)
+    static void notifyHasMouseDeviceChanged();
+#endif
 
     void fetchWebsiteData(PAL::SessionID, OptionSet<WebsiteDataType>, CompletionHandler<void(WebsiteData)>&&);
     void deleteWebsiteData(PAL::SessionID, OptionSet<WebsiteDataType>, WallTime modifiedSince, CompletionHandler<void()>&&);
@@ -206,6 +225,8 @@ public:
 
     static void notifyWebsiteDataDeletionForRegistrableDomainsFinished();
     static void notifyWebsiteDataScanForRegistrableDomainsFinished();
+
+    void setThirdPartyCookieBlockingMode(WebCore::ThirdPartyCookieBlockingMode, CompletionHandler<void()>&&);
 #endif
 
     void enableSuddenTermination();
@@ -214,6 +235,8 @@ public:
 
     void requestTermination(ProcessTerminationReason);
 
+    enum class UseLazyStop : bool { No, Yes };
+    void startResponsivenessTimer(UseLazyStop = UseLazyStop::No);
     void stopResponsivenessTimer();
 
     RefPtr<API::Object> transformHandlesToObjects(API::Object*);
@@ -228,7 +251,7 @@ public:
 
     void setIsHoldingLockedFiles(bool);
 
-    ProcessThrottler& throttler() { return m_throttler; }
+    ProcessThrottler& throttler() final { return m_throttler; }
 
     void isResponsive(CompletionHandler<void(bool isWebProcessResponsive)>&&);
     void isResponsiveWithLazyStop();
@@ -267,41 +290,25 @@ public:
 #endif
 
 #if PLATFORM(MAC) && ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
-    void startDisplayLink(unsigned observerID, uint32_t displayID);
-    void stopDisplayLink(unsigned observerID, uint32_t displayID);
+    void startDisplayLink(DisplayLinkObserverID, WebCore::PlatformDisplayID);
+    void stopDisplayLink(DisplayLinkObserverID, WebCore::PlatformDisplayID);
 #endif
 
     // Called when the web process has crashed or we know that it will terminate soon.
     // Will potentially cause the WebProcessProxy object to be freed.
     void shutDown();
 
-    class ScopePreventingShutdown {
-    public:
-        explicit ScopePreventingShutdown(WebProcessProxy& process)
-            : m_process(process)
-        {
-            ++(m_process->m_shutdownPreventingScopeCount);
-        }
-
-        ~ScopePreventingShutdown()
-        {
-            ASSERT(m_process->m_shutdownPreventingScopeCount);
-            if (!--(m_process->m_shutdownPreventingScopeCount))
-                m_process->maybeShutDown();
-        }
-
-    private:
-        Ref<WebProcessProxy> m_process;
-    };
-
-    ScopePreventingShutdown makeScopePreventingShutdown() { return ScopePreventingShutdown { *this }; }
+    enum ShutdownPreventingScopeType { };
+    using ShutdownPreventingScopeCounter = RefCounter<ShutdownPreventingScopeType>;
+    ShutdownPreventingScopeCounter::Token shutdownPreventingScope() { return m_shutdownPreventingScopeCounter.count(); }
 
     void didStartProvisionalLoadForMainFrame(const URL&);
 
     // ProcessThrottlerClient
     void sendPrepareToSuspend(IsSuspensionImminent, CompletionHandler<void()>&&) final;
     void sendProcessDidResume() final;
-    void didSetAssertionState(AssertionState) final;
+    void didSetAssertionType(ProcessAssertionType) final;
+    ASCIILiteral clientName() const final { return "WebProcess"_s; }
 
 #if PLATFORM(COCOA)
     enum SandboxExtensionType : uint32_t {
@@ -321,30 +328,73 @@ public:
     void revokeAudioCaptureExtension() { m_mediaCaptureSandboxExtensions &= ~Audio; }
 #endif
 
-#if PLATFORM(IOS_FAMILY)
+#if ENABLE(REMOTE_INSPECTOR) && PLATFORM(COCOA)
+    void enableRemoteInspectorIfNeeded();
+#endif
+    
+#if PLATFORM(COCOA)
     void unblockAccessibilityServerIfNeeded();
+#if ENABLE(CFPREFS_DIRECT_MODE)
+    void unblockPreferenceServiceIfNeeded();
+#endif
 #endif
 
-#if PLATFORM(IOS_FAMILY)
-    void processWasResumed();
-#endif
-
-    void webPageMediaStateDidChange(WebPageProxy&);
+    void updateAudibleMediaAssertions();
 
     void ref() final { ThreadSafeRefCounted::ref(); }
     void deref() final { ThreadSafeRefCounted::deref(); }
 
 #if ENABLE(SERVICE_WORKER)
-    void establishServiceWorkerContext(const WebPreferencesStore&);
+    void establishServiceWorkerContext(const WebPreferencesStore&, CompletionHandler<void()>&&);
     void setServiceWorkerUserAgent(const String&);
     void updateServiceWorkerPreferencesStore(const WebPreferencesStore&);
     bool hasServiceWorkerPageProxy(WebPageProxyIdentifier pageProxyID) { return m_serviceWorkerInformation && m_serviceWorkerInformation->serviceWorkerPageProxyID == pageProxyID; }
+    void updateServiceWorkerProcessAssertion();
+    void registerServiceWorkerClientProcess(WebProcessProxy&);
+    void unregisterServiceWorkerClientProcess(WebProcessProxy&);
+    bool hasServiceWorkerForegroundActivityForTesting() const;
+    bool hasServiceWorkerBackgroundActivityForTesting() const;
+#endif
+    void setAssertionTypeForTesting(ProcessAssertionType type) { didSetAssertionType(type); }
+
+#if PLATFORM(COCOA) && ENABLE(MEDIA_STREAM)
+    UserMediaCaptureManagerProxy* userMediaCaptureManagerProxy() { return m_userMediaCaptureManagerProxy.get(); }
+#endif
+
+#if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(IOS_FAMILY)
+    bool hasIssuedAttachmentElementRelatedSandboxExtensions() const { return m_hasIssuedAttachmentElementRelatedSandboxExtensions; }
+    void setHasIssuedAttachmentElementRelatedSandboxExtensions() { m_hasIssuedAttachmentElementRelatedSandboxExtensions = true; }
+#endif
+
+#if HAVE(VISIBILITY_PROPAGATION_VIEW)
+    void didCreateContextInGPUProcessForVisibilityPropagation(LayerHostingContextID);
+#endif
+
+#if ENABLE(GPU_PROCESS)
+    void gpuProcessCrashed();
+#endif
+
+    bool hasSleepDisabler() const;
+
+#if PLATFORM(COCOA)
+    bool hasNetworkExtensionSandboxAccess() const { return m_hasNetworkExtensionSandboxAccess; }
+    void markHasNetworkExtensionSandboxAccess() { m_hasNetworkExtensionSandboxAccess = true; }
+#endif
+#if PLATFORM(IOS)
+    bool hasManagedSessionSandboxAccess() const { return m_hasManagedSessionSandboxAccess; }
+    void markHasManagedSessionSandboxAccess() { m_hasManagedSessionSandboxAccess = true; }
+#endif
+
+#if ENABLE(ROUTING_ARBITRATION)
+    AudioSessionRoutingArbitratorProxy& audioSessionRoutingArbitrator() { return m_routingArbitrator.get(); }
 #endif
 
 protected:
     WebProcessProxy(WebProcessPool&, WebsiteDataStore*, IsPrewarmed);
 
     // AuxiliaryProcessProxy
+    ASCIILiteral processName() const final { return "WebContent"_s; }
+
     void getLaunchOptions(ProcessLauncher::LaunchOptions&) override;
     void platformGetLaunchOptions(ProcessLauncher::LaunchOptions&) override;
     void connectionWillOpen(IPC::Connection&) override;
@@ -364,6 +414,11 @@ protected:
     void validateFreezerStatus();
 
 private:
+    static HashMap<WebCore::ProcessIdentifier, WebProcessProxy*>& allProcesses();
+
+    void platformInitialize();
+    void platformDestroy();
+
     // IPC message handlers.
     void updateBackForwardItem(const BackForwardListItemState&);
     void didDestroyFrame(WebCore::FrameIdentifier);
@@ -387,11 +442,16 @@ private:
     
     void getNetworkProcessConnection(Messages::WebProcessProxy::GetNetworkProcessConnectionDelayedReply&&);
 
+#if ENABLE(GPU_PROCESS)
+    void getGPUProcessConnection(Messages::WebProcessProxy::GetGPUProcessConnectionDelayedReply&&);
+#endif
+
     bool platformIsBeingDebugged() const;
     bool shouldAllowNonValidInjectedCode() const;
 
     static const HashSet<String>& platformPathsWithAssumedReadAccess();
 
+    ResponsivenessTimer& responsivenessTimer() { return m_responsivenessTimer; }
     void updateBackgroundResponsivenessTimer();
 
     void processDidTerminateOrFailedToLaunch();
@@ -403,7 +463,7 @@ private:
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) override;
     void didReceiveSyncMessage(IPC::Connection&, IPC::Decoder&, std::unique_ptr<IPC::Encoder>&) override;
     void didClose(IPC::Connection&) override;
-    void didReceiveInvalidMessage(IPC::Connection&, IPC::StringReference messageReceiverName, IPC::StringReference messageName) override;
+    void didReceiveInvalidMessage(IPC::Connection&, IPC::MessageName) override;
 
     // ResponsivenessTimer::Client
     void didBecomeUnresponsive() override;
@@ -423,6 +483,7 @@ private:
     void logDiagnosticMessageForResourceLimitTermination(const String& limitKey);
     
     void updateRegistrationWithDataStore();
+    Vector<String> platformOverrideLanguages() const;
 
     void maybeShutDown();
 
@@ -430,6 +491,9 @@ private:
     void sendMessageToWebContext(UserMessage&&);
     void sendMessageToWebContextWithReply(UserMessage&&, CompletionHandler<void(UserMessage&&)>&&);
 #endif
+
+    void didCreateSleepDisabler(WebCore::SleepDisablerIdentifier, const String& reason, bool display);
+    void didDestroySleepDisabler(WebCore::SleepDisablerIdentifier);
 
     enum class IsWeak { No, Yes };
     template<typename T> class WeakOrStrongPtr {
@@ -483,11 +547,16 @@ private:
     int m_numberOfTimesSuddenTerminationWasDisabled;
     ProcessThrottler m_throttler;
     std::unique_ptr<ProcessThrottler::BackgroundActivity> m_activityForHoldingLockedFiles;
-#if PLATFORM(IOS_FAMILY)
     ForegroundWebProcessToken m_foregroundToken;
     BackgroundWebProcessToken m_backgroundToken;
+
+#if ENABLE(ROUTING_ARBITRATION)
+    UniqueRef<AudioSessionRoutingArbitratorProxy> m_routingArbitrator;
+#endif
+
+#if PLATFORM(COCOA)
     bool m_hasSentMessageToUnblockAccessibilityServer { false };
-    std::unique_ptr<WebCore::DeferrableOneShotTimer> m_unexpectedActivityTimer;
+    bool m_hasSentMessageToUnblockPreferenceService { false };
 #endif
 
     HashMap<String, uint64_t> m_pageURLRetainCountMap;
@@ -509,10 +578,19 @@ private:
 #endif
 
     unsigned m_suspendedPageCount { 0 };
-    unsigned m_shutdownPreventingScopeCount { 0 };
+
     bool m_hasCommittedAnyProvisionalLoads { false };
     bool m_isPrewarmed;
-    bool m_hasAudibleWebPage { false };
+#if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(IOS_FAMILY)
+    bool m_hasIssuedAttachmentElementRelatedSandboxExtensions { false };
+#endif
+#if PLATFORM(COCOA)
+    bool m_hasNetworkExtensionSandboxAccess { false };
+#endif
+#if PLATFORM(IOS)
+    bool m_hasManagedSessionSandboxAccess { false };
+#endif
+    Optional<UseLazyStop> m_shouldStartResponsivenessTimerWhenLaunched;
 
 #if PLATFORM(WATCHOS)
     std::unique_ptr<ProcessThrottler::BackgroundActivity> m_backgroundActivityForFullscreenFormControls;
@@ -521,13 +599,26 @@ private:
 #if PLATFORM(COCOA)
     MediaCaptureSandboxExtensions m_mediaCaptureSandboxExtensions { SandboxExtensionType::None };
 #endif
+    RefPtr<Logger> m_logger;
 
     struct ServiceWorkerInformation {
         WebPageProxyIdentifier serviceWorkerPageProxyID;
         WebCore::PageIdentifier serviceWorkerPageID;
         ServiceWorkerInitializationData initializationData;
+        ProcessThrottler::ActivityVariant activity;
+        WeakHashSet<WebProcessProxy> clientProcesses;
     };
     Optional<ServiceWorkerInformation> m_serviceWorkerInformation;
+
+    HashMap<WebCore::SleepDisablerIdentifier, std::unique_ptr<WebCore::SleepDisabler>> m_sleepDisablers;
+
+    struct AudibleMediaActivity {
+        UniqueRef<ProcessAssertion> assertion;
+        WebProcessWithAudibleMediaToken token;
+    };
+    Optional<AudibleMediaActivity> m_audibleMediaActivity;
+
+    ShutdownPreventingScopeCounter m_shutdownPreventingScopeCounter;
 };
 
 } // namespace WebKit

@@ -195,7 +195,7 @@ TEST_P(FenceSyncTest, Errors)
     EXPECT_EQ(20, length);
     EXPECT_EQ(30, value);
 
-    // glGetSynciv generates GL_INVALID_VALUE if the sync object tis not valid, results should be
+    // glGetSynciv generates GL_INVALID_VALUE if the sync object is not valid, results should be
     // untouched
     glGetSynciv(reinterpret_cast<GLsync>(30), GL_OBJECT_TYPE, 1, &length, &value);
     EXPECT_GL_ERROR(GL_INVALID_VALUE);
@@ -261,13 +261,5 @@ TEST_P(FenceSyncTest, BasicOperations)
 
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
-ANGLE_INSTANTIATE_TEST(FenceNVTest,
-                       ES2_D3D9(),
-                       ES2_D3D11(),
-                       ES3_D3D11(),
-                       ES2_OPENGL(),
-                       ES3_OPENGL(),
-                       ES2_OPENGLES(),
-                       ES3_OPENGLES(),
-                       ES2_VULKAN());
-ANGLE_INSTANTIATE_TEST(FenceSyncTest, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES(), ES3_VULKAN());
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(FenceNVTest);
+ANGLE_INSTANTIATE_TEST_ES3(FenceSyncTest);

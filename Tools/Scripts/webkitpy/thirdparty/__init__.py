@@ -42,6 +42,7 @@ from collections import namedtuple
 from distutils import spawn
 from webkitpy.common.system.autoinstall import AutoInstaller
 from webkitpy.common.system.filesystem import FileSystem
+from webkitcorepy import AutoInstall
 
 _THIRDPARTY_DIR = os.path.dirname(__file__)
 _AUTOINSTALLED_DIR = os.path.join(_THIRDPARTY_DIR, "autoinstalled")
@@ -83,7 +84,7 @@ class AutoinstallImportHook(object):
     def _ensure_autoinstalled_dir_is_in_sys_path(self):
         # Some packages require that the are being put somewhere under a directory in sys.path.
         if not _AUTOINSTALLED_DIR in sys.path:
-            sys.path.insert(0, _AUTOINSTALLED_DIR)
+            sys.path.insert(sys.path.index(AutoInstall.directory) + 1 if AutoInstall.directory in sys.path else 0, _AUTOINSTALLED_DIR)
 
     def find_module(self, fullname, path=None):
         # This method will run before each import. See http://www.python.org/dev/peps/pep-0302/
@@ -94,92 +95,47 @@ class AutoinstallImportHook(object):
         # order for autoinstall_everything(), below, to work properly.
         if '.mechanize' in fullname:
             self._install_mechanize()
-        elif '.pep8' in fullname:
-            self._install_pep8()
-        elif '.pycodestyle' in fullname:
-            self._install_pycodestyle()
         elif '.pylint' in fullname:
             self._install_pylint()
-        elif '.coverage' in fullname:
-            self._install_coverage()
         elif '.buildbot' in fullname:
             self._install_buildbot()
         elif '.keyring' in fullname:
             self._install_keyring()
         elif '.twisted_15_5_0' in fullname:
             self._install_twisted_15_5_0()
-        elif '.selenium' in fullname:
-            self._install_selenium()
         elif '.chromedriver' in fullname:
             self.install_chromedriver()
         elif '.geckodriver' in fullname:
             self.install_geckodriver()
-        elif '.mozlog' in fullname:
-            self._install_mozlog()
-        elif '.mozprocess' in fullname:
-            self._install_mozprocess()
         elif '.pytest_timeout' in fullname:
             self._install_pytest_timeout()
         elif '.pytest' in fullname:
             self._install_pytest()
-        elif '.requests' in fullname:
-            self._install_requests()
         elif '.bs4' in fullname:
             self._install_beautifulsoup()
-        elif '.html5lib' in fullname:
-            self._install_html5lib()
-
-    def _install_six(self):
-        self._install("https://files.pythonhosted.org/packages/16/d8/bc6316cf98419719bd59c91742194c111b6f2e85abac88e496adefaf7afe/six-1.11.0.tar.gz",
-                              "six-1.11.0/six.py")
-
-    def _install_html5lib(self):
-        self._ensure_autoinstalled_dir_is_in_sys_path()
-        self._install("https://files.pythonhosted.org/packages/0b/02/ae6ceac1baeda530866a85075641cec12989bd8d31af6d5ab4a3e8c92f47/webencodings-0.5.1.tar.gz",
-                      "webencodings-0.5.1/webencodings")
-        self._install("https://files.pythonhosted.org/packages/85/3e/cf449cf1b5004e87510b9368e7a5f1acd8831c2d6691edd3c62a0823f98f/html5lib-1.0.1.tar.gz",
-                      "html5lib-1.0.1/html5lib")
 
     def _install_mechanize(self):
         self._ensure_autoinstalled_dir_is_in_sys_path()
-        self._install_html5lib()
         self._install("https://files.pythonhosted.org/packages/64/f1/1aa4c96dea14e17a955019b0fc4ac1b8dfbc50e3c90970c1fb8882e74a7b/mechanize-0.4.3.tar.gz",
                              "mechanize-0.4.3/mechanize")
-        self._install_six()
 
     def _install_keyring(self):
         self._install("https://files.pythonhosted.org/packages/7d/a9/8c6bf60710781ce13a9987c0debda8adab35eb79c6b5525f7fe5240b7a8a/keyring-7.3.1.tar.gz",
                              "keyring-7.3.1/keyring")
-
-    def _install_pep8(self):
-        self._install("https://files.pythonhosted.org/packages/source/p/pep8/pep8-0.5.0.tar.gz",
-                             "pep8-0.5.0/pep8.py")
-    def _install_pycodestyle(self):
-        self._install("https://files.pythonhosted.org/packages/source/p/pycodestyle/pycodestyle-2.5.0.tar.gz",
-                             "pycodestyle-2.5.0/pycodestyle.py")
-
-    def _install_mozlog(self):
-        self._ensure_autoinstalled_dir_is_in_sys_path()
-        self._install("https://files.pythonhosted.org/packages/10/d5/d286b5dc3f40e32d2a9b3cab0b5b20a05d704958b44b4c5a9aed6472deab/mozlog-3.5.tar.gz",
-                              "mozlog-3.5/mozlog")
-
-    def _install_mozprocess(self):
-        self._ensure_autoinstalled_dir_is_in_sys_path()
-        self._install("https://files.pythonhosted.org/packages/cb/26/144dbc28d1f40e392f8a0cbee771ba624a61017f016c77ad88424d84b230/mozprocess-0.25.tar.gz",
-                              "mozprocess-0.25/mozprocess")
 
     def _install_pytest_timeout(self):
         self._install("https://files.pythonhosted.org/packages/cc/b7/b2a61365ea6b6d2e8881360ae7ed8dad0327ad2df89f2f0be4a02304deb2/pytest-timeout-1.2.0.tar.gz",
                               "pytest-timeout-1.2.0/pytest_timeout.py")
 
     def _install_pytest(self):
+        self._ensure_autoinstalled_dir_is_in_sys_path()
         self._install("https://files.pythonhosted.org/packages/90/e3/e075127d39d35f09a500ebb4a90afd10f9ef0a1d28a6d09abeec0e444fdd/py-1.5.2.tar.gz",
                               "py-1.5.2/py")
         self._install("https://files.pythonhosted.org/packages/11/bf/cbeb8cdfaffa9f2ea154a30ae31a9d04a1209312e2919138b4171a1f8199/pluggy-0.6.0.tar.gz",
                               "pluggy-0.6.0/pluggy")
         self._install("https://files.pythonhosted.org/packages/c0/2f/6773347277d76c5ade4414a6c3f785ef27e7f5c4b0870ec7e888e66a8d83/more-itertools-4.2.0.tar.gz",
                               "more-itertools-4.2.0/more_itertools")
-        self._install_six()
+
         self._install("https://files.pythonhosted.org/packages/a1/e1/2d9bc76838e6e6667fde5814aa25d7feb93d6fa471bf6816daac2596e8b2/atomicwrites-1.1.5.tar.gz",
                               "atomicwrites-1.1.5/atomicwrites")
         self._install("https://files.pythonhosted.org/packages/94/4a/db842e7a0545de1cdb0439bb80e6e42dfe82aaeaadd4072f2263a4fbed23/funcsigs-1.0.2.tar.gz",
@@ -191,25 +147,10 @@ class AutoinstallImportHook(object):
         self._install("https://files.pythonhosted.org/packages/a2/ec/415d0cccc1ed41cd7fdf69ad989da16a8d13057996371004cab4bafc48f3/pytest-3.6.2.tar.gz",
                               "pytest-3.6.2/src/pytest.py")
 
-    def _install_requests(self):
-        self._ensure_autoinstalled_dir_is_in_sys_path()
-        self._install("https://files.pythonhosted.org/packages/06/b8/d1ea38513c22e8c906275d135818fee16ad8495985956a9b7e2bb21942a1/certifi-2019.3.9.tar.gz",
-                      "certifi-2019.3.9/certifi")
-        self._install("https://files.pythonhosted.org/packages/fc/bb/a5768c230f9ddb03acc9ef3f0d4a3cf93462473795d18e9535498c8f929d/chardet-3.0.4.tar.gz",
-                      "chardet-3.0.4/chardet")
-        self._install("https://files.pythonhosted.org/packages/ad/13/eb56951b6f7950cadb579ca166e448ba77f9d24efc03edd7e55fa57d04b7/idna-2.8.tar.gz",
-                      "idna-2.8/idna")
-        self._install("https://files.pythonhosted.org/packages/ff/44/29655168da441dff66de03952880c6e2d17b252836ff1aa4421fba556424/urllib3-1.25.6.tar.gz",
-                      "urllib3-1.25.6/src/urllib3")
-        self._install("https://files.pythonhosted.org/packages/01/62/ddcf76d1d19885e8579acb1b1df26a852b03472c0e46d2b959a714c90608/requests-2.22.0.tar.gz",
-                      "requests-2.22.0/requests")
-
     def _install_beautifulsoup(self):
         if sys.version_info < (3, 0):
             return
 
-        self._install_requests()
-        self._install_html5lib()
         self._ensure_autoinstalled_dir_is_in_sys_path()
         self._install("https://files.pythonhosted.org/packages/7f/4e/95a13527e18b6f1a15c93f1c634b86d5fa634c5619dce695f4e0cd68182f/soupsieve-1.9.4.tar.gz",
                       "soupsieve-1.9.4/soupsieve")
@@ -265,10 +206,6 @@ class AutoinstallImportHook(object):
 
         self._install("https://files.pythonhosted.org/packages/source/b/buildbot/buildbot-0.8.6p1.tar.gz", "buildbot-0.8.6p1/buildbot")
 
-    def _install_coverage(self):
-        self._ensure_autoinstalled_dir_is_in_sys_path()
-        self._install(url="https://files.pythonhosted.org/packages/85/d5/818d0e603685c4a613d56f065a721013e942088047ff1027a632948bdae6/coverage-4.5.4.tar.gz", url_subpath="coverage-4.5.4/coverage")
-
     def _install_twisted_15_5_0(self):
         twisted_dir = self._fs.join(_AUTOINSTALLED_DIR, "twisted_15_5_0")
         installer = AutoInstaller(prepend_to_search_path=True, target_dir=twisted_dir)
@@ -283,27 +220,6 @@ class AutoinstallImportHook(object):
             if int(version.split('.')[i]) < int(minimum.split('.')[i]):
                 return False
         return True
-
-    def _install_selenium(self):
-        self._ensure_autoinstalled_dir_is_in_sys_path()
-
-        installer = AutoInstaller(prepend_to_search_path=True, target_dir=self._fs.join(_AUTOINSTALLED_DIR, "urllib3"))
-        installer.install(url="https://files.pythonhosted.org/packages/ff/44/29655168da441dff66de03952880c6e2d17b252836ff1aa4421fba556424/urllib3-1.25.6.tar.gz", url_subpath="urllib3-1.25.6")
-
-        minimum_version = '3.5.0'
-        if os.path.isfile(os.path.join(_AUTOINSTALLED_DIR, 'selenium', '__init__.py')):
-            import selenium.webdriver
-            if AutoinstallImportHook.greater_than_equal_to_version(minimum_version, selenium.webdriver.__version__):
-                return
-
-        try:
-            url, url_subpath = self.get_latest_pypi_url('selenium')
-        except URLError:
-            # URL for installing the minimum required version.
-            url = 'https://files.pythonhosted.org/packages/ac/d7/1928416439d066c60f26c87a8d1b78a8edd64c7d05a0aa917fa97a8ee02d/selenium-3.5.0.tar.gz'
-            url_subpath = 'selenium-{}/selenium'.format(minimum_version)
-            sys.stderr.write('\nFailed to find latest selenium, falling back to minimum {} version\n'.format(minimum_version))
-        self._install(url=url, url_subpath=url_subpath)
 
     def install_chromedriver(self):
         filename_postfix = get_driver_filename().chrome

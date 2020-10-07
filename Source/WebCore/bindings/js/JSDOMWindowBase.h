@@ -48,14 +48,14 @@ class JSDOMWindowBasePrivate;
 class JSWindowProxy;
 
 class WEBCORE_EXPORT JSDOMWindowBase : public JSDOMGlobalObject {
-    typedef JSDOMGlobalObject Base;
-protected:
-    JSDOMWindowBase(JSC::VM&, JSC::Structure*, RefPtr<DOMWindow>&&, JSWindowProxy*);
-    void finishCreation(JSC::VM&, JSWindowProxy*);
+public:
+    using Base = JSDOMGlobalObject;
 
     static void destroy(JSCell*);
 
-public:
+    template<typename, JSC::SubspaceAccess>
+    static void subspaceFor(JSC::VM&) { RELEASE_ASSERT_NOT_REACHED(); }
+
     void updateDocument();
 
     DOMWindow& wrapped() const { return *m_wrapped; }
@@ -77,7 +77,7 @@ public:
     static bool shouldInterruptScript(const JSC::JSGlobalObject*);
     static bool shouldInterruptScriptBeforeTimeout(const JSC::JSGlobalObject*);
     static JSC::RuntimeFlags javaScriptRuntimeFlags(const JSC::JSGlobalObject*);
-    static void queueTaskToEventLoop(JSC::JSGlobalObject&, Ref<JSC::Microtask>&&);
+    static void queueMicrotaskToEventLoop(JSC::JSGlobalObject&, Ref<JSC::Microtask>&&);
 
     void printErrorMessage(const String&) const;
 
@@ -86,7 +86,10 @@ public:
     static void fireFrameClearedWatchpointsForWindow(DOMWindow*);
 
 protected:
-    JSC::WatchpointSet m_windowCloseWatchpoints;
+    JSDOMWindowBase(JSC::VM&, JSC::Structure*, RefPtr<DOMWindow>&&, JSWindowProxy*);
+    void finishCreation(JSC::VM&, JSWindowProxy*);
+
+    Ref<JSC::WatchpointSet> m_windowCloseWatchpoints;
 
 private:
     using ResponseCallback = WTF::Function<void(const char*, size_t)>;

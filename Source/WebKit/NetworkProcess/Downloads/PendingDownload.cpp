@@ -40,6 +40,7 @@ PendingDownload::PendingDownload(IPC::Connection* parentProcessConnection, Netwo
     : m_networkLoad(makeUnique<NetworkLoad>(*this, blobRegistry, WTFMove(parameters), networkSession))
     , m_parentProcessConnection(parentProcessConnection)
 {
+    m_networkLoad->start();
     m_isAllowedToAskUserForCredentials = parameters.clientCredentialPolicy == ClientCredentialPolicy::MayAskClientForCredentials;
 
     m_networkLoad->setPendingDownloadID(downloadID);
@@ -110,7 +111,7 @@ void PendingDownload::didReceiveResponse(WebCore::ResourceResponse&& response, R
 
 uint64_t PendingDownload::messageSenderDestinationID() const
 {
-    return m_networkLoad->pendingDownloadID().downloadID();
+    return m_networkLoad->pendingDownloadID().toUInt64();
 }
     
 }

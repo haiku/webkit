@@ -50,7 +50,11 @@ WI.DOMManager = class DOMManager extends WI.Object
         this._hasRequestedDocument = false;
         this._pendingDocumentRequestCallbacks = null;
 
-        WI.EventBreakpoint.addEventListener(WI.EventBreakpoint.Event.DisabledStateChanged, this._handleEventBreakpointDisabledStateChanged, this);
+        WI.EventBreakpoint.addEventListener(WI.Breakpoint.Event.DisabledStateDidChange, this._handleEventBreakpointDisabledStateChanged, this);
+        WI.EventBreakpoint.addEventListener(WI.Breakpoint.Event.ConditionDidChange, this._handleEventBreakpointEditablePropertyChanged, this);
+        WI.EventBreakpoint.addEventListener(WI.Breakpoint.Event.IgnoreCountDidChange, this._handleEventBreakpointEditablePropertyChanged, this);
+        WI.EventBreakpoint.addEventListener(WI.Breakpoint.Event.AutoContinueDidChange, this._handleEventBreakpointEditablePropertyChanged, this);
+        WI.EventBreakpoint.addEventListener(WI.Breakpoint.Event.ActionsDidChange, this._handleEventBreakpointActionsChanged, this);
 
         WI.Frame.addEventListener(WI.Frame.Event.MainResourceDidChange, this._mainResourceDidChange, this);
     }
@@ -82,6 +86,39 @@ WI.DOMManager = class DOMManager extends WI.Object
 
     // Static
 
+    static buildHighlightConfig(mode)
+    {
+        mode = mode || "all";
+
+        let highlightConfig = {showInfo: mode === "all"};
+
+        if (mode === "all" || mode === "content")
+            highlightConfig.contentColor = {r: 111, g: 168, b: 220, a: 0.66};
+
+        if (mode === "all" || mode === "padding")
+            highlightConfig.paddingColor = {r: 147, g: 196, b: 125, a: 0.66};
+
+        if (mode === "all" || mode === "border")
+            highlightConfig.borderColor = {r: 255, g: 229, b: 153, a: 0.66};
+
+        if (mode === "all" || mode === "margin")
+            highlightConfig.marginColor = {r: 246, g: 178, b: 107, a: 0.66};
+
+        return highlightConfig;
+    }
+
+    static wrapClientCallback(callback)
+    {
+        if (!callback)
+            return null;
+
+        return function(error, result) {
+            if (error)
+                console.error("Error during DOMAgent operation: " + error);
+            callback(error ? null : result);
+        };
+    }
+
     static supportsDisablingEventListeners()
     {
         return InspectorBackend.hasCommand("DOM.setEventListenerDisabled");
@@ -93,11 +130,16 @@ WI.DOMManager = class DOMManager extends WI.Object
             && InspectorBackend.hasCommand("DOM.removeBreakpointForEventListener");
     }
 
+    static supportsEventListenerBreakpointConfiguration()
+    {
+        // COMPATIBILITY (iOS 14): DOM.setBreakpointForEventListener did not have an "options" parameter yet.
+        return InspectorBackend.hasCommand("DOM.setBreakpointForEventListener", "options");
+    }
+
     static supportsEditingUserAgentShadowTrees({frontendOnly, target} = {})
     {
         target = target || InspectorBackend;
-        return WI.isEngineeringBuild
-            && WI.settings.engineeringAllowEditingUserAgentShadowTrees.value
+        return WI.settings.engineeringAllowEditingUserAgentShadowTrees.value
             && (frontendOnly || target.hasCommand("DOM.setAllowEditingUserAgentShadowTrees"));
 
     }
@@ -206,21 +248,9 @@ WI.DOMManager = class DOMManager extends WI.Object
 
     // Private
 
-    _wrapClientCallback(callback)
-    {
-        if (!callback)
-            return null;
-
-        return function(error, result) {
-            if (error)
-                console.error("Error during DOMAgent operation: " + error);
-            callback(error ? null : result);
-        };
-    }
-
     _dispatchWhenDocumentAvailable(func, callback)
     {
-        var callbackWrapper = this._wrapClientCallback(callback);
+        var callbackWrapper = DOMManager.wrapClientCallback(callback);
 
         function onDocumentAvailable()
         {
@@ -286,6 +316,8 @@ WI.DOMManager = class DOMManager extends WI.Object
         let target = WI.assumingMainTarget();
 
         for (var nodeId in this._attributeLoadNodeIds) {
+            if (!(nodeId in this._idToDOMNode))
+                continue;
             var nodeIdAsNumber = parseInt(nodeId);
             target.DOMAgent.getAttributes(nodeIdAsNumber, callback.bind(this, nodeIdAsNumber));
         }
@@ -301,7 +333,7 @@ WI.DOMManager = class DOMManager extends WI.Object
 
     nodeForId(nodeId)
     {
-        return this._idToDOMNode[nodeId];
+        return this._idToDOMNode[nodeId] || null;
     }
 
     _documentUpdated()
@@ -311,6 +343,9 @@ WI.DOMManager = class DOMManager extends WI.Object
 
     _setDocument(payload)
     {
+        for (let node of Object.values(this._idToDOMNode))
+            node.markDestroyed();
+
         this._idToDOMNode = {};
 
         for (let breakpoint of this._breakpointsForEventListeners.values())
@@ -345,7 +380,16 @@ WI.DOMManager = class DOMManager extends WI.Object
         }
 
         var parent = this._idToDOMNode[parentId];
+
+        if (parent.children) {
+            for (let node of parent.children)
+                this.dispatchEventToListeners(WI.DOMManager.Event.NodeRemoved, {node, parent});
+        }
+
         parent._setChildrenPayload(payloads);
+
+        for (let node of parent.children)
+            this.dispatchEventToListeners(WI.DOMManager.Event.NodeInserted, {node, parent});
     }
 
     _childNodeCountUpdated(nodeId, newValue)
@@ -413,6 +457,8 @@ WI.DOMManager = class DOMManager extends WI.Object
 
     _unbind(node)
     {
+        node.markDestroyed();
+
         delete this._idToDOMNode[node.id];
 
         for (let i = 0; node.children && i < node.children.length; ++i)
@@ -433,13 +479,16 @@ WI.DOMManager = class DOMManager extends WI.Object
         return this._restoreSelectedNodeIsAllowed;
     }
 
-    inspectElement(nodeId)
+    inspectElement(nodeId, options = {})
     {
         var node = this._idToDOMNode[nodeId];
         if (!node || !node.ownerDocument)
             return;
 
-        this.dispatchEventToListeners(WI.DOMManager.Event.DOMNodeWasInspected, {node});
+        // This code path is hit by "Reveal in DOM Tree" and clicking element links/console widgets.
+        // Unless overridden by callers, assume that this is navigation is initiated by a Inspect mode.
+        let initiatorHint = options.initiatorHint || WI.TabBrowser.TabNavigationInitiator.Inspect;
+        this.dispatchEventToListeners(WI.DOMManager.Event.DOMNodeWasInspected, {node, initiatorHint});
 
         this._inspectModeEnabled = false;
         this.dispatchEventToListeners(WI.DOMManager.Event.InspectModeStateChanged);
@@ -471,45 +520,7 @@ WI.DOMManager = class DOMManager extends WI.Object
         remoteObject.pushNodeToFrontend(nodeAvailable.bind(this));
     }
 
-    querySelector(nodeOrNodeId, selector, callback)
-    {
-        let nodeId = nodeOrNodeId instanceof WI.DOMNode ? nodeOrNodeId.id : nodeOrNodeId;
-        console.assert(typeof nodeId === "number");
-
-        let target = WI.assumingMainTarget();
-        if (typeof callback === "function")
-            target.DOMAgent.querySelector(nodeId, selector, this._wrapClientCallback(callback));
-        else
-            return target.DOMAgent.querySelector(nodeId, selector).then(({nodeId}) => nodeId);
-    }
-
-    querySelectorAll(nodeOrNodeId, selector, callback)
-    {
-        let nodeId = nodeOrNodeId instanceof WI.DOMNode ? nodeOrNodeId.id : nodeOrNodeId;
-        console.assert(typeof nodeId === "number");
-
-        let target = WI.assumingMainTarget();
-        if (typeof callback === "function")
-            target.DOMAgent.querySelectorAll(nodeId, selector, this._wrapClientCallback(callback));
-        else
-            return target.DOMAgent.querySelectorAll(nodeId, selector).then(({nodeIds}) => nodeIds);
-    }
-
-    highlightDOMNode(nodeId, mode)
-    {
-        if (this._hideDOMNodeHighlightTimeout) {
-            clearTimeout(this._hideDOMNodeHighlightTimeout);
-            this._hideDOMNodeHighlightTimeout = undefined;
-        }
-
-        let target = WI.assumingMainTarget();
-        if (nodeId)
-            target.DOMAgent.highlightNode.invoke({nodeId, highlightConfig: this._buildHighlightConfig(mode)});
-        else
-            target.DOMAgent.hideHighlight();
-    }
-
-    highlightDOMNodeList(nodeIds, mode)
+    highlightDOMNodeList(nodes, mode)
     {
         let target = WI.assumingMainTarget();
 
@@ -522,23 +533,27 @@ WI.DOMManager = class DOMManager extends WI.Object
             this._hideDOMNodeHighlightTimeout = undefined;
         }
 
-        target.DOMAgent.highlightNodeList(nodeIds, this._buildHighlightConfig(mode));
+        let nodeIds = [];
+        for (let node of nodes) {
+            console.assert(node instanceof WI.DOMNode, node);
+            console.assert(!node.destroyed, node);
+            if (node.destroyed)
+                continue;
+            nodeIds.push(node.id);
+        }
+
+        target.DOMAgent.highlightNodeList(nodeIds, DOMManager.buildHighlightConfig(mode));
     }
 
     highlightSelector(selectorText, frameId, mode)
     {
-        let target = WI.assumingMainTarget();
-
-        // COMPATIBILITY (iOS 8): DOM.highlightSelector did not exist.
-        if (!target.hasCommand("DOM.highlightSelector"))
-            return;
-
         if (this._hideDOMNodeHighlightTimeout) {
             clearTimeout(this._hideDOMNodeHighlightTimeout);
             this._hideDOMNodeHighlightTimeout = undefined;
         }
 
-        target.DOMAgent.highlightSelector(this._buildHighlightConfig(mode), selectorText, frameId);
+        let target = WI.assumingMainTarget();
+        target.DOMAgent.highlightSelector(DOMManager.buildHighlightConfig(mode), selectorText, frameId);
     }
 
     highlightRect(rect, usePageCoordinates)
@@ -557,12 +572,18 @@ WI.DOMManager = class DOMManager extends WI.Object
 
     hideDOMNodeHighlight()
     {
-        this.highlightDOMNode(0);
+        let target = WI.assumingMainTarget();
+        target.DOMAgent.hideHighlight();
     }
 
     highlightDOMNodeForTwoSeconds(nodeId)
     {
-        this.highlightDOMNode(nodeId);
+        let node = this._idToDOMNode[nodeId];
+        if (!node)
+            return;
+
+        node.highlight();
+
         this._hideDOMNodeHighlightTimeout = setTimeout(this.hideDOMNodeHighlight.bind(this), 2000);
     }
 
@@ -579,11 +600,16 @@ WI.DOMManager = class DOMManager extends WI.Object
         let target = WI.assumingMainTarget();
         let commandArguments = {
             enabled,
-            highlightConfig: this._buildHighlightConfig(),
+            highlightConfig: DOMManager.buildHighlightConfig(),
             showRulers: WI.settings.showRulersDuringElementSelection.value,
         };
         target.DOMAgent.setInspectModeEnabled.invoke(commandArguments, (error) => {
-            this._inspectModeEnabled = error ? false : enabled;
+            if (error) {
+                WI.reportInternalError(error);
+                return;
+            }
+
+            this._inspectModeEnabled = enabled;
             this.dispatchEventToListeners(WI.DOMManager.Event.InspectModeStateChanged);
         });
     }
@@ -592,6 +618,10 @@ WI.DOMManager = class DOMManager extends WI.Object
     {
         console.assert(node instanceof WI.DOMNode);
         if (node === this._inspectedNode)
+            return;
+
+        console.assert(!node.destroyed, node);
+        if (node.destroyed)
             return;
 
         let callback = (error) => {
@@ -609,7 +639,8 @@ WI.DOMManager = class DOMManager extends WI.Object
 
         // COMPATIBILITY (iOS 11): DOM.setInspectedNode did not exist.
         if (!target.hasCommand("DOM.setInspectedNode")) {
-            target.ConsoleAgent.addInspectedNode(node.id, callback);
+            if (target.hasCommand("Console.addInspectedNode"))
+                target.ConsoleAgent.addInspectedNode(node.id, callback);
             return;
         }
 
@@ -633,10 +664,7 @@ WI.DOMManager = class DOMManager extends WI.Object
     setEventListenerDisabled(eventListener, disabled)
     {
         let target = WI.assumingMainTarget();
-        target.DOMAgent.setEventListenerDisabled(eventListener.eventListenerId, disabled, (error) => {
-            if (error)
-                console.error(error);
-        });
+        target.DOMAgent.setEventListenerDisabled(eventListener.eventListenerId, disabled);
     }
 
     setBreakpointForEventListener(eventListener)
@@ -655,8 +683,10 @@ WI.DOMManager = class DOMManager extends WI.Object
 
         for (let target of WI.targets) {
             if (target.hasDomain("DOM"))
-                this._updateEventBreakpoint(breakpoint, target);
+                this._setEventBreakpoint(breakpoint, target);
         }
+
+        WI.debuggerManager.addProbesForBreakpoint(breakpoint);
 
         WI.domDebuggerManager.dispatchEventToListeners(WI.DOMDebuggerManager.Event.EventBreakpointAdded, {breakpoint});
     }
@@ -664,12 +694,14 @@ WI.DOMManager = class DOMManager extends WI.Object
     removeBreakpointForEventListener(eventListener)
     {
         let breakpoint = this._breakpointsForEventListeners.take(eventListener.eventListenerId);
-        console.assert(breakpoint);
+        if (!breakpoint)
+            return;
 
-        for (let target of WI.targets) {
-            if (target.hasDomain("DOM"))
-                target.DOMAgent.removeBreakpointForEventListener(eventListener.eventListenerId);
-        }
+        // Disable the breakpoint first, so removing actions doesn't re-add the breakpoint.
+        breakpoint.disabled = true;
+        breakpoint.clearActions();
+
+        WI.debuggerManager.removeProbesForBreakpoint(breakpoint);
 
         WI.domDebuggerManager.dispatchEventToListeners(WI.DOMDebuggerManager.Event.EventBreakpointRemoved, {breakpoint});
     }
@@ -690,38 +722,28 @@ WI.DOMManager = class DOMManager extends WI.Object
 
     // Private
 
-    _buildHighlightConfig(mode = "all")
+    _setEventBreakpoint(breakpoint, target)
     {
-        let highlightConfig = {showInfo: mode === "all"};
+        console.assert(!breakpoint.disabled, breakpoint);
 
-        if (mode === "all" || mode === "content")
-            highlightConfig.contentColor = {r: 111, g: 168, b: 220, a: 0.66};
+        let eventListener = breakpoint.eventListener;
+        console.assert(eventListener);
 
-        if (mode === "all" || mode === "padding")
-            highlightConfig.paddingColor = {r: 147, g: 196, b: 125, a: 0.66};
+            if (!WI.debuggerManager.breakpointsDisabledTemporarily)
+                WI.debuggerManager.breakpointsEnabled = true;
 
-        if (mode === "all" || mode === "border")
-            highlightConfig.borderColor = {r: 255, g: 229, b: 153, a: 0.66};
-
-        if (mode === "all" || mode === "margin")
-            highlightConfig.marginColor = {r: 246, g: 178, b: 107, a: 0.66};
-
-        return highlightConfig;
+        target.DOMAgent.setBreakpointForEventListener.invoke({
+            eventListenerId: eventListener.eventListenerId,
+            options: breakpoint.optionsToProtocol(),
+        });
     }
 
-    _updateEventBreakpoint(breakpoint, target)
+    _removeEventBreakpoint(breakpoint, target)
     {
         let eventListener = breakpoint.eventListener;
         console.assert(eventListener);
 
-        if (breakpoint.disabled)
-            target.DOMAgent.removeBreakpointForEventListener(eventListener.eventListenerId);
-        else {
-            if (!WI.debuggerManager.breakpointsDisabledTemporarily)
-                WI.debuggerManager.breakpointsEnabled = true;
-
-            target.DOMAgent.setBreakpointForEventListener(eventListener.eventListenerId);
-        }
+        target.DOMAgent.removeBreakpointForEventListener(eventListener.eventListenerId);
     }
 
     _handleEventBreakpointDisabledStateChanged(event)
@@ -733,9 +755,45 @@ WI.DOMManager = class DOMManager extends WI.Object
             return;
 
         for (let target of WI.targets) {
-            if (target.hasDomain("DOM"))
-                this._updateEventBreakpoint(breakpoint, target);
+            if (!target.hasDomain("DOM"))
+                continue;
+
+            if (breakpoint.disabled)
+                this._removeEventBreakpoint(breakpoint, target);
+            else
+                this._setEventBreakpoint(breakpoint, target);
         }
+    }
+
+    _handleEventBreakpointEditablePropertyChanged(event)
+    {
+        let breakpoint = event.target;
+
+        // Non-specific event listener breakpoints are handled by `DOMDebuggerManager`.
+        if (!breakpoint.eventListener)
+            return;
+
+        if (breakpoint.disabled)
+            return;
+
+        for (let target of WI.targets) {
+            // Clear the old breakpoint from the backend before setting the new one.
+            this._removeEventBreakpoint(breakpoint, target);
+            this._setEventBreakpoint(breakpoint, target);
+        }
+    }
+
+    _handleEventBreakpointActionsChanged(event)
+    {
+        let breakpoint = event.target;
+
+        // Non-specific event listener breakpoints are handled by `DOMDebuggerManager`.
+        if (!breakpoint.eventListener)
+            return;
+
+        this._handleEventBreakpointEditablePropertyChanged(event);
+
+        WI.debuggerManager.updateProbesForBreakpoint(breakpoint);
     }
 
     _mainResourceDidChange(event)

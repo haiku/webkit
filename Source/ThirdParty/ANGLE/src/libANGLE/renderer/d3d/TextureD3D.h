@@ -29,7 +29,7 @@ class RendererD3D;
 class RenderTargetD3D;
 class TextureStorage;
 
-class TextureD3D : public TextureImpl
+class TextureD3D : public TextureImpl, public angle::ObserverInterface
 {
   public:
     TextureD3D(const gl::TextureState &data, RendererD3D *renderer);
@@ -94,6 +94,7 @@ class TextureD3D : public TextureImpl
                                    egl::Stream *stream,
                                    const egl::Stream::GLTextureDescription &desc) override;
     angle::Result generateMipmap(const gl::Context *context) override;
+    bool hasStorage() const { return mTexStorage != nullptr; }
     TextureStorage *getStorage();
     ImageD3D *getBaseLevelImage() const;
 
@@ -106,18 +107,23 @@ class TextureD3D : public TextureImpl
     angle::Result setBaseLevel(const gl::Context *context, GLuint baseLevel) override;
 
     angle::Result syncState(const gl::Context *context,
-                            const gl::Texture::DirtyBits &dirtyBits) override;
+                            const gl::Texture::DirtyBits &dirtyBits,
+                            gl::TextureCommand source) override;
 
     angle::Result initializeContents(const gl::Context *context,
                                      const gl::ImageIndex &imageIndex) override;
 
     GLsizei getRenderToTextureSamples();
 
+    // ObserverInterface implementation.
+    void onSubjectStateChange(angle::SubjectIndex index, angle::SubjectMessage message) override;
+
   protected:
     angle::Result setImageImpl(const gl::Context *context,
                                const gl::ImageIndex &index,
                                GLenum type,
                                const gl::PixelUnpackState &unpack,
+                               gl::Buffer *unpackBuffer,
                                const uint8_t *pixels,
                                ptrdiff_t layerOffset);
     angle::Result subImage(const gl::Context *context,
@@ -144,6 +150,7 @@ class TextureD3D : public TextureImpl
     bool isFastUnpackable(const gl::Buffer *unpackBuffer, GLenum sizedInternalFormat);
     angle::Result fastUnpackPixels(const gl::Context *context,
                                    const gl::PixelUnpackState &unpack,
+                                   gl::Buffer *unpackBuffer,
                                    const uint8_t *pixels,
                                    const gl::Box &destArea,
                                    GLenum sizedInternalFormat,
@@ -184,6 +191,7 @@ class TextureD3D : public TextureImpl
 
     bool mImmutable;
     TextureStorage *mTexStorage;
+    angle::ObserverBinding mTexStorageObserverBinding;
 
   private:
     virtual angle::Result initializeStorage(const gl::Context *context, bool renderTarget) = 0;
@@ -222,6 +230,7 @@ class TextureD3D_2D : public TextureD3D
                            GLenum format,
                            GLenum type,
                            const gl::PixelUnpackState &unpack,
+                           gl::Buffer *unpackBuffer,
                            const uint8_t *pixels) override;
     angle::Result setSubImage(const gl::Context *context,
                               const gl::ImageIndex &index,
@@ -353,6 +362,7 @@ class TextureD3D_Cube : public TextureD3D
                            GLenum format,
                            GLenum type,
                            const gl::PixelUnpackState &unpack,
+                           gl::Buffer *unpackBuffer,
                            const uint8_t *pixels) override;
     angle::Result setSubImage(const gl::Context *context,
                               const gl::ImageIndex &index,
@@ -485,6 +495,7 @@ class TextureD3D_3D : public TextureD3D
                            GLenum format,
                            GLenum type,
                            const gl::PixelUnpackState &unpack,
+                           gl::Buffer *unpackBuffer,
                            const uint8_t *pixels) override;
     angle::Result setSubImage(const gl::Context *context,
                               const gl::ImageIndex &index,
@@ -614,6 +625,7 @@ class TextureD3D_2DArray : public TextureD3D
                            GLenum format,
                            GLenum type,
                            const gl::PixelUnpackState &unpack,
+                           gl::Buffer *unpackBuffer,
                            const uint8_t *pixels) override;
     angle::Result setSubImage(const gl::Context *context,
                               const gl::ImageIndex &index,
@@ -741,6 +753,7 @@ class TextureD3DImmutableBase : public TextureD3D
                            GLenum format,
                            GLenum type,
                            const gl::PixelUnpackState &unpack,
+                           gl::Buffer *unpackBuffer,
                            const uint8_t *pixels) override;
     angle::Result setSubImage(const gl::Context *context,
                               const gl::ImageIndex &index,

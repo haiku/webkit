@@ -1,0 +1,7 @@
+2d.text.draw.fill.unaffected
+
+fillText does not start a new path or subpath
+
+
+FAIL fillText does not start a new path or subpath ctx.fillText is not a function. (In 'ctx.fillText('FAIL', 5, 35)', 'ctx.fillText' is undefined)
+

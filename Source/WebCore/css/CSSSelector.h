@@ -34,6 +34,7 @@ namespace WebCore {
     };
 
     // this class represents a selector for a StyleRule
+    DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(CSSSelectorRareData);
     class CSSSelector {
         WTF_MAKE_FAST_ALLOCATED;
     public:
@@ -56,7 +57,7 @@ namespace WebCore {
         static const unsigned classMask = 0xff00;
         static const unsigned elementMask = 0xff;
 
-        unsigned staticSpecificity(bool& ok) const;
+        unsigned computeSpecificity() const;
         unsigned specificityForPage() const;
         unsigned simpleSelectorSpecificity() const;
         static unsigned addSpecificities(unsigned, unsigned);
@@ -120,7 +121,9 @@ namespace WebCore {
             PseudoClassFullPageMedia,
             PseudoClassDefault,
             PseudoClassDisabled,
-            PseudoClassMatches,
+            PseudoClassIs,
+            PseudoClassMatches, // obsolete synonym for PseudoClassIs
+            PseudoClassWhere,
             PseudoClassOptional,
             PseudoClassPlaceholderShown,
             PseudoClassRequired,
@@ -152,9 +155,12 @@ namespace WebCore {
             PseudoClassAnimatingFullScreenTransition,
             PseudoClassFullScreenControlsHidden,
 #endif
+#if ENABLE(PICTURE_IN_PICTURE_API)
+            PseudoClassPictureInPicture,
+#endif
             PseudoClassInRange,
             PseudoClassOutOfRange,
-#if ENABLE(VIDEO_TRACK)
+#if ENABLE(VIDEO)
             PseudoClassFuture,
             PseudoClassPast,
 #endif
@@ -173,11 +179,12 @@ namespace WebCore {
             PseudoElementUnknown = 0,
             PseudoElementAfter,
             PseudoElementBefore,
-#if ENABLE(VIDEO_TRACK)
+#if ENABLE(VIDEO)
             PseudoElementCue,
 #endif
             PseudoElementFirstLetter,
             PseudoElementFirstLine,
+            PseudoElementHighlight,
             PseudoElementMarker,
             PseudoElementPart,
             PseudoElementResizer,
@@ -344,6 +351,7 @@ namespace WebCore {
         CSSSelector& operator=(const CSSSelector&);
 
         struct RareData : public RefCounted<RareData> {
+            WTF_MAKE_STRUCT_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(CSSSelectorRareData);
             static Ref<RareData> create(AtomString&& value) { return adoptRef(*new RareData(WTFMove(value))); }
             ~RareData();
 
@@ -361,7 +369,7 @@ namespace WebCore {
             AtomString m_attributeCanonicalLocalName;
             AtomString m_argument; // Used for :contains and :nth-*
             std::unique_ptr<Vector<AtomString>> m_argumentList; // Used for :lang and ::part arguments.
-            std::unique_ptr<CSSSelectorList> m_selectorList; // Used for :matches() and :not().
+            std::unique_ptr<CSSSelectorList> m_selectorList; // Used for :is(), :matches(), and :not().
         
         private:
             RareData(AtomString&& value);

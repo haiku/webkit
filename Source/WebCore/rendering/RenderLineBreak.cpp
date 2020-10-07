@@ -27,7 +27,7 @@
 #include "HTMLElement.h"
 #include "HTMLWBRElement.h"
 #include "InlineElementBox.h"
-#include "LineLayoutTraversal.h"
+#include "LayoutIntegrationRunIterator.h"
 #include "LogicalSelectionOffsetCaches.h"
 #include "RenderBlock.h"
 #include "RenderView.h"
@@ -126,12 +126,6 @@ void RenderLineBreak::ensureLineBoxes()
     downcast<RenderBlockFlow>(*parent()).ensureLineBoxes();
 }
 
-void RenderLineBreak::deleteLineBoxesBeforeSimpleLineLayout()
-{
-    delete m_inlineBoxWrapper;
-    m_inlineBoxWrapper = nullptr;
-}
-
 int RenderLineBreak::caretMinOffset() const
 {
     return 0;
@@ -150,17 +144,17 @@ bool RenderLineBreak::canBeSelectionLeaf() const
 VisiblePosition RenderLineBreak::positionForPoint(const LayoutPoint&, const RenderFragmentContainer*)
 {
     ensureLineBoxes();
-    return createVisiblePosition(0, DOWNSTREAM);
+    return createVisiblePosition(0, Affinity::Downstream);
 }
 
-void RenderLineBreak::setSelectionState(SelectionState state)
+void RenderLineBreak::setSelectionState(HighlightState state)
 {
-    if (state != SelectionNone)
+    if (state != HighlightState::None)
         ensureLineBoxes();
     RenderBoxModelObject::setSelectionState(state);
     if (!m_inlineBoxWrapper)
         return;
-    m_inlineBoxWrapper->root().setHasSelectedChildren(state != SelectionNone);
+    m_inlineBoxWrapper->root().setHasSelectedChildren(state != HighlightState::None);
 }
 
 LayoutRect RenderLineBreak::localCaretRect(InlineBox* inlineBox, unsigned caretOffset, LayoutUnit* extraWidthToEndOfLine)
@@ -176,16 +170,38 @@ LayoutRect RenderLineBreak::localCaretRect(InlineBox* inlineBox, unsigned caretO
 
 IntRect RenderLineBreak::linesBoundingBox() const
 {
-    auto box = LineLayoutTraversal::elementBoxFor(*this);
+    auto box = LayoutIntegration::runFor(*this);
     if (!box)
         return { };
 
     return enclosingIntRect(box->rect());
 }
 
+IntRect RenderLineBreak::boundingBoxForRenderTreeDump() const
+{
+    auto box = LayoutIntegration::runFor(*this);
+    if (!box)
+        return { };
+
+    auto rect = box->rect();
+
+    // FIXME: Remove and rebase the tests.
+    bool inQuirksMode = !document().inNoQuirksMode();
+    if (inQuirksMode && !isWBR() && box->useLineBreakBoxRenderTreeDumpQuirk()) {
+        if (!box->isHorizontal()) {
+            auto baseline = style().isFlippedBlocksWritingMode() ? rect.x() + box->baseline() : rect.maxX() - box->baseline();
+            return enclosingIntRect(FloatRect(FloatPoint(baseline, rect.y()), FloatSize(0, rect.height())));
+        }
+        auto baseline = rect.y() + box->baseline();
+        return enclosingIntRect(FloatRect(FloatPoint(rect.x(), baseline), FloatSize(rect.width(), 0)));
+    }
+
+    return enclosingIntRect(rect);
+}
+
 void RenderLineBreak::absoluteRects(Vector<IntRect>& rects, const LayoutPoint& accumulatedOffset) const
 {
-    auto box = LineLayoutTraversal::elementBoxFor(*this);
+    auto box = LayoutIntegration::runFor(*this);
     if (!box)
         return;
 
@@ -195,7 +211,7 @@ void RenderLineBreak::absoluteRects(Vector<IntRect>& rects, const LayoutPoint& a
 
 void RenderLineBreak::absoluteQuads(Vector<FloatQuad>& quads, bool* wasFixed) const
 {
-    auto box = LineLayoutTraversal::elementBoxFor(*this);
+    auto box = LayoutIntegration::runFor(*this);
     if (!box)
         return;
 

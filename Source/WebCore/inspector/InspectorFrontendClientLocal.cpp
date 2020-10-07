@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2010 Google Inc. All rights reserved.
- * Copyright (C) 2015 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -250,11 +250,11 @@ void InspectorFrontendClientLocal::changeSheetRect(const FloatRect& rect)
     setSheetRect(rect);
 }
 
-void InspectorFrontendClientLocal::openInNewTab(const String& url)
+void InspectorFrontendClientLocal::openURLExternally(const String& url)
 {
     UserGestureIndicator indicator { ProcessingUserGesture };
     Frame& mainFrame = m_inspectedPageController->inspectedPage().mainFrame();
-    FrameLoadRequest frameLoadRequest { *mainFrame.document(), mainFrame.document()->securityOrigin(), { }, "_blank"_s, LockHistory::No, LockBackForwardList::No, MaybeSendReferrer, AllowNavigationToInvalidURL::Yes, NewFrameOpenerPolicy::Allow, ShouldOpenExternalURLsPolicy::ShouldNotAllow, InitiatedByMainFrame::Unknown };
+    FrameLoadRequest frameLoadRequest { *mainFrame.document(), mainFrame.document()->securityOrigin(), { }, "_blank"_s, InitiatedByMainFrame::Unknown };
 
     bool created;
     auto frame = WebCore::createWindow(mainFrame, mainFrame, WTFMove(frameLoadRequest), { }, created);
@@ -266,7 +266,7 @@ void InspectorFrontendClientLocal::openInNewTab(const String& url)
 
     // FIXME: Why do we compute the absolute URL with respect to |frame| instead of |mainFrame|?
     ResourceRequest resourceRequest { frame->document()->completeURL(url) };
-    FrameLoadRequest frameLoadRequest2 { *mainFrame.document(), mainFrame.document()->securityOrigin(), resourceRequest, "_self"_s, LockHistory::No, LockBackForwardList::No, MaybeSendReferrer, AllowNavigationToInvalidURL::Yes, NewFrameOpenerPolicy::Allow, ShouldOpenExternalURLsPolicy::ShouldNotAllow, InitiatedByMainFrame::Unknown };
+    FrameLoadRequest frameLoadRequest2 { *mainFrame.document(), mainFrame.document()->securityOrigin(), WTFMove(resourceRequest), "_self"_s, InitiatedByMainFrame::Unknown };
     frame->loader().changeLocation(WTFMove(frameLoadRequest2));
 }
 
@@ -420,7 +420,7 @@ void InspectorFrontendClientLocal::dispatchMessageAsync(const String& messageObj
 bool InspectorFrontendClientLocal::evaluateAsBoolean(const String& expression)
 {
     auto& state = *mainWorldExecState(&m_frontendPage->mainFrame());
-    return m_frontendPage->mainFrame().script().executeScript(expression).toWTFString(&state) == "true";
+    return m_frontendPage->mainFrame().script().executeScriptIgnoringException(expression).toWTFString(&state) == "true";
 }
 
 void InspectorFrontendClientLocal::evaluateOnLoad(const String& expression)
@@ -431,7 +431,7 @@ void InspectorFrontendClientLocal::evaluateOnLoad(const String& expression)
     }
 
     JSC::SuspendExceptionScope scope(&m_frontendPage->inspectorController().vm());
-    m_frontendPage->mainFrame().script().evaluate(ScriptSourceCode(expression));
+    m_frontendPage->mainFrame().script().evaluateIgnoringException(ScriptSourceCode(expression));
 }
 
 Page* InspectorFrontendClientLocal::inspectedPage() const

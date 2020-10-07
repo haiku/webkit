@@ -32,13 +32,17 @@ namespace JSC {
 
 class JSDataView final : public JSArrayBufferView {
 public:
-    typedef JSArrayBufferView Base;
+    using Base = JSArrayBufferView;
+    static constexpr unsigned StructureFlags = Base::StructureFlags;
+
     static constexpr unsigned elementSize = 1;
-    
-protected:
-    JSDataView(VM&, ConstructionContext&, ArrayBuffer*);
-    
-public:
+
+    template<typename CellType, SubspaceAccess mode>
+    static IsoSubspace* subspaceFor(VM& vm)
+    {
+        return vm.dataViewSpace<mode>();
+    }
+
     JS_EXPORT_PRIVATE static JSDataView* create(
         JSGlobalObject*, Structure*, RefPtr<ArrayBuffer>&&, unsigned byteOffset,
         unsigned byteLength);
@@ -62,20 +66,13 @@ public:
     
     static const TypedArrayType TypedArrayStorageType = TypeDataView;
 
-protected:
-    static bool getOwnPropertySlot(JSObject*, JSGlobalObject*, PropertyName, PropertySlot&);
-    static bool put(JSCell*, JSGlobalObject*, PropertyName, JSValue, PutPropertySlot&);
-    static bool defineOwnProperty(JSObject*, JSGlobalObject*, PropertyName, const PropertyDescriptor&, bool shouldThrow);
-    static bool deleteProperty(JSCell*, JSGlobalObject*, PropertyName);
-
-    static void getOwnNonIndexPropertyNames(JSObject*, JSGlobalObject*, PropertyNameArray&, EnumerationMode);
-
-public:
     static Structure* createStructure(VM&, JSGlobalObject*, JSValue prototype);
     
     DECLARE_EXPORT_INFO;
 
 private:
+    JSDataView(VM&, ConstructionContext&, ArrayBuffer*);
+
     ArrayBuffer* m_buffer;
 };
 

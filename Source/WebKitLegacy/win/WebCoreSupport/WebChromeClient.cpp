@@ -43,7 +43,6 @@
 #include <WebCore/FileIconLoader.h>
 #include <WebCore/FloatRect.h>
 #include <WebCore/Frame.h>
-#include <WebCore/FrameLoadRequest.h>
 #include <WebCore/FrameView.h>
 #include <WebCore/FullScreenController.h>
 #include <WebCore/FullscreenManager.h>
@@ -190,7 +189,7 @@ static COMPtr<IPropertyBag> createWindowFeaturesPropertyBag(const WindowFeatures
     return COMPtr<IPropertyBag>(AdoptCOM, COMPropertyBag<COMVariant>::adopt(map));
 }
 
-Page* WebChromeClient::createWindow(Frame& frame, const FrameLoadRequest&, const WindowFeatures& features, const NavigationAction& navigationAction)
+Page* WebChromeClient::createWindow(Frame& frame, const WindowFeatures& features, const NavigationAction& navigationAction)
 {
     COMPtr<IWebUIDelegate> delegate = uiDelegate();
     if (!delegate)
@@ -529,16 +528,16 @@ void WebChromeClient::intrinsicContentsSizeChanged(const IntSize&) const
     notImplemented();
 }
 
-void WebChromeClient::mouseDidMoveOverElement(const HitTestResult& result, unsigned modifierFlags)
+void WebChromeClient::mouseDidMoveOverElement(const HitTestResult& result, unsigned modifierFlags, const String& toolTip, TextDirection)
 {
     COMPtr<IWebUIDelegate> uiDelegate;
-    if (FAILED(m_webView->uiDelegate(&uiDelegate)))
-        return;
+    if (SUCCEEDED(m_webView->uiDelegate(&uiDelegate))) {
+        COMPtr<WebElementPropertyBag> element;
+        element.adoptRef(WebElementPropertyBag::createInstance(result));
 
-    COMPtr<WebElementPropertyBag> element;
-    element.adoptRef(WebElementPropertyBag::createInstance(result));
-
-    uiDelegate->mouseDidMoveOverElement(m_webView, element.get(), modifierFlags);
+        uiDelegate->mouseDidMoveOverElement(m_webView, element.get(), modifierFlags);
+    }
+    m_webView->setToolTip(toolTip);
 }
 
 bool WebChromeClient::shouldUnavailablePluginMessageBeButton(RenderEmbeddedObject::PluginUnavailabilityReason pluginUnavailabilityReason) const
@@ -570,11 +569,6 @@ void WebChromeClient::unavailablePluginButtonClicked(Element& element, RenderEmb
 
     COMPtr<IDOMElement> e(AdoptCOM, DOMElement::createInstance(&element));
     uiDelegatePrivate3->didPressMissingPluginButton(e.get());
-}
-
-void WebChromeClient::setToolTip(const String& toolTip, TextDirection)
-{
-    m_webView->setToolTip(toolTip);
 }
 
 void WebChromeClient::print(Frame& frame)
@@ -751,7 +745,7 @@ void WebChromeClient::attachViewOverlayGraphicsLayer(GraphicsLayer*)
     // FIXME: If we want view-relative page overlays in Legacy WebKit on Windows, this would be the place to hook them up.
 }
 
-void WebChromeClient::scheduleCompositingLayerFlush()
+void WebChromeClient::triggerRenderingUpdate()
 {
     m_webView->flushPendingGraphicsLayerChangesSoon();
 }

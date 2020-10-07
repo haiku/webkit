@@ -1,0 +1,7 @@
+2d.text.draw.stroke.unaffected
+
+strokeText does not start a new path or subpath
+
+
+FAIL strokeText does not start a new path or subpath ctx.strokeText is not a function. (In 'ctx.strokeText('FAIL', 5, 35)', 'ctx.strokeText' is undefined)
+

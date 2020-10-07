@@ -25,26 +25,30 @@
 
 #pragma once
 
-#import "UIScriptController.h"
+#import "UIScriptControllerCommon.h"
 
 OBJC_CLASS TestRunnerWKWebView;
 
 namespace WTR {
 
-class UIScriptControllerCocoa : public UIScriptController {
-public:
+class UIScriptControllerCocoa : public UIScriptControllerCommon {
+protected:
+    explicit UIScriptControllerCocoa(UIScriptContext&);
+    TestRunnerWKWebView *webView() const;
+
+    void doAsyncTask(JSValueRef) override;
+
+private:
     void setViewScale(double) override;
     void setMinimumEffectiveWidth(double) override;
     void becomeFirstResponder() override;
     void resignFirstResponder() override;
-    void doAsyncTask(JSValueRef) override;
-    void setShareSheetCompletesImmediatelyWithResolution(bool) override;
     void removeViewFromWindow(JSValueRef) override;
     void addViewToWindow(JSValueRef) override;
     void overridePreference(JSStringRef, JSStringRef) override;
     void findString(JSStringRef, unsigned long, unsigned long) override;
     JSObjectRef contentsOfUserInterfaceItem(JSStringRef) const override;
-    void setDefaultCalendarType(JSStringRef) override;
+    void setDefaultCalendarType(JSStringRef calendarIdentifier, JSStringRef localeIdentifier) override;
     JSRetainPtr<JSStringRef> lastUndoLabel() const override;
     JSRetainPtr<JSStringRef> firstRedoLabel() const override;
     NSUndoManager *platformUndoManager() const override;
@@ -54,9 +58,13 @@ public:
     void dismissMenu() override;
     bool isShowingMenu() const override;
 
-protected:
-    explicit UIScriptControllerCocoa(UIScriptContext&);
-    TestRunnerWKWebView *webView() const;
+    void paste() override;
+
+    void setContinuousSpellCheckingEnabled(bool) override;
+
+    void insertAttachmentForFilePath(JSStringRef filePath, JSStringRef contentType, JSValueRef callback) override;
+
+    void completeTaskAsynchronouslyAfterActivityStateUpdate(unsigned callbackID);
 };
 
 } // namespace WTR

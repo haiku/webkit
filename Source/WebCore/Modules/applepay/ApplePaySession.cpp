@@ -41,7 +41,6 @@
 #include "ApplePayShippingMethodSelectedEvent.h"
 #include "ApplePayShippingMethodUpdate.h"
 #include "ApplePayValidateMerchantEvent.h"
-#include "CustomHeaderFields.h"
 #include "DOMWindow.h"
 #include "Document.h"
 #include "DocumentLoader.h"
@@ -63,16 +62,19 @@
 #include "Settings.h"
 #include "UserGestureIndicator.h"
 #include <wtf/IsoMallocInlines.h>
+#include <wtf/RunLoop.h>
 
-#if USE(APPLE_INTERNAL_SDK)
-#include <WebKitAdditions/ApplePaySessionAdditions.cpp>
+namespace WebCore {
+
+static void finishConverting(PaymentMethodUpdate& convertedUpdate, ApplePayPaymentMethodUpdate&& update)
+{
+#if ENABLE(APPLE_PAY_INSTALLMENTS)
+    convertedUpdate.setInstallmentGroupIdentifier(update.installmentGroupIdentifier);
 #else
-namespace WebCore {
-static void finishConverting(PaymentMethodUpdate&, ApplePayPaymentMethodUpdate&&) { }
-}
+    UNUSED_PARAM(convertedUpdate);
+    UNUSED_PARAM(update);
 #endif
-
-namespace WebCore {
+}
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(ApplePaySession);
 
@@ -823,14 +825,14 @@ const char* ApplePaySession::activeDOMObjectName() const
     return "ApplePaySession";
 }
 
-bool ApplePaySession::shouldPreventEnteringBackForwardCache_DEPRECATED() const
+bool ApplePaySession::canSuspendWithoutCanceling() const
 {
     switch (m_state) {
     case State::Idle:
     case State::Aborted:
     case State::Completed:
     case State::Canceled:
-        return false;
+        return true;
 
     case State::Active:
     case State::Authorized:
@@ -838,8 +840,7 @@ bool ApplePaySession::shouldPreventEnteringBackForwardCache_DEPRECATED() const
     case State::ShippingContactSelected:
     case State::PaymentMethodSelected:
     case State::CancelRequested:
-        // FIXME: This should never prevent entering the back/forward cache.
-        return true;
+        return false;
     }
 }
 
@@ -850,6 +851,21 @@ void ApplePaySession::stop()
 
     m_state = State::Aborted;
     paymentCoordinator().abortPaymentSession();
+
+    didReachFinalState();
+}
+
+void ApplePaySession::suspend(ReasonForSuspension reason)
+{
+    if (reason != ReasonForSuspension::BackForwardCache)
+        return;
+
+    if (canSuspendWithoutCanceling())
+        return;
+
+    m_state = State::Canceled;
+    paymentCoordinator().abortPaymentSession();
+    queueTaskToDispatchEvent(*this, TaskSource::UserInteraction, ApplePayCancelEvent::create(eventNames().cancelEvent, { }));
 
     didReachFinalState();
 }

@@ -36,6 +36,8 @@ WI.DOMNode = class DOMNode extends WI.Object
     {
         super();
 
+        this._destroyed = false;
+
         this._domManager = domManager;
         this._isInShadowTree = isInShadowTree;
 
@@ -76,8 +78,6 @@ WI.DOMNode = class DOMNode extends WI.Object
 
         this._childNodeCount = payload.childNodeCount;
         this._children = null;
-        this._filteredChildren = null;
-        this._filteredChildrenNeedsUpdating = true;
 
         this._nextSibling = null;
         this._previousSibling = null;
@@ -188,35 +188,24 @@ WI.DOMNode = class DOMNode extends WI.Object
 
     // Public
 
+    get destroyed() { return this._destroyed; }
     get frame() { return this._frame; }
+    get nextSibling() { return this._nextSibling; }
+    get previousSibling() { return this._previousSibling; }
+    get children() { return this._children; }
     get domEvents() { return this._domEvents; }
     get powerEfficientPlaybackRanges() { return this._powerEfficientPlaybackRanges; }
 
     get attached()
     {
+        if (this._destroyed)
+            return false;
+
         for (let node = this; node; node = node.parentNode) {
             if (node.ownerDocument === node)
                 return true;
         }
         return false;
-    }
-
-    get children()
-    {
-        if (!this._children)
-            return null;
-
-        if (WI.settings.showShadowDOM.value)
-            return this._children;
-
-        if (this._filteredChildrenNeedsUpdating) {
-            this._filteredChildrenNeedsUpdating = false;
-            this._filteredChildren = this._children.filter(function(node) {
-                return !node._isInShadowTree;
-            });
-        }
-
-        return this._filteredChildren;
     }
 
     get firstChild()
@@ -239,49 +228,24 @@ WI.DOMNode = class DOMNode extends WI.Object
         return null;
     }
 
-    get nextSibling()
-    {
-        if (WI.settings.showShadowDOM.value)
-            return this._nextSibling;
-
-        var node = this._nextSibling;
-        while (node) {
-            if (!node._isInShadowTree)
-                return node;
-            node = node._nextSibling;
-        }
-        return null;
-    }
-
-    get previousSibling()
-    {
-        if (WI.settings.showShadowDOM.value)
-            return this._previousSibling;
-
-        var node = this._previousSibling;
-        while (node) {
-            if (!node._isInShadowTree)
-                return node;
-            node = node._previousSibling;
-        }
-        return null;
-    }
-
     get childNodeCount()
     {
         var children = this.children;
         if (children)
             return children.length;
 
-        if (WI.settings.showShadowDOM.value)
-            return this._childNodeCount + this._shadowRoots.length;
-
-        return this._childNodeCount;
+        return this._childNodeCount + this._shadowRoots.length;
     }
 
     set childNodeCount(count)
     {
         this._childNodeCount = count;
+    }
+
+    markDestroyed()
+    {
+        console.assert(!this._destroyed, this);
+        this._destroyed = true;
     }
 
     computedRole()
@@ -378,6 +342,12 @@ WI.DOMNode = class DOMNode extends WI.Object
 
     setNodeName(name, callback)
     {
+        console.assert(!this._destroyed, this);
+        if (this._destroyed) {
+            callback("ERROR: node is destroyed");
+            return;
+        }
+
         let target = WI.assumingMainTarget();
         target.DOMAgent.setNodeName(this.id, name, this._makeUndoableCallback(callback));
     }
@@ -434,6 +404,12 @@ WI.DOMNode = class DOMNode extends WI.Object
 
     setNodeValue(value, callback)
     {
+        console.assert(!this._destroyed, this);
+        if (this._destroyed) {
+            callback("ERROR: node is destroyed");
+            return;
+        }
+
         let target = WI.assumingMainTarget();
         target.DOMAgent.setNodeValue(this.id, value, this._makeUndoableCallback(callback));
     }
@@ -446,12 +422,24 @@ WI.DOMNode = class DOMNode extends WI.Object
 
     setAttribute(name, text, callback)
     {
+        console.assert(!this._destroyed, this);
+        if (this._destroyed) {
+            callback("ERROR: node is destroyed");
+            return;
+        }
+
         let target = WI.assumingMainTarget();
         target.DOMAgent.setAttributesAsText(this.id, text, name, this._makeUndoableCallback(callback));
     }
 
     setAttributeValue(name, value, callback)
     {
+        console.assert(!this._destroyed, this);
+        if (this._destroyed) {
+            callback("ERROR: node is destroyed");
+            return;
+        }
+
         let target = WI.assumingMainTarget();
         target.DOMAgent.setAttributeValue(this.id, name, value, this._makeUndoableCallback(callback));
     }
@@ -463,6 +451,12 @@ WI.DOMNode = class DOMNode extends WI.Object
 
     removeAttribute(name, callback)
     {
+        console.assert(!this._destroyed, this);
+        if (this._destroyed) {
+            callback("ERROR: node is destroyed");
+            return;
+        }
+
         function mycallback(error, success)
         {
             if (!error) {
@@ -505,6 +499,60 @@ WI.DOMNode = class DOMNode extends WI.Object
         });
     }
 
+    querySelector(selector, callback)
+    {
+        console.assert(!this._destroyed, this);
+
+        let target = WI.assumingMainTarget();
+
+        if (typeof callback !== "function") {
+            if (this._destroyed)
+                return Promise.reject("ERROR: node is destroyed");
+            return target.DOMAgent.querySelector(this.id, selector).then(({nodeId}) => nodeId);
+        }
+
+        if (this._destroyed) {
+            callback("ERROR: node is destroyed");
+            return;
+        }
+
+        target.DOMAgent.querySelector(this.id, selector, WI.DOMManager.wrapClientCallback(callback));
+    }
+
+    querySelectorAll(selector, callback)
+    {
+        console.assert(!this._destroyed, this);
+
+        let target = WI.assumingMainTarget();
+
+        if (typeof callback !== "function") {
+            if (this._destroyed)
+                return Promise.reject("ERROR: node is destroyed");
+            return target.DOMAgent.querySelectorAll(this.id, selector).then(({nodeIds}) => nodeIds);
+        }
+
+        if (this._destroyed) {
+            callback("ERROR: node is destroyed");
+            return;
+        }
+
+        target.DOMAgent.querySelectorAll(this.id, selector, WI.DOMManager.wrapClientCallback(callback));
+    }
+
+    highlight(mode)
+    {
+        if (this._destroyed)
+            return;
+
+        if (this._hideDOMNodeHighlightTimeout) {
+            clearTimeout(this._hideDOMNodeHighlightTimeout);
+            this._hideDOMNodeHighlightTimeout = undefined;
+        }
+
+        let target = WI.assumingMainTarget();
+        target.DOMAgent.highlightNode(WI.DOMManager.buildHighlightConfig(mode), this.id);
+    }
+
     scrollIntoView()
     {
         WI.RemoteObject.resolveNode(this).then((object) => {
@@ -525,6 +573,11 @@ WI.DOMNode = class DOMNode extends WI.Object
             return;
         }
 
+        if (this._destroyed) {
+            callback(this.children);
+            return;
+        }
+
         function mycallback(error) {
             if (!error && callback)
                 callback(this.children);
@@ -536,6 +589,11 @@ WI.DOMNode = class DOMNode extends WI.Object
 
     getSubtree(depth, callback)
     {
+        if (this._destroyed) {
+            callback(this.children);
+            return;
+        }
+
         function mycallback(error)
         {
             if (callback)
@@ -548,18 +606,42 @@ WI.DOMNode = class DOMNode extends WI.Object
 
     getOuterHTML(callback)
     {
+        console.assert(!this._destroyed, this);
+
         let target = WI.assumingMainTarget();
+
+        if (typeof callback !== "function") {
+            if (this._destroyed)
+                return Promise.reject("ERROR: node is destroyed");
+            return target.DOMAgent.getOuterHTML(this.id).then(({outerHTML}) => outerHTML);
+        }
+
+        if (this._destroyed) {
+            callback("ERROR: node is destroyed");
+            return;
+        }
+
         target.DOMAgent.getOuterHTML(this.id, callback);
     }
 
     setOuterHTML(html, callback)
     {
+        console.assert(!this._destroyed, this);
+        if (this._destroyed) {
+            callback("ERROR: node is destroyed");
+            return;
+        }
+
         let target = WI.assumingMainTarget();
         target.DOMAgent.setOuterHTML(this.id, html, this._makeUndoableCallback(callback));
     }
 
     insertAdjacentHTML(position, html)
     {
+        console.assert(!this._destroyed, this);
+        if (this._destroyed)
+            return;
+
         if (this.nodeType() !== Node.ELEMENT_NODE)
             return;
 
@@ -583,24 +665,24 @@ WI.DOMNode = class DOMNode extends WI.Object
 
     removeNode(callback)
     {
+        console.assert(!this._destroyed, this);
+        if (this._destroyed) {
+            callback("ERROR: node is destroyed");
+            return;
+        }
+
         let target = WI.assumingMainTarget();
         target.DOMAgent.removeNode(this.id, this._makeUndoableCallback(callback));
     }
 
-    copyNode()
-    {
-        function copy(error, text)
-        {
-            if (!error)
-                InspectorFrontendHost.copyText(text);
-        }
-
-        let target = WI.assumingMainTarget();
-        target.DOMAgent.getOuterHTML(this.id, copy);
-    }
-
     getEventListeners(callback)
     {
+        console.assert(!this._destroyed, this);
+        if (this._destroyed) {
+            callback("ERROR: node is destroyed");
+            return;
+        }
+
         console.assert(WI.domManager.inspectedNode === this);
 
         let target = WI.assumingMainTarget();
@@ -609,6 +691,12 @@ WI.DOMNode = class DOMNode extends WI.Object
 
     accessibilityProperties(callback)
     {
+        console.assert(!this._destroyed, this);
+        if (this._destroyed) {
+            callback({});
+            return;
+        }
+
         function accessibilityPropertiesCallback(error, accessibilityProperties)
         {
             if (!error && callback && accessibilityProperties) {
@@ -669,39 +757,12 @@ WI.DOMNode = class DOMNode extends WI.Object
 
     get escapedIdSelector()
     {
-        let id = this.getAttribute("id");
-        if (!id)
-            return "";
-
-        id = id.trim();
-        if (!id.length)
-            return "";
-
-        id = CSS.escape(id);
-        if (/[\s'"]/.test(id))
-            return `[id="${id}"]`;
-
-        return `#${id}`;
+        return this._idSelector(true);
     }
 
     get escapedClassSelector()
     {
-        let classes = this.getAttribute("class");
-        if (!classes)
-            return "";
-
-        classes = classes.trim();
-        if (!classes.length)
-            return "";
-
-        let foundClasses = new Set;
-        return classes.split(/\s+/).reduce((selector, className) => {
-            if (!className.length || foundClasses.has(className))
-                return selector;
-
-            foundClasses.add(className);
-            return `${selector}.${CSS.escape(className)}`;
-        }, "");
+        return this._classSelector(true);
     }
 
     get displayName()
@@ -709,6 +770,15 @@ WI.DOMNode = class DOMNode extends WI.Object
         if (this.isPseudoElement())
             return "::" + this._pseudoType;
         return this.nodeNameInCorrectCase() + this.escapedIdSelector + this.escapedClassSelector;
+    }
+
+    get unescapedSelector()
+    {
+        if (this.isPseudoElement())
+            return "::" + this._pseudoType;
+
+        const shouldEscape = false;
+        return this.nodeNameInCorrectCase() + this._idSelector(shouldEscape) + this._classSelector(shouldEscape);
     }
 
     appropriateSelectorFor(justSelector)
@@ -882,8 +952,6 @@ WI.DOMNode = class DOMNode extends WI.Object
 
     _renumber()
     {
-        this._filteredChildrenNeedsUpdating = true;
-
         var childNodeCount = this._children.length;
         if (childNodeCount === 0)
             return;
@@ -924,6 +992,12 @@ WI.DOMNode = class DOMNode extends WI.Object
 
     moveTo(targetNode, anchorNode, callback)
     {
+        console.assert(!this._destroyed, this);
+        if (this._destroyed) {
+            callback("ERROR: node is destroyed");
+            return;
+        }
+
         let target = WI.assumingMainTarget();
         target.DOMAgent.moveTo(this.id, targetNode.id, anchorNode ? anchorNode.id : undefined, this._makeUndoableCallback(callback));
     }
@@ -966,12 +1040,50 @@ WI.DOMNode = class DOMNode extends WI.Object
         return (...args) => {
             if (!args[0]) { // error
                 let target = WI.assumingMainTarget();
-                target.DOMAgent.markUndoableState();
+                if (target.hasCommand("DOM.markUndoableState"))
+                    target.DOMAgent.markUndoableState();
             }
 
             if (callback)
                 callback.apply(null, args);
         };
+    }
+
+    _idSelector(shouldEscape)
+    {
+        let id = this.getAttribute("id");
+        if (!id)
+            return "";
+
+        id = id.trim();
+        if (!id.length)
+            return "";
+
+        if (shouldEscape)
+            id = CSS.escape(id);
+        if (/[\s'"]/.test(id))
+            return `[id="${id}"]`;
+
+        return `#${id}`;
+    }
+
+    _classSelector(shouldEscape) {
+        let classes = this.getAttribute("class");
+        if (!classes)
+            return "";
+
+        classes = classes.trim();
+        if (!classes.length)
+            return "";
+
+        let foundClasses = new Set;
+        return classes.split(/\s+/).reduce((selector, className) => {
+            if (!className.length || foundClasses.has(className))
+                return selector;
+
+            foundClasses.add(className);
+            return `${selector}.${(shouldEscape ? CSS.escape(className) : className)}`;
+        }, "");
     }
 };
 

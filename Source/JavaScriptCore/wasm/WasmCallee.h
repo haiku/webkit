@@ -153,7 +153,7 @@ public:
     }
 
     OMGForOSREntryCallee* osrEntryCallee() { return m_osrEntryCallee.get(); }
-    void setOSREntryCallee(Ref<OMGForOSREntryCallee>&& osrEntryCallee) override
+    void setOSREntryCallee(Ref<OMGForOSREntryCallee>&& osrEntryCallee) final
     {
         m_osrEntryCallee = WTFMove(osrEntryCallee);
     }
@@ -192,9 +192,9 @@ public:
     }
 
     JS_EXPORT_PRIVATE void setEntrypoint(MacroAssemblerCodePtr<WasmEntryPtrTag>);
-    JS_EXPORT_PRIVATE MacroAssemblerCodePtr<WasmEntryPtrTag> entrypoint() const override;
-    JS_EXPORT_PRIVATE RegisterAtOffsetList* calleeSaveRegisters() override;
-    JS_EXPORT_PRIVATE std::tuple<void*, void*> range() const override;
+    JS_EXPORT_PRIVATE MacroAssemblerCodePtr<WasmEntryPtrTag> entrypoint() const final;
+    JS_EXPORT_PRIVATE RegisterAtOffsetList* calleeSaveRegisters() final;
+    JS_EXPORT_PRIVATE std::tuple<void*, void*> range() const final;
 
     JITCallee* replacement() { return m_replacement.get(); }
     void setReplacement(Ref<JITCallee>&& replacement)
@@ -203,7 +203,7 @@ public:
     }
 
     OMGForOSREntryCallee* osrEntryCallee() { return m_osrEntryCallee.get(); }
-    void setOSREntryCallee(Ref<OMGForOSREntryCallee>&& osrEntryCallee) override
+    void setOSREntryCallee(Ref<OMGForOSREntryCallee>&& osrEntryCallee) final
     {
         m_osrEntryCallee = WTFMove(osrEntryCallee);
     }
@@ -215,12 +215,39 @@ private:
         : Callee(Wasm::CompilationMode::LLIntMode, index, WTFMove(name))
         , m_codeBlock(WTFMove(codeBlock))
     {
+        RELEASE_ASSERT(m_codeBlock);
     }
 
     RefPtr<JITCallee> m_replacement;
     RefPtr<OMGForOSREntryCallee> m_osrEntryCallee;
     std::unique_ptr<FunctionCodeBlock> m_codeBlock;
     MacroAssemblerCodePtr<WasmEntryPtrTag> m_entrypoint;
+};
+
+class LLIntCallees : public ThreadSafeRefCounted<LLIntCallees> {
+public:
+    static Ref<LLIntCallees> create(Vector<Ref<LLIntCallee>>&& llintCallees)
+    {
+        return adoptRef(*new LLIntCallees(WTFMove(llintCallees)));
+    }
+
+    const Ref<LLIntCallee>& at(unsigned i) const
+    {
+        return m_llintCallees.at(i);
+    }
+
+    const Ref<LLIntCallee>* data() const
+    {
+        return m_llintCallees.data();
+    }
+
+private:
+    LLIntCallees(Vector<Ref<LLIntCallee>>&& llintCallees)
+        : m_llintCallees(WTFMove(llintCallees))
+    {
+    }
+
+    Vector<Ref<LLIntCallee>> m_llintCallees;
 };
 
 } } // namespace JSC::Wasm

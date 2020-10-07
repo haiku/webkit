@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2019-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,19 +23,37 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#import <Foundation/Foundation.h>
 #import <WebKit/WKFoundation.h>
 
-#import <Foundation/Foundation.h>
-
 @class _WKTextManipulationToken;
+
+NS_ASSUME_NONNULL_BEGIN
 
 WK_CLASS_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA))
 @interface _WKTextManipulationItem : NSObject
 
 - (instancetype)init NS_UNAVAILABLE;
-- (instancetype)initWithIdentifier:(NSString *)identifier tokens:(NSArray<_WKTextManipulationToken *> *)tokens;
+- (instancetype)initWithIdentifier:(nullable NSString *)identifier tokens:(NSArray<_WKTextManipulationToken *> *)tokens;
 
-@property (nonatomic, readonly, copy) NSString *identifier;
+@property (nonatomic, readonly, nullable, copy) NSString *identifier;
 @property (nonatomic, readonly, copy) NSArray<_WKTextManipulationToken *> *tokens;
 
+- (BOOL)isEqualToTextManipulationItem:(nullable _WKTextManipulationItem *)otherItem includingContentEquality:(BOOL)includingContentEquality;
+@property (nonatomic, readonly, copy) NSString *debugDescription;
+
 @end
+
+WK_EXTERN NSString * const _WKTextManipulationItemErrorDomain WK_API_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA));
+
+typedef NS_ENUM(NSInteger, _WKTextManipulationItemErrorCode) {
+    _WKTextManipulationItemErrorNotAvailable,
+    _WKTextManipulationItemErrorContentChanged,
+    _WKTextManipulationItemErrorInvalidItem,
+    _WKTextManipulationItemErrorInvalidToken,
+    _WKTextManipulationItemErrorExclusionViolation,
+} WK_API_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA));
+
+WK_EXTERN NSErrorUserInfoKey const _WKTextManipulationItemErrorItemKey WK_API_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA));
+
+NS_ASSUME_NONNULL_END

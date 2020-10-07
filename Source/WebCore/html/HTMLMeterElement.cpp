@@ -21,8 +21,6 @@
 #include "config.h"
 #include "HTMLMeterElement.h"
 
-#if ENABLE(METER_ELEMENT)
-
 #include "Attribute.h"
 #include "ElementIterator.h"
 #include "HTMLDivElement.h"
@@ -209,7 +207,7 @@ static void setValueClass(HTMLElement& element, HTMLMeterElement::GaugeRegion ga
 
 void HTMLMeterElement::didElementStateChange()
 {
-    m_value->setInlineStyleProperty(CSSPropertyWidth, valueRatio()*100, CSSPrimitiveValue::CSS_PERCENTAGE);
+    m_value->setInlineStyleProperty(CSSPropertyWidth, valueRatio()*100, CSSUnitType::CSS_PERCENTAGE);
     setValueClass(*m_value, gaugeRegion());
 
     if (RenderMeter* render = renderMeter())
@@ -252,4 +250,3 @@ void HTMLMeterElement::didAddUserAgentShadowRoot(ShadowRoot& root)
 }
 
 } // namespace
-#endif

@@ -28,12 +28,13 @@
 #include "config.h"
 #include "WorkerGlobalScope.h"
 
+#include "CSSValueList.h"
+#include "CSSValuePool.h"
 #include "ContentSecurityPolicy.h"
 #include "Crypto.h"
 #include "IDBConnectionProxy.h"
 #include "ImageBitmapOptions.h"
 #include "InspectorInstrumentation.h"
-#include "Microtasks.h"
 #include "Performance.h"
 #include "RuntimeEnabledFeatures.h"
 #include "ScheduledAction.h"
@@ -51,7 +52,6 @@
 #include "WorkerReportingProxy.h"
 #include "WorkerSWClientConnection.h"
 #include "WorkerScriptLoader.h"
-#include "WorkerThread.h"
 #include <JavaScriptCore/ScriptArguments.h>
 #include <JavaScriptCore/ScriptCallStack.h>
 #include <wtf/IsoMallocInlines.h>
@@ -61,23 +61,25 @@ using namespace Inspector;
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(WorkerGlobalScope);
 
-WorkerGlobalScope::WorkerGlobalScope(const URL& url, Ref<SecurityOrigin>&& origin, const String& identifier, const String& userAgent, bool isOnline, WorkerThread& thread, bool shouldBypassMainWorldContentSecurityPolicy, Ref<SecurityOrigin>&& topOrigin, MonotonicTime timeOrigin, IDBClient::IDBConnectionProxy* connectionProxy, SocketProvider* socketProvider)
-    : m_url(url)
-    , m_identifier(identifier)
-    , m_userAgent(userAgent)
+WorkerGlobalScope::WorkerGlobalScope(const WorkerParameters& params, Ref<SecurityOrigin>&& origin, WorkerThread& thread, Ref<SecurityOrigin>&& topOrigin, IDBClient::IDBConnectionProxy* connectionProxy, SocketProvider* socketProvider)
+    : m_url(params.scriptURL)
+    , m_identifier(params.identifier)
+    , m_userAgent(params.userAgent)
     , m_thread(thread)
     , m_script(makeUnique<WorkerScriptController>(this))
     , m_inspectorController(makeUnique<WorkerInspectorController>(*this))
-    , m_microtaskQueue(makeUnique<MicrotaskQueue>(m_script->vm()))
-    , m_isOnline(isOnline)
-    , m_shouldBypassMainWorldContentSecurityPolicy(shouldBypassMainWorldContentSecurityPolicy)
-    , m_eventQueue(*this)
+    , m_isOnline(params.isOnline)
+    , m_shouldBypassMainWorldContentSecurityPolicy(params.shouldBypassMainWorldContentSecurityPolicy)
     , m_topOrigin(WTFMove(topOrigin))
 #if ENABLE(INDEXED_DATABASE)
     , m_connectionProxy(connectionProxy)
 #endif
     , m_socketProvider(socketProvider)
-    , m_performance(Performance::create(this, timeOrigin))
+    , m_performance(Performance::create(this, params.timeOrigin))
+    , m_referrerPolicy(params.referrerPolicy)
+    , m_requestAnimationFrameEnabled(params.requestAnimationFrameEnabled)
+    , m_acceleratedCompositingEnabled(params.acceleratedCompositingEnabled)
+    , m_webGLEnabled(params.webGLEnabled)
 {
 #if !ENABLE(INDEXED_DATABASE)
     UNUSED_PARAM(connectionProxy);
@@ -105,12 +107,16 @@ WorkerGlobalScope::~WorkerGlobalScope()
     thread().workerReportingProxy().workerGlobalScopeDestroyed();
 }
 
-AbstractEventLoop& WorkerGlobalScope::eventLoop()
+EventLoopTaskGroup& WorkerGlobalScope::eventLoop()
 {
     ASSERT(isContextThread());
-    if (!m_eventLoop)
+    if (UNLIKELY(!m_defaultTaskGroup)) {
         m_eventLoop = WorkerEventLoop::create(*this);
-    return *m_eventLoop;
+        m_defaultTaskGroup = makeUnique<EventLoopTaskGroup>(*m_eventLoop);
+        if (activeDOMObjectsAreStopped())
+            m_defaultTaskGroup->stopAndDiscardAllTasks();
+    }
+    return *m_defaultTaskGroup;
 }
 
 String WorkerGlobalScope::origin() const
@@ -125,6 +131,8 @@ void WorkerGlobalScope::prepareForTermination()
     stopIndexedDatabase();
 #endif
 
+    if (m_defaultTaskGroup)
+        m_defaultTaskGroup->stopAndDiscardAllTasks();
     stopActiveDOMObjects();
 
     if (m_cacheStorageConnection)
@@ -137,7 +145,8 @@ void WorkerGlobalScope::prepareForTermination()
     removeAllEventListeners();
 
     // MicrotaskQueue and RejectedPromiseTracker reference Heap.
-    m_microtaskQueue = nullptr;
+    if (m_eventLoop)
+        m_eventLoop->clearMicrotaskQueue();
     removeRejectedPromiseTracker();
 }
 
@@ -161,7 +170,7 @@ void WorkerGlobalScope::applyContentSecurityPolicyResponseHeaders(const ContentS
     contentSecurityPolicy()->didReceiveHeaders(contentSecurityPolicyResponseHeaders, String { });
 }
 
-URL WorkerGlobalScope::completeURL(const String& url) const
+URL WorkerGlobalScope::completeURL(const String& url, ForceUTF8) const
 {
     // Always return a null URL when passed a null string.
     // FIXME: Should we change the URL constructor to have this behavior?
@@ -210,12 +219,28 @@ void WorkerGlobalScope::stopIndexedDatabase()
 #endif
 }
 
+void WorkerGlobalScope::suspend()
+{
+#if ENABLE(INDEXED_DATABASE_IN_WORKERS)
+    if (m_connectionProxy)
+        m_connectionProxy->setContextSuspended(*scriptExecutionContext(), true);
+#endif
+}
+
+void WorkerGlobalScope::resume()
+{
+#if ENABLE(INDEXED_DATABASE_IN_WORKERS)
+    if (m_connectionProxy)
+        m_connectionProxy->setContextSuspended(*scriptExecutionContext(), false);
+#endif
+}
+
 #endif // ENABLE(INDEXED_DATABASE)
 
 WorkerLocation& WorkerGlobalScope::location() const
 {
     if (!m_location)
-        m_location = WorkerLocation::create(m_url);
+        m_location = WorkerLocation::create(URL { m_url }, origin());
     return *m_location;
 }
 
@@ -392,11 +417,6 @@ bool WorkerGlobalScope::isJSExecutionForbidden() const
     return m_script->isExecutionForbidden();
 }
 
-WorkerEventQueue& WorkerGlobalScope::eventQueue() const
-{
-    return m_eventQueue;
-}
-
 #if ENABLE(WEB_CRYPTO)
 
 class CryptoBufferContainer : public ThreadSafeRefCounted<CryptoBufferContainer> {
@@ -424,10 +444,10 @@ bool WorkerGlobalScope::wrapCryptoKey(const Vector<uint8_t>& key, Vector<uint8_t
     auto resultContainer = CryptoBooleanContainer::create();
     auto doneContainer = CryptoBooleanContainer::create();
     auto wrappedKeyContainer = CryptoBufferContainer::create();
-    m_thread.workerLoaderProxy().postTaskToLoader([resultContainer = resultContainer.copyRef(), key, wrappedKeyContainer = wrappedKeyContainer.copyRef(), doneContainer = doneContainer.copyRef(), workerMessagingProxy = makeRef(downcast<WorkerMessagingProxy>(m_thread.workerLoaderProxy()))](ScriptExecutionContext& context) {
+    m_thread.workerLoaderProxy().postTaskToLoader([resultContainer, key, wrappedKeyContainer, doneContainer, workerMessagingProxy = makeRef(downcast<WorkerMessagingProxy>(m_thread.workerLoaderProxy()))](ScriptExecutionContext& context) {
         resultContainer->setBoolean(context.wrapCryptoKey(key, wrappedKeyContainer->buffer()));
         doneContainer->setBoolean(true);
-        workerMessagingProxy->postTaskForModeToWorkerGlobalScope([](ScriptExecutionContext& context) {
+        workerMessagingProxy->postTaskForModeToWorkerOrWorkletGlobalScope([](ScriptExecutionContext& context) {
             ASSERT_UNUSED(context, context.isWorkerGlobalScope());
         }, WorkerRunLoop::defaultMode());
     });
@@ -447,10 +467,10 @@ bool WorkerGlobalScope::unwrapCryptoKey(const Vector<uint8_t>& wrappedKey, Vecto
     auto resultContainer = CryptoBooleanContainer::create();
     auto doneContainer = CryptoBooleanContainer::create();
     auto keyContainer = CryptoBufferContainer::create();
-    m_thread.workerLoaderProxy().postTaskToLoader([resultContainer = resultContainer.copyRef(), wrappedKey, keyContainer = keyContainer.copyRef(), doneContainer = doneContainer.copyRef(), workerMessagingProxy = makeRef(downcast<WorkerMessagingProxy>(m_thread.workerLoaderProxy()))](ScriptExecutionContext& context) {
+    m_thread.workerLoaderProxy().postTaskToLoader([resultContainer, wrappedKey, keyContainer, doneContainer, workerMessagingProxy = makeRef(downcast<WorkerMessagingProxy>(m_thread.workerLoaderProxy()))](ScriptExecutionContext& context) {
         resultContainer->setBoolean(context.unwrapCryptoKey(wrappedKey, keyContainer->buffer()));
         doneContainer->setBoolean(true);
-        workerMessagingProxy->postTaskForModeToWorkerGlobalScope([](ScriptExecutionContext& context) {
+        workerMessagingProxy->postTaskForModeToWorkerOrWorkletGlobalScope([](ScriptExecutionContext& context) {
             ASSERT_UNUSED(context, context.isWorkerGlobalScope());
         }, WorkerRunLoop::defaultMode());
     });
@@ -509,6 +529,18 @@ void WorkerGlobalScope::createImageBitmap(ImageBitmap::Source&& source, ImageBit
 void WorkerGlobalScope::createImageBitmap(ImageBitmap::Source&& source, int sx, int sy, int sw, int sh, ImageBitmapOptions&& options, ImageBitmap::Promise&& promise)
 {
     ImageBitmap::createPromise(*this, WTFMove(source), WTFMove(options), sx, sy, sw, sh, WTFMove(promise));
+}
+
+CSSValuePool& WorkerGlobalScope::cssValuePool()
+{
+    if (!m_cssValuePool)
+        m_cssValuePool = makeUnique<CSSValuePool>();
+    return *m_cssValuePool;
+}
+
+ReferrerPolicy WorkerGlobalScope::referrerPolicy() const
+{
+    return m_referrerPolicy;
 }
 
 } // namespace WebCore

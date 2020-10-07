@@ -28,7 +28,8 @@ enum InterpolationType
 {
     INTERPOLATION_SMOOTH,
     INTERPOLATION_CENTROID,
-    INTERPOLATION_FLAT
+    INTERPOLATION_FLAT,
+    INTERPOLATION_NOPERSPECTIVE
 };
 
 // Validate link & SSO consistency of interpolation qualifiers
@@ -100,6 +101,8 @@ struct ShaderVariable
     // ARRAY_SIZE value that can be queried through the API.
     unsigned int getBasicTypeElementCount() const;
 
+    unsigned int getExternalSize() const;
+
     bool isStruct() const { return !fields.empty(); }
 
     // All of the shader's variables are described using nested data
@@ -116,6 +119,10 @@ struct ShaderVariable
     bool findInfoByMappedName(const std::string &mappedFullName,
                               const ShaderVariable **leafVar,
                               std::string *originalFullName) const;
+
+    // Find the child field which matches 'fullName' == var.name + "." + field.name.
+    // Return nullptr if not found.
+    const sh::ShaderVariable *findField(const std::string &fullName, uint32_t *fieldIndexOut) const;
 
     bool isBuiltIn() const;
     bool isEmulatedBuiltIn() const;

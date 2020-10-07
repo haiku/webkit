@@ -27,15 +27,15 @@
 #include "JSCustomGetterSetterFunction.h"
 
 #include "CustomGetterSetter.h"
-#include "GetterSetter.h"
-#include "JSCInlines.h"
-#include "JSGlobalObject.h"
+#include "JSCJSValueInlines.h"
 
 namespace JSC {
 
 const ClassInfo JSCustomGetterSetterFunction::s_info = { "Function", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(JSCustomGetterSetterFunction) };
 
-EncodedJSValue JSC_HOST_CALL JSCustomGetterSetterFunction::customGetterSetterFunctionCall(JSGlobalObject* globalObject, CallFrame* callFrame)
+static JSC_DECLARE_HOST_FUNCTION(customGetterSetterFunctionCall);
+
+JSC_DEFINE_HOST_FUNCTION(customGetterSetterFunctionCall, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -47,6 +47,7 @@ EncodedJSValue JSC_HOST_CALL JSCustomGetterSetterFunction::customGetterSetterFun
     if (customGetterSetterFunction->isSetter()) {
         CustomGetterSetter::CustomSetter setter = customGetterSetter->setter();
         ASSERT(setter);
+        scope.release();
         callCustomSetter(globalObject, setter, true, thisValue, callFrame->argument(0));
         return JSValue::encode(jsUndefined());
     }
@@ -57,11 +58,11 @@ EncodedJSValue JSC_HOST_CALL JSCustomGetterSetterFunction::customGetterSetterFun
             return throwVMDOMAttributeGetterTypeError(globalObject, scope, domAttribute.classInfo, customGetterSetterFunction->propertyName());
     }
 
-    return customGetterSetter->getter()(globalObject, JSValue::encode(thisValue), customGetterSetterFunction->propertyName());
+    RELEASE_AND_RETURN(scope, customGetterSetter->getter()(globalObject, JSValue::encode(thisValue), customGetterSetterFunction->propertyName()));
 }
 
-JSCustomGetterSetterFunction::JSCustomGetterSetterFunction(VM& vm, JSGlobalObject* globalObject, Structure* structure, const Type type, const PropertyName& propertyName)
-    : Base(vm, globalObject, structure)
+JSCustomGetterSetterFunction::JSCustomGetterSetterFunction(VM& vm, NativeExecutable* executable, JSGlobalObject* globalObject, Structure* structure, const Type type, const PropertyName& propertyName)
+    : Base(vm, executable, globalObject, structure)
     , m_type(type)
     , m_propertyName(propertyName)
 {
@@ -77,7 +78,7 @@ JSCustomGetterSetterFunction* JSCustomGetterSetterFunction::create(VM& vm, JSGlo
     NativeExecutable* executable = vm.getHostFunction(customGetterSetterFunctionCall, callHostFunctionAsConstructor, String(propertyName.publicName()));
 
     Structure* structure = globalObject->customGetterSetterFunctionStructure();
-    JSCustomGetterSetterFunction* function = new (NotNull, allocateCell<JSCustomGetterSetterFunction>(vm.heap)) JSCustomGetterSetterFunction(vm, globalObject, structure, type, propertyName);
+    JSCustomGetterSetterFunction* function = new (NotNull, allocateCell<JSCustomGetterSetterFunction>(vm.heap)) JSCustomGetterSetterFunction(vm, executable, globalObject, structure, type, propertyName);
 
     // Can't do this during initialization because getHostFunction might do a GC allocation.
     function->finishCreation(vm, executable, getterSetter, name);

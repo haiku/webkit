@@ -45,7 +45,7 @@ static bool getDeviceInfo(uint32_t deviceID, String& persistentID, String& label
     UInt32 dataSize = sizeof(uniqueID);
     auto err = AudioObjectGetPropertyData(static_cast<UInt32>(deviceID), &address, 0, nullptr, &dataSize, &uniqueID);
     if (err) {
-        LOG(Media, "CoreAudioCaptureDevice::getDeviceInfo failed to get device unique id with error %d (%.4s)", (int)err, (char*)&err);
+        RELEASE_LOG_ERROR(WebRTC, "CoreAudioCaptureDevice::getDeviceInfo failed to get device unique id with error %d (%.4s)", (int)err, (char*)&err);
         return false;
     }
     persistentID = uniqueID;
@@ -56,7 +56,7 @@ static bool getDeviceInfo(uint32_t deviceID, String& persistentID, String& label
     dataSize = sizeof(localizedName);
     err = AudioObjectGetPropertyData(static_cast<UInt32>(deviceID), &address, 0, nullptr, &dataSize, &localizedName);
     if (err) {
-        LOG(Media, "CoreAudioCaptureDevice::getDeviceInfo failed to get device name with error %d (%.4s)", (int)err, (char*)&err);
+        RELEASE_LOG_ERROR(WebRTC, "CoreAudioCaptureDevice::getDeviceInfo failed to get device name with error %d (%.4s)", (int)err, (char*)&err);
         return false;
     }
     label = localizedName;
@@ -65,20 +65,36 @@ static bool getDeviceInfo(uint32_t deviceID, String& persistentID, String& label
     return true;
 }
 
-Optional<CoreAudioCaptureDevice> CoreAudioCaptureDevice::create(uint32_t deviceID)
+Optional<CoreAudioCaptureDevice> CoreAudioCaptureDevice::create(uint32_t deviceID, DeviceType type, const String& groupID)
 {
+    ASSERT(type == CaptureDevice::DeviceType::Microphone || type == CaptureDevice::DeviceType::Speaker);
     String persistentID;
     String label;
     if (!getDeviceInfo(deviceID, persistentID, label))
         return WTF::nullopt;
 
-    return CoreAudioCaptureDevice(deviceID, persistentID, label);
+    return CoreAudioCaptureDevice(deviceID, persistentID, type, label, groupID.isNull() ? persistentID : groupID);
 }
 
-CoreAudioCaptureDevice::CoreAudioCaptureDevice(uint32_t deviceID, const String& persistentID, const String& label)
-    : CaptureDevice(persistentID, CaptureDevice::DeviceType::Microphone, label)
+CoreAudioCaptureDevice::CoreAudioCaptureDevice(uint32_t deviceID, const String& persistentID, DeviceType deviceType, const String& label, const String& groupID)
+    : CaptureDevice(persistentID, deviceType, label, groupID)
     , m_deviceID(deviceID)
 {
+}
+
+Vector<AudioDeviceID> CoreAudioCaptureDevice::relatedAudioDeviceIDs(AudioDeviceID deviceID)
+{
+    UInt32 size = 0;
+    AudioObjectPropertyAddress property = { kAudioDevicePropertyRelatedDevices, kAudioDevicePropertyScopeOutput, kAudioObjectPropertyElementMaster };
+    OSStatus error = AudioObjectGetPropertyDataSize(deviceID, &property, 0, 0, &size);
+    if (error || !size)
+        return { };
+
+    Vector<AudioDeviceID> devices(size / sizeof(AudioDeviceID));
+    error = AudioObjectGetPropertyData(deviceID, &property, 0, nullptr, &size, devices.data());
+    if (error)
+        return { };
+    return devices;
 }
 
 RetainPtr<CMClockRef> CoreAudioCaptureDevice::deviceClock()
@@ -89,7 +105,7 @@ RetainPtr<CMClockRef> CoreAudioCaptureDevice::deviceClock()
     CMClockRef clock;
     auto err = CMAudioDeviceClockCreate(kCFAllocatorDefault, persistentId().createCFString().get(), &clock);
     if (err) {
-        LOG(Media, "CoreAudioCaptureDevice::CMAudioDeviceClockCreate(%p) CMAudioDeviceClockCreate failed with error %d (%.4s)", this, (int)err, (char*)&err);
+        RELEASE_LOG_ERROR(WebRTC, "CoreAudioCaptureDevice::CMAudioDeviceClockCreate(%p) CMAudioDeviceClockCreate failed with error %d (%.4s)", this, (int)err, (char*)&err);
         return nullptr;
     }
 

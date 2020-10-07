@@ -27,6 +27,7 @@
 
 #include <WebCore/DateTimeChooser.h>
 #include <WebCore/DateTimeChooserClient.h>
+#include <WebCore/platform/DateTimeChooserParameters.h>
 #include <WebCore/InputTypeNames.h>
 
 #include <support/Locker.h>
@@ -44,9 +45,8 @@ namespace WebCore {
 class DateTimeChooserWindow: public BWindow
 {
 public:
-    DateTimeChooserWindow(DateTimeChooserClient* client,
-            const DateTimeChooserParameters& params)
-        : BWindow(params.anchorRectInRootView, "Date Picker", B_FLOATING_WINDOW,
+    DateTimeChooserWindow(DateTimeChooserClient* client)
+        : BWindow(BRect(0, 0, 10, 10), "Date Picker", B_FLOATING_WINDOW,
             B_NOT_RESIZABLE | B_NOT_ZOOMABLE | B_AUTO_UPDATE_SIZE_LIMITS)
         , m_calendar(nullptr)
         , m_client(client)
@@ -54,10 +54,10 @@ public:
         BGroupLayout* root = new BGroupLayout(B_VERTICAL);
         root->SetSpacing(0);
         SetLayout(root);
-        BGroupView* group = new BGroupView(B_HORIZONTAL);
-        group->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
-        group->GroupLayout()->SetInsets(5, 5, 5, 5);
-        AddChild(group);
+        fMainGroup = new BGroupView(B_HORIZONTAL);
+        fMainGroup->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+        fMainGroup->GroupLayout()->SetInsets(5, 5, 5, 5);
+        AddChild(fMainGroup);
 
         m_okButton = new BButton("ok", "Done", new BMessage('done'));
         BButton* cancel = new BButton("cancel", "Cancel", new BMessage('canc'));
@@ -71,6 +71,10 @@ public:
             .Add(m_okButton);
         AddChild(bottomGroup);
 
+    }
+
+    void Configure(const WebCore::DateTimeChooserParameters& params) {
+        MoveTo(BRect(params.anchorRectInRootView).LeftTop());
         // TODO handle params.type to decide what to include in the window
         // (may be only a month, or so - but should we use a popup menu in that
         // case?)
@@ -83,8 +87,7 @@ public:
         // TODO we should also handle the list of suggestions from the params
         // (probably as a BMenuField), and the min, max, and step values.
 
-        if (params.type == InputTypeNames::datetime() 
-                || params.type == InputTypeNames::datetimelocal()
+        if (params.type == InputTypeNames::datetimelocal()
                 || params.type == InputTypeNames::date()
                 || params.type == InputTypeNames::week()
                 || params.type == InputTypeNames::month()) {
@@ -109,7 +112,7 @@ public:
             }
 
             // Build window
-            BGroupLayoutBuilder(group)
+            BGroupLayoutBuilder(fMainGroup)
                 .AddGroup(B_VERTICAL)
                     .AddGroup(B_HORIZONTAL)
                         .Add(new BMenuField(NULL, monthMenu))
@@ -141,12 +144,10 @@ public:
 
         }
 
-        if (params.type == InputTypeNames::datetime() 
-                || params.type == InputTypeNames::datetimelocal())
-           group->AddChild(new BSeparatorView(B_VERTICAL));
+        if (params.type == InputTypeNames::datetimelocal())
+           fMainGroup->AddChild(new BSeparatorView(B_VERTICAL));
 
-        if (params.type == InputTypeNames::datetime() 
-                || params.type == InputTypeNames::datetimelocal()
+        if (params.type == InputTypeNames::datetimelocal()
                 || params.type == InputTypeNames::time()) {
             m_hourMenu = new BMenu("hour");
             m_hourMenu->SetLabelFromMarked(true);
@@ -175,7 +176,7 @@ public:
 
             m_minuteMenu->ItemAt(initialTime.Minute())->SetMarked(true);
 
-            BGroupLayoutBuilder(group)
+            BGroupLayoutBuilder(fMainGroup)
                 .AddGroup(B_VERTICAL)
                     .AddGroup(B_HORIZONTAL)
                         .Add(new BMenuField(NULL, m_hourMenu))
@@ -197,7 +198,6 @@ public:
         } else {
             // TODO datetime, datetime-local
         }
-
     }
 
     void Hide() override {
@@ -226,7 +226,7 @@ public:
                     str << ':';
                     str << m_minuteMenu->Superitem()->Label();
                 }
-                m_client->didChooseValue(str);
+                m_client->didChooseValue(StringView(String(str)));
                 // fallthrough
             }
             case 'canc':
@@ -267,6 +267,7 @@ private:
     BMenu* m_hourMenu;
     BMenu* m_minuteMenu;
     BString m_format;
+    BGroupView* fMainGroup;
 
     DateTimeChooserClient* m_client;
 };
@@ -274,16 +275,20 @@ private:
 class DateTimeChooserHaiku: public DateTimeChooser
 {
 public:
-    DateTimeChooserHaiku(DateTimeChooserClient* client,
-            const DateTimeChooserParameters& params)
-        : m_window(new DateTimeChooserWindow(client, params))
+    DateTimeChooserHaiku(DateTimeChooserClient* client)
+        : m_window(new DateTimeChooserWindow(client))
     {
-        m_window->Show();
     }
 
     ~DateTimeChooserHaiku()
     {
         m_window->PostMessage(B_QUIT_REQUESTED);
+    }
+
+    void showChooser(const WebCore::DateTimeChooserParameters& params) override
+    {
+        m_window->Configure(params);
+        m_window->Show();
     }
 
     void endChooser() override
@@ -292,7 +297,7 @@ public:
     }
 
 private:
-    BWindow* m_window;
+    DateTimeChooserWindow* m_window;
 };
 
 }

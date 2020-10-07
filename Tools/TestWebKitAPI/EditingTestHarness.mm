@@ -24,11 +24,11 @@
  */
 
 
-#include "config.h"
-#include "EditingTestHarness.h"
+#import "config.h"
+#import "EditingTestHarness.h"
 
 #import "PlatformUtilities.h"
-#import <WebKit/WKWebViewPrivate.h>
+#import <WebKit/WKWebViewPrivateForTesting.h>
 
 @implementation EditingTestHarness
 

@@ -26,15 +26,22 @@
 #ifndef JSCallbackConstructor_h
 #define JSCallbackConstructor_h
 
-#include "JSDestructibleObject.h"
+#include "JSObject.h"
 #include "JSObjectRef.h"
 
 namespace JSC {
 
-class JSCallbackConstructor final : public JSDestructibleObject {
+class JSCallbackConstructor final : public JSNonFinalObject {
 public:
-    typedef JSDestructibleObject Base;
+    using Base = JSNonFinalObject;
     static constexpr unsigned StructureFlags = Base::StructureFlags | ImplementsHasInstance | ImplementsDefaultHasInstance;
+    static constexpr bool needsDestruction = true;
+
+    template<typename CellType, SubspaceAccess mode>
+    static IsoSubspace* subspaceFor(VM& vm)
+    {
+        return vm.callbackConstructorSpace<mode>();
+    }
 
     static JSCallbackConstructor* create(JSGlobalObject* globalObject, Structure* structure, JSClassRef classRef, JSObjectCallAsConstructorCallback callback) 
     {
@@ -55,14 +62,13 @@ public:
         return Structure::create(vm, globalObject, proto, TypeInfo(ObjectType, StructureFlags), info());
     }
 
-protected:
+private:
     JSCallbackConstructor(JSGlobalObject*, Structure*, JSClassRef, JSObjectCallAsConstructorCallback);
     void finishCreation(JSGlobalObject*, JSClassRef);
 
-private:
     friend struct APICallbackFunction;
 
-    static ConstructType getConstructData(JSCell*, ConstructData&);
+    static CallData getConstructData(JSCell*);
 
     JSObjectCallAsConstructorCallback constructCallback() { return m_callback; }
 

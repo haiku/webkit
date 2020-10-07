@@ -26,12 +26,12 @@
  */
 
 [
-    NoInterfaceObject,
+    LegacyNoInterfaceObject,
     ExportMacro=WEBCORE_TESTSUPPORT_EXPORT,
 ] interface InternalSettingsGenerated {
 <%- for @setting in @settings do -%>
-<%- if @setting.idlType -%>
-    void <%= @setting.setterFunctionName %>(<%= @setting.idlType %> <%= @setting.name %>);
+<%- if @setting.excludeFromInternalSettings == false and @setting.idlType -%>
+    undefined <%= @setting.setterFunctionName %>(<%= @setting.idlType %> <%= @setting.name %>);
 <%- end -%>
 <%- end -%>
 };

@@ -34,13 +34,13 @@
 #import "WebPluginPackage.h"
 #import "WebTypesInternal.h"
 #import <JavaScriptCore/InitializeThreading.h>
+#import <WebCore/WebCoreJITOperations.h>
 #import <algorithm>
 #import <mach-o/arch.h>
 #import <mach-o/fat.h>
 #import <mach-o/loader.h>
 #import <wtf/Assertions.h>
 #import <wtf/MainThread.h>
-#import <wtf/ObjCRuntimeExtras.h>
 #import <wtf/RunLoop.h>
 #import <wtf/Vector.h>
 #import <wtf/text/CString.h>
@@ -60,8 +60,9 @@
 + (void)initialize
 {
 #if !PLATFORM(IOS_FAMILY)
-    JSC::initializeThreading();
-    RunLoop::initializeMainRunLoop();
+    JSC::initialize();
+    WTF::initializeMainThread();
+    WebCore::populateJITOperations();
 #endif
 }
 
@@ -183,7 +184,7 @@
     pluginInfo.desc = description;
 
     pluginInfo.isApplicationPlugin = false;
-    pluginInfo.clientLoadPolicy = WebCore::PluginLoadClientPolicyUndefined;
+    pluginInfo.clientLoadPolicy = WebCore::PluginLoadClientPolicy::Undefined;
 #if PLATFORM(MAC)
     pluginInfo.bundleIdentifier = self.bundleIdentifier;
     pluginInfo.versionString = self.bundleVersion;

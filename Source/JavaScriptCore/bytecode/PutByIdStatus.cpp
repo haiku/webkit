@@ -31,12 +31,8 @@
 #include "ComplexGetStatus.h"
 #include "GetterSetterAccessCase.h"
 #include "ICStatusUtils.h"
-#include "LLIntData.h"
-#include "LowLevelInterpreter.h"
-#include "JSCInlines.h"
 #include "PolymorphicAccess.h"
-#include "Structure.h"
-#include "StructureChain.h"
+#include "StructureInlines.h"
 #include "StructureStubInfo.h"
 #include <wtf/ListDump.h>
 
@@ -52,6 +48,12 @@ PutByIdStatus PutByIdStatus::computeFromLLInt(CodeBlock* profiledBlock, Bytecode
     VM& vm = profiledBlock->vm();
     
     auto instruction = profiledBlock->instructions().at(bytecodeIndex.offset());
+
+    // We are not yet using `computeFromLLInt` in any place for `put_private_name`.
+    // We can add support for it if this is required in future changes, since we have
+    // IC implemented for this operation on LLInt.
+    ASSERT(!instruction->is<OpPutPrivateName>());
+
     auto bytecode = instruction->as<OpPutById>();
     auto& metadata = bytecode.metadata(profiledBlock);
 
@@ -79,7 +81,7 @@ PutByIdStatus PutByIdStatus::computeFromLLInt(CodeBlock* profiledBlock, Bytecode
         return PutByIdStatus(NoInformation);
     
     ObjectPropertyConditionSet conditionSet;
-    if (!(bytecode.m_flags & PutByIdIsDirect)) {
+    if (!(bytecode.m_flags.isDirect())) {
         conditionSet =
             generateConditionsForPropertySetterMissConcurrently(
                 vm, profiledBlock->globalObject(), structure, uid);
@@ -129,11 +131,11 @@ PutByIdStatus PutByIdStatus::computeForStubInfo(
     const ConcurrentJSLocker& locker, CodeBlock* profiledBlock, StructureStubInfo* stubInfo,
     UniquedStringImpl* uid, CallLinkStatus::ExitSiteData callExitSiteData)
 {
-    StubInfoSummary summary = StructureStubInfo::summary(stubInfo);
+    StubInfoSummary summary = StructureStubInfo::summary(profiledBlock->vm(), stubInfo);
     if (!isInlineable(summary))
         return PutByIdStatus(summary);
     
-    switch (stubInfo->cacheType) {
+    switch (stubInfo->cacheType()) {
     case CacheType::Unset:
         // This means that we attempted to cache but failed for some reason.
         return PutByIdStatus(JSC::slowVersion(summary));
@@ -275,7 +277,7 @@ PutByIdStatus PutByIdStatus::computeFor(CodeBlock* baselineBlock, ICStatusMap& b
     return computeFor(baselineBlock, baselineMap, bytecodeIndex, uid, didExit, callExitSiteData);
 }
 
-PutByIdStatus PutByIdStatus::computeFor(JSGlobalObject* globalObject, const StructureSet& set, UniquedStringImpl* uid, bool isDirect)
+PutByIdStatus PutByIdStatus::computeFor(JSGlobalObject* globalObject, const StructureSet& set, UniquedStringImpl* uid, bool isDirect, PrivateFieldPutKind privateFieldPutKind)
 {
     if (parseIndex(*uid))
         return PutByIdStatus(TakesSlowPath);
@@ -298,6 +300,12 @@ PutByIdStatus PutByIdStatus::computeFor(JSGlobalObject* globalObject, const Stru
         unsigned attributes;
         PropertyOffset offset = structure->getConcurrently(uid, attributes);
         if (isValidOffset(offset)) {
+            // We can't have a valid offset for structures on `PutPrivateNameById` define mode
+            // since it means we are redefining a private field. In such case, we need to take 
+            // slow path to throw exception.
+            if (privateFieldPutKind.isDefine())
+                return PutByIdStatus(TakesSlowPath);
+
             if (attributes & PropertyAttribute::CustomAccessorOrValue)
                 return PutByIdStatus(MakesCalls);
 
@@ -320,7 +328,14 @@ PutByIdStatus PutByIdStatus::computeFor(JSGlobalObject* globalObject, const Stru
                 return PutByIdStatus(TakesSlowPath);
             continue;
         }
-    
+
+        // We can have a case with PutPrivateNameById in set mode and it
+        // should never cause a structure transition because it means we are
+        // trying to store in a not installed private field. We need to take
+        // slow path to throw excpetion if it ever gets executed.
+        if (privateFieldPutKind.isSet())
+            return PutByIdStatus(TakesSlowPath);
+
         // Our hypothesis is that we're doing a transition. Before we prove that this is really
         // true, we want to do some sanity checks.
     
@@ -335,6 +350,7 @@ PutByIdStatus PutByIdStatus::computeFor(JSGlobalObject* globalObject, const Stru
     
         ObjectPropertyConditionSet conditionSet;
         if (!isDirect) {
+            ASSERT(privateFieldPutKind.isNone());
             conditionSet = generateConditionsForPropertySetterMissConcurrently(
                 vm, globalObject, structure, uid);
             if (!conditionSet.isValid())

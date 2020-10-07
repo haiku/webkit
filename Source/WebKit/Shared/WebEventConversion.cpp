@@ -26,7 +26,10 @@
 #include "config.h"
 #include "WebEventConversion.h"
 
-#include "WebEvent.h"
+#include "WebKeyboardEvent.h"
+#include "WebMouseEvent.h"
+#include "WebTouchEvent.h"
+#include "WebWheelEvent.h"
 
 #if ENABLE(MAC_GESTURE_EVENTS)
 #include "WebGestureEvent.h"
@@ -213,16 +216,19 @@ public:
         // PlatformKeyboardEvent
         m_text = webEvent.text();
         m_unmodifiedText = webEvent.unmodifiedText();
-#if ENABLE(KEYBOARD_KEY_ATTRIBUTE)
         m_key = webEvent.key();
-#endif
-#if ENABLE(KEYBOARD_CODE_ATTRIBUTE)
         m_code = webEvent.code();
-#endif
         m_keyIdentifier = webEvent.keyIdentifier();
         m_windowsVirtualKeyCode = webEvent.windowsVirtualKeyCode();
-#if USE(APPKIT) || USE(UIKIT_KEYBOARD_ADDITIONS) || PLATFORM(GTK)
+#if USE(APPKIT) || USE(UIKIT_KEYBOARD_ADDITIONS) || PLATFORM(GTK) || USE(LIBWPE)
         m_handledByInputMethod = webEvent.handledByInputMethod();
+#endif
+#if PLATFORM(GTK) || USE(LIBWPE)
+        m_preeditUnderlines = webEvent.preeditUnderlines();
+        if (auto preeditSelectionRange = webEvent.preeditSelectionRange()) {
+            m_preeditSelectionRangeStart = preeditSelectionRange->location;
+            m_preeditSelectionRangeLength = preeditSelectionRange->length;
+        }
 #endif
 #if USE(APPKIT) || PLATFORM(GTK)
         m_commands = webEvent.commands();

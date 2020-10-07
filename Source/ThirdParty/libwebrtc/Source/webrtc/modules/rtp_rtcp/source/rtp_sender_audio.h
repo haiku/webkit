@@ -14,14 +14,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <memory>
+
 #include "absl/strings/string_view.h"
-#include "common_types.h"  // NOLINT(build/include)
+#include "modules/audio_coding/include/audio_coding_module_typedefs.h"
+#include "modules/rtp_rtcp/source/absolute_capture_time_sender.h"
 #include "modules/rtp_rtcp/source/dtmf_queue.h"
 #include "modules/rtp_rtcp/source/rtp_sender.h"
-#include "modules/rtp_rtcp/source/rtp_utility.h"
-#include "rtc_base/constructormagic.h"
-#include "rtc_base/criticalsection.h"
-#include "rtc_base/onetimeevent.h"
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/critical_section.h"
+#include "rtc_base/one_time_event.h"
 #include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/clock.h"
 
@@ -36,14 +38,20 @@ class RTPSenderAudio {
                                int8_t payload_type,
                                uint32_t frequency,
                                size_t channels,
-                               uint32_t rate,
-                               RtpUtility::Payload** payload);
+                               uint32_t rate);
 
-  bool SendAudio(FrameType frame_type,
+  bool SendAudio(AudioFrameType frame_type,
                  int8_t payload_type,
-                 uint32_t capture_timestamp,
+                 uint32_t rtp_timestamp,
                  const uint8_t* payload_data,
                  size_t payload_size);
+
+  bool SendAudio(AudioFrameType frame_type,
+                 int8_t payload_type,
+                 uint32_t rtp_timestamp,
+                 const uint8_t* payload_data,
+                 size_t payload_size,
+                 int64_t absolute_capture_timestamp_ms);
 
   // Store the audio level in dBov for
   // header-extension-for-audio-level-indication.
@@ -60,7 +68,7 @@ class RTPSenderAudio {
       uint16_t duration,
       bool marker_bit);  // set on first packet in talk burst
 
-  bool MarkerBit(FrameType frame_type, int8_t payload_type);
+  bool MarkerBit(AudioFrameType frame_type, int8_t payload_type);
 
  private:
   Clock* const clock_ = nullptr;
@@ -92,6 +100,11 @@ class RTPSenderAudio {
   // (https://datatracker.ietf.org/doc/draft-lennox-avt-rtp-audio-level-exthdr/)
   uint8_t audio_level_dbov_ RTC_GUARDED_BY(send_audio_critsect_) = 0;
   OneTimeEvent first_packet_sent_;
+
+  absl::optional<uint32_t> encoder_rtp_timestamp_frequency_
+      RTC_GUARDED_BY(send_audio_critsect_);
+
+  AbsoluteCaptureTimeSender absolute_capture_time_sender_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(RTPSenderAudio);
 };

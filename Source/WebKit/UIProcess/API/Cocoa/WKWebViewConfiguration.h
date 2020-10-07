@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2014-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,10 +23,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#import <WebKit/WKFoundation.h>
-
 #import <Foundation/Foundation.h>
 #import <WebKit/WKDataDetectorTypes.h>
+#import <WebKit/WKFoundation.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -35,6 +34,7 @@ NS_ASSUME_NONNULL_BEGIN
 @class WKUserContentController;
 @class WKWebpagePreferences;
 @class WKWebsiteDataStore;
+
 @protocol WKURLSchemeHandler;
 
 #if TARGET_OS_IPHONE
@@ -134,7 +134,9 @@ WK_CLASS_AVAILABLE(macos(10.10), ios(8.0))
  @discussion These default webpage preferences are additionally passed to the navigation delegate
  in -webView:decidePolicyForNavigationAction:preferences:decisionHandler:.
  */
-@property (null_resettable, nonatomic, copy) WKWebpagePreferences *defaultWebpagePreferences WK_API_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA));
+@property (null_resettable, nonatomic, copy) WKWebpagePreferences *defaultWebpagePreferences WK_API_AVAILABLE(macos(10.15), ios(13.0));
+
+@property (nonatomic) BOOL limitsNavigationsToAppBoundDomains WK_API_AVAILABLE(ios(WK_IOS_TBA));
 
 #if TARGET_OS_IPHONE
 /*! @abstract A Boolean value indicating whether HTML5 videos play inline
@@ -202,14 +204,16 @@ WK_CLASS_AVAILABLE(macos(10.10), ios(8.0))
 
 @end
 
+#if TARGET_OS_IPHONE
+
 @interface WKWebViewConfiguration (WKDeprecated)
 
-#if TARGET_OS_IPHONE
 @property (nonatomic) BOOL mediaPlaybackRequiresUserAction WK_API_DEPRECATED_WITH_REPLACEMENT("mediaTypesRequiringUserActionForPlayback", ios(8.0, 9.0));
 @property (nonatomic) BOOL mediaPlaybackAllowsAirPlay WK_API_DEPRECATED_WITH_REPLACEMENT("allowsAirPlayForMediaPlayback", ios(8.0, 9.0));
 @property (nonatomic) BOOL requiresUserActionForMediaPlayback WK_API_DEPRECATED_WITH_REPLACEMENT("mediaTypesRequiringUserActionForPlayback", ios(9.0, 10.0));
-#endif
 
 @end
+
+#endif
 
 NS_ASSUME_NONNULL_END

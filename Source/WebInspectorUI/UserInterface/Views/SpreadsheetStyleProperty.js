@@ -36,6 +36,9 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
         this._readOnly = options.readOnly || false;
         this._element = document.createElement("div");
 
+        if (options.selectable)
+            this._element.tabIndex = -1;
+
         this._contentElement = null;
         this._nameElement = null;
         this._valueElement = null;
@@ -52,7 +55,6 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
         property.addEventListener(WI.CSSProperty.Event.Changed, this.updateStatus, this);
 
         if (!this._readOnly) {
-            this._element.tabIndex = -1;
             property.addEventListener(WI.CSSProperty.Event.ModifiedChanged, this.updateStatus, this);
 
             this._element.addEventListener("blur", (event) => {
@@ -180,7 +182,10 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
         colonElement.classList.add("colon");
         colonElement.textContent = ": ";
 
-        this._valueElement = this._contentElement.appendChild(document.createElement("span"));
+        let valueContainer = this._contentElement.appendChild(document.createElement("span"));
+        valueContainer.className = "value-container";
+
+        this._valueElement = valueContainer.appendChild(document.createElement("span"));
         this._valueElement.classList.add("value");
         this._renderValue(this._property.rawValue);
 
@@ -202,7 +207,7 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
             this._setupJumpToSymbol(this._valueElement);
         }
 
-        let semicolonElement = this._contentElement.appendChild(document.createElement("span"));
+        let semicolonElement = valueContainer.appendChild(document.createElement("span"));
         semicolonElement.classList.add("semicolon");
         semicolonElement.textContent = ";";
 
@@ -317,6 +322,9 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
         if (this._selected)
             classNames.push("selected");
 
+        if (this._valueTextField && this._valueTextField.value.includes("\n"))
+            classNames.push("has-newline");
+
         this._element.className = classNames.join(" ");
         this._element.title = elementTitle;
     }
@@ -340,6 +348,11 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
     {
         let isEditingName = textField === this._nameTextField;
         textField.value = isEditingName ? this._property.name : this._property.rawValue;
+    }
+
+    spreadsheetTextFieldAllowsNewlines(textField)
+    {
+        return textField === this._valueTextField;
     }
 
     spreadsheetTextFieldDidChange(textField)
@@ -400,7 +413,7 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
 
         if (changed) {
             let target = WI.assumingMainTarget();
-            if (target.hasDomain("DOM"))
+            if (target.hasCommand("DOM.markUndoableState"))
                 target.DOMAgent.markUndoableState();
         }
     }
@@ -450,7 +463,7 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
         const maxValueLength = 150;
         let tokens = WI.tokenizeCSSValue(value);
 
-        if (this._property.enabled)
+        if (this._property.enabled && !this._property.overridden && this._property.valid && !this._property.hasOtherVendorNameOrKeyword())
             tokens = this._replaceSpecialTokens(tokens);
 
         tokens = tokens.map((token) => {
@@ -541,7 +554,8 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
     {
         // FIXME: <https://webkit.org/b/178636> Web Inspector: Styles: Make inline widgets work with CSS functions (var(), calc(), etc.)
 
-        tokens = this._addVariableTokens(tokens);
+        if (this._property.name === "box-shadow")
+            return this._addBoxShadowTokens(tokens);
 
         if (this._property.isVariable || WI.CSSKeywordCompletions.isColorAwareProperty(this._property.name)) {
             tokens = this._addGradientTokens(tokens);
@@ -552,6 +566,8 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
             tokens = this._addTimingFunctionTokens(tokens, "cubic-bezier");
             tokens = this._addTimingFunctionTokens(tokens, "spring");
         }
+
+        tokens = this._addVariableTokens(tokens);
 
         return tokens;
     }
@@ -578,7 +594,10 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
                 }
 
                 let rawTokens = tokens.slice(gradientStartIndex, i + 1);
-                let text = rawTokens.map((token) => token.value).join("");
+
+                let text = this._resolveVariables(rawTokens.map((token) => token.value).join(""));
+                rawTokens = this._addVariableTokens(rawTokens);
+
                 let gradient = WI.Gradient.fromString(text);
                 if (gradient)
                     newTokens.push(this._createInlineSwatch(WI.InlineSwatch.Type.Gradient, rawTokens, gradient));
@@ -596,6 +615,7 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
     _addColorTokens(tokens)
     {
         let newTokens = [];
+        let openParentheses = 0;
 
         let pushPossibleColorToken = (text, ...rawTokens) => {
             let color = WI.Color.fromString(text);
@@ -619,12 +639,22 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
                 // Color keyword
                 pushPossibleColorToken(token.value, token);
             } else if (!isNaN(colorFunctionStartIndex)) {
-                // Color Function end
+                if (token.value === "(") {
+                    ++openParentheses;
+                    continue;
+                }
+
                 if (token.value !== ")")
                     continue;
 
+                if (--openParentheses)
+                    continue;
+
                 let rawTokens = tokens.slice(colorFunctionStartIndex, i + 1);
-                let text = rawTokens.map((token) => token.value).join("");
+
+                let text = this._resolveVariables(rawTokens.map((token) => token.value).join(""));
+                rawTokens = this._addVariableTokens(rawTokens);
+
                 pushPossibleColorToken(text, ...rawTokens);
                 colorFunctionStartIndex = NaN;
             } else
@@ -654,7 +684,9 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
                     continue;
 
                 let rawTokens = tokens.slice(startIndex, i + 1);
-                let text = rawTokens.map((token) => token.value).join("");
+
+                let text = this._resolveVariables(rawTokens.map((token) => token.value).join(""));
+                rawTokens = this._addVariableTokens(rawTokens);
 
                 let valueObject;
                 let inlineSwatchType;
@@ -672,8 +704,67 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
                     newTokens.pushAll(rawTokens);
 
                 startIndex = NaN;
-            } else if (isNaN(startIndex))
+            } else if (token.value in WI.CubicBezier.keywordValues)
+                newTokens.push(this._createInlineSwatch(WI.InlineSwatch.Type.Bezier, [token], WI.CubicBezier.fromString(token.value)));
+            else if (isNaN(startIndex))
                 newTokens.push(token);
+        }
+
+        return newTokens;
+    }
+
+    _addBoxShadowTokens(tokens)
+    {
+        let newTokens = [];
+        let startIndex = 0;
+        let openParentheses = 0;
+
+        for (let i = 0; i <= tokens.length; i++) {
+            let token = tokens[i];
+            if (i === tokens.length || (token.value === "," && !openParentheses)) {
+                let rawTokens = tokens.slice(startIndex, i);
+
+                let firstNonWhitespaceIndex = Infinity;
+                let lastNonWhitespaceIndex = 0;
+                for (let j = 0; j < rawTokens.length; ++j) {
+                    if (/\s/.test(rawTokens[j].value))
+                        continue;
+
+                    firstNonWhitespaceIndex = Math.min(firstNonWhitespaceIndex, j);
+                    lastNonWhitespaceIndex = Math.max(lastNonWhitespaceIndex, j);
+                }
+
+                let nonWhitespaceTokens = rawTokens.slice(firstNonWhitespaceIndex, lastNonWhitespaceIndex + 1);
+
+                newTokens.pushAll(rawTokens.slice(0, firstNonWhitespaceIndex));
+
+                let text = this._resolveVariables(nonWhitespaceTokens.map((rawToken) => rawToken.value).join(""));
+                nonWhitespaceTokens = this._addVariableTokens(nonWhitespaceTokens);
+
+                let boxShadow = WI.BoxShadow.fromString(text);
+                if (boxShadow)
+                    newTokens.push(this._createInlineSwatch(WI.InlineSwatch.Type.BoxShadow, nonWhitespaceTokens, boxShadow));
+                else
+                    newTokens.pushAll(nonWhitespaceTokens);
+
+                newTokens.pushAll(rawTokens.slice(lastNonWhitespaceIndex + 1));
+
+                if (token)
+                    newTokens.push(token);
+
+                startIndex = i + 1;
+                continue;
+            }
+
+            if (token.value === "(") {
+                ++openParentheses;
+                continue;
+            }
+
+            if (token.value === ")") {
+                --openParentheses;
+                continue;
+            }
         }
 
         return newTokens;
@@ -702,13 +793,37 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
                 let rawTokens = tokens.slice(startIndex, i + 1);
                 let variableNameIndex = rawTokens.findIndex((token) => token.value.startsWith("--") && /\bvariable-2\b/.test(token.type));
                 if (variableNameIndex !== -1) {
-                    let contents = [];
+                    let contents = rawTokens.slice(0, variableNameIndex + 1);
+
+                    if (WI.settings.experimentalEnableStyelsJumpToVariableDeclaration.value && this._property.ownerStyle.type !== WI.CSSStyleDeclaration.Type.Computed && this._delegate && this._delegate.spreadsheetStylePropertySelectByProperty) {
+                        const dontCreateIfMissing = true;
+                        let effectiveVariableProperty = this._property.ownerStyle.nodeStyles.effectivePropertyForName(rawTokens[variableNameIndex].value, dontCreateIfMissing);
+                        if (effectiveVariableProperty) {
+                            let arrowElement = WI.createGoToArrowButton();
+                            arrowElement.classList.add("select-variable-property");
+                            arrowElement.title = WI.UIString("Go to variable");
+                            arrowElement.addEventListener("click", (event) => {
+                                event.stop();
+                                this._delegate.spreadsheetStylePropertySelectByProperty(effectiveVariableProperty);
+                            });
+                            contents.push(arrowElement);
+                        }
+                    }
+
                     let fallbackStartIndex = rawTokens.findIndex((value, i) => i > variableNameIndex + 1 && /\bm-css\b/.test(value.type));
                     if (fallbackStartIndex !== -1) {
-                        contents.pushAll(rawTokens.slice(0, fallbackStartIndex));
-                        contents.pushAll(this._replaceSpecialTokens(rawTokens.slice(fallbackStartIndex, i)));
+                        contents.pushAll(rawTokens.slice(variableNameIndex + 1, fallbackStartIndex));
+
+                        let fallbackTokens = rawTokens.slice(fallbackStartIndex, i);
+                        fallbackTokens = this._addBoxShadowTokens(fallbackTokens);
+                        fallbackTokens = this._addGradientTokens(fallbackTokens);
+                        fallbackTokens = this._addColorTokens(fallbackTokens);
+                        fallbackTokens = this._addTimingFunctionTokens(fallbackTokens, "cubic-bezier");
+                        fallbackTokens = this._addTimingFunctionTokens(fallbackTokens, "spring");
+                        fallbackTokens = this._addVariableTokens(fallbackTokens);
+                        contents.pushAll(fallbackTokens);
                     } else
-                        contents.pushAll(rawTokens.slice(0, i));
+                        contents.pushAll(rawTokens.slice(variableNameIndex + 1, i));
                     contents.push(token);
 
                     let text = rawTokens.reduce((accumulator, token) => accumulator + token.value, "");
@@ -729,6 +844,11 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
         return newTokens;
     }
 
+    _resolveVariables(cssText)
+    {
+        return cssText.replace(/var\(--[^\)]+\)/g, (match) => this._property.ownerStyle.nodeStyles.computedStyle.resolveVariableValue(match) || match);
+    }
+
     _handleNameChange()
     {
         this._property.name = this._nameElement.textContent.trim();
@@ -736,7 +856,11 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
 
     _handleValueChange()
     {
-        this._property.rawValue = this._valueElement.textContent.trim();
+        let value = this._valueElement.textContent;
+
+        this._property.rawValue = value.trim();
+
+        this._element.classList.toggle("has-newline", value.includes("\n"));
     }
 
     _handleNameBeforeInput(event)
@@ -835,6 +959,7 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
             const options = {
                 ignoreNetworkTab: true,
                 ignoreSearchTab: true,
+                initiatorHint: WI.TabBrowser.TabNavigationInitiator.LinkClick,
             };
             let sourceCode = sourceCodeLocation.sourceCode;
             WI.showSourceCodeLocation(sourceCode.createSourceCodeLocation(range.startLine, range.startColumn), options);

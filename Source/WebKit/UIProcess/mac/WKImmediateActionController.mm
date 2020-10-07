@@ -60,16 +60,16 @@ SOFT_LINK_CLASS(QuickLookUI, QLPreviewMenuItem)
 
 @implementation WKImmediateActionController
 
-- (instancetype)initWithPage:(WebKit::WebPageProxy&)page view:(NSView *)view viewImpl:(WebKit::WebViewImpl&)viewImpl recognizer:(NSImmediateActionGestureRecognizer *)immediateActionRecognizer
+- (instancetype)initWithPage:(NakedRef<WebKit::WebPageProxy>)page view:(NSView *)view viewImpl:(NakedRef<WebKit::WebViewImpl>)viewImpl recognizer:(NSImmediateActionGestureRecognizer *)immediateActionRecognizer
 {
     self = [super init];
 
     if (!self)
         return nil;
 
-    _page = &page;
+    _page = page.ptr();
     _view = view;
-    _viewImpl = &viewImpl;
+    _viewImpl = viewImpl.ptr();
     _type = kWKImmediateActionNone;
     _immediateActionRecognizer = immediateActionRecognizer;
     _hasActiveImmediateAction = NO;
@@ -276,6 +276,11 @@ SOFT_LINK_CLASS(QuickLookUI, QLPreviewMenuItem)
 
     String absoluteLinkURL = hitTestResult->absoluteLinkURL();
     if (!absoluteLinkURL.isEmpty()) {
+        if (WTF::protocolIs(absoluteLinkURL, "file")) {
+            _type = kWKImmediateActionNone;
+            return nil;
+        }
+
         if (WTF::protocolIs(absoluteLinkURL, "mailto")) {
             _type = kWKImmediateActionMailtoLink;
             return [self _animationControllerForDataDetectedLink];
@@ -412,7 +417,7 @@ SOFT_LINK_CLASS(QuickLookUI, QLPreviewMenuItem)
     if (![[getDDActionsManagerClass() sharedManager] hasActionsForResult:actionContext.mainResult actionContext:actionContext])
         return nil;
 
-    RefPtr<WebKit::WebPageProxy> page = _page;
+    RefPtr<WebKit::WebPageProxy> page = _page.get();
     WebCore::PageOverlay::PageOverlayID overlayID = _hitTestResultData.detectedDataOriginatingPageOverlay;
     _currentActionContext = [actionContext contextForView:_view altMode:YES interactionStartedHandler:^() {
         page->send(Messages::WebPage::DataDetectorsDidPresentUI(overlayID));
@@ -448,7 +453,7 @@ SOFT_LINK_CLASS(QuickLookUI, QLPreviewMenuItem)
     [actionContext setAltMode:YES];
     [actionContext setImmediate:YES];
 
-    RefPtr<WebKit::WebPageProxy> page = _page;
+    RefPtr<WebKit::WebPageProxy> page = _page.get();
     _currentActionContext = [actionContext contextForView:_view altMode:YES interactionStartedHandler:^() {
     } interactionChangedHandler:^() {
         if (_hitTestResultData.linkTextIndicator)

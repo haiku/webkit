@@ -27,6 +27,7 @@
 #include "config.h"
 #include "WebPageProxy.h"
 
+#include "NativeWebKeyboardEvent.h"
 #include "PageClientImpl.h"
 #include <WebCore/SearchPopupMenuDB.h>
 #include <WebCore/UserAgent.h>
@@ -39,6 +40,11 @@ namespace WebKit {
 
 void WebPageProxy::platformInitialize()
 {
+}
+
+String WebPageProxy::userAgentForURL(const URL&)
+{
+    return userAgent();
 }
 
 String WebPageProxy::standardUserAgent(const String& applicationNameForUserAgent)
@@ -86,5 +92,11 @@ void WebPageProxy::setDevice(ID3D11Device1* device)
 }
 #endif
 
+void WebPageProxy::dispatchPendingCharEvents(const NativeWebKeyboardEvent& keydownEvent)
+{
+    auto& pendingCharEvents = keydownEvent.pendingCharEvents();
+    for (auto it = pendingCharEvents.rbegin(); it != pendingCharEvents.rend(); it++)
+        m_keyEventQueue.prepend(NativeWebKeyboardEvent(it->hwnd, it->message, it->wParam, it->lParam, { }));
+}
 
 } // namespace WebKit

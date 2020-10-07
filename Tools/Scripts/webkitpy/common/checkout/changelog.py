@@ -32,9 +32,10 @@ import logging
 import re
 import textwrap
 
+from webkitcorepy import StringIO, unicode
+
 from webkitpy.common.config.committers import CommitterList
 from webkitpy.common.system.filesystem import FileSystem
-from webkitpy.common.unicode_compatibility import StringIO, unicode
 import webkitpy.common.config.urls as config_urls
 
 _log = logging.getLogger(__name__)
@@ -102,14 +103,11 @@ class ChangeLogEntry(object):
     # e.g. == Rolled over to ChangeLog-2011-02-16 ==
     rolled_over_regexp = r'^== Rolled over to ChangeLog-\d{4}-\d{2}-\d{2} ==$'
 
-    # e.g. git-svn-id: http://svn.webkit.org/repository/webkit/trunk@96161 268f45cc-cd09-0410-ab3c-d52691b4dbfc
-    svn_id_regexp = r'git-svn-id: http://svn.webkit.org/repository/webkit/trunk@(?P<svnid>\d+) '
-
     split_names_regexp = r'\s*(?:,(?:\s+and\s+|&)?|(?:^|\s+)and\s+|&&|[/+&])\s*'
 
-    def __init__(self, contents, committer_list=CommitterList(), revision=None):
+    def __init__(self, contents, committer_list=None, revision=None):
         self._contents = contents
-        self._committer_list = committer_list
+        self._committer_list = committer_list or CommitterList()
         self._revision = revision
         self._parse_entry()
 

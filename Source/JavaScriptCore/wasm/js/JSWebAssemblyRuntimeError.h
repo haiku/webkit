@@ -39,9 +39,10 @@ public:
 
     DECLARE_INFO;
 
-protected:
+private:
     JSWebAssemblyRuntimeError(VM&, Structure*);
 };
+STATIC_ASSERT_ISO_SUBSPACE_SHARABLE(JSWebAssemblyRuntimeError, ErrorInstance);
 
 JSObject* createJSWebAssemblyRuntimeError(JSGlobalObject*, VM&, const String&);
 

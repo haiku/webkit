@@ -354,6 +354,10 @@ TEST_P(TextureMultisampleTest, ValidateTextureStorageMultisampleParameters)
 TEST_P(TextureMultisampleTest, MaxIntegerSamples)
 {
     ANGLE_SKIP_TEST_IF(lessThanES31MultisampleExtNotSupported());
+
+    // Fixed in recent mesa.  http://crbug.com/1071142
+    ANGLE_SKIP_TEST_IF(IsVulkan() && IsLinux() && (IsIntel() || IsAMD()));
+
     GLint maxIntegerSamples;
     glGetIntegerv(GL_MAX_INTEGER_SAMPLES, &maxIntegerSamples);
     EXPECT_GE(maxIntegerSamples, 1);
@@ -499,6 +503,44 @@ TEST_P(TextureMultisampleTest, SampleMaski)
     glGetIntegerv(GL_MAX_SAMPLE_MASK_WORDS, &maxSampleMaskWords);
     sampleMaski(maxSampleMaskWords, 0x1);
     ASSERT_GL_ERROR(GL_INVALID_VALUE);
+}
+
+TEST_P(TextureMultisampleTest, ResolveToDefaultFramebuffer)
+{
+    ANGLE_SKIP_TEST_IF(lessThanES31MultisampleExtNotSupported());
+
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, mTexture);
+    texStorageMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGBA8, getWindowWidth(),
+                          getWindowHeight(), GL_TRUE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, mFramebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE,
+                           mTexture, 0);
+    ASSERT_GL_NO_ERROR();
+
+    // Clear the framebuffer
+    glClearColor(0.25, 0.5, 0.75, 0.25);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Resolve into default framebuffer
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glClearColor(1, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBlitFramebuffer(0, 0, getWindowWidth(), getWindowHeight(), 0, 0, getWindowWidth(),
+                      getWindowHeight(), GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    ASSERT_GL_NO_ERROR();
+
+    const GLColor kResult = GLColor(63, 127, 191, 63);
+    const int w           = getWindowWidth() - 1;
+    const int h           = getWindowHeight() - 1;
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    EXPECT_PIXEL_COLOR_NEAR(0, 0, kResult, 1);
+    EXPECT_PIXEL_COLOR_NEAR(w, 0, kResult, 1);
+    EXPECT_PIXEL_COLOR_NEAR(0, h, kResult, 1);
+    EXPECT_PIXEL_COLOR_NEAR(w, h, kResult, 1);
+    EXPECT_PIXEL_COLOR_NEAR(w / 2, h / 2, kResult, 1);
 }
 
 // Negative tests of multisample texture. When context less than ES 3.1 and ANGLE_texture_multsample
@@ -1026,16 +1068,7 @@ TEST_P(TextureMultisampleArrayWebGLTest, IntegerTexelFetch)
     }
 }
 
-ANGLE_INSTANTIATE_TEST(TextureMultisampleTest,
-                       ES3_D3D11(),
-                       ES31_D3D11(),
-                       ES3_OPENGL(),
-                       ES3_OPENGLES(),
-                       ES31_OPENGL(),
-                       ES31_OPENGLES());
-ANGLE_INSTANTIATE_TEST(NegativeTextureMultisampleTest, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
-ANGLE_INSTANTIATE_TEST(TextureMultisampleArrayWebGLTest,
-                       ES31_D3D11(),
-                       ES31_OPENGL(),
-                       ES31_OPENGLES());
+ANGLE_INSTANTIATE_TEST_ES3_AND_ES31(TextureMultisampleTest);
+ANGLE_INSTANTIATE_TEST_ES3(NegativeTextureMultisampleTest);
+ANGLE_INSTANTIATE_TEST_ES31(TextureMultisampleArrayWebGLTest);
 }  // anonymous namespace

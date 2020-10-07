@@ -6,23 +6,26 @@
 
 // WindowSurfaceCGL.cpp: CGL implementation of egl::Surface for windows
 
-#import "common/platform.h"
+#include "common/platform.h"
 
-#if defined(ANGLE_PLATFORM_MACOS)
+#if defined(ANGLE_PLATFORM_MACOS) || defined(ANGLE_PLATFORM_MACCATALYST)
 
-#import "libANGLE/renderer/gl/cgl/WindowSurfaceCGL.h"
+#    include "libANGLE/renderer/gl/cgl/WindowSurfaceCGL.h"
 
-#import "common/debug.h"
-#import "libANGLE/Context.h"
-#import "libANGLE/renderer/gl/FramebufferGL.h"
-#import "libANGLE/renderer/gl/RendererGL.h"
-#import "libANGLE/renderer/gl/StateManagerGL.h"
-#import "libANGLE/renderer/gl/cgl/DisplayCGL.h"
+#    import <Cocoa/Cocoa.h>
+#    include <OpenGL/OpenGL.h>
+#    import <QuartzCore/QuartzCore.h>
 
-#import <OpenGL/OpenGL.h>
-#import <QuartzCore/QuartzCore.h>
+#    include "common/debug.h"
+#    include "libANGLE/Context.h"
+#    include "libANGLE/renderer/gl/FramebufferGL.h"
+#    include "libANGLE/renderer/gl/RendererGL.h"
+#    include "libANGLE/renderer/gl/StateManagerGL.h"
+#    include "libANGLE/renderer/gl/cgl/DisplayCGL.h"
 
-@interface WebSwapLayer : CAOpenGLLayer {
+#    include "libANGLE/renderer/gl/cgl/CGLFunctions.h"
+
+@interface WebSwapLayerCGL : CAOpenGLLayer {
     CGLContextObj mDisplayContext;
 
     bool initialized;
@@ -36,7 +39,7 @@
             withFunctions:(const rx::FunctionsGL *)functions;
 @end
 
-@implementation WebSwapLayer
+@implementation WebSwapLayerCGL
 - (id)initWithSharedState:(rx::SharedSwapState *)swapState
               withContext:(CGLContextObj)displayContext
             withFunctions:(const rx::FunctionsGL *)functions
@@ -207,10 +210,11 @@ egl::Error WindowSurfaceCGL::initialize(const egl::Display *display)
     mSwapState.lastRendered   = &mSwapState.textures[1];
     mSwapState.beingPresented = &mSwapState.textures[2];
 
-    mSwapLayer = [[WebSwapLayer alloc] initWithSharedState:&mSwapState
-                                               withContext:mContext
-                                             withFunctions:mFunctions];
+    mSwapLayer = [[WebSwapLayerCGL alloc] initWithSharedState:&mSwapState
+                                                  withContext:mContext
+                                                withFunctions:mFunctions];
     [mLayer addSublayer:mSwapLayer];
+    [mSwapLayer setContentsScale:[mLayer contentsScale]];
 
     mFunctions->genRenderbuffers(1, &mDSRenderbuffer);
     mStateManager->bindRenderbuffer(GL_RENDERBUFFER, mDSRenderbuffer);
@@ -300,12 +304,12 @@ void WindowSurfaceCGL::setSwapInterval(EGLint interval)
 
 EGLint WindowSurfaceCGL::getWidth() const
 {
-    return (EGLint)CGRectGetWidth([mLayer frame]);
+    return static_cast<EGLint>(CGRectGetWidth([mLayer frame]) * [mLayer contentsScale]);
 }
 
 EGLint WindowSurfaceCGL::getHeight() const
 {
-    return (EGLint)CGRectGetHeight([mLayer frame]);
+    return static_cast<EGLint>(CGRectGetHeight([mLayer frame]) * [mLayer contentsScale]);
 }
 
 EGLint WindowSurfaceCGL::isPostSubBufferSupported() const
@@ -338,4 +342,4 @@ FramebufferImpl *WindowSurfaceCGL::createDefaultFramebuffer(const gl::Context *c
 
 }  // namespace rx
 
-#endif  // defined(ANGLE_PLATFORM_MACOS)
+#endif  // defined(ANGLE_PLATFORM_MACOS) || defined(ANGLE_PLATFORM_MACCATALYST)

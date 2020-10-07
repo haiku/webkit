@@ -41,17 +41,7 @@ STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(JSDOMObject);
 JSDOMObject::JSDOMObject(JSC::Structure* structure, JSC::JSGlobalObject& globalObject)
     : Base(globalObject.vm(), structure)
 {
-    ASSERT(scriptExecutionContext() || globalObject.classInfo() == JSRemoteDOMWindow::info());
-}
-
-JSC::CompleteSubspace* outputConstraintSubspaceFor(JSC::VM& vm)
-{
-    return &static_cast<JSVMClientData*>(vm.clientData)->outputConstraintSpace();
-}
-
-JSC::CompleteSubspace* globalObjectOutputConstraintSubspaceFor(JSC::VM& vm)
-{
-    return &static_cast<JSVMClientData*>(vm.clientData)->globalObjectOutputConstraintSpace();
+    ASSERT(scriptExecutionContext() || globalObject.classInfo(globalObject.vm()) == JSRemoteDOMWindow::info());
 }
 
 JSC::JSValue cloneAcrossWorlds(JSC::JSGlobalObject& lexicalGlobalObject, const JSDOMObject& owner, JSC::JSValue value)

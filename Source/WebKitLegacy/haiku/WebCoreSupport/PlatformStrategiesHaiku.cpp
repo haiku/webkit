@@ -26,6 +26,8 @@
 #include "config.h"
 #include "PlatformStrategiesHaiku.h"
 
+#include <WebCore/MediaStrategy.h>
+
 #include "BlobRegistryImpl.h"
 #include "NetworkStorageSession.h"
 #include "wtf/NeverDestroyed.h"
@@ -61,7 +63,7 @@ PasteboardStrategy* PlatformStrategiesHaiku::createPasteboardStrategy()
 
 class WebBlobRegistry final : public BlobRegistry {
 private:
-    void registerFileBlobURL(const URL& url, Ref<BlobDataFileReference>&& reference, const String& contentType) final { m_blobRegistry.registerFileBlobURL(url, WTFMove(reference), contentType); }
+    void registerFileBlobURL(const URL& url, Ref<BlobDataFileReference>&& reference, const String& contentType, const String&) final { m_blobRegistry.registerFileBlobURL(url, WTFMove(reference), contentType); }
     void registerBlobURL(const URL& url, Vector<BlobPart>&& parts, const String& contentType) final { m_blobRegistry.registerBlobURL(url, WTFMove(parts), contentType); }
     void registerBlobURL(const URL& url, const URL& srcURL) final { m_blobRegistry.registerBlobURL(url, srcURL); }
     void registerBlobURLOptionallyFileBacked(const URL& url, const URL& srcURL, RefPtr<BlobDataFileReference>&& reference, const String& contentType) final { m_blobRegistry.registerBlobURLOptionallyFileBacked(url, srcURL, WTFMove(reference), contentType); }
@@ -83,7 +85,7 @@ WebCore::BlobRegistry* PlatformStrategiesHaiku::createBlobRegistry()
 
 bool PlatformStrategiesHaiku::cookiesEnabled(const NetworkStorageSession& session)
 {
-	return session.cookiesEnabled();
+	return true;
 }
 
 
@@ -91,10 +93,28 @@ bool PlatformStrategiesHaiku::getRawCookies(const NetworkStorageSession& session
 	WTF::Optional<FrameIdentifier> frameID, WTF::Optional<PageIdentifier> pageID,
 	Vector<Cookie>& rawCookies)
 {
-    return session.getRawCookies(firstParty, sameSite, url, frameID, pageID, rawCookies);
+    return session.getRawCookies(firstParty, sameSite, url, frameID, pageID, ShouldAskITP::No, ShouldRelaxThirdPartyCookieBlocking::Yes, rawCookies);
 }
 
 void PlatformStrategiesHaiku::deleteCookie(const NetworkStorageSession& session, const URL& url, const String& cookieName)
 {
     session.deleteCookie(url, cookieName);
 }
+
+
+class WebMediaStrategy final : public MediaStrategy {
+private:
+#if ENABLE(WEB_AUDIO)
+    std::unique_ptr<AudioDestination> createAudioDestination(AudioIOCallback& callback, const String& inputDeviceId,
+        unsigned numberOfInputChannels, unsigned numberOfOutputChannels, float sampleRate) override
+    {
+        return AudioDestination::create(callback, inputDeviceId, numberOfInputChannels, numberOfOutputChannels, sampleRate);
+    }
+#endif
+};
+
+MediaStrategy* PlatformStrategiesHaiku::createMediaStrategy()
+{
+    return new WebMediaStrategy;
+}
+

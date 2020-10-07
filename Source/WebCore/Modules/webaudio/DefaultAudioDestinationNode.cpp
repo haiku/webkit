@@ -30,24 +30,27 @@
 
 #include "AudioContext.h"
 #include "AudioDestination.h"
+#include "AudioWorklet.h"
+#include "AudioWorkletMessagingProxy.h"
 #include "Logging.h"
+#include "MediaStrategy.h"
+#include "PlatformStrategies.h"
 #include "ScriptExecutionContext.h"
+#include "WorkerRunLoop.h"
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/MainThread.h>
 
-const unsigned EnabledInputChannels = 2;
+constexpr unsigned EnabledInputChannels = 2;
 
 namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(DefaultAudioDestinationNode);
-    
-DefaultAudioDestinationNode::DefaultAudioDestinationNode(AudioContext& context)
-    : AudioDestinationNode(context, AudioDestination::hardwareSampleRate())
+
+DefaultAudioDestinationNode::DefaultAudioDestinationNode(BaseAudioContext& context, Optional<float> sampleRate)
+    : AudioDestinationNode(context)
+    , m_sampleRate(sampleRate.valueOr(AudioDestination::hardwareSampleRate()))
 {
-    // Node-specific default mixing rules.
-    m_channelCount = 2;
-    m_channelCountMode = Explicit;
-    m_channelInterpretation = AudioBus::Speakers;
+    initializeDefaultNodeOptions(2, ChannelCountMode::Explicit, ChannelInterpretation::Speakers);
 }
 
 DefaultAudioDestinationNode::~DefaultAudioDestinationNode()
@@ -82,10 +85,8 @@ void DefaultAudioDestinationNode::uninitialize()
 
 void DefaultAudioDestinationNode::createDestination()
 {
-    float hardwareSampleRate = AudioDestination::hardwareSampleRate();
-    LOG(WebAudio, ">>>> hardwareSampleRate = %f\n", hardwareSampleRate);
-    
-    m_destination = AudioDestination::create(*this, m_inputDeviceId, m_numberOfInputChannels, channelCount(), hardwareSampleRate);
+    ALWAYS_LOG(LOGIDENTIFIER, "contextSampleRate = ", m_sampleRate, ", hardwareSampleRate = ", AudioDestination::hardwareSampleRate());
+    m_destination = platformStrategies()->mediaStrategy().createAudioDestination(*this, m_inputDeviceId, m_numberOfInputChannels, channelCount(), m_sampleRate);
 }
 
 void DefaultAudioDestinationNode::enableInput(const String& inputDeviceId)
@@ -101,23 +102,38 @@ void DefaultAudioDestinationNode::enableInput(const String& inputDeviceId)
             // Re-create destination.
             m_destination->stop();
             createDestination();
-            m_destination->start();
+            m_destination->start(dispatchToRenderThreadFunction());
         }
     }
 }
 
-void DefaultAudioDestinationNode::startRendering()
+Function<void(Function<void()>&&)> DefaultAudioDestinationNode::dispatchToRenderThreadFunction()
+{
+    if (auto* workletProxy = context().audioWorklet().proxy()) {
+        return [workletProxy = makeRef(*workletProxy)](Function<void()>&& function) {
+            workletProxy->postTaskForModeToWorkletGlobalScope([function = WTFMove(function)](ScriptExecutionContext&) mutable {
+                function();
+            }, WorkerRunLoop::defaultMode());
+        };
+    }
+    return { };
+}
+
+ExceptionOr<void> DefaultAudioDestinationNode::startRendering()
 {
     ASSERT(isInitialized());
-    if (isInitialized())
-        m_destination->start();
+    if (!isInitialized())
+        return Exception { InvalidStateError };
+
+    m_destination->start(dispatchToRenderThreadFunction());
+    return { };
 }
 
 void DefaultAudioDestinationNode::resume(Function<void ()>&& function)
 {
     ASSERT(isInitialized());
     if (isInitialized())
-        m_destination->start();
+        m_destination->start(dispatchToRenderThreadFunction());
     context().postTask(WTFMove(function));
 }
 
@@ -150,8 +166,8 @@ ExceptionOr<void> DefaultAudioDestinationNode::setChannelCount(unsigned channelC
     ASSERT(isMainThread());
     ALWAYS_LOG(LOGIDENTIFIER, channelCount);
 
-    if (!maxChannelCount() || channelCount > maxChannelCount())
-        return Exception { InvalidStateError };
+    if (channelCount > maxChannelCount())
+        return Exception { IndexSizeError, "Channel count exceeds maximum limit"_s };
 
     auto oldChannelCount = this->channelCount();
     auto result = AudioNode::setChannelCount(channelCount);
@@ -162,7 +178,7 @@ ExceptionOr<void> DefaultAudioDestinationNode::setChannelCount(unsigned channelC
         // Re-create destination.
         m_destination->stop();
         createDestination();
-        m_destination->start();
+        m_destination->start(dispatchToRenderThreadFunction());
     }
 
     return { };
@@ -171,6 +187,11 @@ ExceptionOr<void> DefaultAudioDestinationNode::setChannelCount(unsigned channelC
 bool DefaultAudioDestinationNode::isPlaying()
 {
     return m_destination && m_destination->isPlaying();
+}
+
+unsigned DefaultAudioDestinationNode::framesPerBuffer() const
+{
+    return m_destination ? m_destination->framesPerBuffer() : 0.;
 }
 
 } // namespace WebCore

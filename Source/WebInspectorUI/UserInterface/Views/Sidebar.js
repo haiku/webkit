@@ -42,7 +42,8 @@ WI.Sidebar = class Sidebar extends WI.View
         if (hasNavigationBar) {
             this.element.classList.add("has-navigation-bar");
 
-            this._navigationBar = new WI.NavigationBar(null, null, "tablist");
+            const navigationBarElement = null;
+            this._navigationBar = new WI.NavigationBar(navigationBarElement, {role: "tablist"});
             this._navigationBar.addEventListener(WI.NavigationBar.Event.NavigationItemSelected, this._navigationItemSelected, this);
             this.addSubview(this._navigationBar);
         }
@@ -71,9 +72,10 @@ WI.Sidebar = class Sidebar extends WI.View
         if (!(sidebarPanel instanceof WI.SidebarPanel))
             return;
 
-        console.assert(!sidebarPanel.parentSidebar);
-        if (sidebarPanel.parentSidebar)
+        if (sidebarPanel.parentSidebar && sidebarPanel.parentSidebar !== this) {
+            console.assert(false, "Failed to insert sidebar panel", sidebarPanel);
             return;
+        }
 
         console.assert(index >= 0 && index <= this._sidebarPanels.length);
         this._sidebarPanels.splice(index, 0, sidebarPanel);
@@ -86,21 +88,14 @@ WI.Sidebar = class Sidebar extends WI.View
 
     removeSidebarPanel(sidebarPanelOrIdentifierOrIndex)
     {
-        var sidebarPanel = this.findSidebarPanel(sidebarPanelOrIdentifierOrIndex);
+        let sidebarPanel = this.findSidebarPanel(sidebarPanelOrIdentifierOrIndex);
         if (!sidebarPanel)
             return;
 
-        if (sidebarPanel.visible) {
+        if (sidebarPanel.visible)
             sidebarPanel.hidden();
-            sidebarPanel.visibilityDidChange();
-        }
 
         sidebarPanel.selected = false;
-
-        if (this._selectedSidebarPanel === sidebarPanel) {
-            var index = this._sidebarPanels.indexOf(sidebarPanel);
-            this.selectedSidebarPanel = this._sidebarPanels[index - 1] || this._sidebarPanels[index + 1] || null;
-        }
 
         this._sidebarPanels.remove(sidebarPanel);
 
@@ -123,7 +118,6 @@ WI.Sidebar = class Sidebar extends WI.View
 
         if (this._selectedSidebarPanel) {
             this._selectedSidebarPanel.hidden();
-            this._selectedSidebarPanel.visibilityDidChange();
             this._selectedSidebarPanel.selected = false;
             this.removeSubview(this._selectedSidebarPanel);
         }
@@ -136,10 +130,8 @@ WI.Sidebar = class Sidebar extends WI.View
         if (this._selectedSidebarPanel) {
             this.addSubview(this._selectedSidebarPanel);
             this._selectedSidebarPanel.selected = true;
-            if (!this.collapsed) {
+            if (!this.collapsed)
                 this._selectedSidebarPanel.shown();
-                this._selectedSidebarPanel.visibilityDidChange();
-            }
         }
 
         this.dispatchEventToListeners(WI.Sidebar.Event.SidebarPanelSelected);
@@ -147,11 +139,12 @@ WI.Sidebar = class Sidebar extends WI.View
 
     get minimumWidth()
     {
+        let minimumWidth = WI.Sidebar.AbsoluteMinimumWidth;
         if (this._navigationBar)
-            return Math.max(WI.Sidebar.AbsoluteMinimumWidth, this._navigationBar.minimumWidth);
+            minimumWidth = Math.max(minimumWidth, this._navigationBar.minimumWidth);
         if (this._selectedSidebarPanel)
-            return Math.max(WI.Sidebar.AbsoluteMinimumWidth, this._selectedSidebarPanel.minimumWidth);
-        return WI.Sidebar.AbsoluteMinimumWidth;
+            minimumWidth = Math.max(minimumWidth, this._selectedSidebarPanel.minimumWidth);
+        return minimumWidth;
     }
 
     get maximumWidth()
@@ -193,8 +186,6 @@ WI.Sidebar = class Sidebar extends WI.View
                 this._selectedSidebarPanel.shown();
             else
                 this._selectedSidebarPanel.hidden();
-
-            this._selectedSidebarPanel.visibilityDidChange();
         }
 
         this.dispatchEventToListeners(WI.Sidebar.Event.CollapsedStateDidChange);

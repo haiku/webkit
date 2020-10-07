@@ -60,8 +60,6 @@ namespace WebCore {
 // NSColor, NSBezierPath, and NSGraphicsContext calls do not raise exceptions
 // so we don't block exceptions.
 
-#if ENABLE(FULL_KEYBOARD_ACCESS)
-
 static bool drawFocusRingAtTime(CGContextRef context, NSTimeInterval timeOffset, const Color& color)
 {
 #if USE(APPKIT)
@@ -108,11 +106,8 @@ static void drawFocusRingToContext(CGContextRef context, CGPathRef focusRingPath
     drawFocusRing(context, color);
 }
 
-#endif // ENABLE(FULL_KEYBOARD_ACCESS)
-
 void GraphicsContext::drawFocusRing(const Path& path, float width, float offset, const Color& color)
 {
-#if ENABLE(FULL_KEYBOARD_ACCESS)
     if (paintingDisabled() || path.isNull())
         return;
 
@@ -122,12 +117,6 @@ void GraphicsContext::drawFocusRing(const Path& path, float width, float offset,
     }
 
     drawFocusRingToContext(platformContext(), path.platformPath(), color);
-#else
-    UNUSED_PARAM(path);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(offset);
-    UNUSED_PARAM(color);
-#endif
 }
 
 #if PLATFORM(MAC)
@@ -170,7 +159,6 @@ void GraphicsContext::drawFocusRing(const Vector<FloatRect>& rects, double timeO
 
 void GraphicsContext::drawFocusRing(const Vector<FloatRect>& rects, float width, float offset, const Color& color)
 {
-#if ENABLE(FULL_KEYBOARD_ACCESS)
     if (paintingDisabled())
         return;
 
@@ -184,12 +172,6 @@ void GraphicsContext::drawFocusRing(const Vector<FloatRect>& rects, float width,
         CGPathAddRect(focusRingPath.get(), 0, CGRectInset(rect, -offset, -offset));
 
     drawFocusRingToContext(platformContext(), focusRingPath.get(), color);
-#else
-    UNUSED_PARAM(rects);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(offset);
-    UNUSED_PARAM(color);
-#endif
 }
 
 static inline void setPatternPhaseInUserSpace(CGContextRef context, CGPoint phasePoint)
@@ -205,15 +187,15 @@ static CGColorRef colorForMarkerLineStyle(DocumentMarkerLineStyle::Mode style, b
     switch (style) {
     // Red
     case DocumentMarkerLineStyle::Mode::Spelling:
-        return cachedCGColor(useDarkMode ? Color { 255, 140, 140, 217 } : Color { 255, 59, 48, 191 });
+        return cachedCGColor(useDarkMode ? SRGBA<uint8_t> { 255, 140, 140, 217 } : SRGBA<uint8_t> { 255, 59, 48, 191 });
     // Blue
     case DocumentMarkerLineStyle::Mode::DictationAlternatives:
     case DocumentMarkerLineStyle::Mode::TextCheckingDictationPhraseWithAlternatives:
     case DocumentMarkerLineStyle::Mode::AutocorrectionReplacement:
-        return cachedCGColor(useDarkMode ? Color { 40, 145, 255, 217 } : Color { 0, 122, 255, 191 });
+        return cachedCGColor(useDarkMode ? SRGBA<uint8_t> { 40, 145, 255, 217 } : SRGBA<uint8_t> { 0, 122, 255, 191 });
     // Green
     case DocumentMarkerLineStyle::Mode::Grammar:
-        return cachedCGColor(useDarkMode ? Color { 50, 215, 75, 217 } : Color { 25, 175, 50, 191 });
+        return cachedCGColor(useDarkMode ? SRGBA<uint8_t> { 50, 215, 75, 217 } : SRGBA<uint8_t> { 25, 175, 50, 191 });
     }
 }
 

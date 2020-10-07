@@ -39,14 +39,15 @@ public:
     JS_EXPORT_PRIVATE static RemoteInspectorServer& singleton();
 
     JS_EXPORT_PRIVATE bool start(const char* address, uint16_t port);
+    JS_EXPORT_PRIVATE Optional<uint16_t> getPort() const;
     bool isRunning() const { return !!m_server; }
 
 private:
-    friend class NeverDestroyed<RemoteInspectorServer>;
+    friend class LazyNeverDestroyed<RemoteInspectorServer>;
     RemoteInspectorServer() { Socket::init(); }
 
-    bool didAccept(ConnectionID acceptedID, ConnectionID listenerID, Socket::Domain) override;
-    void didClose(ConnectionID) override { }
+    Optional<ConnectionID> doAccept(RemoteInspectorSocketEndpoint&, PlatformSocketType) final;
+    void didClose(RemoteInspectorSocketEndpoint&, ConnectionID) final { };
 
     Optional<ConnectionID> m_server;
 };

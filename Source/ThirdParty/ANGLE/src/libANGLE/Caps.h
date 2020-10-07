@@ -41,6 +41,9 @@ struct TextureCaps
     // Support for being used as a renderbuffer format, i.e. glFramebufferRenderbuffer
     bool renderbuffer = false;
 
+    // Support for blend modes while being used as a framebuffer attachment
+    bool blendable = false;
+
     // Set of supported sample counts, only guaranteed to be valid in ES3.
     SupportedSampleSet sampleCounts;
 
@@ -115,6 +118,7 @@ struct Extensions
     // GL_EXT_color_buffer_float
     // GL_EXT_texture_norm16
     // GL_EXT_texture_compression_bptc
+    // GL_EXT_texture_compression_rgtc
     void setTextureExtensionSupport(const TextureCapsMap &textureCaps);
 
     // indicate if any depth texture extension is available
@@ -123,17 +127,26 @@ struct Extensions
     // ES2 Extension support
 
     // GL_OES_element_index_uint
-    bool elementIndexUint = false;
+    bool elementIndexUintOES = false;
 
     // GL_OES_packed_depth_stencil
-    bool packedDepthStencil = false;
+    bool packedDepthStencilOES = false;
+
+    // GL_NV_read_depth
+    bool readDepthNV = false;
+
+    // GL_NV_read_stencil
+    bool readStencilNV = false;
+
+    // GL_NV_depth_buffer_float2
+    bool depthBufferFloat2NV = false;
 
     // GL_OES_get_program_binary
-    bool getProgramBinary = false;
+    bool getProgramBinaryOES = false;
 
     // GL_OES_rgb8_rgba8
     // Implies that TextureCaps for GL_RGB8 and GL_RGBA8 exist
-    bool rgb8rgba8 = false;
+    bool rgb8rgba8OES = false;
 
     // GL_EXT_texture_format_BGRA8888
     // Implies that TextureCaps for GL_BGRA8 exist
@@ -143,10 +156,13 @@ struct Extensions
     bool readFormatBGRA = false;
 
     // GL_NV_pixel_buffer_object
-    bool pixelBufferObject = false;
+    bool pixelBufferObjectNV = false;
+
+    // GL_ARB_sync
+    bool glSyncARB = false;
 
     // GL_OES_mapbuffer and GL_EXT_map_buffer_range
-    bool mapBuffer      = false;
+    bool mapBufferOES   = false;
     bool mapBufferRange = false;
 
     // GL_EXT_color_buffer_half_float
@@ -166,8 +182,8 @@ struct Extensions
     // GL_OES_texture_float and GL_OES_texture_float_linear
     // Implies that TextureCaps for GL_RGB32F, GL_RGBA32F, GL_ALPHA16F_EXT, GL_LUMINANCE16F_EXT and
     // GL_LUMINANCE_ALPHA16F_EXT exist
-    bool textureFloat       = false;
-    bool textureFloatLinear = false;
+    bool textureFloatOES       = false;
+    bool textureFloatLinearOES = false;
 
     // GL_EXT_texture_rg
     // Implies that TextureCaps for GL_R8, GL_RG8 (and floating point R/RG texture formats if
@@ -197,42 +213,51 @@ struct Extensions
     // GL_OES_texture_compression_astc
     bool textureCompressionASTCOES = false;
 
+    // GL_KHR_texture_compression_astc_sliced_3d
+    bool textureCompressionSliced3dASTCKHR = false;
+
     // GL_EXT_texture_compression_bptc
     bool textureCompressionBPTC = false;
 
+    // GL_EXT_texture_compression_rgtc
+    bool textureCompressionRGTC = false;
+
     // GL_OES_compressed_ETC1_RGB8_texture
     // Implies that TextureCaps for GL_ETC1_RGB8_OES exist
-    bool compressedETC1RGB8Texture = false;
+    bool compressedETC1RGB8TextureOES = false;
+
+    // GL_EXT_compressed_ETC1_RGB8_sub_texture
+    bool compressedETC1RGB8SubTexture = false;
 
     // OES_compressed_ETC2_RGB8_texture
-    bool compressedETC2RGB8Texture = false;
+    bool compressedETC2RGB8TextureOES = false;
 
     // OES_compressed_ETC2_sRGB8_texture
-    bool compressedETC2sRGB8Texture = false;
+    bool compressedETC2sRGB8TextureOES = false;
 
     // OES_compressed_ETC2_punchthroughA_RGBA8_texture
-    bool compressedETC2PunchthroughARGB8Texture = false;
+    bool compressedETC2PunchthroughARGB8TextureOES = false;
 
     // OES_compressed_ETC2_punchthroughA_sRGB8_alpha_texture
-    bool compressedETC2PunchthroughAsRGB8AlphaTexture = false;
+    bool compressedETC2PunchthroughAsRGB8AlphaTextureOES = false;
 
     // OES_compressed_ETC2_RGBA8_texture
-    bool compressedETC2RGBA8Texture = false;
+    bool compressedETC2RGBA8TextureOES = false;
 
     // OES_compressed_ETC2_sRGB8_alpha8_texture
-    bool compressedETC2sRGB8Alpha8Texture = false;
+    bool compressedETC2sRGB8Alpha8TextureOES = false;
 
     // OES_compressed_EAC_R11_unsigned_texture
-    bool compressedEACR11UnsignedTexture = false;
+    bool compressedEACR11UnsignedTextureOES = false;
 
     // OES_compressed_EAC_R11_signed_texture
-    bool compressedEACR11SignedTexture = false;
+    bool compressedEACR11SignedTextureOES = false;
 
     // OES_compressed_EAC_RG11_unsigned_texture
-    bool compressedEACRG11UnsignedTexture = false;
+    bool compressedEACRG11UnsignedTextureOES = false;
 
     // OES_compressed_EAC_RG11_signed_texture
-    bool compressedEACRG11SignedTexture = false;
+    bool compressedEACRG11SignedTextureOES = false;
 
     // ANGLE_compressed_texture_etc
     // ONLY exposed if ETC texture formats are natively supported without decompression
@@ -241,10 +266,19 @@ struct Extensions
     // individual formats required to support this extension are available.
     bool compressedTextureETC = false;
 
+    // GL_IMG_texture_compression_pvrtc
+    bool compressedTexturePVRTC = false;
+
+    // GL_EXT_pvrtc_sRGB
+    bool compressedTexturePVRTCsRGB = false;
+
     // GL_EXT_sRGB
     // Implies that TextureCaps for GL_SRGB8_ALPHA8 and GL_SRGB8 exist
     // TODO: Don't advertise this extension in ES3
     bool sRGB = false;
+
+    // GL_EXT_texture_sRGB_R8
+    bool sRGBR8EXT = false;
 
     // GL_ANGLE_depth_texture
     bool depthTextureANGLE = false;
@@ -252,13 +286,16 @@ struct Extensions
     // OES_depth_texture
     bool depthTextureOES = false;
 
+    // GL_OES_depth_texture_cube_map
+    bool depthTextureCubeMapOES = false;
+
     // GL_OES_depth24
     // Allows DEPTH_COMPONENT24_OES as a valid Renderbuffer format.
     bool depth24OES = false;
 
     // GL_OES_depth32
     // Allows DEPTH_COMPONENT32_OES as a valid Renderbuffer format.
-    bool depth32 = false;
+    bool depth32OES = false;
 
     // GL_OES_texture_3D
     bool texture3DOES = false;
@@ -267,10 +304,19 @@ struct Extensions
     bool textureStorage = false;
 
     // GL_OES_texture_npot
-    bool textureNPOT = false;
+    bool textureNPOTOES = false;
 
     // GL_EXT_draw_buffers
     bool drawBuffers = false;
+
+    // GL_EXT_draw_buffers_indexed
+    bool drawBuffersIndexedEXT = false;
+
+    // GL_OES_draw_buffers_indexed
+    bool drawBuffersIndexedOES = false;
+
+    // Any version of the draw_buffers_indexed
+    bool drawBuffersIndexedAny() const { return (drawBuffersIndexedEXT || drawBuffersIndexedOES); }
 
     // GL_EXT_texture_filter_anisotropic
     bool textureFilterAnisotropic = false;
@@ -280,7 +326,7 @@ struct Extensions
     bool occlusionQueryBoolean = false;
 
     // GL_NV_fence
-    bool fence = false;
+    bool fenceNV = false;
 
     // GL_EXT_disjoint_timer_query
     bool disjointTimerQuery            = false;
@@ -316,7 +362,7 @@ struct Extensions
     bool packReverseRowOrder = false;
 
     // GL_OES_standard_derivatives
-    bool standardDerivatives = false;
+    bool standardDerivativesOES = false;
 
     // GL_EXT_shader_texture_lod
     bool shaderTextureLOD = false;
@@ -338,7 +384,7 @@ struct Extensions
     bool translatedShaderSource = false;
 
     // GL_OES_fbo_render_mipmap
-    bool fboRenderMipmap = false;
+    bool fboRenderMipmapOES = false;
 
     // GL_EXT_discard_framebuffer
     bool discardFramebuffer = false;
@@ -347,16 +393,19 @@ struct Extensions
     bool debugMarker = false;
 
     // GL_OES_EGL_image
-    bool eglImage = false;
+    bool eglImageOES = false;
 
     // GL_OES_EGL_image_external
-    bool eglImageExternal = false;
+    bool eglImageExternalOES = false;
 
     // GL_OES_EGL_image_external_essl3
-    bool eglImageExternalEssl3 = false;
+    bool eglImageExternalEssl3OES = false;
+
+    // GL_EXT_EGL_image_external_wrap_modes
+    bool eglImageExternalWrapModesEXT = false;
 
     // GL_OES_EGL_sync
-    bool eglSync = false;
+    bool eglSyncOES = false;
 
     // GL_EXT_memory_object
     bool memoryObject = false;
@@ -364,14 +413,20 @@ struct Extensions
     // GL_EXT_memory_object_fd
     bool memoryObjectFd = false;
 
+    // GL_ANGLE_memory_object_fuchsia
+    bool memoryObjectFuchsiaANGLE = false;
+
     // GL_EXT_semaphore
     bool semaphore = false;
 
     // GL_EXT_semaphore_fd
     bool semaphoreFd = false;
 
+    // GL_ANGLE_semaphore_fuchsia
+    bool semaphoreFuchsiaANGLE = false;
+
     // NV_EGL_stream_consumer_external
-    bool eglStreamConsumerExternal = false;
+    bool eglStreamConsumerExternalNV = false;
 
     // EXT_unpack_subimage
     bool unpackSubimage = false;
@@ -379,14 +434,17 @@ struct Extensions
     // NV_pack_subimage
     bool packSubimage = false;
 
+    // GL_NV_shader_noperspective_interpolation
+    bool noperspectiveInterpolationNV = false;
+
     // GL_OES_vertex_half_float
-    bool vertexHalfFloat = false;
+    bool vertexHalfFloatOES = false;
 
     // GL_OES_vertex_array_object
-    bool vertexArrayObject = false;
+    bool vertexArrayObjectOES = false;
 
     // GL_OES_vertex_type_10_10_10_2
-    bool vertexAttribType1010102 = false;
+    bool vertexAttribType1010102OES = false;
 
     // GL_KHR_debug
     bool debug                     = false;
@@ -429,10 +487,13 @@ struct Extensions
     bool robustClientMemory = false;
 
     // GL_OES_texture_border_clamp
-    bool textureBorderClamp = false;
+    bool textureBorderClampOES = false;
 
     // GL_EXT_texture_sRGB_decode
     bool textureSRGBDecode = false;
+
+    // GL_EXT_texture_sRGB_override
+    bool textureSRGBOverride = false;
 
     // GL_EXT_sRGB_write_control
     bool sRGBWriteControl = false;
@@ -442,6 +503,9 @@ struct Extensions
 
     // GL_CHROMIUM_color_buffer_float_rgba
     bool colorBufferFloatRGBA = false;
+
+    // GL_EXT_EGL_image_array
+    bool eglImageArray = false;
 
     // ES3 Extension support
 
@@ -459,11 +523,8 @@ struct Extensions
     // written against ES 3.1 but can apply to ES 3.0 as well.
     bool textureNorm16 = false;
 
-    // GL_CHROMIUM_path_rendering
-    bool pathRendering = false;
-
     // GL_OES_surfaceless_context
-    bool surfacelessContext = false;
+    bool surfacelessContextOES = false;
 
     // GL_ANGLE_client_arrays
     bool clientArrays = false;
@@ -482,16 +543,16 @@ struct Extensions
 
     // GLES1 emulation: GLES1 extensions
     // GL_OES_point_size_array
-    bool pointSizeArray = false;
+    bool pointSizeArrayOES = false;
 
     // GL_OES_texture_cube_map
-    bool textureCubeMap = false;
+    bool textureCubeMapOES = false;
 
     // GL_OES_point_sprite
-    bool pointSprite = false;
+    bool pointSpriteOES = false;
 
     // GL_OES_draw_texture
-    bool drawTexture = false;
+    bool drawTextureOES = false;
 
     // EGL_ANGLE_explicit_context GL subextensions
     // GL_ANGLE_explicit_context_gles1
@@ -503,7 +564,7 @@ struct Extensions
     bool parallelShaderCompile = false;
 
     // GL_OES_texture_storage_multisample_2d_array
-    bool textureStorageMultisample2DArray = false;
+    bool textureStorageMultisample2DArrayOES = false;
 
     // GL_ANGLE_multiview_multisample
     bool multiviewMultisample = false;
@@ -527,6 +588,9 @@ struct Extensions
     // GL_ANGLE_provoking_vertex
     bool provokingVertex = false;
 
+    // GL_CHROMIUM_texture_filtering_hint
+    bool textureFilteringCHROMIUM = false;
+
     // GL_CHROMIUM_lose_context
     bool loseContextCHROMIUM = false;
 
@@ -535,15 +599,53 @@ struct Extensions
 
     // GL_ANGLE_base_vertex_base_instance
     bool baseVertexBaseInstance = false;
+
+    // GL_ANGLE_get_image
+    bool getImageANGLE = false;
+
+    // GL_OES_draw_elements_base_vertex
+    bool drawElementsBaseVertexOES = false;
+    // GL_EXT_draw_elements_base_vertex
+    bool drawElementsBaseVertexEXT = false;
+    // Any version of the base vertex extension
+    bool drawElementsBaseVertexAny() const
+    {
+        return (drawElementsBaseVertexOES || drawElementsBaseVertexEXT);
+    }
+
+    // GL_EXT_shader_non_constant_global_initializers
+    bool shaderNonConstGlobalInitializersEXT = false;
+
+    // GL_EXT_gpu_shader5
+    bool gpuShader5EXT = false;
+    // WEBGL_video_texture
+    bool webglVideoTexture = false;
+
+    // GL_APPLE_clip_distance
+    bool clipDistanceAPPLE = false;
+
+    // GL_OES_texture_cube_map_array
+    bool textureCubeMapArrayOES = false;
+    // GL_EXT_texture_cube_map_array
+    bool textureCubeMapArrayEXT = false;
+    // Any version of the texture cube map array extension
+    bool textureCubeMapArrayAny() const
+    {
+        return (textureCubeMapArrayOES || textureCubeMapArrayEXT);
+    }
 };
+
+// Pointer to a boolean memeber of the Extensions struct
+using ExtensionBool = bool Extensions::*;
 
 struct ExtensionInfo
 {
-    // If this extension can be enabled with glRequestExtension (GL_ANGLE_request_extension)
+    // If this extension can be enabled or disabled  with glRequestExtension
+    // (GL_ANGLE_request_extension)
     bool Requestable = false;
+    bool Disablable  = false;
 
     // Pointer to a boolean member of the Extensions struct
-    typedef bool(Extensions::*ExtensionBool);
     ExtensionBool ExtensionsMember = nullptr;
 };
 
@@ -605,40 +707,44 @@ struct Caps
     Caps(const Caps &other);
     ~Caps();
 
+    // If the values could be got by using GetIntegeri_v, they should
+    // be GLint instead of GLuint and call LimitToInt() to ensure
+    // they will not overflow.
+
     // ES 3.1 (April 29, 2015) 20.39: implementation dependent values
-    GLuint64 maxElementIndex       = 0;
-    GLuint max3DTextureSize        = 0;
-    GLuint max2DTextureSize        = 0;
-    GLuint maxRectangleTextureSize = 0;
-    GLuint maxArrayTextureLayers   = 0;
-    GLfloat maxLODBias             = 0.0f;
-    GLuint maxCubeMapTextureSize   = 0;
-    GLuint maxRenderbufferSize     = 0;
-    GLfloat minAliasedPointSize    = 1.0f;
-    GLfloat maxAliasedPointSize    = 1.0f;
-    GLfloat minAliasedLineWidth    = 0.0f;
-    GLfloat maxAliasedLineWidth    = 0.0f;
+    GLint64 maxElementIndex       = 0;
+    GLint max3DTextureSize        = 0;
+    GLint max2DTextureSize        = 0;
+    GLint maxRectangleTextureSize = 0;
+    GLint maxArrayTextureLayers   = 0;
+    GLfloat maxLODBias            = 0.0f;
+    GLint maxCubeMapTextureSize   = 0;
+    GLint maxRenderbufferSize     = 0;
+    GLfloat minAliasedPointSize   = 1.0f;
+    GLfloat maxAliasedPointSize   = 1.0f;
+    GLfloat minAliasedLineWidth   = 0.0f;
+    GLfloat maxAliasedLineWidth   = 0.0f;
 
     // ES 3.1 (April 29, 2015) 20.40: implementation dependent values (cont.)
-    GLuint maxDrawBuffers         = 0;
-    GLuint maxFramebufferWidth    = 0;
-    GLuint maxFramebufferHeight   = 0;
-    GLuint maxFramebufferSamples  = 0;
-    GLuint maxColorAttachments    = 0;
-    GLuint maxViewportWidth       = 0;
-    GLuint maxViewportHeight      = 0;
-    GLuint maxSampleMaskWords     = 0;
-    GLuint maxColorTextureSamples = 0;
-    GLuint maxDepthTextureSamples = 0;
-    GLuint maxIntegerSamples      = 0;
-    GLuint64 maxServerWaitTimeout = 0;
+    GLint maxDrawBuffers         = 0;
+    GLint maxFramebufferWidth    = 0;
+    GLint maxFramebufferHeight   = 0;
+    GLint maxFramebufferSamples  = 0;
+    GLint maxColorAttachments    = 0;
+    GLint maxViewportWidth       = 0;
+    GLint maxViewportHeight      = 0;
+    GLint maxSampleMaskWords     = 0;
+    GLint maxColorTextureSamples = 0;
+    GLint maxDepthTextureSamples = 0;
+    GLint maxIntegerSamples      = 0;
+    GLint64 maxServerWaitTimeout = 0;
 
     // ES 3.1 (April 29, 2015) Table 20.41: Implementation dependent values (cont.)
     GLint maxVertexAttribRelativeOffset = 0;
-    GLuint maxVertexAttribBindings      = 0;
+    GLint maxVertexAttribBindings       = 0;
     GLint maxVertexAttribStride         = 0;
-    GLuint maxElementsIndices           = 0;
-    GLuint maxElementsVertices          = 0;
+    GLint maxElementsIndices            = 0;
+    GLint maxElementsVertices           = 0;
     std::vector<GLenum> compressedTextureFormats;
     std::vector<GLenum> programBinaryFormats;
     std::vector<GLenum> shaderBinaryFormats;
@@ -664,82 +770,85 @@ struct Caps
     // limits
     // GL_EXT_geometry_shader (May 31, 2016) Table 20.46: Implementation dependent aggregate shader
     // limits
-    ShaderMap<GLuint> maxShaderUniformBlocks        = {};
-    ShaderMap<GLuint> maxShaderTextureImageUnits    = {};
-    ShaderMap<GLuint> maxShaderStorageBlocks        = {};
-    ShaderMap<GLuint> maxShaderUniformComponents    = {};
-    ShaderMap<GLuint> maxShaderAtomicCounterBuffers = {};
-    ShaderMap<GLuint> maxShaderAtomicCounters       = {};
-    ShaderMap<GLuint> maxShaderImageUniforms        = {};
+    ShaderMap<GLint> maxShaderUniformBlocks        = {};
+    ShaderMap<GLint> maxShaderTextureImageUnits    = {};
+    ShaderMap<GLint> maxShaderStorageBlocks        = {};
+    ShaderMap<GLint> maxShaderUniformComponents    = {};
+    ShaderMap<GLint> maxShaderAtomicCounterBuffers = {};
+    ShaderMap<GLint> maxShaderAtomicCounters       = {};
+    ShaderMap<GLint> maxShaderImageUniforms        = {};
     // Note that we can query MAX_COMPUTE_UNIFORM_COMPONENTS and MAX_GEOMETRY_UNIFORM_COMPONENTS_EXT
     // by GetIntegerv, but we can only use GetInteger64v on MAX_VERTEX_UNIFORM_COMPONENTS and
     // MAX_FRAGMENT_UNIFORM_COMPONENTS. Currently we use GLuint64 to store all these values so that
     // we can put them together into one ShaderMap.
-    ShaderMap<GLuint64> maxCombinedShaderUniformComponents = {};
+    ShaderMap<GLint64> maxCombinedShaderUniformComponents = {};
 
     // ES 3.1 (April 29, 2015) Table 20.43: Implementation dependent Vertex shader limits
-    GLuint maxVertexAttributes       = 0;
-    GLuint maxVertexUniformVectors   = 0;
-    GLuint maxVertexOutputComponents = 0;
+    GLint maxVertexAttributes       = 0;
+    GLint maxVertexUniformVectors   = 0;
+    GLint maxVertexOutputComponents = 0;
 
     // ES 3.1 (April 29, 2015) Table 20.44: Implementation dependent Fragment shader limits
-    GLuint maxFragmentUniformVectors     = 0;
-    GLuint maxFragmentInputComponents    = 0;
-    GLint minProgramTextureGatherOffset  = 0;
-    GLuint maxProgramTextureGatherOffset = 0;
-    GLint minProgramTexelOffset          = 0;
-    GLint maxProgramTexelOffset          = 0;
+    GLint maxFragmentUniformVectors     = 0;
+    GLint maxFragmentInputComponents    = 0;
+    GLint minProgramTextureGatherOffset = 0;
+    GLint maxProgramTextureGatherOffset = 0;
+    GLint minProgramTexelOffset         = 0;
+    GLint maxProgramTexelOffset         = 0;
 
     // ES 3.1 (April 29, 2015) Table 20.45: implementation dependent compute shader limits
-    std::array<GLuint, 3> maxComputeWorkGroupCount = {0, 0, 0};
-    std::array<GLuint, 3> maxComputeWorkGroupSize  = {0, 0, 0};
-    GLuint maxComputeWorkGroupInvocations          = 0;
-    GLuint maxComputeSharedMemorySize              = 0;
+    std::array<GLint, 3> maxComputeWorkGroupCount = {0, 0, 0};
+    std::array<GLint, 3> maxComputeWorkGroupSize  = {0, 0, 0};
+    GLint maxComputeWorkGroupInvocations          = 0;
+    GLint maxComputeSharedMemorySize              = 0;
 
     // ES 3.1 (April 29, 2015) Table 20.46: implementation dependent aggregate shader limits
-    GLuint maxUniformBufferBindings         = 0;
-    GLuint64 maxUniformBlockSize            = 0;
-    GLuint uniformBufferOffsetAlignment     = 0;
-    GLuint maxCombinedUniformBlocks         = 0;
-    GLuint maxVaryingComponents             = 0;
-    GLuint maxVaryingVectors                = 0;
-    GLuint maxCombinedTextureImageUnits     = 0;
-    GLuint maxCombinedShaderOutputResources = 0;
+    GLint maxUniformBufferBindings         = 0;
+    GLint64 maxUniformBlockSize            = 0;
+    GLint uniformBufferOffsetAlignment     = 0;
+    GLint maxCombinedUniformBlocks         = 0;
+    GLint maxVaryingComponents             = 0;
+    GLint maxVaryingVectors                = 0;
+    GLint maxCombinedTextureImageUnits     = 0;
+    GLint maxCombinedShaderOutputResources = 0;
 
     // ES 3.1 (April 29, 2015) Table 20.47: implementation dependent aggregate shader limits (cont.)
-    GLuint maxUniformLocations                = 0;
-    GLuint maxAtomicCounterBufferBindings     = 0;
-    GLuint maxAtomicCounterBufferSize         = 0;
-    GLuint maxCombinedAtomicCounterBuffers    = 0;
-    GLuint maxCombinedAtomicCounters          = 0;
-    GLuint maxImageUnits                      = 0;
-    GLuint maxCombinedImageUniforms           = 0;
-    GLuint maxShaderStorageBufferBindings     = 0;
-    GLuint64 maxShaderStorageBlockSize        = 0;
-    GLuint maxCombinedShaderStorageBlocks     = 0;
-    GLuint shaderStorageBufferOffsetAlignment = 0;
+    GLint maxUniformLocations                = 0;
+    GLint maxAtomicCounterBufferBindings     = 0;
+    GLint maxAtomicCounterBufferSize         = 0;
+    GLint maxCombinedAtomicCounterBuffers    = 0;
+    GLint maxCombinedAtomicCounters          = 0;
+    GLint maxImageUnits                      = 0;
+    GLint maxCombinedImageUniforms           = 0;
+    GLint maxShaderStorageBufferBindings     = 0;
+    GLint64 maxShaderStorageBlockSize        = 0;
+    GLint maxCombinedShaderStorageBlocks     = 0;
+    GLint shaderStorageBufferOffsetAlignment = 0;
 
     // ES 3.1 (April 29, 2015) Table 20.48: implementation dependent transform feedback limits
-    GLuint maxTransformFeedbackInterleavedComponents = 0;
-    GLuint maxTransformFeedbackSeparateAttributes    = 0;
-    GLuint maxTransformFeedbackSeparateComponents    = 0;
+    GLint maxTransformFeedbackInterleavedComponents = 0;
+    GLint maxTransformFeedbackSeparateAttributes    = 0;
+    GLint maxTransformFeedbackSeparateComponents    = 0;
 
     // ES 3.1 (April 29, 2015) Table 20.49: Framebuffer Dependent Values
-    GLuint maxSamples = 0;
+    GLint maxSamples = 0;
 
     // GL_EXT_geometry_shader (May 31, 2016) Table 20.40: Implementation-Dependent Values (cont.)
-    GLuint maxFramebufferLayers = 0;
-    GLuint layerProvokingVertex = 0;
+    GLint maxFramebufferLayers = 0;
+    GLint layerProvokingVertex = 0;
 
     // GL_EXT_geometry_shader (May 31, 2016) Table 20.43gs: Implementation dependent geometry shader
     // limits
-    GLuint maxGeometryInputComponents       = 0;
-    GLuint maxGeometryOutputComponents      = 0;
-    GLuint maxGeometryOutputVertices        = 0;
-    GLuint maxGeometryTotalOutputComponents = 0;
-    GLuint maxGeometryShaderInvocations     = 0;
+    GLint maxGeometryInputComponents       = 0;
+    GLint maxGeometryOutputComponents      = 0;
+    GLint maxGeometryOutputVertices        = 0;
+    GLint maxGeometryTotalOutputComponents = 0;
+    GLint maxGeometryShaderInvocations     = 0;
 
     GLuint subPixelBits = 4;
+
+    // GL_APPLE_clip_distance/GL_EXT_clip_cull_distance
+    GLuint maxClipDistances = 0;
 
     // GLES1 emulation: Caps for ES 1.1. Taken from Table 6.20 / 6.22 in the OpenGL ES 1.1 spec.
     GLuint maxMultitextureUnits                 = 0;
@@ -869,8 +978,11 @@ struct DisplayExtensions
     // EGL_CHROMIUM_create_context_bind_generates_resource
     bool createContextBindGeneratesResource = false;
 
-    // EGL_CHROMIUM_get_sync_values
-    bool getSyncValues = false;
+    // EGL_CHROMIUM_sync_control
+    bool syncControlCHROMIUM = false;
+
+    // EGL_ANGLE_sync_control_rate
+    bool syncControlRateANGLE = false;
 
     // EGL_KHR_swap_buffers_with_damage
     bool swapBuffersWithDamage = false;
@@ -931,6 +1043,48 @@ struct DisplayExtensions
 
     // EGL_KHR_no_config_context
     bool noConfigContext = false;
+
+    // EGL_IMG_context_priority
+    bool contextPriority = false;
+
+    // EGL_ANGLE_ggp_stream_descriptor
+    bool ggpStreamDescriptor = false;
+
+    // EGL_ANGLE_swap_with_frame_token
+    bool swapWithFrameToken = false;
+
+    // EGL_KHR_gl_colorspace
+    bool glColorspace = false;
+
+    // EGL_EXT_gl_colorspace_display_p3_linear
+    bool glColorspaceDisplayP3Linear = false;
+
+    // EGL_EXT_gl_colorspace_display_p3
+    bool glColorspaceDisplayP3 = false;
+
+    // EGL_EXT_gl_colorspace_scrgb
+    bool glColorspaceScrgb = false;
+
+    // EGL_EXT_gl_colorspace_scrgb_linear
+    bool glColorspaceScrgbLinear = false;
+
+    // EGL_EXT_gl_colorspace_display_p3_passthrough
+    bool glColorspaceDisplayP3Passthrough = false;
+
+    // EGL_ANDROID_framebuffer_target
+    bool framebufferTargetANDROID = false;
+
+    // EGL_EXT_image_gl_colorspace
+    bool imageGlColorspace = false;
+
+    // EGL_EXT_image_dma_buf_import
+    bool imageDmaBufImportEXT = false;
+
+    // EGL_EXT_image_dma_buf_import_modifiers
+    bool imageDmaBufImportModifiersEXT = false;
+
+    // EGL_NOK_texture_from_pixmap
+    bool textureFromPixmapNOK = false;
 };
 
 struct DeviceExtensions
@@ -945,6 +1099,9 @@ struct DeviceExtensions
 
     // EGL_ANGLE_device_cgl
     bool deviceCGL = false;
+
+    // EGL_ANGLE_device_eagl
+    bool deviceEAGL = false;
 };
 
 struct ClientExtensions
@@ -988,6 +1145,12 @@ struct ClientExtensions
     // EGL_ANGLE_platform_angle_context_virtualization
     bool platformANGLEContextVirtualization = false;
 
+    // EGL_ANGLE_platform_angle_device_context_volatile_eagl
+    bool platformANGLEDeviceContextVolatileEagl = false;
+
+    // EGL_ANGLE_platform_angle_device_context_volatile_cgl
+    bool platformANGLEDeviceContextVolatileCgl = false;
+
     // EGL_ANGLE_device_creation
     bool deviceCreation = false;
 
@@ -1014,6 +1177,9 @@ struct ClientExtensions
 
     // EGL_ANGLE_platform_angle_device_type_swiftshader
     bool platformANGLEDeviceTypeSwiftShader = false;
+
+    // EGL_ANGLE_platform_angle_device_type_egl_angle
+    bool platformANGLEDeviceTypeEGLANGLE = false;
 };
 
 }  // namespace egl

@@ -1,8 +1,9 @@
 import sys
-from os.path import join, dirname
 
 import mock
 import pytest
+
+from os.path import join, dirname
 
 sys.path.insert(0, join(dirname(__file__), "..", "..", ".."))
 
@@ -25,7 +26,8 @@ def test_sauceconnect_success():
             sauce_user="aaa",
             sauce_key="bbb",
             sauce_tunnel_id="ccc",
-            sauce_connect_binary="ddd")
+            sauce_connect_binary="ddd",
+            sauce_connect_args=[])
 
         with ConfigBuilder(browser_host="example.net") as env_config:
             sauce_connect(None, env_config)
@@ -54,7 +56,8 @@ def test_sauceconnect_failure_exit(readyfile, returncode):
             sauce_user="aaa",
             sauce_key="bbb",
             sauce_tunnel_id="ccc",
-            sauce_connect_binary="ddd")
+            sauce_connect_binary="ddd",
+            sauce_connect_args=[])
 
         with ConfigBuilder(browser_host="example.net") as env_config:
             sauce_connect(None, env_config)
@@ -82,7 +85,8 @@ def test_sauceconnect_cleanup():
             sauce_user="aaa",
             sauce_key="bbb",
             sauce_tunnel_id="ccc",
-            sauce_connect_binary="ddd")
+            sauce_connect_binary="ddd",
+            sauce_connect_args=[])
 
         with ConfigBuilder(browser_host="example.net") as env_config:
             sauce_connect(None, env_config)
@@ -91,7 +95,6 @@ def test_sauceconnect_cleanup():
                 sleep.assert_not_called()
 
         sleep.assert_called()
-
 
 def test_sauceconnect_failure_never_ready():
     with mock.patch.object(sauce.SauceConnect, "upload_prerun_exec"),\
@@ -106,7 +109,8 @@ def test_sauceconnect_failure_never_ready():
             sauce_user="aaa",
             sauce_key="bbb",
             sauce_tunnel_id="ccc",
-            sauce_connect_binary="ddd")
+            sauce_connect_binary="ddd",
+            sauce_connect_args=[])
 
         with ConfigBuilder(browser_host="example.net") as env_config:
             sauce_connect(None, env_config)
@@ -134,7 +138,8 @@ def test_sauceconnect_tunnel_domains():
             sauce_user="aaa",
             sauce_key="bbb",
             sauce_tunnel_id="ccc",
-            sauce_connect_binary="ddd")
+            sauce_connect_binary="ddd",
+            sauce_connect_args=[])
 
         with ConfigBuilder(browser_host="example.net",
                            alternate_hosts={"alt": "example.org"},

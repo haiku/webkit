@@ -31,6 +31,7 @@
 #include "StorageManager.h"
 #include <WebCore/SecurityOriginData.h>
 #include <pal/SessionID.h>
+#include <wtf/WeakPtr.h>
 
 using WebCore::SecurityOriginData;
 
@@ -68,6 +69,7 @@ public:
     void deleteLocalStorageModifiedSince(PAL::SessionID, WallTime, DeleteCallback&&);
     void deleteLocalStorageForOrigins(PAL::SessionID, const Vector<WebCore::SecurityOriginData>&, DeleteCallback&&);
     void getLocalStorageOriginDetails(PAL::SessionID, GetOriginDetailsCallback&&);
+    void renameOrigin(PAL::SessionID, const URL&, const URL&, CompletionHandler<void()>&&);
 
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&);
     void didReceiveSyncMessage(IPC::Connection&, IPC::Decoder&, std::unique_ptr<IPC::Encoder>& replyEncoder);
@@ -88,7 +90,7 @@ private:
 
     HashMap<PAL::SessionID, std::unique_ptr<StorageManager>> m_storageManagers;
     HashMap<PAL::SessionID, String> m_storageManagerPaths;
-    HashMap<StorageAreaIdentifier, StorageArea*> m_storageAreas;
+    HashMap<StorageAreaIdentifier, WeakPtr<StorageArea>> m_storageAreas;
 
     HashSet<IPC::Connection::UniqueID> m_connections;
     Ref<WorkQueue> m_queue;

@@ -30,6 +30,7 @@
 #include "StyleChange.h"
 #include "StyleSharingResolver.h"
 #include "StyleUpdate.h"
+#include "Styleable.h"
 #include <wtf/Function.h>
 #include <wtf/Ref.h>
 
@@ -40,10 +41,12 @@ class Element;
 class Node;
 class RenderStyle;
 class ShadowRoot;
-class StyleResolver;
 
 namespace Style {
 
+class Resolver;
+
+DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(TreeResolverScope);
 class TreeResolver {
 public:
     TreeResolver(Document&);
@@ -58,11 +61,12 @@ private:
 
     ElementUpdates resolveElement(Element&);
 
-    ElementUpdate createAnimatedElementUpdate(std::unique_ptr<RenderStyle>, Element&, Change);
+    ElementUpdate createAnimatedElementUpdate(std::unique_ptr<RenderStyle>, const Styleable&, Change);
     ElementUpdate resolvePseudoStyle(Element&, const ElementUpdate&, PseudoId);
 
     struct Scope : RefCounted<Scope> {
-        StyleResolver& styleResolver;
+        WTF_MAKE_STRUCT_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(TreeResolverScope);
+        Resolver& resolver;
         SelectorFilter selectorFilter;
         SharingResolver sharingResolver;
         ShadowRoot* shadowRoot { nullptr };
@@ -76,7 +80,7 @@ private:
     struct Parent {
         Element* element;
         const RenderStyle& style;
-        Change change { NoChange };
+        Change change { Change::None };
         DescendantsToResolve descendantsToResolve { DescendantsToResolve::None };
         bool didPushScope { false };
 

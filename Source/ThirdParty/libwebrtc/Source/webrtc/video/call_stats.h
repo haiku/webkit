@@ -15,15 +15,14 @@
 #include <memory>
 
 #include "modules/include/module.h"
+#include "modules/include/module_common_types.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
-#include "rtc_base/constructormagic.h"
-#include "rtc_base/criticalsection.h"
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/critical_section.h"
 #include "rtc_base/thread_checker.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {
-
-class CallStatsObserver;
 
 // CallStats keeps track of statistics for a call.
 class CallStats : public Module, public RtcpRttStats {

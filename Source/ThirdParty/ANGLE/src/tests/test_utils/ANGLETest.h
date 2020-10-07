@@ -15,10 +15,11 @@
 #include <array>
 
 #include "angle_test_configs.h"
+#include "angle_test_platform.h"
 #include "common/angleutils.h"
 #include "common/system_utils.h"
 #include "common/vector_utils.h"
-#include "platform/Platform.h"
+#include "platform/PlatformMethods.h"
 #include "util/EGLWindow.h"
 #include "util/shader_utils.h"
 #include "util/util_gl.h"
@@ -26,6 +27,7 @@
 namespace angle
 {
 struct SystemInfo;
+class RNG;
 }  // namespace angle
 
 #define ASSERT_GL_TRUE(a) ASSERT_EQ(static_cast<GLboolean>(GL_TRUE), (a))
@@ -123,6 +125,15 @@ struct GLColor
     static const GLColor magenta;
 };
 
+struct GLColor16UI
+{
+    constexpr GLColor16UI() : GLColor16UI(0, 0, 0, 0) {}
+    constexpr GLColor16UI(GLushort r, GLushort g, GLushort b, GLushort a) : R(r), G(g), B(b), A(a)
+    {}
+
+    GLushort R, G, B, A;
+};
+
 struct GLColor32F
 {
     constexpr GLColor32F() : GLColor32F(0.0f, 0.0f, 0.0f, 0.0f) {}
@@ -131,6 +142,7 @@ struct GLColor32F
     GLfloat R, G, B, A;
 };
 
+static constexpr GLColor32F kFloatBlack = {0.0f, 0.0f, 0.0f, 1.0f};
 static constexpr GLColor32F kFloatRed   = {1.0f, 0.0f, 0.0f, 1.0f};
 static constexpr GLColor32F kFloatGreen = {0.0f, 1.0f, 0.0f, 1.0f};
 static constexpr GLColor32F kFloatBlue  = {0.0f, 0.0f, 1.0f, 1.0f};
@@ -151,6 +163,8 @@ GLColor MakeGLColor(TR r, TG g, TB b, TA a)
                    static_cast<GLubyte>(a));
 }
 
+GLColor RandomColor(angle::RNG *rng);
+
 bool operator==(const GLColor &a, const GLColor &b);
 bool operator!=(const GLColor &a, const GLColor &b);
 std::ostream &operator<<(std::ostream &ostream, const GLColor &color);
@@ -167,6 +181,13 @@ GLColor32F MakeGLColor32F(TR r, TG g, TB b, TA a)
 bool operator==(const GLColor32F &a, const GLColor32F &b);
 std::ostream &operator<<(std::ostream &ostream, const GLColor32F &color);
 GLColor32F ReadColor32F(GLint x, GLint y);
+
+constexpr std::array<GLenum, 6> kCubeFaces = {
+    {GL_TEXTURE_CUBE_MAP_POSITIVE_X, GL_TEXTURE_CUBE_MAP_NEGATIVE_X, GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+     GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+     GL_TEXTURE_CUBE_MAP_NEGATIVE_Z}};
+
+void LoadEntryPointsWithUtilLoader(angle::GLESDriverType driver);
 
 }  // namespace angle
 
@@ -246,6 +267,12 @@ GLColor32F ReadColor32F(GLint x, GLint y);
 #define EXPECT_PIXEL_8UI(x, y, r, g, b, a) \
     EXPECT_PIXEL_EQ_HELPER(x, y, r, g, b, a, GLubyte, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE)
 
+#define EXPECT_PIXEL_16UI(x, y, r, g, b, a) \
+    EXPECT_PIXEL_EQ_HELPER(x, y, r, g, b, a, GLushort, GL_RGBA, GL_UNSIGNED_SHORT)
+
+#define EXPECT_PIXEL_16UI_COLOR(x, y, color) \
+    EXPECT_PIXEL_16UI(x, y, color.R, color.G, color.B, color.A)
+
 #define EXPECT_PIXEL_RGB_EQUAL(x, y, r, g, b) \
     EXPECT_PIXEL_RGB_EQ_HELPER(x, y, r, g, b, GLubyte, GL_RGBA, GL_UNSIGNED_BYTE)
 
@@ -299,12 +326,23 @@ class ANGLETestBase
     virtual ~ANGLETestBase();
 
   public:
-    void setWindowVisible(bool isVisible);
+    void setWindowVisible(OSWindow *osWindow, bool isVisible);
 
     virtual void overrideWorkaroundsD3D(angle::FeaturesD3D *featuresD3D) {}
     virtual void overrideFeaturesVk(angle::FeaturesVk *featuresVulkan) {}
 
     static void ReleaseFixtures();
+
+    bool isSwiftshader() const
+    {
+        // Renderer might be swiftshader even if local swiftshader not used.
+        return mCurrentParams->isSwiftshader() || angle::IsSwiftshaderDevice();
+    }
+
+    bool enableDebugLayers() const
+    {
+        return mCurrentParams->eglParameters.debugLayersEnabled != EGL_FALSE;
+    }
 
   protected:
     void ANGLETestSetUp();
@@ -444,6 +482,14 @@ class ANGLETestBase
         return mCurrentParams->getRenderer() == EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE;
     }
 
+    bool isVulkanSwiftshaderRenderer() const
+    {
+        return mCurrentParams->getRenderer() == EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE &&
+               mCurrentParams->isSwiftshader();
+    }
+
+    bool platformSupportsMultithreading() const;
+
   private:
     void checkD3D11SDKLayersMessages();
 
@@ -489,9 +535,14 @@ class ANGLETestBase
     bool mSetUpCalled;
     bool mTearDownCalled;
 
-    // On most systems we force a new display on every test instance. For these configs we can
-    // share a single OSWindow instance. With display reuse we need a separate OSWindow for each
-    // different config. This OSWindow sharing seemed to lead to driver bugs on some platforms.
+    // Usually, we use an OS Window per "fixture" (a frontend and backend combination).
+    // This allows:
+    // 1. Reusing EGL Display on Windows.
+    //    Other platforms have issues with display reuse even if a window per fixture is used.
+    // 2. Hiding only SwiftShader OS Window on Linux.
+    //    OS Windows for other backends must be visible, to allow driver to communicate with X11.
+    // However, we must use a single OS Window for all backends on Android,
+    // since test Application can have only one window.
     static OSWindow *mOSWindowSingleton;
 
     static std::map<angle::PlatformParameters, TestFixture> gFixtures;
@@ -500,6 +551,7 @@ class ANGLETestBase
 
     // Workaround for NVIDIA not being able to share a window with OpenGL and Vulkan.
     static Optional<EGLint> mLastRendererType;
+    static Optional<angle::GLESDriverType> mLastLoadedDriver;
 };
 
 template <typename Params = angle::PlatformParameters>
@@ -551,53 +603,19 @@ class ANGLETestEnvironment : public testing::Environment
     void SetUp() override;
     void TearDown() override;
 
-    static angle::Library *GetEGLLibrary();
-    static angle::Library *GetWGLLibrary();
+    static angle::Library *GetDriverLibrary(angle::GLESDriverType driver);
 
   private:
+    static angle::Library *GetAngleEGLLibrary();
+    static angle::Library *GetSystemEGLLibrary();
+    static angle::Library *GetSystemWGLLibrary();
+
     // For loading entry points.
-    static std::unique_ptr<angle::Library> gEGLLibrary;
-    static std::unique_ptr<angle::Library> gWGLLibrary;
+    static std::unique_ptr<angle::Library> gAngleEGLLibrary;
+    static std::unique_ptr<angle::Library> gSystemEGLLibrary;
+    static std::unique_ptr<angle::Library> gSystemWGLLibrary;
 };
 
-// Driver vendors
-bool IsAdreno();
-
-// Renderer back-ends
-// Note: FL9_3 is explicitly *not* considered D3D11.
-bool IsD3D11();
-bool IsD3D11_FL93();
-// Is a D3D9-class renderer.
-bool IsD3D9();
-// Is D3D9 or SM9_3 renderer.
-bool IsD3DSM3();
-bool IsDesktopOpenGL();
-bool IsOpenGLES();
-bool IsOpenGL();
-bool IsNULL();
-bool IsVulkan();
-
-// Debug/Release
-bool IsDebug();
-bool IsRelease();
-
-bool EnsureGLExtensionEnabled(const std::string &extName);
-bool IsEGLClientExtensionEnabled(const std::string &extName);
-bool IsEGLDeviceExtensionEnabled(EGLDeviceEXT device, const std::string &extName);
-bool IsEGLDisplayExtensionEnabled(EGLDisplay display, const std::string &extName);
-bool IsGLExtensionEnabled(const std::string &extName);
-bool IsGLExtensionRequestable(const std::string &extName);
-
 extern angle::PlatformMethods gDefaultPlatformMethods;
-
-#define ANGLE_SKIP_TEST_IF(COND)                                  \
-    do                                                            \
-    {                                                             \
-        if (COND)                                                 \
-        {                                                         \
-            std::cout << "Test skipped: " #COND "." << std::endl; \
-            return;                                               \
-        }                                                         \
-    } while (0)
 
 #endif  // ANGLE_TESTS_ANGLE_TEST_H_

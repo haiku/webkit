@@ -42,15 +42,15 @@ void DragClientHaiku::willPerformDragDestinationAction(DragDestinationAction, co
     notImplemented();
 }
 
-void DragClientHaiku::dragControllerDestroyed()
+OptionSet<DragSourceAction> DragClientHaiku::dragSourceActionMaskForPoint(const IntPoint&)
 {
-    delete this;
-}
-
-DragSourceAction DragClientHaiku::dragSourceActionMaskForPoint(const IntPoint&)
-{
+    OptionSet<DragSourceAction> result;
     notImplemented();
-    return DragSourceActionAny;
+    result.add(DragSourceAction::DHTML);
+    result.add(DragSourceAction::Image);
+    result.add(DragSourceAction::Link);
+    result.add(DragSourceAction::Selection);
+    return result;
 }
 
 void DragClientHaiku::willPerformDragSourceAction(DragSourceAction, const IntPoint&, DataTransfer&)

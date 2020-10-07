@@ -27,12 +27,11 @@
 #include "InspectorInstrumentationObject.h"
 
 #include "JSCInlines.h"
-#include "Lookup.h"
 #include <wtf/DataLog.h>
 
 namespace JSC {
 
-EncodedJSValue JSC_HOST_CALL inspectorInstrumentationObjectLog(JSGlobalObject*, CallFrame*);
+JSC_DECLARE_HOST_FUNCTION(inspectorInstrumentationObjectLog);
 
 }
 
@@ -81,7 +80,7 @@ void InspectorInstrumentationObject::disable(VM& vm)
 
 // ------------------------------ Functions --------------------------------
 
-EncodedJSValue JSC_HOST_CALL inspectorInstrumentationObjectLog(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(inspectorInstrumentationObjectLog, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);

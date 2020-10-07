@@ -121,6 +121,8 @@ private:
     
     LayerFlushController* m_flushController;
     std::unique_ptr<WebCore::RunLoopObserver> m_runLoopObserver;
+    bool m_insideCallback { false };
+    bool m_rescheduledInsideCallback { false };
 };
 
 class LayerFlushController : public RefCounted<LayerFlushController> {
@@ -130,6 +132,7 @@ public:
         return adoptRef(*new LayerFlushController(webView));
     }
     
+    // FIXME: Rename to use 'updateRendering' terminology.
     bool flushLayers();
     
     void scheduleLayerFlush();
@@ -215,7 +218,7 @@ private:
     BOOL shouldMaintainInactiveSelection;
 
     BOOL allowsUndo;
-        
+
     float zoomMultiplier;
     BOOL zoomsTextOnly;
 
@@ -224,7 +227,6 @@ private:
     BOOL userAgentOverridden;
     
     WebPreferences *preferences;
-    BOOL useSiteSpecificSpoofing;
 #if PLATFORM(IOS_FAMILY)
     NSURL *userStyleSheetLocation;
 #endif
@@ -283,7 +285,7 @@ private:
     CGRect pendingFixedPositionLayoutRect;
 #endif
     
-#if ENABLE(DATA_INTERACTION)
+#if PLATFORM(IOS_FAMILY) && ENABLE(DRAG_SUPPORT)
     RetainPtr<WebUITextIndicatorData> textIndicatorData;
     RetainPtr<WebUITextIndicatorData> dataOperationTextIndicator;
     CGRect dragPreviewFrameInRootViewCoordinates;
@@ -291,7 +293,6 @@ private:
     RetainPtr<NSURL> draggedLinkURL;
     RetainPtr<NSString> draggedLinkTitle;
 #endif
-
 
 #if !PLATFORM(IOS_FAMILY)
     // WebKit has both a global plug-in database and a separate, per WebView plug-in database. Dashboard uses the per WebView database.
@@ -315,11 +316,12 @@ private:
     NSPasteboard *insertionPasteboard;
     RetainPtr<NSImage> _mainFrameIcon;
 #endif
-            
+
     NSSize lastLayoutSize;
 
 #if ENABLE(VIDEO)
-    WebVideoFullscreenController *fullscreenController;
+    RetainPtr<WebVideoFullscreenController> fullscreenController;
+    Vector<RetainPtr<WebVideoFullscreenController>> fullscreenControllersExiting;
 #endif
 
 #if PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE)
@@ -353,9 +355,7 @@ private:
     WebFixedPositionContent* _fixedPositionContent;
 #endif
 
-#if USE(DICTATION_ALTERNATIVES)
     std::unique_ptr<WebCore::AlternativeTextUIController> m_alternativeTextUIController;
-#endif
 
     RetainPtr<NSData> sourceApplicationAuditData;
 

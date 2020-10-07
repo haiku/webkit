@@ -35,15 +35,10 @@
 #include "HTMLInputElement.h"
 #include "HTMLTextFormControlElement.h"
 #include "RenderPtr.h"
-#include "StepRange.h"
 #include <wtf/FastMalloc.h>
 #include <wtf/Forward.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
-
-#if PLATFORM(IOS_FAMILY)
-#include "DateComponents.h"
-#endif
 
 namespace WebCore {
 
@@ -61,10 +56,14 @@ class KeyboardEvent;
 class MouseEvent;
 class Node;
 class RenderStyle;
+class StepRange;
 class TextControlInnerTextElement;
 class TouchEvent;
 
 struct InputElementClickState;
+
+enum class AnyStepHandling : bool;
+enum class DateComponentsType : uint8_t;
 
 // An InputType object represents the type-specific part of an HTMLInputElement.
 // Do not expose instances of InputType and classes derived from it to classes
@@ -205,7 +204,7 @@ public:
     virtual bool shouldUseInputMethod() const;
     virtual void handleFocusEvent(Node* oldFocusedNode, FocusDirection);
     virtual void handleBlurEvent();
-    virtual void accessKeyAction(bool sendMouseEvents);
+    virtual bool accessKeyAction(bool sendMouseEvents);
     virtual bool canBeSuccessfulSubmitButton();
     virtual void subtreeHasChanged();
     virtual void blur();
@@ -282,12 +281,6 @@ public:
     // return NaN or Infinity only if defaultValue is NaN or Infinity.
     virtual Decimal parseToNumber(const String&, const Decimal& defaultValue) const;
 
-    // Parses the specified string for this InputType, and returns true if it
-    // is successfully parsed. An instance pointed by the DateComponents*
-    // parameter will have parsed values and be modified even if the parsing
-    // fails. The DateComponents* parameter may be null.
-    virtual bool parseToDateComponents(const String&, DateComponents*) const;
-
     // Create a string representation of the specified Decimal value for the
     // input type. If NaN or Infinity is specified, this returns an empty
     // string. This should not be called for types without valueAsNumber.
@@ -301,7 +294,7 @@ public:
     void dispatchSimulatedClickIfActive(KeyboardEvent&) const;
 
 #if ENABLE(DATALIST_ELEMENT)
-    virtual void listAttributeTargetChanged();
+    virtual void dataListMayHaveChanged();
     virtual Optional<Decimal> findClosestTickMarkValue(const Decimal&);
 #endif
 
@@ -309,9 +302,8 @@ public:
     virtual bool receiveDroppedFiles(const DragData&);
 #endif
 
-#if PLATFORM(IOS_FAMILY)
-    virtual DateComponents::Type dateType() const;
-#endif
+    virtual DateComponentsType dateType() const;
+
     virtual String displayString() const;
 
 protected:

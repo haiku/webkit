@@ -16,6 +16,7 @@
 #include "libANGLE/features.h"
 #include "libANGLE/renderer/d3d/ProgramD3D.h"
 #include "libANGLE/renderer/d3d/RendererD3D.h"
+#include "libANGLE/trace.h"
 
 namespace rx
 {
@@ -36,6 +37,7 @@ class TranslateTaskD3D : public angle::Closure
 
     void operator()() override
     {
+        ANGLE_TRACE_EVENT1("gpu.angle", "TranslateTask::run", "source", mSource);
         std::vector<const char *> srcStrings;
         if (!mSourcePath.empty())
         {
@@ -123,6 +125,10 @@ ShaderD3D::ShaderD3D(const gl::ShaderState &data,
     {
         mAdditionalOptions |= SH_FORCE_ATOMIC_VALUE_RESOLUTION;
     }
+    if (features.dontTranslateUniformBlockToStructuredBuffer.enabled)
+    {
+        mAdditionalOptions |= SH_DONT_TRANSLATE_UNIFORM_BLOCK_TO_STRUCTUREDBUFFER;
+    }
     if (extensions.multiview || extensions.multiview2)
     {
         mAdditionalOptions |= SH_INITIALIZE_BUILTINS_FOR_INSTANCED_MULTIVIEW;
@@ -154,6 +160,7 @@ void ShaderD3D::uncompile()
     mUsesSecondaryColor          = false;
     mUsesFragCoord               = false;
     mUsesFrontFacing             = false;
+    mUsesHelperInvocation        = false;
     mUsesPointSize               = false;
     mUsesPointCoord              = false;
     mUsesDepthRange              = false;
@@ -204,6 +211,12 @@ unsigned int ShaderD3D::getUniformBlockRegister(const std::string &blockName) co
 {
     ASSERT(mUniformBlockRegisterMap.count(blockName) > 0);
     return mUniformBlockRegisterMap.find(blockName)->second;
+}
+
+bool ShaderD3D::shouldUniformBlockUseStructuredBuffer(const std::string &blockName) const
+{
+    ASSERT(mUniformBlockUseStructuredBufferMap.count(blockName) > 0);
+    return mUniformBlockUseStructuredBufferMap.find(blockName)->second;
 }
 
 unsigned int ShaderD3D::getShaderStorageBlockRegister(const std::string &blockName) const
@@ -277,10 +290,12 @@ std::shared_ptr<WaitableCompileEvent> ShaderD3D::compile(const gl::Context *cont
         mUsesSecondaryColor = translatedSource.find("GL_USES_SECONDARY_COLOR") != std::string::npos;
         mUsesFragCoord      = translatedSource.find("GL_USES_FRAG_COORD") != std::string::npos;
         mUsesFrontFacing    = translatedSource.find("GL_USES_FRONT_FACING") != std::string::npos;
-        mUsesPointSize      = translatedSource.find("GL_USES_POINT_SIZE") != std::string::npos;
-        mUsesPointCoord     = translatedSource.find("GL_USES_POINT_COORD") != std::string::npos;
-        mUsesDepthRange     = translatedSource.find("GL_USES_DEPTH_RANGE") != std::string::npos;
-        mUsesFragDepth      = translatedSource.find("GL_USES_FRAG_DEPTH") != std::string::npos;
+        mUsesHelperInvocation =
+            translatedSource.find("GL_USES_HELPER_INVOCATION") != std::string::npos;
+        mUsesPointSize  = translatedSource.find("GL_USES_POINT_SIZE") != std::string::npos;
+        mUsesPointCoord = translatedSource.find("GL_USES_POINT_COORD") != std::string::npos;
+        mUsesDepthRange = translatedSource.find("GL_USES_DEPTH_RANGE") != std::string::npos;
+        mUsesFragDepth  = translatedSource.find("GL_USES_FRAG_DEPTH") != std::string::npos;
         mHasANGLEMultiviewEnabled =
             translatedSource.find("GL_ANGLE_MULTIVIEW_ENABLED") != std::string::npos;
         mUsesVertexID = translatedSource.find("GL_USES_VERTEX_ID") != std::string::npos;
@@ -307,8 +322,11 @@ std::shared_ptr<WaitableCompileEvent> ShaderD3D::compile(const gl::Context *cont
                 bool blockRegisterResult =
                     sh::GetUniformBlockRegister(compilerHandle, interfaceBlock.name, &index);
                 ASSERT(blockRegisterResult);
+                bool useStructuredBuffer =
+                    sh::ShouldUniformBlockUseStructuredBuffer(compilerHandle, interfaceBlock.name);
 
-                mUniformBlockRegisterMap[interfaceBlock.name] = index;
+                mUniformBlockRegisterMap[interfaceBlock.name]            = index;
+                mUniformBlockUseStructuredBufferMap[interfaceBlock.name] = useStructuredBuffer;
             }
         }
 

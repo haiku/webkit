@@ -23,8 +23,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef WKSharedAPICast_h
-#define WKSharedAPICast_h
+#pragma once
 
 #include "APIError.h"
 #include "APINumber.h"
@@ -47,8 +46,8 @@
 #include "WKPageVisibilityTypes.h"
 #include "WKUserContentInjectedFrames.h"
 #include "WKUserScriptInjectionTime.h"
-#include "WebEvent.h"
 #include "WebFindOptions.h"
+#include "WebMouseEvent.h"
 #include <WebCore/ContextMenuItem.h>
 #include <WebCore/DiagnosticLoggingResultType.h>
 #include <WebCore/FloatRect.h>
@@ -177,6 +176,11 @@ inline WKURLRef toCopiedURLAPI(const String& string)
     if (!string)
         return nullptr;
     return toAPI(&API::URL::create(string).leakRef());
+}
+
+inline WKURLRef toCopiedURLAPI(const URL& url)
+{
+    return toCopiedURLAPI(url.string());
 }
 
 inline String toWTFString(WKStringRef stringRef)
@@ -748,28 +752,28 @@ inline WKContextMenuItemType toAPI(WebCore::ContextMenuItemType type)
     }
 }
 
-inline FindOptions toFindOptions(WKFindOptions wkFindOptions)
+inline OptionSet<FindOptions> toFindOptions(WKFindOptions wkFindOptions)
 {
-    unsigned findOptions = 0;
+    OptionSet<FindOptions> findOptions;
 
     if (wkFindOptions & kWKFindOptionsCaseInsensitive)
-        findOptions |= FindOptionsCaseInsensitive;
+        findOptions.add(FindOptions::CaseInsensitive);
     if (wkFindOptions & kWKFindOptionsAtWordStarts)
-        findOptions |= FindOptionsAtWordStarts;
+        findOptions.add(FindOptions::AtWordStarts);
     if (wkFindOptions & kWKFindOptionsTreatMedialCapitalAsWordStart)
-        findOptions |= FindOptionsTreatMedialCapitalAsWordStart;
+        findOptions.add(FindOptions::TreatMedialCapitalAsWordStart);
     if (wkFindOptions & kWKFindOptionsBackwards)
-        findOptions |= FindOptionsBackwards;
+        findOptions.add(FindOptions::Backwards);
     if (wkFindOptions & kWKFindOptionsWrapAround)
-        findOptions |= FindOptionsWrapAround;
+        findOptions.add(FindOptions::WrapAround);
     if (wkFindOptions & kWKFindOptionsShowOverlay)
-        findOptions |= FindOptionsShowOverlay;
+        findOptions.add(FindOptions::ShowOverlay);
     if (wkFindOptions & kWKFindOptionsShowFindIndicator)
-        findOptions |= FindOptionsShowFindIndicator;
+        findOptions.add(FindOptions::ShowFindIndicator);
     if (wkFindOptions & kWKFindOptionsShowHighlight)
-        findOptions |= FindOptionsShowHighlight;
+        findOptions.add(FindOptions::ShowHighlight);
 
-    return static_cast<FindOptions>(findOptions);
+    return findOptions;
 }
 
 inline WKFrameNavigationType toAPI(WebCore::NavigationType type)
@@ -846,7 +850,7 @@ inline SameDocumentNavigationType toSameDocumentNavigationType(WKSameDocumentNav
 
 inline WKDiagnosticLoggingResultType toAPI(WebCore::DiagnosticLoggingResultType type)
 {
-    WKDiagnosticLoggingResultType wkType;
+    WKDiagnosticLoggingResultType wkType { };
 
     switch (type) {
     case WebCore::DiagnosticLoggingResultPass:
@@ -865,7 +869,7 @@ inline WKDiagnosticLoggingResultType toAPI(WebCore::DiagnosticLoggingResultType 
 
 inline WebCore::DiagnosticLoggingResultType toDiagnosticLoggingResultType(WKDiagnosticLoggingResultType wkType)
 {
-    WebCore::DiagnosticLoggingResultType type;
+    WebCore::DiagnosticLoggingResultType type { };
 
     switch (wkType) {
     case kWKDiagnosticLoggingResultPass:
@@ -993,21 +997,21 @@ inline WebCore::UserScriptInjectionTime toUserScriptInjectionTime(_WKUserScriptI
 {
     switch (wkInjectedTime) {
     case kWKInjectAtDocumentStart:
-        return WebCore::InjectAtDocumentStart;
+        return WebCore::UserScriptInjectionTime::DocumentStart;
     case kWKInjectAtDocumentEnd:
-        return WebCore::InjectAtDocumentEnd;
+        return WebCore::UserScriptInjectionTime::DocumentEnd;
     }
 
     ASSERT_NOT_REACHED();
-    return WebCore::InjectAtDocumentStart;
+    return WebCore::UserScriptInjectionTime::DocumentStart;
 }
 
 inline _WKUserScriptInjectionTime toWKUserScriptInjectionTime(WebCore::UserScriptInjectionTime injectedTime)
 {
     switch (injectedTime) {
-    case WebCore::InjectAtDocumentStart:
+    case WebCore::UserScriptInjectionTime::DocumentStart:
         return kWKInjectAtDocumentStart;
-    case WebCore::InjectAtDocumentEnd:
+    case WebCore::UserScriptInjectionTime::DocumentEnd:
         return kWKInjectAtDocumentEnd;
     }
 
@@ -1019,15 +1023,13 @@ inline WebCore::UserContentInjectedFrames toUserContentInjectedFrames(WKUserCont
 {
     switch (wkInjectedFrames) {
     case kWKInjectInAllFrames:
-        return WebCore::InjectInAllFrames;
+        return WebCore::UserContentInjectedFrames::InjectInAllFrames;
     case kWKInjectInTopFrameOnly:
-        return WebCore::InjectInTopFrameOnly;
+        return WebCore::UserContentInjectedFrames::InjectInTopFrameOnly;
     }
 
     ASSERT_NOT_REACHED();
-    return WebCore::InjectInAllFrames;
+    return WebCore::UserContentInjectedFrames::InjectInAllFrames;
 }
 
 } // namespace WebKit
-
-#endif // WKSharedAPICast_h

@@ -23,9 +23,12 @@
 
 #if USE(GSTREAMER)
 
+#include "GLVideoSinkGStreamer.h"
+#include "GStreamerAudioMixer.h"
 #include "GstAllocatorFastMalloc.h"
 #include "IntSize.h"
 #include "SharedBuffer.h"
+#include "WebKitAudioSinkGStreamer.h"
 #include <gst/audio/audio-info.h>
 #include <gst/gst.h>
 #include <mutex>
@@ -33,7 +36,11 @@
 #include <wtf/glib/GUniquePtr.h>
 #include <wtf/glib/RunLoopSourcePriority.h>
 
-#if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
+#if USE(GSTREAMER_FULL)
+#include <gst/gstinitstaticplugins.h>
+#endif
+
+#if USE(GSTREAMER_MPEGTS)
 #define GST_USE_UNSTABLE_API
 #include <gst/mpegts/mpegts.h>
 #undef GST_USE_UNSTABLE_API
@@ -49,6 +56,9 @@
 
 #if ENABLE(ENCRYPTED_MEDIA)
 #include "WebKitClearKeyDecryptorGStreamer.h"
+#if ENABLE(THUNDER)
+#include "WebKitThunderDecryptorGStreamer.h"
+#endif
 #endif
 
 #if ENABLE(VIDEO)
@@ -249,31 +259,33 @@ bool initializeGStreamer(Optional<Vector<String>>&& options)
                 gst_allocator_set_default(GST_ALLOCATOR(g_object_new(gst_allocator_fast_malloc_get_type(), nullptr)));
         }
 
-#if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
+#if USE(GSTREAMER_MPEGTS)
         if (isGStreamerInitialized)
             gst_mpegts_initialize();
 #endif
-
-        // If the FDK-AAC decoder is available, promote it and downrank the
-        // libav AAC decoders, due to their broken LC support, as reported in:
-        // https://ffmpeg.org/pipermail/ffmpeg-devel/2019-July/247063.html
-        GRefPtr<GstElement> aacDecoder = gst_element_factory_make("fdkaacdec", nullptr);
-        if (aacDecoder) {
-            GstElementFactory* factory = gst_element_get_factory(aacDecoder.get());
-            gst_plugin_feature_set_rank(GST_PLUGIN_FEATURE_CAST(factory), GST_RANK_PRIMARY);
-
-            const char* const elementNames[] = {"avdec_aac", "avdec_aac_fixed", "avdec_aac_latm"};
-            for (unsigned i = 0; i < G_N_ELEMENTS(elementNames); i++) {
-                GRefPtr<GstElement> avAACDecoder = gst_element_factory_make(elementNames[i], nullptr);
-                if (avAACDecoder)
-                    gst_plugin_feature_set_rank(GST_PLUGIN_FEATURE_CAST(gst_element_get_factory(avAACDecoder.get())), GST_RANK_MARGINAL);
-            }
-        }
-
 #endif
     });
     return isGStreamerInitialized;
 }
+
+#if ENABLE(ENCRYPTED_MEDIA) && ENABLE(THUNDER)
+// WebM does not specify a protection system ID so it can happen that
+// the ClearKey decryptor is chosen instead of the Thunder one for
+// Widevine (and viceversa) which can can create chaos. This is an
+// environment variable to set in run time if we prefer to rank higher
+// Thunder or ClearKey. If we want to run tests with Thunder, we need
+// to set this environment variable to Thunder and that decryptor will
+// be ranked higher when there is no protection system set (as in
+// WebM).
+// FIXME: In https://bugs.webkit.org/show_bug.cgi?id=214826 we say we
+// should migrate to use GST_PLUGIN_FEATURE_RANK but we can't yet
+// because our lowest dependency is 1.16.
+bool isThunderRanked()
+{
+    const char* value = g_getenv("WEBKIT_GST_EME_RANK_PRIORITY");
+    return value && equalIgnoringASCIICase(value, "Thunder");
+}
+#endif
 
 bool initializeGStreamerAndRegisterWebKitElements()
 {
@@ -282,8 +294,16 @@ bool initializeGStreamerAndRegisterWebKitElements()
 
     static std::once_flag onceFlag;
     std::call_once(onceFlag, [] {
+#if USE(GSTREAMER_FULL)
+        gst_init_static_plugins();
+#endif
+
 #if ENABLE(ENCRYPTED_MEDIA)
-        gst_element_register(nullptr, "webkitclearkey", GST_RANK_PRIMARY + 100, WEBKIT_TYPE_MEDIA_CK_DECRYPT);
+        gst_element_register(nullptr, "webkitclearkey", GST_RANK_PRIMARY + 200, WEBKIT_TYPE_MEDIA_CK_DECRYPT);
+#if ENABLE(THUNDER)
+        unsigned thunderRank = isThunderRanked() ? 300 : 100;
+        gst_element_register(nullptr, "webkitthunder", GST_RANK_PRIMARY + thunderRank, WEBKIT_TYPE_MEDIA_THUNDER_DECRYPT);
+#endif
 #endif
 
 #if ENABLE(MEDIA_STREAM)
@@ -296,7 +316,27 @@ bool initializeGStreamerAndRegisterWebKitElements()
 
 #if ENABLE(VIDEO)
         gst_element_register(0, "webkitwebsrc", GST_RANK_PRIMARY + 100, WEBKIT_TYPE_WEB_SRC);
+#if USE(GSTREAMER_GL)
+        gst_element_register(0, "webkitglvideosink", GST_RANK_PRIMARY, WEBKIT_TYPE_GL_VIDEO_SINK);
 #endif
+#endif
+        // We don't want autoaudiosink to autoplug our sink.
+        gst_element_register(0, "webkitaudiosink", GST_RANK_NONE, WEBKIT_TYPE_AUDIO_SINK);
+
+        // If the FDK-AAC decoder is available, promote it and downrank the
+        // libav AAC decoders, due to their broken LC support, as reported in:
+        // https://ffmpeg.org/pipermail/ffmpeg-devel/2019-July/247063.html
+        GRefPtr<GstElementFactory> elementFactory = adoptGRef(gst_element_factory_find("fdkaacdec"));
+        if (elementFactory) {
+            gst_plugin_feature_set_rank(GST_PLUGIN_FEATURE_CAST(elementFactory.get()), GST_RANK_PRIMARY);
+
+            const char* const elementNames[] = {"avdec_aac", "avdec_aac_fixed", "avdec_aac_latm"};
+            for (unsigned i = 0; i < G_N_ELEMENTS(elementNames); i++) {
+                GRefPtr<GstElementFactory> avAACDecoderFactory = adoptGRef(gst_element_factory_find(elementNames[i]));
+                if (avAACDecoderFactory)
+                    gst_plugin_feature_set_rank(GST_PLUGIN_FEATURE_CAST(avAACDecoderFactory.get()), GST_RANK_MARGINAL);
+            }
+        }
     });
     return true;
 }
@@ -370,13 +410,44 @@ void connectSimpleBusMessageCallback(GstElement* pipeline)
     g_signal_connect(bus.get(), "message", G_CALLBACK(simpleBusMessageCallback), pipeline);
 }
 
-Ref<SharedBuffer> GstMappedBuffer::createSharedBuffer()
+Vector<uint8_t> GstMappedBuffer::createVector() const
 {
-    // SharedBuffer provides a read-only view on what it expects are
-    // immutable data. Do not create one is writable and hence mutable.
-    RELEASE_ASSERT(isSharable());
+    Vector<uint8_t> vector;
+    vector.append(data(), size());
+    return vector;
+}
 
+Ref<SharedBuffer> GstMappedOwnedBuffer::createSharedBuffer()
+{
     return SharedBuffer::create(*this);
+}
+
+bool isGStreamerPluginAvailable(const char* name)
+{
+    GRefPtr<GstPlugin> plugin = adoptGRef(gst_registry_find_plugin(gst_registry_get(), name));
+    if (!plugin)
+        GST_WARNING("Plugin %s not found. Please check your GStreamer installation", name);
+    return plugin;
+}
+
+GstElement* createPlatformAudioSink()
+{
+    GstElement* audioSink = webkitAudioSinkNew();
+    if (!audioSink) {
+        // This means the WebKit audio sink configuration failed. It can happen for the following reasons:
+        // - audio mixing was not requested using the WEBKIT_GST_ENABLE_AUDIO_MIXER
+        // - audio mixing was requested using the WEBKIT_GST_ENABLE_AUDIO_MIXER but the audio mixer
+        //   runtime requirements are not fullfilled.
+        // - the sink was created for the WPE port, audio mixing was not requested and no
+        //   WPEBackend-FDO audio receiver has been registered at runtime.
+        audioSink = gst_element_factory_make("autoaudiosink", nullptr);
+    }
+    if (!audioSink) {
+        GST_WARNING("GStreamer's autoaudiosink not found. Please check your gst-plugins-good installation");
+        return nullptr;
+    }
+
+    return audioSink;
 }
 
 }

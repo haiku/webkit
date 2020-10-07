@@ -31,14 +31,12 @@ interface PictureInPictureWindow : EventTarget {
   attribute EventHandler onresize;
 };
 
-[
-    Constructor(DOMString type, EnterPictureInPictureEventInit eventInitDict),
-    Exposed=Window
-]
-interface EnterPictureInPictureEvent : Event {
+[Exposed=Window]
+interface PictureInPictureEvent : Event {
+    constructor(DOMString type, PictureInPictureEventInit eventInitDict);
     [SameObject] readonly attribute PictureInPictureWindow pictureInPictureWindow;
 };
 
-dictionary EnterPictureInPictureEventInit : EventInit {
+dictionary PictureInPictureEventInit : EventInit {
     required PictureInPictureWindow pictureInPictureWindow;
 };

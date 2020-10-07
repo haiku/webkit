@@ -35,6 +35,7 @@
 #import "AccessibilityNotificationHandler.h"
 #import "InjectedBundle.h"
 #import "InjectedBundlePage.h"
+#import "JSBasics.h"
 #import <JavaScriptCore/JSStringRefCF.h>
 #import <WebKit/WKBundle.h>
 #import <WebKit/WKBundlePage.h>
@@ -81,6 +82,7 @@ static id findAccessibleObjectById(id obj, NSString *idAttribute)
         return obj;
     END_AX_OBJC_EXCEPTIONS
 
+    BEGIN_AX_OBJC_EXCEPTIONS
     NSArray *children = [obj accessibilityAttributeValue:NSAccessibilityChildrenAttribute];
     NSUInteger childrenCount = [children count];
     for (NSUInteger i = 0; i < childrenCount; ++i) {
@@ -88,25 +90,69 @@ static id findAccessibleObjectById(id obj, NSString *idAttribute)
         if (result)
             return result;
     }
+    END_AX_OBJC_EXCEPTIONS
 
     return nullptr;
 }
 
 RefPtr<AccessibilityUIElement> AccessibilityController::accessibleElementById(JSStringRef idAttribute)
 {
-    WKBundlePageRef page = InjectedBundle::singleton().page()->page();
-    id root = (__bridge id)WKAccessibilityRootObject(page);
+    auto page = InjectedBundle::singleton().page()->page();
+    PlatformUIElement root = static_cast<PlatformUIElement>(WKAccessibilityRootObject(page));
 
-    id result = findAccessibleObjectById(root, [NSString stringWithJSStringRef:idAttribute]);
+    RetainPtr<id> result;
+    executeOnAXThreadAndWait([&root, &idAttribute, &result] {
+        result = findAccessibleObjectById(root, [NSString stringWithJSStringRef:idAttribute]);
+    });
+
     if (result)
-        return AccessibilityUIElement::create(result);
-
+        return AccessibilityUIElement::create(result.get());
     return nullptr;
 }
 
 JSRetainPtr<JSStringRef> AccessibilityController::platformName()
 {
-    return adopt(JSStringCreateWithUTF8CString("mac"));
+    return WTR::createJSString("mac");
+}
+
+// AXThread implementation
+
+void AXThread::initializeRunLoop()
+{
+    // Initialize the run loop.
+    {
+        auto locker = holdLock(m_initializeRunLoopMutex);
+
+        m_threadRunLoop = CFRunLoopGetCurrent();
+
+        CFRunLoopSourceContext context = { 0, this, 0, 0, 0, 0, 0, 0, 0, threadRunLoopSourceCallback };
+        m_threadRunLoopSource = adoptCF(CFRunLoopSourceCreate(0, 0, &context));
+        CFRunLoopAddSource(CFRunLoopGetCurrent(), m_threadRunLoopSource.get(), kCFRunLoopDefaultMode);
+
+        m_initializeRunLoopConditionVariable.notifyAll();
+    }
+
+    ASSERT(isCurrentThread());
+
+    CFRunLoopRun();
+}
+
+void AXThread::wakeUpRunLoop()
+{
+    CFRunLoopSourceSignal(m_threadRunLoopSource.get());
+    CFRunLoopWakeUp(m_threadRunLoop.get());
+}
+
+void AXThread::threadRunLoopSourceCallback(void* axThread)
+{
+    static_cast<AXThread*>(axThread)->threadRunLoopSourceCallback();
+}
+
+void AXThread::threadRunLoopSourceCallback()
+{
+    @autoreleasepool {
+        dispatchFunctionsFromAXThread();
+    }
 }
 
 } // namespace WTR

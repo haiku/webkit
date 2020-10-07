@@ -45,6 +45,7 @@
 #include "IgnoreOpensDuringUnloadCountIncrementer.h"
 #include "Logging.h"
 #include "Page.h"
+#include "Quirks.h"
 #include "ScriptDisallowedScope.h"
 #include "Settings.h"
 #include "SubframeLoader.h"
@@ -95,6 +96,11 @@ static bool canCacheFrame(Frame& frame, DiagnosticLoggingClient& diagnosticLoggi
         return false;
     }
 
+    if (frame.document()->shouldPreventEnteringBackForwardCacheForTesting()) {
+        PCLOG("   -Back/Forward caching is disabled for testing");
+        return false;
+    }
+
     if (!frame.document()->frame()) {
         PCLOG("   -Document is detached from frame");
         ASSERT_NOT_REACHED();
@@ -116,6 +122,13 @@ static bool canCacheFrame(Frame& frame, DiagnosticLoggingClient& diagnosticLoggi
         PCLOG(" Determining if subframe with URL (", currentURL.string(), ") can be cached:");
 
     bool isCacheable = true;
+
+    if (frame.isMainFrame() && frame.document()->quirks().shouldBypassBackForwardCache()) {
+        PCLOG("   -Disabled by site-specific quirk");
+        logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::siteSpecificQuirkKey());
+        isCacheable = false;
+    }
+
     // Do not cache error pages (these can be recognized as pages with substitute data or unreachable URLs).
     if (documentLoader->substituteData().isValid() && !documentLoader->substituteData().failingURL().isEmpty()) {
         PCLOG("   -Frame is an error page");
@@ -125,6 +138,11 @@ static bool canCacheFrame(Frame& frame, DiagnosticLoggingClient& diagnosticLoggi
     if (frameLoader.subframeLoader().containsPlugins() && !frame.page()->settings().backForwardCacheSupportsPlugins()) {
         PCLOG("   -Frame contains plugins");
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::hasPluginsKey());
+        isCacheable = false;
+    }
+    if (frame.isMainFrame() && frame.document() && frame.document()->url().protocolIs("https") && documentLoader->response().cacheControlContainsNoStore()) {
+        PCLOG("   -Frame is HTTPS, and cache control prohibits storing");
+        logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::httpsNoStoreKey());
         isCacheable = false;
     }
     if (frame.isMainFrame() && !frameLoader.history().currentItem()) {
@@ -150,18 +168,6 @@ static bool canCacheFrame(Frame& frame, DiagnosticLoggingClient& diagnosticLoggi
     if (documentLoader->isStopping()) {
         PCLOG("   -DocumentLoader is in the middle of stopping");
         logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::documentLoaderStoppingKey());
-        isCacheable = false;
-    }
-
-    Vector<ActiveDOMObject*> unsuspendableObjects;
-    if (frame.document() && !frame.document()->canSuspendActiveDOMObjectsForDocumentSuspension(&unsuspendableObjects)) {
-        PCLOG("   -The document cannot suspend its active DOM Objects");
-        for (auto* activeDOMObject : unsuspendableObjects) {
-            PCLOG("    - Unsuspendable: ", activeDOMObject->activeDOMObjectName());
-            diagnosticLoggingClient.logDiagnosticMessage(DiagnosticLoggingKeys::unsuspendableDOMObjectKey(), activeDOMObject->activeDOMObjectName(), ShouldSample::No);
-            UNUSED_PARAM(activeDOMObject);
-        }
-        logBackForwardCacheFailureDiagnosticMessage(diagnosticLoggingClient, DiagnosticLoggingKeys::cannotSuspendActiveDOMObjectsKey());
         isCacheable = false;
     }
 
@@ -355,7 +361,7 @@ void BackForwardCache::markPagesForContentsSizeChanged(Page& page)
     }
 }
 
-#if ENABLE(VIDEO_TRACK)
+#if ENABLE(VIDEO)
 void BackForwardCache::markPagesForCaptionPreferencesChanged()
 {
     for (auto& item : m_items) {
@@ -500,7 +506,7 @@ std::unique_ptr<CachedPage> BackForwardCache::take(HistoryItem& item, Page* page
 
 void BackForwardCache::removeAllItemsForPage(Page& page)
 {
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
     ASSERT_WITH_MESSAGE(!m_isInRemoveAllItemsForPage, "We should not reenter this method");
     SetForScope<bool> inRemoveAllItemsForPageScope { m_isInRemoveAllItemsForPage, true };
 #endif

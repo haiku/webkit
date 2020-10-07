@@ -36,9 +36,9 @@ namespace WebCore {
 InternalSettingsGenerated::InternalSettingsGenerated(Page* page)
     : m_page(page)
 <%- for @setting in @settings do -%>
-<%- if @setting.idlType -%>
+<%- if @setting.excludeFromInternalSettings == false and @setting.idlType -%>
 <%- if @setting.conditional -%>
-#if ENABLE(<%= @setting.conditional %>)
+#if <%= @setting.conditional %>
 <%- end -%>
     , m_<%= @setting.name %>(page->settings().<%= @setting.getterFunctionName %>())
 <%- if @setting.conditional -%>
@@ -56,9 +56,9 @@ InternalSettingsGenerated::~InternalSettingsGenerated()
 void InternalSettingsGenerated::resetToConsistentState()
 {
 <%- for @setting in @settings do -%>
-<%- if @setting.idlType -%>
+<%- if @setting.excludeFromInternalSettings == false and @setting.idlType -%>
 <%- if @setting.conditional -%>
-#if ENABLE(<%= @setting.conditional %>)
+#if <%= @setting.conditional %>
 <%- end -%>
     m_page->settings().<%= @setting.setterFunctionName %>(m_<%= @setting.name %>);
 <%- if @setting.conditional -%>
@@ -69,11 +69,11 @@ void InternalSettingsGenerated::resetToConsistentState()
 }
 
 <%- for @setting in @settings do -%>
-<%- if @setting.idlType -%>
+<%- if @setting.excludeFromInternalSettings == false and @setting.idlType -%>
 void InternalSettingsGenerated::<%= @setting.setterFunctionName %>(<%= @setting.parameterType %> <%= @setting.name %>)
 {
 <%- if @setting.conditional -%>
-#if ENABLE(<%= @setting.conditional %>)
+#if <%= @setting.conditional %>
     m_page->settings().<%= @setting.setterFunctionName %>(<%= @setting.name %>);
 #else
     UNUSED_PARAM(<%= @setting.name %>);

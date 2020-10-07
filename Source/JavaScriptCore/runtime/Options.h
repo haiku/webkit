@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +29,8 @@
 #include "JSExportMacros.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <wtf/ForbidHeapAllocation.h>
+#include <wtf/Noncopyable.h>
 #include <wtf/PrintStream.h>
 #include <wtf/StdLibExtras.h>
 
@@ -39,28 +41,16 @@ using WTF::StringBuilder;
 
 namespace JSC {
 
-#if PLATFORM(IOS_FAMILY)
-#define MAXIMUM_NUMBER_OF_FTL_COMPILER_THREADS 2
-#else
-#define MAXIMUM_NUMBER_OF_FTL_COMPILER_THREADS 8
-#endif
-
-#if ENABLE(WEBASSEMBLY_STREAMING_API)
-constexpr bool enableWebAssemblyStreamingApi = true;
-#else
-constexpr bool enableWebAssemblyStreamingApi = false;
-#endif
-
 class Options {
 public:
-    enum class DumpLevel {
+    enum class DumpLevel : uint8_t {
         None = 0,
         Overridden,
         All,
         Verbose
     };
 
-    enum class Availability {
+    enum class Availability : uint8_t  {
         Normal = 0,
         Restricted,
         Configurable
@@ -69,13 +59,12 @@ public:
 #define DECLARE_OPTION_ID(type_, name_, defaultValue_, availability_, description_) \
     name_##ID,
 
-    enum ID {
+    enum ID : uint16_t {
         FOR_EACH_JSC_OPTION(DECLARE_OPTION_ID)
-        numberOfOptions
     };
 #undef DECLARE_OPTION_ID
 
-    enum class Type {
+    enum class Type : uint8_t {
         Bool,
         Unsigned,
         Double,
@@ -86,7 +75,35 @@ public:
         GCLogLevel,
     };
 
+    class AllowUnfinalizedAccessScope {
+        WTF_MAKE_NONCOPYABLE(AllowUnfinalizedAccessScope);
+        WTF_FORBID_HEAP_ALLOCATION;
+    public:
+#if ASSERT_ENABLED
+        AllowUnfinalizedAccessScope()
+        {
+            if (!g_jscConfig.options.isFinalized) {
+                m_savedAllowUnfinalizedUse = g_jscConfig.options.allowUnfinalizedAccess;
+                g_jscConfig.options.allowUnfinalizedAccess = true;
+            }
+        }
+
+        ~AllowUnfinalizedAccessScope()
+        {
+            if (!g_jscConfig.options.isFinalized)
+                g_jscConfig.options.allowUnfinalizedAccess = m_savedAllowUnfinalizedUse;
+        }
+
+    private:
+        bool m_savedAllowUnfinalizedUse;
+#else
+        ALWAYS_INLINE AllowUnfinalizedAccessScope() = default;
+        ALWAYS_INLINE ~AllowUnfinalizedAccessScope() { }
+#endif
+    };
+
     JS_EXPORT_PRIVATE static void initialize();
+    static void finalize();
 
     // Parses a string of options where each option is of the format "--<optionName>=<value>"
     // and are separated by a space. The leading "--" is optional and will be ignored.
@@ -100,10 +117,17 @@ public:
     JS_EXPORT_PRIVATE static void dumpAllOptionsInALine(StringBuilder&);
 
     JS_EXPORT_PRIVATE static void ensureOptionsAreCoherent();
+    static void recomputeDependentOptions();
 
 #define DECLARE_OPTION_ACCESSORS(type_, name_, defaultValue_, availability_, description_) \
-    ALWAYS_INLINE static OptionEntry::type_& name_() { return g_jscConfig.options[name_##ID].val##type_; }  \
-    ALWAYS_INLINE static OptionEntry::type_& name_##Default() { return g_jscConfig.defaultOptions[name_##ID].val##type_; }
+private: \
+    ALWAYS_INLINE static OptionsStorage::type_& name_##Default() { return g_jscConfig.options.name_##Default; } \
+public: \
+    ALWAYS_INLINE static OptionsStorage::type_& name_() \
+    { \
+        ASSERT(g_jscConfig.options.allowUnfinalizedAccess || g_jscConfig.options.isFinalized); \
+        return g_jscConfig.options.name_; \
+    }
 
     FOR_EACH_JSC_OPTION(DECLARE_OPTION_ACCESSORS)
 #undef DECLARE_OPTION_ACCESSORS
@@ -111,13 +135,13 @@ public:
     static bool isAvailable(ID, Availability);
 
 private:
-
-    // For storing constant meta data about each option:
-    struct EntryInfo {
+    struct ConstMetaData {
         const char* name;
         const char* description;
         Type type;
         Availability availability;
+        uint16_t offsetOfOption;
+        uint16_t offsetOfOptionDefault;
     };
 
     Options();
@@ -136,115 +160,12 @@ private:
     static bool setAliasedOption(const char* arg);
     static bool overrideAliasedOptionWithHeuristic(const char* name);
 
-    static const EntryInfo s_optionsInfo[numberOfOptions];
+    inline static void* addressOfOption(Options::ID);
+    inline static void* addressOfOptionDefault(Options::ID);
 
-    friend class Option;
+    static const ConstMetaData s_constMetaData[NumberOfOptions];
+
+    friend struct OptionReader;
 };
-
-class Option {
-public:
-    Option(Options::ID id)
-        : m_id(id)
-        , m_entry(g_jscConfig.options[m_id])
-    {
-    }
-    
-    void dump(StringBuilder&) const;
-
-    bool operator==(const Option& other) const;
-    bool operator!=(const Option& other) const { return !(*this == other); }
-    
-    Options::ID id() const { return m_id; }
-    const char* name() const;
-    const char* description() const;
-    Options::Type type() const;
-    Options::Availability availability() const;
-    bool isOverridden() const;
-    const Option defaultOption() const;
-    
-    bool& boolVal();
-    unsigned& unsignedVal();
-    double& doubleVal();
-    int32_t& int32Val();
-    OptionRange optionRangeVal();
-    const char* optionStringVal();
-    GCLogging::Level& gcLogLevelVal();
-    
-private:
-    // Only used for constructing default Options.
-    Option(Options::ID id, OptionEntry& entry)
-        : m_id(id)
-        , m_entry(entry)
-    {
-    }
-    
-    Options::ID m_id;
-    OptionEntry& m_entry;
-};
-
-inline const char* Option::name() const
-{
-    return Options::s_optionsInfo[m_id].name;
-}
-
-inline const char* Option::description() const
-{
-    return Options::s_optionsInfo[m_id].description;
-}
-
-inline Options::Type Option::type() const
-{
-    return Options::s_optionsInfo[m_id].type;
-}
-
-inline Options::Availability Option::availability() const
-{
-    return Options::s_optionsInfo[m_id].availability;
-}
-
-inline bool Option::isOverridden() const
-{
-    return *this != defaultOption();
-}
-
-inline const Option Option::defaultOption() const
-{
-    return Option(m_id, g_jscConfig.defaultOptions[m_id]);
-}
-
-inline bool& Option::boolVal()
-{
-    return m_entry.valBool;
-}
-
-inline unsigned& Option::unsignedVal()
-{
-    return m_entry.valUnsigned;
-}
-
-inline double& Option::doubleVal()
-{
-    return m_entry.valDouble;
-}
-
-inline int32_t& Option::int32Val()
-{
-    return m_entry.valInt32;
-}
-
-inline OptionRange Option::optionRangeVal()
-{
-    return m_entry.valOptionRange;
-}
-
-inline const char* Option::optionStringVal()
-{
-    return m_entry.valOptionString;
-}
-
-inline GCLogging::Level& Option::gcLogLevelVal()
-{
-    return m_entry.valGCLogLevel;
-}
 
 } // namespace JSC

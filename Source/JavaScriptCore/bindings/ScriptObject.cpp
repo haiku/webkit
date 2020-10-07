@@ -32,11 +32,9 @@
 #include "config.h"
 #include "ScriptObject.h"
 
-#include "JSCInlines.h"
+namespace Deprecated {
 
 using namespace JSC;
-
-namespace Deprecated {
 
 ScriptObject::ScriptObject(JSGlobalObject* globalObject, JSObject* object)
     : ScriptValue(globalObject->vm(), object)

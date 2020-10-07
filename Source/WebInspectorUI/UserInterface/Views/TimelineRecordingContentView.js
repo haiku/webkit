@@ -463,10 +463,16 @@ WI.TimelineRecordingContentView = class TimelineRecordingContentView extends WI.
             this._startTimeNeedsReset = false;
         }
 
-        this._timelineOverview.endTime = Math.max(endTime, currentTime);
+        if (WI.timelineManager.capturingState !== WI.TimelineManager.CapturingState.Stopping) {
+            // Only update end time while not stopping, otherwise the interface contues scrolling.
+            this._timelineOverview.endTime = Math.max(endTime, currentTime);
 
-        this._currentTime = currentTime;
-        this._timelineOverview.currentTime = currentTime;
+            if (WI.timelineManager.capturingState !== WI.TimelineManager.CapturingState.Inactive) {
+                // Only update current time while active/starting or else the interface continues scrolling.
+                this._currentTime = currentTime;
+                this._timelineOverview.currentTime = currentTime;
+            }
+        }
 
         if (this.currentTimelineView)
             this._updateTimelineViewTimes(this.currentTimelineView);
@@ -490,10 +496,9 @@ WI.TimelineRecordingContentView = class TimelineRecordingContentView extends WI.
         if (typeof startTime === "number")
             this._currentTime = startTime;
         else if (!isNaN(this._currentTime)) {
-            // This happens when you stop and later restart recording.
-            // COMPATIBILITY (iOS 9): Timeline.recordingStarted events did not include a timestamp.
-            // We likely need to jump into the future to a better current time which we can
-            // ascertained from a new incoming timeline record, so we wait for a Timeline to update.
+            // This happens when you stop and later restart recording. We likely need to jump into
+            // the future to a better current time which we can ascertain from a new incoming
+            // timeline record, so we wait for a Timeline to update.
             console.assert(!this._waitingToResetCurrentTime);
             this._waitingToResetCurrentTime = true;
             this._recording.addEventListener(WI.TimelineRecording.Event.TimesUpdated, this._recordingTimesUpdated, this);
@@ -563,7 +568,6 @@ WI.TimelineRecordingContentView = class TimelineRecordingContentView extends WI.
         if (!this._waitingToResetCurrentTime)
             return;
 
-        // COMPATIBILITY (iOS 9): Timeline.recordingStarted events did not include a new startTime.
         // Make the current time be the start time of the last added record. This is the best way
         // currently to jump to the right period of time after recording starts.
 
@@ -608,8 +612,8 @@ WI.TimelineRecordingContentView = class TimelineRecordingContentView extends WI.
         let filename = frameName ? `${frameName}-recording` : this._recording.displayName;
 
         WI.FileUtilities.save({
-            url: WI.FileUtilities.inspectorURLForFilename(filename + ".json"),
             content: JSON.stringify(json),
+            suggestedName: filename + ".json",
             forceSaveAs: true,
         });
     }
@@ -851,8 +855,16 @@ WI.TimelineRecordingContentView = class TimelineRecordingContentView extends WI.
         }
 
         timelineView.startTime = this._timelineOverview.selectionStartTime;
-        timelineView.currentTime = this._currentTime;
-        timelineView.endTime = endTime;
+
+        if (WI.timelineManager.capturingState !== WI.TimelineManager.CapturingState.Stopping) {
+            // Only update end time while not stopping, otherwise the interface contues scrolling.
+            timelineView.endTime = endTime;
+
+            if (WI.timelineManager.capturingState !== WI.TimelineManager.CapturingState.Inactive) {
+                // Only update current time while active/starting or else the interface continues scrolling.
+                timelineView.currentTime = this._currentTime;
+            }
+        }
     }
 
     _editingInstrumentsDidChange(event)

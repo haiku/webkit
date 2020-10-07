@@ -12,17 +12,22 @@
 #include "common/Optional.h"
 #include "common/angleutils.h"
 
+#include <string>
+
 namespace angle
 {
 std::string GetExecutablePath();
 std::string GetExecutableDirectory();
+std::string GetHelperExecutableDir();
 const char *GetSharedLibraryExtension();
+const char *GetExecutableExtension();
+char GetPathSeparator();
 Optional<std::string> GetCWD();
 bool SetCWD(const char *dirName);
 bool SetEnvironmentVar(const char *variableName, const char *value);
 bool UnsetEnvironmentVar(const char *variableName);
 std::string GetEnvironmentVar(const char *variableName);
-const char *GetPathSeparator();
+const char *GetPathSeparatorForEnvironmentVar();
 bool PrependPathToEnvironmentVar(const char *variableName, const char *path);
 bool IsDirectory(const char *filename);
 
@@ -63,6 +68,7 @@ enum class SearchType
 };
 
 Library *OpenSharedLibrary(const char *libraryName, SearchType searchType);
+Library *OpenSharedLibraryWithExtension(const char *libraryName);
 
 // Returns true if the process is currently being debugged.
 bool IsDebuggerAttached();

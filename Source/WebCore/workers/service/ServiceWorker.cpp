@@ -40,6 +40,7 @@
 #include "ServiceWorkerGlobalScope.h"
 #include "ServiceWorkerProvider.h"
 #include "ServiceWorkerThread.h"
+#include "WorkerSWClientConnection.h"
 #include <JavaScriptCore/JSCJSValueInlines.h>
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/NeverDestroyed.h>
@@ -80,11 +81,6 @@ ServiceWorker::~ServiceWorker()
 
 void ServiceWorker::updateState(State state)
 {
-    if (m_isSuspended) {
-        m_pendingStateChanges.append(state);
-        return;
-    }
-
     WORKER_RELEASE_LOG_IF_ALLOWED("updateState: Updating service worker %llu state from %hhu to %hhu. Registration ID: %llu", identifier().toUInt64(), m_data.state, state, registrationIdentifier().toUInt64());
     m_data.state = state;
     if (state != State::Installing && !m_isStopped) {
@@ -95,16 +91,21 @@ void ServiceWorker::updateState(State state)
     updatePendingActivityForEventDispatch();
 }
 
-ExceptionOr<void> ServiceWorker::postMessage(ScriptExecutionContext& context, JSC::JSValue messageValue, Vector<JSC::Strong<JSC::JSObject>>&& transfer)
+SWClientConnection& ServiceWorker::swConnection()
+{
+    ASSERT(scriptExecutionContext());
+    if (is<WorkerGlobalScope>(scriptExecutionContext()))
+        return downcast<WorkerGlobalScope>(scriptExecutionContext())->swClientConnection();
+    return ServiceWorkerProvider::singleton().serviceWorkerConnection();
+}
+
+ExceptionOr<void> ServiceWorker::postMessage(JSC::JSGlobalObject& globalObject, JSC::JSValue messageValue, PostMessageOptions&& options)
 {
     if (m_isStopped)
         return Exception { InvalidStateError };
 
-    auto* execState = context.execState();
-    ASSERT(execState);
-
     Vector<RefPtr<MessagePort>> ports;
-    auto messageData = SerializedScriptValue::create(*execState, messageValue, WTFMove(transfer), ports, SerializationContext::WorkerPostMessage);
+    auto messageData = SerializedScriptValue::create(globalObject, messageValue, WTFMove(options.transfer), ports, SerializationContext::WorkerPostMessage);
     if (messageData.hasException())
         return messageData.releaseException();
 
@@ -113,6 +114,7 @@ ExceptionOr<void> ServiceWorker::postMessage(ScriptExecutionContext& context, JS
     if (portsOrException.hasException())
         return portsOrException.releaseException();
 
+    auto& context = *scriptExecutionContext();
     ServiceWorkerOrClientIdentifier sourceIdentifier;
     if (is<ServiceWorkerGlobalScope>(context))
         sourceIdentifier = downcast<ServiceWorkerGlobalScope>(context).thread().identifier();
@@ -121,11 +123,8 @@ ExceptionOr<void> ServiceWorker::postMessage(ScriptExecutionContext& context, JS
         sourceIdentifier = ServiceWorkerClientIdentifier { connection.serverConnectionIdentifier(), downcast<Document>(context).identifier() };
     }
 
-    MessageWithMessagePorts message = { messageData.releaseReturnValue(), portsOrException.releaseReturnValue() };
-    callOnMainThread([destinationIdentifier = identifier(), message = WTFMove(message), sourceIdentifier = WTFMove(sourceIdentifier)]() mutable {
-        auto& connection = ServiceWorkerProvider::singleton().serviceWorkerConnection();
-        connection.postMessageToServiceWorker(destinationIdentifier, WTFMove(message), sourceIdentifier);
-    });
+    MessageWithMessagePorts message { messageData.releaseReturnValue(), portsOrException.releaseReturnValue() };
+    swConnection().postMessageToServiceWorker(identifier(), WTFMove(message), sourceIdentifier);
     return { };
 }
 
@@ -142,22 +141,6 @@ ScriptExecutionContext* ServiceWorker::scriptExecutionContext() const
 const char* ServiceWorker::activeDOMObjectName() const
 {
     return "ServiceWorker";
-}
-
-void ServiceWorker::suspend(ReasonForSuspension)
-{
-    m_isSuspended = true;
-}
-
-void ServiceWorker::resume()
-{
-    m_isSuspended = false;
-    if (!m_pendingStateChanges.isEmpty()) {
-        scriptExecutionContext()->postTask([this, protectedThis = makeRef(*this)](auto&) {
-            for (auto pendingStateChange : std::exchange(m_pendingStateChanges, { }))
-                updateState(pendingStateChange);
-        });
-    }
 }
 
 void ServiceWorker::stop()

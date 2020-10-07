@@ -1,3 +1,4 @@
+//@ skip if ["arm", "mips"].include?($architecture)
 //@ runDefault("--useConcurrentJIT=0", "--thresholdForJITAfterWarmUp=10", "--slowPathAllocsBetweenGCs=10", "--useConcurrentGC=0")
 
 function fullGC() {

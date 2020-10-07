@@ -26,16 +26,16 @@
 #include "config.h"
 #include "JSArrayBufferPrototype.h"
 
-#include "Error.h"
-#include "ExceptionHelpers.h"
 #include "JSArrayBuffer.h"
-#include "JSFunction.h"
 #include "JSCInlines.h"
-#include "TypedArrayAdaptors.h"
 
 namespace JSC {
 
-static EncodedJSValue JSC_HOST_CALL arrayBufferProtoFuncSlice(JSGlobalObject* globalObject, CallFrame* callFrame)
+static JSC_DECLARE_HOST_FUNCTION(arrayBufferProtoFuncSlice);
+static JSC_DECLARE_HOST_FUNCTION(arrayBufferProtoGetterFuncByteLength);
+static JSC_DECLARE_HOST_FUNCTION(sharedArrayBufferProtoGetterFuncByteLength);
+
+JSC_DEFINE_HOST_FUNCTION(arrayBufferProtoFuncSlice, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -66,7 +66,7 @@ static EncodedJSValue JSC_HOST_CALL arrayBufferProtoFuncSlice(JSGlobalObject* gl
 }
 
 // http://tc39.github.io/ecmascript_sharedmem/shmem.html#sec-get-arraybuffer.prototype.bytelength
-static EncodedJSValue JSC_HOST_CALL arrayBufferProtoGetterFuncByteLength(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(arrayBufferProtoGetterFuncByteLength, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -84,7 +84,7 @@ static EncodedJSValue JSC_HOST_CALL arrayBufferProtoGetterFuncByteLength(JSGloba
 }
 
 // http://tc39.github.io/ecmascript_sharedmem/shmem.html#StructuredData.SharedArrayBuffer.prototype.get_byteLength
-static EncodedJSValue JSC_HOST_CALL sharedArrayBufferProtoGetterFuncByteLength(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(sharedArrayBufferProtoGetterFuncByteLength, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -102,22 +102,21 @@ static EncodedJSValue JSC_HOST_CALL sharedArrayBufferProtoGetterFuncByteLength(J
 }
 
 const ClassInfo JSArrayBufferPrototype::s_info = {
-    "ArrayBufferPrototype", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(JSArrayBufferPrototype)
+    "ArrayBuffer", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(JSArrayBufferPrototype)
 };
 
-JSArrayBufferPrototype::JSArrayBufferPrototype(VM& vm, Structure* structure, ArrayBufferSharingMode sharingMode)
+JSArrayBufferPrototype::JSArrayBufferPrototype(VM& vm, Structure* structure)
     : Base(vm, structure)
-    , m_sharingMode(sharingMode)
 {
 }
 
-void JSArrayBufferPrototype::finishCreation(VM& vm, JSGlobalObject* globalObject)
+void JSArrayBufferPrototype::finishCreation(VM& vm, JSGlobalObject* globalObject, ArrayBufferSharingMode sharingMode)
 {
     Base::finishCreation(vm);
     
     JSC_NATIVE_FUNCTION_WITHOUT_TRANSITION(vm.propertyNames->slice, arrayBufferProtoFuncSlice, static_cast<unsigned>(PropertyAttribute::DontEnum), 2);
-    putDirectWithoutTransition(vm, vm.propertyNames->toStringTagSymbol, jsString(vm, arrayBufferSharingModeName(m_sharingMode)), PropertyAttribute::DontEnum | PropertyAttribute::ReadOnly);
-    if (m_sharingMode == ArrayBufferSharingMode::Default)
+    putDirectWithoutTransition(vm, vm.propertyNames->toStringTagSymbol, jsString(vm, arrayBufferSharingModeName(sharingMode)), PropertyAttribute::DontEnum | PropertyAttribute::ReadOnly);
+    if (sharingMode == ArrayBufferSharingMode::Default)
         JSC_NATIVE_GETTER_WITHOUT_TRANSITION(vm.propertyNames->byteLength, arrayBufferProtoGetterFuncByteLength, PropertyAttribute::DontEnum | PropertyAttribute::ReadOnly);
     else
         JSC_NATIVE_GETTER_WITHOUT_TRANSITION(vm.propertyNames->byteLength, sharedArrayBufferProtoGetterFuncByteLength, PropertyAttribute::DontEnum | PropertyAttribute::ReadOnly);
@@ -127,8 +126,8 @@ JSArrayBufferPrototype* JSArrayBufferPrototype::create(VM& vm, JSGlobalObject* g
 {
     JSArrayBufferPrototype* prototype =
         new (NotNull, allocateCell<JSArrayBufferPrototype>(vm.heap))
-        JSArrayBufferPrototype(vm, structure, sharingMode);
-    prototype->finishCreation(vm, globalObject);
+        JSArrayBufferPrototype(vm, structure);
+    prototype->finishCreation(vm, globalObject, sharingMode);
     return prototype;
 }
 

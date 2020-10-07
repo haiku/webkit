@@ -23,14 +23,15 @@
 #include "modules/remote_bitrate_estimator/include/bwe_defines.h"
 #include "modules/remote_bitrate_estimator/include/remote_bitrate_estimator.h"
 #include "modules/rtp_rtcp/include/receive_statistics.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtcp_nack_stats.h"
 #include "modules/rtp_rtcp/source/rtcp_packet.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/dlrr.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/report_block.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/tmmb_item.h"
-#include "rtc_base/constructormagic.h"
-#include "rtc_base/criticalsection.h"
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/critical_section.h"
 #include "rtc_base/random.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -62,13 +63,7 @@ class RTCPSender {
     ModuleRtpRtcpImpl* module;
   };
 
-  RTCPSender(bool audio,
-             Clock* clock,
-             ReceiveStatisticsProvider* receive_statistics,
-             RtcpPacketTypeCounterObserver* packet_type_counter_observer,
-             RtcEventLog* event_log,
-             Transport* outgoing_transport,
-             int report_interval_ms);
+  explicit RTCPSender(const RtpRtcp::Configuration& config);
   virtual ~RTCPSender();
 
   RtcpMode Status() const;
@@ -90,9 +85,7 @@ class RTCPSender {
 
   void SetRtpClockRate(int8_t payload_type, int rtp_clock_rate_hz);
 
-  uint32_t SSRC() const;
-
-  void SetSSRC(uint32_t ssrc);
+  uint32_t SSRC() const { return ssrc_; }
 
   void SetRemoteSSRC(uint32_t ssrc);
 
@@ -113,6 +106,12 @@ class RTCPSender {
                            const std::set<RTCPPacketType>& packetTypes,
                            int32_t nackSize = 0,
                            const uint16_t* nackList = 0);
+
+  int32_t SendLossNotification(const FeedbackState& feedback_state,
+                               uint16_t last_decoded_seq_num,
+                               uint16_t last_received_seq_num,
+                               bool decodability_flag,
+                               bool buffering_allowed);
 
   void SetRemb(int64_t bitrate_bps, std::vector<uint32_t> ssrcs);
 
@@ -139,7 +138,8 @@ class RTCPSender {
 
   void SetTargetBitrate(unsigned int target_bitrate);
   void SetVideoBitrateAllocation(const VideoBitrateAllocation& bitrate);
-  bool SendFeedbackPacket(const rtcp::TransportFeedback& packet);
+  void SendCombinedRtcpPacket(
+      std::vector<std::unique_ptr<rtcp::RtcpPacket>> rtcp_packets);
 
  private:
   class RtcpContext;
@@ -168,6 +168,9 @@ class RTCPSender {
       RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
   std::unique_ptr<rtcp::RtcpPacket> BuildAPP(const RtcpContext& context)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
+  std::unique_ptr<rtcp::RtcpPacket> BuildLossNotification(
+      const RtcpContext& context)
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
   std::unique_ptr<rtcp::RtcpPacket> BuildExtendedReports(
       const RtcpContext& context)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
@@ -180,6 +183,7 @@ class RTCPSender {
 
  private:
   const bool audio_;
+  const uint32_t ssrc_;
   Clock* const clock_;
   Random random_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
   RtcpMode method_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
@@ -198,7 +202,6 @@ class RTCPSender {
   uint32_t last_rtp_timestamp_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
   int64_t last_frame_capture_time_ms_
       RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  uint32_t ssrc_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
   // SSRC that we receive on our RTP channel
   uint32_t remote_ssrc_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
   std::string cname_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
@@ -213,6 +216,15 @@ class RTCPSender {
 
   // Full intra request
   uint8_t sequence_number_fir_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
+
+  // Loss Notification
+  struct LossNotificationState {
+    uint16_t last_decoded_seq_num;
+    uint16_t last_received_seq_num;
+    bool decodability_flag;
+  };
+  LossNotificationState loss_notification_state_
+      RTC_GUARDED_BY(critical_section_rtcp_sender_);
 
   // REMB
   int64_t remb_bitrate_ RTC_GUARDED_BY(critical_section_rtcp_sender_);

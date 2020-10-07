@@ -37,48 +37,46 @@
 
 namespace WebCore {
 
-void Gradient::platformDestroy()
+void Gradient::stopsChanged()
 {
-    delete m_gradient;
-    m_gradient = NULL;
+	m_gradient.reset();
 }
 
-PlatformGradient Gradient::platformGradient()
+const BGradient& Gradient::getHaikuGradient()
 {
 	if (m_gradient)
-		return m_gradient;
+		return *m_gradient;
 
-	m_gradient = WTF::switchOn(m_data,
-		[&] (const RadialData& data) -> BGradient* {
-			return new BGradientRadialFocus(data.point1, data.endRadius, data.point0);
+	sortStops();
+
+	WTF::switchOn(m_data,
+		[&] (const RadialData& data) {
+			m_gradient = std::make_unique<BGradientRadialFocus>(data.point1, data.endRadius, data.point0);
 		},
-		[&] (const LinearData& data) -> BGradient* {
-			return new BGradientLinear(data.point0, data.point1);
+		[&] (const LinearData& data) {
+			m_gradient = std::make_unique<BGradientLinear>(data.point0, data.point1);
 		},
-		[&] (const ConicData& data) -> BGradient* {
-			return new BGradientConic(data.point0, data.angleRadians);
+		[&] (const ConicData& data) {
+			m_gradient = std::make_unique<BGradientConic>(data.point0, data.angleRadians);
 		}
-		);
+	);
 
     size_t size = m_stops.size();
     for (size_t i = 0; i < size; i++) {
         const ColorStop& stop = m_stops[i];
         rgb_color color(stop.color);
-        m_gradient->AddColor(color, stop.offset * 255);
-
-        // TODO handle m_spreadMethod (pad/reflect/repeat)
+        m_gradient->AddColorStop(BGradient::ColorStop(color, stop.offset * 255), i);
     }
-    return m_gradient;
-}
 
-PlatformGradient Gradient::createPlatformGradient(float globalAlpha)
-{
-	return platformGradient();
+    // TODO handle m_spreadMethod (pad/reflect/repeat)
+
+    return *m_gradient;
 }
 
 void Gradient::fill(GraphicsContext& context, const FloatRect& rect)
 {
-    context.platformContext()->FillRect(rect, *platformGradient());
+    const BGradient& pattern = getHaikuGradient();
+    context.platformContext()->FillRect(rect, pattern);
 }
 
 } // namespace WebCore

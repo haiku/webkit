@@ -208,7 +208,8 @@ UniquePtr<SSL_SESSION> SSL_SESSION_dup(SSL_SESSION *session, int dup_flags) {
 
   // Copy authentication state.
   if (session->psk_identity != nullptr) {
-    new_session->psk_identity.reset(BUF_strdup(session->psk_identity.get()));
+    new_session->psk_identity.reset(
+        OPENSSL_strdup(session->psk_identity.get()));
     if (new_session->psk_identity == nullptr) {
       return nullptr;
     }
@@ -623,10 +624,14 @@ int ssl_session_is_resumable(const SSL_HANDSHAKE *hs,
          ssl->server == session->is_server &&
          // The session must not be expired.
          ssl_session_is_time_valid(ssl, session) &&
-         /* Only resume if the session's version matches the negotiated
-          * version. */
+         // Only resume if the session's version matches the negotiated
+         // version.
          ssl->version == session->ssl_version &&
-         // Only resume if the session's cipher matches the negotiated one.
+         // Only resume if the session's cipher matches the negotiated one. This
+         // is stricter than necessary for TLS 1.3, which allows cross-cipher
+         // resumption if the PRF hashes match. We require an exact match for
+         // simplicity. If loosening this, the 0-RTT accept logic must be
+         // updated to check the cipher.
          hs->new_cipher == session->cipher &&
          // If the session contains a client certificate (either the full
          // certificate or just the hash) then require that the form of the
@@ -1042,6 +1047,11 @@ void SSL_SESSION_get0_peer_sha256(const SSL_SESSION *session,
     *out_ptr = nullptr;
     *out_len = 0;
   }
+}
+
+int SSL_SESSION_early_data_capable(const SSL_SESSION *session) {
+  return ssl_session_protocol_version(session) >= TLS1_3_VERSION &&
+         session->ticket_max_early_data != 0;
 }
 
 SSL_SESSION *SSL_magic_pending_session_ptr(void) {

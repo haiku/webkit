@@ -35,7 +35,7 @@
 namespace WebCore {
 struct ExceptionData;
 struct PublicKeyCredentialCreationOptions;
-struct PublicKeyCredentialData;
+struct AuthenticatorResponseData;
 struct PublicKeyCredentialRequestOptions;
 struct SecurityOriginData;
 }
@@ -44,6 +44,7 @@ namespace WebKit {
 
 class WebPageProxy;
 
+struct FrameInfoData;
 struct WebAuthenticationRequestData;
 
 class WebAuthenticatorCoordinatorProxy : private IPC::MessageReceiver {
@@ -54,15 +55,15 @@ public:
     ~WebAuthenticatorCoordinatorProxy();
 
 private:
-    using RequestCompletionHandler = CompletionHandler<void(const WebCore::PublicKeyCredentialData&, const WebCore::ExceptionData&)>;
+    using RequestCompletionHandler = CompletionHandler<void(const WebCore::AuthenticatorResponseData&, const WebCore::ExceptionData&)>;
     using QueryCompletionHandler = CompletionHandler<void(bool)>;
 
     // IPC::MessageReceiver.
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) override;
 
     // Receivers.
-    void makeCredential(WebCore::FrameIdentifier, WebCore::SecurityOriginData&&, Vector<uint8_t>&& hash, WebCore::PublicKeyCredentialCreationOptions&&, RequestCompletionHandler&&);
-    void getAssertion(WebCore::FrameIdentifier, WebCore::SecurityOriginData&&, Vector<uint8_t>&& hash, WebCore::PublicKeyCredentialRequestOptions&&, RequestCompletionHandler&&);
+    void makeCredential(WebCore::FrameIdentifier, FrameInfoData&&, Vector<uint8_t>&& hash, WebCore::PublicKeyCredentialCreationOptions&&, bool processingUserGesture, RequestCompletionHandler&&);
+    void getAssertion(WebCore::FrameIdentifier, FrameInfoData&&, Vector<uint8_t>&& hash, WebCore::PublicKeyCredentialRequestOptions&&, bool processingUserGesture, RequestCompletionHandler&&);
     void isUserVerifyingPlatformAuthenticatorAvailable(QueryCompletionHandler&&);
 
     void handleRequest(WebAuthenticationRequestData&&, RequestCompletionHandler&&);

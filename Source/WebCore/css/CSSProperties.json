@@ -88,11 +88,6 @@
         "The regular setter on RenderStyle will only be called if",
         "StyleResolver::applyPropertyToRegularStyle() returns true.",
         "",
-        "* no-default-color:",
-        "Should only be used with \"VisitedLinkColorSupport\". It indicates that when",
-        "setting the inherited value, it will not fallback to using the parent's",
-        "\"color\" property if the inherited color is invalid.",
-        "",
         "* font-property:",
         "Indicates that this CSS property is font-related. It must have corresponding",
         "methods on the FontDescription class.",
@@ -114,7 +109,19 @@
         "",
         "* high-priority:",
         "Whether the property needs to be applied before non-high-priority properties",
+        "in CSS cascading order. High priority properties must not accept <length>",
+        "values. All font-properties must be high-priority.",
+        "",
+        "* sink-priority:",
+        "Whether the property needs to be applied at the end of its priority bucket",
         "in CSS cascading order.",
+        "",
+        "* related-property:",
+        "Indicates the prefixed or unprefixed version of the same property,",
+        "e.g. -webkit-text-orientation has a related property text-orientation",
+        "When parsing high priority CSS properties with both prefixed and unprefixed",
+        "versions, this flig will help the parser to mark all related properties ",
+        "as seen when one is seen. This could enforce the 'last-one-wins' rule.",
         "",
         "* aliases:",
         "An array of the alternative names for this property.",
@@ -126,6 +133,10 @@
         "",
         "* runtime-flag:",
         "The name of the flag on RuntimeEnabledFeatures (e.g. \"cssLogical\")",
+        "that conditionally enables the property.",
+        "",
+        "* settings-flag:",
+        "The name of the flag on Settings (e.g. \"CSSOMViewSmoothScrolling\")",
         "that conditionally enables the property.",
         "",
         "2. Lesser known capabilities of this file format",
@@ -177,7 +188,7 @@
         "caret-color" : {
             "inherited": true,
             "codegen-properties": {
-                "initial": "invalidColor",
+                "initial": "currentColor",
                 "visited-link-color-support": true
             },
             "specification": {
@@ -189,7 +200,6 @@
             "inherited": true,
             "codegen-properties": {
                 "visited-link-color-support": true,
-                "no-default-color": true,
                 "high-priority": true
             },
             "status": {
@@ -615,9 +625,27 @@
             "codegen-properties": {
                 "custom": "Value",
                 "font-property": true,
-                "high-priority": true
+                "high-priority": true,
+                "name-for-methods": "SpecifiedLocale"
             },
             "status": "non-standard"
+        },
+        "text-orientation": {
+            "inherited": true,
+            "values": [
+                "sideways",
+                "mixed",
+                "upright"
+            ],
+            "codegen-properties": {
+                "custom": "Value",
+                "related-property": "-webkit-text-orientation",
+                "high-priority": true
+            },
+            "specification": {
+                "category": "css-writing-modes",
+                "url": "https://www.w3.org/TR/css-writing-modes-3/#text-orientation"
+            }
         },
         "-webkit-text-orientation": {
             "inherited": true,
@@ -638,6 +666,7 @@
                 "aliases": [
                     "-epub-text-orientation"
                 ],
+                "related-property": "text-orientation",
                 "custom": "Value",
                 "high-priority": true
             },
@@ -1034,8 +1063,7 @@
         },
         "background-color": {
             "codegen-properties": {
-                "visited-link-color-support": true,
-                "no-default-color": true
+                "visited-link-color-support": true
             },
             "specification": {
                 "category": "css-backgrounds",
@@ -1198,7 +1226,6 @@
         },
         "border-block": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "border-block-start-color",
                     "border-block-start-style",
@@ -1215,7 +1242,6 @@
         },
         "border-block-color": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "border-block-start-color",
                     "border-block-end-color"
@@ -1356,7 +1382,6 @@
         },
         "border-block-style": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "border-block-start-style",
                     "border-block-end-style"
@@ -1369,7 +1394,6 @@
         },
         "border-block-width": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "border-block-start-width",
                     "border-block-end-width"
@@ -1395,7 +1419,7 @@
         },
         "border-bottom-color": {
             "codegen-properties": {
-                "initial": "invalidColor",
+                "initial": "currentColor",
                 "visited-link-color-support": true
             },
             "specification": {
@@ -1409,7 +1433,7 @@
                     "-webkit-border-bottom-left-radius"
                 ],
                 "initial": "initialBorderRadius",
-                "converter": "Radius"
+                "custom": "Inherit|Value"
             },
             "specification": {
                 "category": "css-backgrounds",
@@ -1422,7 +1446,7 @@
                     "-webkit-border-bottom-right-radius"
                 ],
                 "initial": "initialBorderRadius",
-                "converter": "Radius"
+                "custom": "Inherit|Value"
             },
             "specification": {
                 "category": "css-backgrounds",
@@ -1551,7 +1575,6 @@
         },
         "border-inline": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "border-inline-start-color",
                     "border-inline-start-style",
@@ -1568,7 +1591,6 @@
         },
         "border-inline-color": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "border-inline-start-color",
                     "border-inline-end-color"
@@ -1709,7 +1731,6 @@
         },
         "border-inline-style": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "border-inline-start-style",
                     "border-inline-end-style"
@@ -1722,7 +1743,6 @@
         },
         "border-inline-width": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "border-inline-start-width",
                     "border-inline-end-width"
@@ -1748,7 +1768,7 @@
         },
         "border-left-color": {
             "codegen-properties": {
-                "initial": "invalidColor",
+                "initial": "currentColor",
                 "visited-link-color-support": true
             },
             "specification": {
@@ -1816,7 +1836,7 @@
         },
         "border-right-color": {
             "codegen-properties": {
-                "initial": "invalidColor",
+                "initial": "currentColor",
                 "visited-link-color-support": true
             },
             "specification": {
@@ -1897,7 +1917,7 @@
         },
         "border-top-color": {
             "codegen-properties": {
-                "initial": "invalidColor",
+                "initial": "currentColor",
                 "visited-link-color-support": true
             },
             "specification": {
@@ -1911,7 +1931,7 @@
                     "-webkit-border-top-left-radius"
                 ],
                 "initial": "initialBorderRadius",
-                "converter": "Radius"
+                "custom": "Inherit|Value"
             },
             "specification": {
                 "category": "css-backgrounds",
@@ -1924,7 +1944,7 @@
                     "-webkit-border-top-right-radius"
                 ],
                 "initial": "initialBorderRadius",
-                "converter": "Radius"
+                "custom": "Inherit|Value"
             },
             "specification": {
                 "category": "css-backgrounds",
@@ -2495,11 +2515,8 @@
         "image-orientation": {
             "inherited": true,
             "codegen-properties": {
-                "enable-if": "ENABLE_CSS_IMAGE_ORIENTATION"
-            },
-            "status": {
-                "status": "under consideration",
-                "enabled-by-default": false
+                "initial": "initialImageOrientation",
+                "converter": "ImageOrientation"
             },
             "specification": {
                 "category": "css-images",
@@ -2563,7 +2580,6 @@
         },
         "inset": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "top",
                     "right",
@@ -2578,7 +2594,6 @@
         },
         "inset-block": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "inset-block-start",
                     "inset-block-end"
@@ -2591,7 +2606,6 @@
         },
         "inset-block-end": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "skip-builder": true
             },
             "specification": {
@@ -2601,7 +2615,6 @@
         },
         "inset-block-start": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "skip-builder": true
             },
             "specification": {
@@ -2611,7 +2624,6 @@
         },
         "inset-inline": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "inset-inline-start",
                     "inset-inline-end"
@@ -2624,7 +2636,6 @@
         },
         "inset-inline-end": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "skip-builder": true
             },
             "specification": {
@@ -2634,7 +2645,6 @@
         },
         "inset-inline-start": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "skip-builder": true
             },
             "specification": {
@@ -2666,6 +2676,10 @@
         "letter-spacing": {
             "inherited": true,
             "codegen-properties": {
+                "custom": "All",
+                "font-property": true,
+                "high-priority": true,
+                "sink-priority": true,
                 "converter": "Spacing"
             },
             "specification": {
@@ -2817,6 +2831,9 @@
                 "katakana-iroha",
                 "none"
             ],
+            "codegen-properties": {
+                "custom": "All"
+            },
             "specification": {
                 "category": "css-lists",
                 "url": "https://www.w3.org/TR/css-lists-3/#propdef-list-style-type"
@@ -2838,7 +2855,6 @@
         },
         "margin-block": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "margin-block-start",
                     "margin-block-end"
@@ -2885,7 +2901,6 @@
         },
         "margin-inline": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "margin-inline-start",
                     "margin-inline-end"
@@ -3022,6 +3037,16 @@
             "specification": {
                 "category": "css-masking",
                 "url": "https://drafts.fxtf.org/css-masking-1/#propdef-mask-type"
+            }
+        },
+        "math-style": {
+            "values": [
+                "normal",
+                "compact"
+            ],
+            "specification": {
+                "category": "css-fonts",
+                "url": "https://mathml-refresh.github.io/mathml-core/#dfn-math-style"
             }
         },
         "max-block-size": {
@@ -3174,7 +3199,7 @@
         },
         "outline-color": {
             "codegen-properties": {
-                "initial": "invalidColor",
+                "initial": "currentColor",
                 "visited-link-color-support": true
             },
             "specification": {
@@ -3285,7 +3310,6 @@
         },
         "padding-block": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "padding-block-start",
                     "padding-block-end"
@@ -3332,7 +3356,6 @@
         },
         "padding-inline": {
             "codegen-properties": {
-                "runtime-flag": "cssLogical",
                 "longhands": [
                     "padding-inline-start",
                     "padding-inline-end"
@@ -3711,7 +3734,6 @@
             "inherited": true,
             "codegen-properties": {
                 "custom": "Value",
-                "initial": "invalidColor",
                 "visited-link-color-support": true
             },
             "status": "supported",
@@ -4356,7 +4378,8 @@
         },
         "z-index": {
             "codegen-properties": {
-                "auto-functions": true
+                "auto-functions": true,
+                "name-for-methods": "SpecifiedZIndex"
             },
             "specification": {
                 "category": "css-22",
@@ -4808,7 +4831,7 @@
                 "aliases": [
                     "-webkit-column-rule-color"
                 ],
-                "initial": "invalidColor",
+                "initial": "currentColor",
                 "visited-link-color-support": true
             },
             "specification":  {
@@ -5629,19 +5652,10 @@
                 "status": "experimental"
             }
         },
-        "-webkit-marquee": {
-            "codegen-properties": {
-                "longhands": [
-                    "-webkit-marquee-direction",
-                    "-webkit-marquee-increment",
-                    "-webkit-marquee-repetition",
-                    "-webkit-marquee-style",
-                    "-webkit-marquee-speed"
-                ]
-            },
-            "status": "non-standard"
-        },
         "-webkit-marquee-direction": {
+            "codegen-properties": {
+                "internal-only": true
+            },
             "values": [
                 "forwards",
                 "backwards",
@@ -5657,20 +5671,23 @@
         },
         "-webkit-marquee-increment": {
             "codegen-properties": {
-                "conditional-converter": "MarqueeIncrement"
+                "conditional-converter": "MarqueeIncrement",
+                "internal-only": true
             },
             "status": "non-standard"
         },
         "-webkit-marquee-repetition": {
             "codegen-properties": {
                 "name-for-methods": "MarqueeLoopCount",
-                "converter": "MarqueeRepetition"
+                "converter": "MarqueeRepetition",
+                "internal-only": true
             },
             "status": "non-standard"
         },
         "-webkit-marquee-speed": {
             "codegen-properties": {
-                "converter": "MarqueeSpeed"
+                "converter": "MarqueeSpeed",
+                "internal-only": true
             },
             "status": "non-standard"
         },
@@ -5682,7 +5699,8 @@
                 "alternate"
             ],
             "codegen-properties": {
-                "name-for-methods": "MarqueeBehavior"
+                "name-for-methods": "MarqueeBehavior",
+                "internal-only": true
             },
             "status": "non-standard"
         },
@@ -6147,7 +6165,7 @@
         },
         "text-decoration-color": {
             "codegen-properties": {
-                "initial": "invalidColor",
+                "initial": "currentColor",
                 "visited-link-color-support": true,
                 "aliases": [
                     "-webkit-text-decoration-color"
@@ -6260,7 +6278,7 @@
                     "-epub-text-emphasis-color",
                     "text-emphasis-color"
                 ],
-                "initial": "invalidColor",
+                "initial": "currentColor",
                 "visited-link-color-support": true
             },
             "status": {
@@ -6307,7 +6325,7 @@
         "-webkit-text-fill-color": {
             "inherited": true,
             "codegen-properties": {
-                "initial": "invalidColor",
+                "initial": "currentColor",
                 "visited-link-color-support": true
             },
             "status": {
@@ -6338,7 +6356,7 @@
         "-webkit-text-stroke-color": {
             "inherited": true,
             "codegen-properties": {
-                "initial": "invalidColor",
+                "initial": "currentColor",
                 "visited-link-color-support": true
             },
             "status": {
@@ -6370,13 +6388,14 @@
         },
         "transform-box": {
             "values" : [
+                "content-box",
                 "border-box",
                 "fill-box",
-                "view-box",
                 "stroke-box",
-                "content-box"
+                "view-box"
             ],
             "codegen-properties": {
+                "initial": "initialTransformBox"
             },
             "specification": {
                 "category": "css-transforms",
@@ -6458,6 +6477,37 @@
                 "comment": "Keeping -webkit-transform-style around is how we'll detect legacy content. At that point, we'll have to add a custom builder and a new TransformStyle3D type. FIXME: this never happened."
             }
         },
+        "translate": {
+            "codegen-properties": {
+                "settings-flag": "cssIndividualTransformProperties",
+                "converter": "Translate"
+            },
+            "specification": {
+                "category": "css-transforms",
+                "url": "https://drafts.csswg.org/css-transforms-2/#propdef-translate"
+            }
+        },
+        "scale": {
+            "codegen-properties": {
+                "settings-flag": "cssIndividualTransformProperties",
+                "converter": "Scale"
+            },
+            "specification": {
+                "category": "css-transforms",
+                "url": "https://drafts.csswg.org/css-transforms-2/#propdef-scale"
+
+            }
+        },
+        "rotate": {
+            "codegen-properties": {
+                "settings-flag": "cssIndividualTransformProperties",
+                "converter": "Rotate"
+            },
+            "specification": {
+                "category": "css-transforms",
+                "url": "https://drafts.csswg.org/css-transforms-2/#propdef-rotate"
+            }
+        },
         "-webkit-user-drag": {
             "values": [
                 "auto",
@@ -6486,6 +6536,23 @@
             "specification": {
                 "category": "css-ui",
                 "url": "https://www.w3.org/TR/css-ui-4/#propdef-user-select"
+            }
+        },
+        "scroll-behavior": {
+            "values": [
+                "auto",
+                "smooth"
+            ],
+            "codegen-properties": {
+                "settings-flag": "CSSOMViewSmoothScrolling",
+                "converter": "SmoothScrolling",
+                "name-for-methods": "UseSmoothScrolling"
+            },
+            "status": {
+                "status": "experimental"
+            },
+            "specification": {
+                "url": "https://drafts.csswg.org/cssom-view/#propdef-scroll-behavior"
             }
         },
         "scroll-padding": {
@@ -6834,46 +6901,6 @@
                 "url": "https://www.w3.org/TR/css-shapes/#propdef-shape-image-threshold"
             }
         },
-        "max-zoom": {
-            "codegen-properties": {
-                "skip-builder": true,
-                "enable-if": "ENABLE_CSS_DEVICE_ADAPTATION"
-            },
-            "specification": {
-                "category": "css-device-adapt",
-                "url": "https://www.w3.org/TR/css-device-adapt-1/#descdef-viewport-max-zoom"
-            }
-        },
-        "min-zoom": {
-            "codegen-properties": {
-                "skip-builder": true,
-                "enable-if": "ENABLE_CSS_DEVICE_ADAPTATION"
-            },
-            "specification": {
-                "category": "css-device-adapt",
-                "url": "https://www.w3.org/TR/css-device-adapt-1/#descdef-viewport-min-zoom"
-            }
-        },
-        "orientation": {
-            "codegen-properties": {
-                "skip-builder": true,
-                "enable-if": "ENABLE_CSS_DEVICE_ADAPTATION"
-            },
-            "specification": {
-                "category": "css-device-adapt",
-                "url": "https://www.w3.org/TR/css-device-adapt-1/#descdef-viewport-orientation"
-            }
-        },
-        "user-zoom": {
-            "codegen-properties": {
-                "skip-builder": true,
-                "enable-if": "ENABLE_CSS_DEVICE_ADAPTATION"
-            },
-            "specification": {
-                "category": "css-device-adapt",
-                "url": "https://www.w3.org/TR/css-device-adapt-1/#descdef-viewport-user-zoom"
-            }
-        },
         "-webkit-tap-highlight-color": {
             "inherited": true,
             "codegen-properties": {
@@ -6906,7 +6933,6 @@
             ],
             "codegen-properties": {
                 "name-for-methods": "TouchActions",
-                "enable-if": "ENABLE_POINTER_EVENTS",
                 "converter": "TouchAction"
             },
             "specification": {

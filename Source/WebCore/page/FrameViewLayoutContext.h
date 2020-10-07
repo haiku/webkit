@@ -45,6 +45,7 @@ class RenderView;
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 namespace Layout {
 class LayoutState;
+class LayoutTree;
 }
 #endif
     
@@ -110,13 +111,13 @@ public:
     // If we're doing a full repaint m_layoutState will be 0, but in that case layoutDelta doesn't matter.
     LayoutSize layoutDelta() const;
     void addLayoutDelta(const LayoutSize& delta);
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
     bool layoutDeltaMatches(const LayoutSize& delta);
 #endif
     using LayoutStateStack = Vector<std::unique_ptr<RenderLayoutState>>;
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-    const Layout::LayoutState* initialLayoutState() const { return m_initialLayoutState.get(); }
+    const Layout::LayoutState* layoutFormattingState() const { return m_layoutState.get(); }
 #endif
 
 private:
@@ -174,7 +175,6 @@ private:
     WeakPtr<RenderElement> m_subtreeLayoutRoot;
 
     bool m_layoutSchedulingIsEnabled { true };
-    bool m_delayedLayout { false };
     bool m_firstLayout { true };
     bool m_needsFullRepaint { true };
     bool m_inAsynchronousTasks { false };
@@ -188,7 +188,8 @@ private:
     unsigned m_paintOffsetCacheDisableCount { 0 };
     LayoutStateStack m_layoutStateStack;
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-    std::unique_ptr<Layout::LayoutState> m_initialLayoutState;
+    std::unique_ptr<Layout::LayoutState> m_layoutState;
+    std::unique_ptr<Layout::LayoutTree> m_layoutTree;
 #endif
 };
 

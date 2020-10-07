@@ -25,7 +25,6 @@
 #include "BlobRegistryImpl.h"
 #include "BlobURL.h"
 #include "Chrome.h"
-#include "ChromeClient.h"
 #include "DOMFormData.h"
 #include "File.h"
 #include "FormDataBuilder.h"
@@ -124,9 +123,9 @@ Ref<FormData> FormData::isolatedCopy() const
     return formData;
 }
 
-static inline uint64_t computeLengthInBytes(const FormDataElement& element, const Function<uint64_t(const URL&)>& blobSize)
+uint64_t FormDataElement::lengthInBytes(const Function<uint64_t(const URL&)>& blobSize) const
 {
-    return switchOn(element.data,
+    return switchOn(data,
         [] (const Vector<char>& bytes) {
             return static_cast<uint64_t>(bytes.size());
         }, [] (const FormDataElement::EncodedFileData& fileData) {
@@ -142,17 +141,10 @@ static inline uint64_t computeLengthInBytes(const FormDataElement& element, cons
     );
 }
 
-uint64_t FormDataElement::lengthInBytes(BlobRegistryImpl* blobRegistry) const
-{
-    return computeLengthInBytes(*this, [&](auto& url) {
-        return blobRegistry ? blobRegistry->blobSize(url) : 0;
-    });
-}
-
 uint64_t FormDataElement::lengthInBytes() const
 {
-    return computeLengthInBytes(*this, [](auto& url) {
-        return blobRegistry().blobSize(url);
+    return lengthInBytes([](auto& url) {
+        return ThreadableBlobRegistry::blobSize(url);
     });
 }
 
@@ -205,7 +197,7 @@ void FormData::appendBlob(const URL& blobURL)
 
 static Vector<uint8_t> normalizeStringData(TextEncoding& encoding, const String& value)
 {
-    return normalizeLineEndingsToCRLF(encoding.encode(value, UnencodableHandling::Entities));
+    return normalizeLineEndingsToCRLF(encoding.encode(value, UnencodableHandling::Entities, NFCNormalize::No));
 }
 
 void FormData::appendMultiPartFileValue(const File& file, Vector<char>& header, TextEncoding& encoding)
@@ -324,7 +316,7 @@ static void appendBlobResolved(BlobRegistryImpl* blobRegistry, FormData& formDat
     }
 }
 
-Ref<FormData> FormData::resolveBlobReferences(BlobRegistryImpl* blobRegistry)
+Ref<FormData> FormData::resolveBlobReferences(BlobRegistryImpl* blobRegistryImpl)
 {
     // First check if any blobs needs to be resolved, or we can take the fast path.
     bool hasBlob = false;
@@ -350,7 +342,7 @@ Ref<FormData> FormData::resolveBlobReferences(BlobRegistryImpl* blobRegistry)
             }, [&] (const FormDataElement::EncodedFileData& fileData) {
                 newFormData->appendFileRange(fileData.filename, fileData.fileStart, fileData.fileLength, fileData.expectedFileModificationTime);
             }, [&] (const FormDataElement::EncodedBlobData& blobData) {
-                appendBlobResolved(blobRegistry, newFormData.get(), blobData.url);
+                appendBlobResolved(blobRegistryImpl ? blobRegistryImpl : blobRegistry().blobRegistryImpl(), newFormData.get(), blobData.url);
             }
         );
     }

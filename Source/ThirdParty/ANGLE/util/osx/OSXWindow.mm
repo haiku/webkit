@@ -655,6 +655,11 @@ bool OSXWindow::initialize(const std::string &name, int width, int height)
     }
     [mView setWantsLayer:YES];
 
+    // Disable scaling for this view. If scaling is enabled, the metal backend's
+    // frame buffer's size will be this window's size multiplied by contentScale.
+    // It will cause inconsistent testing & example apps' results.
+    mView.layer.contentsScale = 1;
+
     [mWindow setContentView:mView];
     [mWindow setTitle:[NSString stringWithUTF8String:name.c_str()]];
     [mWindow setAcceptsMouseMovedEvents:YES];
@@ -671,6 +676,8 @@ bool OSXWindow::initialize(const std::string &name, int width, int height)
     return true;
 }
 
+void OSXWindow::disableErrorMessageDialog() {}
+
 void OSXWindow::destroy()
 {
     AllWindows().erase(this);
@@ -680,6 +687,8 @@ void OSXWindow::destroy()
     [mDelegate onOSXWindowDeleted];
     [mDelegate release];
     mDelegate = nil;
+    // NSWindow won't be completely released unless its content view is set to nil:
+    [mWindow setContentView:nil];
     [mWindow release];
     mWindow = nil;
 }
@@ -732,6 +741,12 @@ void OSXWindow::setMousePosition(int x, int y)
     screenspace = [mWindow convertRectToScreen:NSMakeRect(x, y, 0, 0)].origin;
 #endif
     CGWarpMouseCursorPosition(CGPointMake(screenspace.x, YCoordToFromCG(screenspace.y)));
+}
+
+bool OSXWindow::setOrientation(int width, int height)
+{
+    UNIMPLEMENTED();
+    return false;
 }
 
 bool OSXWindow::setPosition(int x, int y)

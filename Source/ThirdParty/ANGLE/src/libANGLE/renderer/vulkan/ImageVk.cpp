@@ -57,7 +57,8 @@ egl::Error ImageVk::initialize(const egl::Display *display)
         // Make sure the texture has created its backing storage
         ASSERT(mContext != nullptr);
         ContextVk *contextVk = vk::GetImpl(mContext);
-        ANGLE_TRY(ResultToEGL(textureVk->ensureImageInitialized(contextVk)));
+        ANGLE_TRY(ResultToEGL(
+            textureVk->ensureImageInitialized(contextVk, ImageMipLevels::EnabledLevels)));
 
         mImage = &textureVk->getImage();
 
@@ -96,8 +97,12 @@ egl::Error ImageVk::initialize(const egl::Display *display)
             return egl::EglBadAccess();
         }
 
+        // start with some reasonable alignment that's safe for the case where intendedFormatID is
+        // FormatID::NONE
+        size_t alignment = mImage->getFormat().getValidImageCopyBufferAlignment();
+
         // Make sure a staging buffer is ready to use to upload data
-        mImage->initStagingBuffer(renderer, mImage->getFormat(), vk::kStagingBufferFlags,
+        mImage->initStagingBuffer(renderer, alignment, vk::kStagingBufferFlags,
                                   vk::kStagingBufferSize);
 
         mOwnsImage = false;

@@ -50,7 +50,7 @@ struct FormDataElement {
     explicit FormDataElement(const URL& blobURL)
         : data(EncodedBlobData { blobURL }) { }
 
-    uint64_t lengthInBytes(BlobRegistryImpl*) const;
+    uint64_t lengthInBytes(const Function<uint64_t(const URL&)>&) const;
     uint64_t lengthInBytes() const;
 
     FormDataElement isolatedCopy() const;
@@ -220,7 +220,7 @@ public:
 
     // Resolve all blob references so we only have file and data.
     // If the FormData has no blob references to resolve, this is returned.
-    WEBCORE_EXPORT Ref<FormData> resolveBlobReferences(BlobRegistryImpl*);
+    WEBCORE_EXPORT Ref<FormData> resolveBlobReferences(BlobRegistryImpl* = nullptr);
 
     WEBCORE_EXPORT FormDataForUpload prepareForUpload();
 
@@ -228,7 +228,7 @@ public:
     const Vector<FormDataElement>& elements() const { return m_elements; }
     const Vector<char>& boundary() const { return m_boundary; }
 
-    RefPtr<SharedBuffer> asSharedBuffer() const;
+    WEBCORE_EXPORT RefPtr<SharedBuffer> asSharedBuffer() const;
 
     bool alwaysStream() const { return m_alwaysStream; }
     void setAlwaysStream(bool alwaysStream) { m_alwaysStream = alwaysStream; }
@@ -250,7 +250,7 @@ public:
         return FormURLEncoded;
     }
 
-    uint64_t lengthInBytes() const;
+    WEBCORE_EXPORT uint64_t lengthInBytes() const;
 
     WEBCORE_EXPORT URL asBlobURL() const;
 

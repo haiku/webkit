@@ -78,37 +78,68 @@ void ProcessThrottler::removeActivity(BackgroundActivity& activity)
 
 void ProcessThrottler::invalidateAllActivities()
 {
-    RELEASE_LOG(ProcessSuspension, "[PID: %d] %p - ProcessThrottler::invalidateAllActivities() BEGIN", m_processIdentifier, this);
+    PROCESSTHROTTLER_RELEASE_LOG("invalidateAllActivities: BEGIN");
     while (!m_foregroundActivities.isEmpty())
         (*m_foregroundActivities.begin())->invalidate();
     while (!m_backgroundActivities.isEmpty())
         (*m_backgroundActivities.begin())->invalidate();
-    RELEASE_LOG(ProcessSuspension, "[PID: %d] %p - ProcessThrottler::invalidateAllActivities() END", m_processIdentifier, this);
+    PROCESSTHROTTLER_RELEASE_LOG("invalidateAllActivities: END");
 }
     
-AssertionState ProcessThrottler::expectedAssertionState()
+ProcessAssertionType ProcessThrottler::expectedAssertionType()
 {
     if (!m_foregroundActivities.isEmpty())
-        return AssertionState::Foreground;
+        return ProcessAssertionType::Foreground;
     if (!m_backgroundActivities.isEmpty())
-        return AssertionState::Background;
-    return AssertionState::Suspended;
+        return ProcessAssertionType::Background;
+    return ProcessAssertionType::Suspended;
 }
     
-void ProcessThrottler::updateAssertionStateNow()
+void ProcessThrottler::updateAssertionTypeNow()
 {
-    setAssertionState(expectedAssertionState());
+    setAssertionType(expectedAssertionType());
 }
 
-void ProcessThrottler::setAssertionState(AssertionState newState)
+String ProcessThrottler::assertionName(ProcessAssertionType type) const
 {
-    RELEASE_ASSERT(m_assertion);
-    if (m_assertion->state() == newState)
+    ASCIILiteral typeString = [type] {
+        switch (type) {
+        case ProcessAssertionType::Foreground:
+            return "Foreground"_s;
+        case ProcessAssertionType::Background:
+            return "Background"_s;
+        case ProcessAssertionType::Suspended:
+            return "Suspended"_s;
+        case ProcessAssertionType::UnboundedNetworking:
+        case ProcessAssertionType::MediaPlayback:
+            ASSERT_NOT_REACHED(); // These other assertion types are not used by the ProcessThrottler.
+            break;
+        }
+        return "Unknown"_s;
+    }();
+
+    return makeString(m_process.clientName(), " ", typeString, " Assertion");
+}
+
+void ProcessThrottler::setAssertionType(ProcessAssertionType newType)
+{
+    if (m_assertion && m_assertion->isValid() && m_assertion->type() == newType)
         return;
 
-    RELEASE_LOG(ProcessSuspension, "[PID: %d] %p - ProcessThrottler::setAssertionState() Updating process assertion state to %u (foregroundActivities: %u, backgroundActivities: %u)", m_processIdentifier, this, newState, m_foregroundActivities.size(), m_backgroundActivities.size());
-    m_assertion->setState(newState);
-    m_process.didSetAssertionState(newState);
+    PROCESSTHROTTLER_RELEASE_LOG("setAssertionType: Updating process assertion type to %u (foregroundActivities: %u, backgroundActivities: %u)", newType, m_foregroundActivities.size(), m_backgroundActivities.size());
+    if (m_shouldTakeUIBackgroundAssertion) {
+        auto assertion = makeUnique<ProcessAndUIAssertion>(m_processIdentifier, assertionName(newType), newType);
+        assertion->setUIAssertionExpirationHandler([this] {
+            uiAssertionWillExpireImminently();
+        });
+        m_assertion = WTFMove(assertion);
+    } else
+        m_assertion = makeUnique<ProcessAssertion>(m_processIdentifier, assertionName(newType), newType);
+
+    m_assertion->setInvalidationHandler([this] {
+        assertionWasInvalidated();
+    });
+    m_process.didSetAssertionType(newType);
 }
     
 void ProcessThrottler::updateAssertionIfNeeded()
@@ -117,11 +148,11 @@ void ProcessThrottler::updateAssertionIfNeeded()
         return;
 
     if (shouldBeRunnable()) {
-        if (m_assertion->state() == AssertionState::Suspended || m_pendingRequestToSuspendID) {
-            if (m_assertion->state() == AssertionState::Suspended)
-                RELEASE_LOG(ProcessSuspension, "[PID: %d] %p - ProcessThrottler::updateAssertionIfNeeded() sending ProcessDidResume IPC because the process was suspended", m_processIdentifier, this);
+        if (m_assertion->type() == ProcessAssertionType::Suspended || m_pendingRequestToSuspendID) {
+            if (m_assertion->type() == ProcessAssertionType::Suspended)
+                PROCESSTHROTTLER_RELEASE_LOG("updateAssertionIfNeeded: sending ProcessDidResume IPC because the process was suspended");
             else
-                RELEASE_LOG(ProcessSuspension, "[PID: %d] %p - ProcessThrottler::updateAssertionIfNeeded() sending ProcessDidResume IPC because the WebProcess is still processing request to suspend: %" PRIu64, m_processIdentifier, this, *m_pendingRequestToSuspendID);
+                PROCESSTHROTTLER_RELEASE_LOG("updateAssertionIfNeeded: sending ProcessDidResume IPC because the WebProcess is still processing request to suspend: %" PRIu64, *m_pendingRequestToSuspendID);
             m_process.sendProcessDidResume();
             clearPendingRequestToSuspend();
         }
@@ -129,47 +160,42 @@ void ProcessThrottler::updateAssertionIfNeeded()
         // If the process is currently runnable but will be suspended then first give it a chance to complete what it was doing
         // and clean up - move it to the background and send it a message to notify. Schedule a timeout so it can't stay running
         // in the background for too long.
-        if (m_assertion->state() != AssertionState::Suspended) {
+        if (m_assertion->type() != ProcessAssertionType::Suspended) {
             m_prepareToSuspendTimeoutTimer.startOneShot(processSuspensionTimeout);
             sendPrepareToSuspendIPC(IsSuspensionImminent::No);
             return;
         }
     }
 
-    updateAssertionStateNow();
+    updateAssertionTypeNow();
 }
 
 void ProcessThrottler::didConnectToProcess(ProcessID pid)
 {
-    RELEASE_LOG(ProcessSuspension, "[PID: %d] %p - ProcessThrottler::didConnectToProcess()", pid, this);
+    PROCESSTHROTTLER_RELEASE_LOG_WITH_PID("didConnectToProcess:", pid);
     RELEASE_ASSERT(!m_assertion);
 
-    if (m_shouldTakeUIBackgroundAssertion)
-        m_assertion = makeUnique<ProcessAndUIAssertion>(pid, "Web content visibility"_s, expectedAssertionState());
-    else
-        m_assertion = makeUnique<ProcessAssertion>(pid, "Web content visibility"_s, expectedAssertionState());
-
     m_processIdentifier = pid;
-    m_process.didSetAssertionState(expectedAssertionState());
-    m_assertion->setClient(*this);
+    setAssertionType(expectedAssertionType());
+    RELEASE_ASSERT(m_assertion);
 }
     
 void ProcessThrottler::prepareToSuspendTimeoutTimerFired()
 {
-    RELEASE_LOG(ProcessSuspension, "[PID: %d] %p - ProcessThrottler::prepareToSuspendTimeoutTimerFired() Updating process assertion to allow suspension", m_processIdentifier, this);
+    PROCESSTHROTTLER_RELEASE_LOG("prepareToSuspendTimeoutTimerFired: Updating process assertion to allow suspension");
     RELEASE_ASSERT(m_pendingRequestToSuspendID);
-    updateAssertionStateNow();
+    updateAssertionTypeNow();
 }
     
 void ProcessThrottler::processReadyToSuspend()
 {
-    RELEASE_LOG(ProcessSuspension, "[PID: %d] %p - ProcessThrottler::processReadyToSuspend() Updating process assertion to allow suspension", m_processIdentifier, this);
+    PROCESSTHROTTLER_RELEASE_LOG("processReadyToSuspend: Updating process assertion to allow suspension");
 
     RELEASE_ASSERT(m_pendingRequestToSuspendID);
     clearPendingRequestToSuspend();
 
-    if (m_assertion->state() != AssertionState::Suspended)
-        updateAssertionStateNow();
+    if (m_assertion->type() != ProcessAssertionType::Suspended)
+        updateAssertionTypeNow();
 }
 
 void ProcessThrottler::clearPendingRequestToSuspend()
@@ -180,29 +206,78 @@ void ProcessThrottler::clearPendingRequestToSuspend()
 
 void ProcessThrottler::sendPrepareToSuspendIPC(IsSuspensionImminent isSuspensionImminent)
 {
-    RELEASE_LOG(ProcessSuspension, "[PID: %d] %p - ProcessThrottler::sendPrepareToSuspendIPC() isSuspensionImminent: %d", m_processIdentifier, this, isSuspensionImminent == IsSuspensionImminent::Yes);
+    PROCESSTHROTTLER_RELEASE_LOG("sendPrepareToSuspendIPC: isSuspensionImminent: %d", isSuspensionImminent == IsSuspensionImminent::Yes);
     if (m_pendingRequestToSuspendID) {
         // Do not send a new PrepareToSuspend IPC for imminent suspension if we've already sent a non-imminent PrepareToSuspend IPC.
         RELEASE_ASSERT(isSuspensionImminent == IsSuspensionImminent::Yes);
-        RELEASE_LOG(ProcessSuspension, "[PID: %d] %p - ProcessThrottler::sendPrepareToSuspendIPC() Not sending PrepareToSuspend() IPC because there is already one in flight (%" PRIu64 ")", m_processIdentifier, this, *m_pendingRequestToSuspendID);
+        PROCESSTHROTTLER_RELEASE_LOG("sendPrepareToSuspendIPC: Not sending PrepareToSuspend() IPC because there is already one in flight (%" PRIu64 ")", *m_pendingRequestToSuspendID);
     } else {
         m_pendingRequestToSuspendID = generatePrepareToSuspendRequestID();
-        RELEASE_LOG(ProcessSuspension, "[PID: %d] %p - ProcessThrottler::sendPrepareToSuspendIPC() Sending PrepareToSuspend(%" PRIu64 ", isSuspensionImminent: %d) IPC", m_processIdentifier, this, *m_pendingRequestToSuspendID, isSuspensionImminent == IsSuspensionImminent::Yes);
+        PROCESSTHROTTLER_RELEASE_LOG("sendPrepareToSuspendIPC: Sending PrepareToSuspend(%" PRIu64 ", isSuspensionImminent: %d) IPC", *m_pendingRequestToSuspendID, isSuspensionImminent == IsSuspensionImminent::Yes);
         m_process.sendPrepareToSuspend(isSuspensionImminent, [this, weakThis = makeWeakPtr(*this), requestToSuspendID = *m_pendingRequestToSuspendID]() mutable {
             if (weakThis && m_pendingRequestToSuspendID && *m_pendingRequestToSuspendID == requestToSuspendID)
                 processReadyToSuspend();
         });
     }
 
-    setAssertionState(isSuspensionImminent == IsSuspensionImminent::Yes ? AssertionState::Suspended : AssertionState::Background);
+    setAssertionType(isSuspensionImminent == IsSuspensionImminent::Yes ? ProcessAssertionType::Suspended : ProcessAssertionType::Background);
 }
 
 void ProcessThrottler::uiAssertionWillExpireImminently()
 {
-    RELEASE_LOG(ProcessSuspension, "[PID: %d] %p - ProcessThrottler::uiAssertionWillExpireImminently()", m_processIdentifier, this);
+    PROCESSTHROTTLER_RELEASE_LOG("uiAssertionWillExpireImminently:");
     sendPrepareToSuspendIPC(IsSuspensionImminent::Yes);
     invalidateAllActivities();
     m_prepareToSuspendTimeoutTimer.stop();
+}
+
+void ProcessThrottler::assertionWasInvalidated()
+{
+    PROCESSTHROTTLER_RELEASE_LOG("assertionWasInvalidated:");
+    invalidateAllActivities();
+}
+
+bool ProcessThrottler::isValidBackgroundActivity(const ProcessThrottler::ActivityVariant& activity)
+{
+    if (!WTF::holds_alternative<UniqueRef<ProcessThrottler::BackgroundActivity>>(activity))
+        return false;
+    return WTF::get<UniqueRef<ProcessThrottler::BackgroundActivity>>(activity)->isValid();
+}
+
+bool ProcessThrottler::isValidForegroundActivity(const ProcessThrottler::ActivityVariant& activity)
+{
+    if (!WTF::holds_alternative<UniqueRef<ProcessThrottler::ForegroundActivity>>(activity))
+        return false;
+    return WTF::get<UniqueRef<ProcessThrottler::ForegroundActivity>>(activity)->isValid();
+}
+
+ProcessThrottler::TimedActivity::TimedActivity(Seconds timeout, ProcessThrottler::ActivityVariant&& activity)
+    : m_timer(RunLoop::main(), this, &TimedActivity::activityTimedOut)
+    , m_timeout(timeout)
+    , m_activity(WTFMove(activity))
+{
+    updateTimer();
+}
+
+auto ProcessThrottler::TimedActivity::operator=(ProcessThrottler::ActivityVariant&& activity) -> TimedActivity&
+{
+    m_activity = WTFMove(activity);
+    updateTimer();
+    return *this;
+}
+
+void ProcessThrottler::TimedActivity::activityTimedOut()
+{
+    RELEASE_LOG_ERROR(ProcessSuspension, "%p - TimedActivity::activityTimedOut:", this);
+    m_activity = nullptr;
+}
+
+void ProcessThrottler::TimedActivity::updateTimer()
+{
+    if (WTF::holds_alternative<std::nullptr_t>(m_activity))
+        m_timer.stop();
+    else
+        m_timer.startOneShot(m_timeout);
 }
 
 } // namespace WebKit

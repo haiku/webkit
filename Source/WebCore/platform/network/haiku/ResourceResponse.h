@@ -39,7 +39,7 @@ public:
     ResourceResponse(const URL& url, const String& mimeType, long long expectedLength, const String& textEncodingName)
         : ResourceResponseBase(url, mimeType, expectedLength, textEncodingName)
     {
-        m_resourceName = url.lastPathComponent();
+        m_resourceName = url.lastPathComponent().toString();
     }
 
     void setSuggestedFilename(String name) { m_resourceName = name;}

@@ -34,6 +34,11 @@ namespace WebCore {
 class CachedResource;
 }
 
+namespace IPC {
+class Connection;
+class Decoder;
+};
+
 namespace WebKit {
 
 class WebServiceWorkerProvider final : public WebCore::ServiceWorkerProvider {
@@ -48,6 +53,7 @@ private:
     WebServiceWorkerProvider();
 
     WebCore::SWClientConnection& serviceWorkerConnection() final;
+    void terminateWorkerForTesting(WebCore::ServiceWorkerIdentifier, CompletionHandler<void()>&&) final;
 }; // class WebServiceWorkerProvider
 
 } // namespace WebKit

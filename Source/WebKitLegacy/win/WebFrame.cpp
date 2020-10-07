@@ -58,7 +58,6 @@
 #include <JavaScriptCore/JSObject.h>
 #include <WebCore/BString.h>
 #include <WebCore/COMPtr.h>
-#include <WebCore/CSSAnimationController.h>
 #include <WebCore/DOMWindow.h>
 #include <WebCore/Document.h>
 #include <WebCore/DocumentLoader.h>
@@ -559,7 +558,7 @@ HRESULT WebFrame::loadRequest(_In_opt_ IWebURLRequest* request)
     if (!coreFrame)
         return E_UNEXPECTED;
 
-    coreFrame->loader().load(FrameLoadRequest(*coreFrame, requestImpl->resourceRequest(), ShouldOpenExternalURLsPolicy::ShouldNotAllow));
+    coreFrame->loader().load(FrameLoadRequest(*coreFrame, requestImpl->resourceRequest()));
     return S_OK;
 }
 
@@ -584,7 +583,7 @@ void WebFrame::loadData(Ref<WebCore::SharedBuffer>&& data, BSTR mimeType, BSTR t
 
     // This method is only called from IWebFrame methods, so don't ASSERT that the Frame pointer isn't null.
     if (Frame* coreFrame = core(this))
-        coreFrame->loader().load(FrameLoadRequest(*coreFrame, request, ShouldOpenExternalURLsPolicy::ShouldNotAllow, substituteData));
+        coreFrame->loader().load(FrameLoadRequest(*coreFrame, request, substituteData));
 }
 
 HRESULT WebFrame::loadData(_In_opt_ IStream* data, _In_ BSTR mimeType, _In_ BSTR textEncodingName, _In_ BSTR url)
@@ -1082,7 +1081,7 @@ Ref<Frame> WebFrame::createSubframeWithOwnerElement(IWebView* webView, Page* pag
     d->webView->viewWindow(&viewWindow);
 
     this->AddRef(); // We release this ref in frameLoaderDestroyed()
-    auto frame = Frame::create(page, ownerElement, new WebFrameLoaderClient(this));
+    auto frame = Frame::create(page, ownerElement, makeUniqueRef<WebFrameLoaderClient>(this));
     d->frame = frame.ptr();
     return frame;
 }
@@ -1177,64 +1176,6 @@ HRESULT WebFrame::elementDoesAutoComplete(_In_opt_ IDOMElement *element, _Out_ B
     return S_OK;
 }
 
-HRESULT WebFrame::resumeAnimations()
-{
-    Frame* frame = core(this);
-    if (!frame)
-        return E_UNEXPECTED;
-
-    frame->animation().resumeAnimations();
-    return S_OK;
-}
-
-HRESULT WebFrame::suspendAnimations()
-{
-    Frame* frame = core(this);
-    if (!frame)
-        return E_UNEXPECTED;
-
-    frame->animation().suspendAnimations();
-    return S_OK;
-}
-
-HRESULT WebFrame::pauseAnimation(_In_ BSTR animationName, _In_opt_ IDOMNode* node, double secondsFromNow, _Out_ BOOL* animationWasRunning)
-{
-    if (!node || !animationWasRunning)
-        return E_POINTER;
-
-    *animationWasRunning = FALSE;
-
-    Frame* frame = core(this);
-    if (!frame)
-        return E_UNEXPECTED;
-
-    COMPtr<DOMNode> domNode(Query, node);
-    if (!domNode)
-        return E_FAIL;
-
-    *animationWasRunning = frame->animation().pauseAnimationAtTime(downcast<Element>(*domNode->node()), String(animationName, SysStringLen(animationName)), secondsFromNow);
-    return S_OK;
-}
-
-HRESULT WebFrame::pauseTransition(_In_ BSTR propertyName, _In_opt_ IDOMNode* node, double secondsFromNow, _Out_ BOOL* transitionWasRunning)
-{
-    if (!node || !transitionWasRunning)
-        return E_POINTER;
-
-    *transitionWasRunning = FALSE;
-
-    Frame* frame = core(this);
-    if (!frame)
-        return E_UNEXPECTED;
-
-    COMPtr<DOMNode> domNode(Query, node);
-    if (!domNode)
-        return E_FAIL;
-
-    *transitionWasRunning = frame->animation().pauseTransitionAtTime(downcast<Element>(*domNode->node()), String(propertyName, SysStringLen(propertyName)), secondsFromNow);
-    return S_OK;
-}
-
 HRESULT WebFrame::visibleContentRect(_Out_ RECT* rect)
 {
     if (!rect)
@@ -1250,21 +1191,6 @@ HRESULT WebFrame::visibleContentRect(_Out_ RECT* rect)
         return E_FAIL;
 
     *rect = view->visibleContentRect();
-    return S_OK;
-}
-
-HRESULT WebFrame::numberOfActiveAnimations(_Out_ UINT* number)
-{
-    if (!number)
-        return E_POINTER;
-
-    *number = 0;
-
-    Frame* frame = core(this);
-    if (!frame)
-        return E_UNEXPECTED;
-
-    *number = frame->animation().numberOfActiveAnimations(frame->document());
     return S_OK;
 }
 
@@ -1923,13 +1849,15 @@ HRESULT WebFrame::string(_Deref_opt_out_ BSTR* result)
 
     *result = nullptr;
 
-    Frame* coreFrame = core(this);
-    if (!coreFrame)
+    auto* frame = core(this);
+    if (!frame)
         return E_UNEXPECTED;
 
-    RefPtr<Range> allRange(rangeOfContents(*coreFrame->document()));
-    String allString = plainText(allRange.get());
-    *result = BString(allString).release();
+    auto* document = frame->document();
+    if (!document)
+        return E_FAIL;
+
+    *result = BString(plainText(makeRangeSelectingNodeContents(*document))).release();
     return S_OK;
 }
 
@@ -2055,7 +1983,7 @@ HRESULT WebFrame::stringByEvaluatingJavaScriptInScriptWorld(IWebScriptWorld* iWo
     // Get the frame frome the global object we've settled on.
     Frame* frame = anyWorldGlobalObject->wrapped().frame();
     ASSERT(frame->document());
-    JSValue result = frame->script().executeScriptInWorld(world->world(), string, true);
+    JSValue result = frame->script().executeScriptInWorldIgnoringException(world->world(), string, true);
 
     if (!frame) // In case the script removed our frame from the page.
         return S_OK;
@@ -2135,7 +2063,7 @@ void WebFrame::updateBackground()
 
     Optional<Color> backgroundColor;
     if (webView()->transparent())
-        backgroundColor = Color(Color::transparent);
+        backgroundColor = Color(Color::transparentBlack);
     coreFrame->view()->updateBackgroundRecursively(backgroundColor);
 }
 

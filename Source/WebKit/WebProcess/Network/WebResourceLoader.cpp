@@ -55,7 +55,7 @@
 #include <WebCore/SubresourceLoader.h>
 #include <wtf/CompletionHandler.h>
 
-#define RELEASE_LOG_IF_ALLOWED(fmt, ...) RELEASE_LOG_IF(isAlwaysOnLoggingAllowed(), Network, "%p - WebResourceLoader::" fmt, this, ##__VA_ARGS__)
+#define RELEASE_LOG_IF_ALLOWED(fmt, ...) RELEASE_LOG_IF(isAlwaysOnLoggingAllowed(), Network, "%p - [webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 "] WebResourceLoader::" fmt, this, m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID, ##__VA_ARGS__)
 
 namespace WebKit {
 using namespace WebCore;
@@ -101,19 +101,20 @@ void WebResourceLoader::willSendRequest(ResourceRequest&& proposedRequest, IPC::
     proposedRequest.setHTTPBody(proposedRequestBody.takeData());
 
     LOG(Network, "(WebProcess) WebResourceLoader::willSendRequest to '%s'", proposedRequest.url().string().latin1().data());
-    RELEASE_LOG_IF_ALLOWED("willSendRequest: (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
+    RELEASE_LOG_IF_ALLOWED("willSendRequest:");
 
     if (m_coreLoader->documentLoader()->applicationCacheHost().maybeLoadFallbackForRedirect(m_coreLoader.get(), proposedRequest, redirectResponse)) {
-        RELEASE_LOG_IF_ALLOWED("willSendRequest: exiting early because maybeLoadFallbackForRedirect returned false (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
+        RELEASE_LOG_IF_ALLOWED("willSendRequest: exiting early because maybeLoadFallbackForRedirect returned false");
         return;
     }
 
     m_coreLoader->willSendRequest(WTFMove(proposedRequest), redirectResponse, [this, protectedThis = WTFMove(protectedThis)](ResourceRequest&& request) {
         if (!m_coreLoader || !m_coreLoader->identifier()) {
-            RELEASE_LOG_IF_ALLOWED("willSendRequest: exiting early because no coreloader or identifier (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
+            RELEASE_LOG_IF_ALLOWED("willSendRequest: exiting early because no coreloader or identifier");
             return;
         }
 
+        RELEASE_LOG_IF_ALLOWED("willSendRequest: returning ContinueWillSendRequest");
         send(Messages::NetworkResourceLoader::ContinueWillSendRequest(request, m_coreLoader->isAllowedToAskUserForCredentials()));
     });
 }
@@ -126,29 +127,29 @@ void WebResourceLoader::didSendData(uint64_t bytesSent, uint64_t totalBytesToBeS
 void WebResourceLoader::didReceiveResponse(const ResourceResponse& response, bool needsContinueDidReceiveResponseMessage)
 {
     LOG(Network, "(WebProcess) WebResourceLoader::didReceiveResponse for '%s'. Status %d.", m_coreLoader->url().string().latin1().data(), response.httpStatusCode());
-    RELEASE_LOG_IF_ALLOWED("didReceiveResponse: (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ", status=%d)", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID, response.httpStatusCode());
+    RELEASE_LOG_IF_ALLOWED("didReceiveResponse: (httpStatusCode=%d)", response.httpStatusCode());
 
     Ref<WebResourceLoader> protectedThis(*this);
 
     if (m_coreLoader->documentLoader()->applicationCacheHost().maybeLoadFallbackForResponse(m_coreLoader.get(), response)) {
-        RELEASE_LOG_IF_ALLOWED("didReceiveResponse: not continuing load because the content is already cached (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
+        RELEASE_LOG_IF_ALLOWED("didReceiveResponse: not continuing load because the content is already cached");
         return;
     }
 
     CompletionHandler<void()> policyDecisionCompletionHandler;
     if (needsContinueDidReceiveResponseMessage) {
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
         m_isProcessingNetworkResponse = true;
 #endif
         policyDecisionCompletionHandler = [this, protectedThis = WTFMove(protectedThis)] {
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
             m_isProcessingNetworkResponse = false;
 #endif
             // If m_coreLoader becomes null as a result of the didReceiveResponse callback, we can't use the send function().
             if (m_coreLoader && m_coreLoader->identifier())
                 send(Messages::NetworkResourceLoader::ContinueDidReceiveResponse());
             else
-                RELEASE_LOG_IF_ALLOWED("didReceiveResponse: not continuing load because no coreLoader or no ID (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
+                RELEASE_LOG_IF_ALLOWED("didReceiveResponse: not continuing load because no coreLoader or no ID");
         };
     }
 
@@ -157,7 +158,7 @@ void WebResourceLoader::didReceiveResponse(const ResourceResponse& response, boo
         m_interceptController.beginInterceptingResponse(interceptedRequestIdentifier);
         InspectorInstrumentationWebKit::interceptResponse(m_coreLoader->frame(), response, interceptedRequestIdentifier, [this, protectedThis = makeRef(*this), interceptedRequestIdentifier, policyDecisionCompletionHandler = WTFMove(policyDecisionCompletionHandler)](const ResourceResponse& inspectorResponse, RefPtr<SharedBuffer> overrideData) mutable {
             if (!m_coreLoader || !m_coreLoader->identifier()) {
-                RELEASE_LOG_IF_ALLOWED("didReceiveResponse: not continuing intercept load because no coreLoader or no ID (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
+                RELEASE_LOG_IF_ALLOWED("didReceiveResponse: not continuing intercept load because no coreLoader or no ID");
                 m_interceptController.continueResponse(interceptedRequestIdentifier);
                 return;
             }
@@ -195,18 +196,16 @@ void WebResourceLoader::didReceiveData(const IPC::DataReference& data, int64_t e
     ASSERT_WITH_MESSAGE(!m_isProcessingNetworkResponse, "Network process should not send data until we've validated the response");
 
     if (UNLIKELY(m_interceptController.isIntercepting(m_coreLoader->identifier()))) {
-        auto buffer = WebCore::SharedBuffer::create(data.data(), data.size());
+        auto buffer = SharedBuffer::create(data.data(), data.size());
         m_interceptController.defer(m_coreLoader->identifier(), [this, protectedThis = makeRef(*this), buffer = WTFMove(buffer), encodedDataLength]() mutable {
-            IPC::DataReference data(reinterpret_cast<const uint8_t*>(buffer->data()), buffer->size());
             if (m_coreLoader)
-                didReceiveData(data, encodedDataLength);
+                didReceiveData({ buffer->dataAsUInt8Ptr(), buffer->size() }, encodedDataLength);
         });
         return;
     }
 
-    if (!m_numBytesReceived) {
-        RELEASE_LOG_IF_ALLOWED("didReceiveData: Started receiving data (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
-    }
+    if (!m_numBytesReceived)
+        RELEASE_LOG_IF_ALLOWED("didReceiveData: Started receiving data");
     m_numBytesReceived += data.size();
 
     m_coreLoader->didReceiveData(reinterpret_cast<const char*>(data.data()), data.size(), encodedDataLength, DataPayloadBytes);
@@ -215,7 +214,7 @@ void WebResourceLoader::didReceiveData(const IPC::DataReference& data, int64_t e
 void WebResourceLoader::didFinishResourceLoad(const NetworkLoadMetrics& networkLoadMetrics)
 {
     LOG(Network, "(WebProcess) WebResourceLoader::didFinishResourceLoad for '%s'", m_coreLoader->url().string().latin1().data());
-    RELEASE_LOG_IF_ALLOWED("didFinishResourceLoad: (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ", length=%zd)", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID, m_numBytesReceived);
+    RELEASE_LOG_IF_ALLOWED("didFinishResourceLoad: (length=%zd)", m_numBytesReceived);
 
     if (UNLIKELY(m_interceptController.isIntercepting(m_coreLoader->identifier()))) {
         m_interceptController.defer(m_coreLoader->identifier(), [this, protectedThis = makeRef(*this), networkLoadMetrics]() mutable {
@@ -244,7 +243,7 @@ void WebResourceLoader::didFailServiceWorkerLoad(const ResourceError& error)
 void WebResourceLoader::serviceWorkerDidNotHandle()
 {
 #if ENABLE(SERVICE_WORKER)
-    RELEASE_LOG_IF_ALLOWED("serviceWorkerDidNotHandle: (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
+    RELEASE_LOG_IF_ALLOWED("serviceWorkerDidNotHandle:");
 
     ASSERT(m_coreLoader->options().serviceWorkersMode == ServiceWorkersMode::Only);
     auto error = internalError(m_coreLoader->request().url());
@@ -258,7 +257,7 @@ void WebResourceLoader::serviceWorkerDidNotHandle()
 void WebResourceLoader::didFailResourceLoad(const ResourceError& error)
 {
     LOG(Network, "(WebProcess) WebResourceLoader::didFailResourceLoad for '%s'", m_coreLoader->url().string().latin1().data());
-    RELEASE_LOG_IF_ALLOWED("didFailResourceLoad: (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
+    RELEASE_LOG_IF_ALLOWED("didFailResourceLoad:");
 
     if (UNLIKELY(m_interceptController.isIntercepting(m_coreLoader->identifier()))) {
         m_interceptController.defer(m_coreLoader->identifier(), [this, protectedThis = makeRef(*this), error]() mutable {
@@ -278,7 +277,7 @@ void WebResourceLoader::didFailResourceLoad(const ResourceError& error)
 void WebResourceLoader::didBlockAuthenticationChallenge()
 {
     LOG(Network, "(WebProcess) WebResourceLoader::didBlockAuthenticationChallenge for '%s'", m_coreLoader->url().string().latin1().data());
-    RELEASE_LOG_IF_ALLOWED("didBlockAuthenticationChallenge: (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
+    RELEASE_LOG_IF_ALLOWED("didBlockAuthenticationChallenge:");
 
     m_coreLoader->didBlockAuthenticationChallenge();
 }
@@ -286,7 +285,7 @@ void WebResourceLoader::didBlockAuthenticationChallenge()
 void WebResourceLoader::stopLoadingAfterXFrameOptionsOrContentSecurityPolicyDenied(const ResourceResponse& response)
 {
     LOG(Network, "(WebProcess) WebResourceLoader::stopLoadingAfterXFrameOptionsOrContentSecurityPolicyDenied for '%s'", m_coreLoader->url().string().latin1().data());
-    RELEASE_LOG_IF_ALLOWED("stopLoadingAfterXFrameOptionsOrContentSecurityPolicyDenied: (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
+    RELEASE_LOG_IF_ALLOWED("stopLoadingAfterXFrameOptionsOrContentSecurityPolicyDenied:");
 
     m_coreLoader->documentLoader()->stopLoadingAfterXFrameOptionsOrContentSecurityPolicyDenied(m_coreLoader->identifier(), response);
 }
@@ -295,13 +294,13 @@ void WebResourceLoader::stopLoadingAfterXFrameOptionsOrContentSecurityPolicyDeni
 void WebResourceLoader::didReceiveResource(const ShareableResource::Handle& handle)
 {
     LOG(Network, "(WebProcess) WebResourceLoader::didReceiveResource for '%s'", m_coreLoader->url().string().latin1().data());
-    RELEASE_LOG_IF_ALLOWED("didReceiveResource: (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
+    RELEASE_LOG_IF_ALLOWED("didReceiveResource:");
 
     RefPtr<SharedBuffer> buffer = handle.tryWrapInSharedBuffer();
 
     if (!buffer) {
         LOG_ERROR("Unable to create buffer from ShareableResource sent from the network process.");
-        RELEASE_LOG_IF_ALLOWED("didReceiveResource: Unable to create SharedBuffer (webPageID=%" PRIu64 ", frameID=%" PRIu64 ", resourceID=%" PRIu64 ")", m_trackingParameters.pageID.toUInt64(), m_trackingParameters.frameID.toUInt64(), m_trackingParameters.resourceID);
+        RELEASE_LOG_IF_ALLOWED("didReceiveResource: Unable to create SharedBuffer");
         if (auto* frame = m_coreLoader->frame()) {
             if (auto* page = frame->page())
                 page->diagnosticLoggingClient().logDiagnosticMessage(WebCore::DiagnosticLoggingKeys::internalErrorKey(), WebCore::DiagnosticLoggingKeys::createSharedBufferFailedKey(), WebCore::ShouldSample::No);

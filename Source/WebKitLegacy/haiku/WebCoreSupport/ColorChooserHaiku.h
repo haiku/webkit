@@ -69,29 +69,27 @@ public:
         BGroupView* group = new BGroupView(B_VERTICAL);
         group->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 
-        if (client.shouldShowSuggestions()) {
-            Vector<Color> colors = client.suggestedColors();
+        Vector<Color> colors = client.suggestedColors();
 
-            if (colors.size() > 0) {
-                BGroupView* swatches = new BGroupView(B_HORIZONTAL);
+        if (colors.size() > 0) {
+            BGroupView* swatches = new BGroupView(B_HORIZONTAL);
 
-                for(Color c: colors) {
-                    BButton* v = new ColorSwatch(c);
-                    swatches->AddChild(v);
-                }
-
-                group->AddChild(swatches);
+            for(Color c: colors) {
+                BButton* v = new ColorSwatch(c);
+                swatches->AddChild(v);
             }
+
+            group->AddChild(swatches);
         }
 
         control = new BColorControl(B_ORIGIN, B_CELLS_32x8, 8, "picker",
             new BMessage('chng'));
-        control->SetValue(m_client.currentColor());
+        control->SetValue(make_color(255, 255, 255));
 
         BButton* ok = new BButton("ok", "Done", new BMessage('done'));
         BButton* cancel = new BButton("cancel", "Cancel", new BMessage('canc'));
 
-        m_preview = new ColorSwatch(m_client.currentColor());
+        m_preview = new ColorSwatch(make_color(255, 255, 255));
 
         BGroupLayoutBuilder(group)
             .SetInsets(5, 5, 5, 5)

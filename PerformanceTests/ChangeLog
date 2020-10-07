@@ -1,3 +1,526 @@
+2020-07-30  Jer Noble  <jer.noble@apple.com>
+
+        [Cocoa] Make DecoderTest run against .mp4 files; add rate-limiting.
+        https://bugs.webkit.org/show_bug.cgi?id=214807
+
+        Reviewed by Darin Adler.
+
+        Look up the UTI type of the specified file, and create the appropriate SourceBufferParser
+        by passing in the ContentType (converted from UTI). Also, add a --rate-limit flag which
+        causes the decompression session to run at the same FPS as the underlying media.
+
+        * DecoderTest/DecoderTest.xcodeproj/project.pbxproj:
+        * DecoderTest/DecoderTest/main.mm:
+        (main):
+
+2020-07-24  Jer Noble  <jer.noble@apple.com>
+
+        [Cocoa] Add PerformanceTest tool for measuring raw speed of a video decoder
+        https://bugs.webkit.org/show_bug.cgi?id=214723
+
+        Reviewed by Darin Adler.
+
+        * DecoderTest/Configurations/Base.xcconfig: Added.
+        * DecoderTest/Configurations/DebugRelease.xcconfig: Added.
+        * DecoderTest/Configurations/DecoderTest.xcconfig: Added.
+        * DecoderTest/DecoderTest.xcodeproj/project.pbxproj: Added.
+        * DecoderTest/DecoderTest/main.mm: Added.
+        (Function<void):
+        (main):
+        * DecoderTest/Makefile: Added.
+        * Makefile.shared: Added.
+
+2020-07-22  Conrad Shultz  <conrad_shultz@apple.com>
+
+        Update macOS Version macros
+        https://bugs.webkit.org/show_bug.cgi?id=214653
+
+        Reviewed by Tim Horton.
+
+        * MediaTime/Configurations/Base.xcconfig:
+        * MediaTime/Configurations/DebugRelease.xcconfig:
+
+2020-07-06  Philippe Normand  <pnormand@igalia.com>
+
+        MallocBench: Remove unused private field
+        https://bugs.webkit.org/show_bug.cgi?id=213989
+
+        Reviewed by Alex Christensen.
+
+        The m_argc private field is never used. Remove it.
+        
+        * MallocBench/MallocBench/CommandLine.cpp:
+        * MallocBench/MallocBench/CommandLine.h:
+
+2020-07-01  Saam Barati  <sbarati@apple.com>
+
+        Make it so JetStream2 can run with the d8 shell
+        https://bugs.webkit.org/show_bug.cgi?id=213856
+
+        Reviewed by Keith Miller.
+
+        We use d8's Realm API to create separate global objects for
+        each test to run in.
+
+        * JetStream2/JetStreamDriver.js:
+        (Driver.prototype.runCode.globalObject.loadString):
+        (Driver.prototype.runCode):
+        (prototype.async run):
+        * JetStream2/cli.js:
+        * JetStream2/index.html:
+
+2020-06-29  Tadeu Zagallo  <tzagallo@apple.com>
+
+        New API benchmark
+        https://bugs.webkit.org/show_bug.cgi?id=213750
+
+        Reviewed by Saam Barati.
+
+        APIBench is a new benchmark suite to measure the performance of the JavaScriptCore API. It has 4 benchmarks:
+        - RichardsJS: This is imported from Octane and used as a reference so we know how fast the pure JS implementation runs.
+        - RichardsSwift: a Swift port of the benchmark, also used as reference for how fast the pure Swift implementation is.
+        - RichardsMostlyJS: As the name suggests, mostly the same the as the JS benchmark, but here the WorkerTask
+          is implemented in Swift. The API is used to write to the packet being processed and talking to the scheduler.
+        - RichardsMostlySwift: inverse of the above. Mostly the same code from the Swift benchark, but here the WorkerTask is
+          implemented in JavaScript. The API is used to run the JS version of the task and marshaling the Packet by using JSExport.
+
+        The benchmark can be built and run using the api-bench script, as following:
+
+        PerformanceTests/APIBench/api-bench WebKitBuild/Release
+
+        By default, it will build each of the benchmarks and run 5 iterations.
+        The score is calculated as 5000 / geomean([avg of RichardsMostlySwift, avg of RichardsMostlyJS]).
+        The script prints the average for the references and tests and the final score:
+
+        Results for /Volumes/Data/wk2/OpenSource/WebKitBuild/Release (5 iterations)
+        ================================================================================
+
+        References:
+        ----------------------------------------
+        RichardsJS: 14ms
+        RichardsSwift: 29ms
+
+        Tests:
+        ----------------------------------------
+        RichardsMostlyJS: 218ms
+        RichardsMostlySwift: 315ms
+
+        Score: 19.0804
+
+        * APIBench/RichardsJS/RichardsJS.js: Added.
+        (runRichards):
+        (Scheduler):
+        (Scheduler.prototype.addIdleTask):
+        (Scheduler.prototype.addWorkerTask):
+        (Scheduler.prototype.addHandlerTask):
+        (Scheduler.prototype.addDeviceTask):
+        (Scheduler.prototype.addRunningTask):
+        (Scheduler.prototype.addTask):
+        (Scheduler.prototype.schedule):
+        (Scheduler.prototype.release):
+        (Scheduler.prototype.holdCurrent):
+        (Scheduler.prototype.suspendCurrent):
+        (Scheduler.prototype.queue):
+        (TaskControlBlock):
+        (TaskControlBlock.prototype.setRunning):
+        (TaskControlBlock.prototype.markAsNotHeld):
+        (TaskControlBlock.prototype.markAsHeld):
+        (TaskControlBlock.prototype.isHeldOrSuspended):
+        (TaskControlBlock.prototype.markAsSuspended):
+        (TaskControlBlock.prototype.markAsRunnable):
+        (TaskControlBlock.prototype.run):
+        (TaskControlBlock.prototype.checkPriorityAdd):
+        (TaskControlBlock.prototype.toString):
+        (IdleTask):
+        (IdleTask.prototype.run):
+        (IdleTask.prototype.toString):
+        (DeviceTask):
+        (DeviceTask.prototype.run):
+        (DeviceTask.prototype.toString):
+        (WorkerTask):
+        (WorkerTask.prototype.run):
+        (WorkerTask.prototype.toString):
+        (HandlerTask):
+        (HandlerTask.prototype.run):
+        (HandlerTask.prototype.toString):
+        (Packet):
+        (Packet.prototype.addTo):
+        (Packet.prototype.toString):
+        * APIBench/RichardsMostlyJS/RichardsMostlyJS.xcodeproj/project.pbxproj: Added.
+        * APIBench/RichardsMostlyJS/RichardsMostlyJS.xcodeproj/xcshareddata/xcschemes/RichardsMostlyJS.xcscheme: Added.
+        * APIBench/RichardsMostlyJS/RichardsMostlyJS/main.swift: Added.
+        (run(_:)):
+        (toString):
+        (WorkerTask.toString):
+        (WorkerTask.run(_:)):
+        * APIBench/RichardsMostlyJS/RichardsMostlyJS/richards.js: Added.
+        (runRichards):
+        (Scheduler):
+        (Scheduler.prototype.addIdleTask):
+        (Scheduler.prototype.addWorkerTask):
+        (Scheduler.prototype.addHandlerTask):
+        (Scheduler.prototype.addDeviceTask):
+        (Scheduler.prototype.addRunningTask):
+        (Scheduler.prototype.addTask):
+        (Scheduler.prototype.schedule):
+        (Scheduler.prototype.release):
+        (Scheduler.prototype.holdCurrent):
+        (Scheduler.prototype.suspendCurrent):
+        (Scheduler.prototype.queue):
+        (TaskControlBlock):
+        (TaskControlBlock.prototype.setRunning):
+        (TaskControlBlock.prototype.markAsNotHeld):
+        (TaskControlBlock.prototype.markAsHeld):
+        (TaskControlBlock.prototype.isHeldOrSuspended):
+        (TaskControlBlock.prototype.markAsSuspended):
+        (TaskControlBlock.prototype.markAsRunnable):
+        (TaskControlBlock.prototype.run):
+        (TaskControlBlock.prototype.checkPriorityAdd):
+        (TaskControlBlock.prototype.toString):
+        (IdleTask):
+        (IdleTask.prototype.run):
+        (IdleTask.prototype.toString):
+        (DeviceTask):
+        (DeviceTask.prototype.run):
+        (DeviceTask.prototype.toString):
+        (HandlerTask):
+        (HandlerTask.prototype.run):
+        (HandlerTask.prototype.toString):
+        (Packet):
+        (Packet.prototype.addTo):
+        (Packet.prototype.toString):
+        * APIBench/RichardsMostlySwift/RichardsMostlySwift.xcodeproj/project.pbxproj: Added.
+        * APIBench/RichardsMostlySwift/RichardsMostlySwift.xcodeproj/xcshareddata/xcschemes/RichardsMostlySwift.xcscheme: Added.
+        * APIBench/RichardsMostlySwift/RichardsMostlySwift/DeviceTask.swift: Added.
+        (DeviceTask.create(_:device:priority:)):
+        (DeviceTask.run(_:)):
+        * APIBench/RichardsMostlySwift/RichardsMostlySwift/HandlerTask.swift: Added.
+        (HandlerTask.device):
+        (HandlerTask.create(_:device:priority:queue:)):
+        (HandlerTask.run(_:)):
+        * APIBench/RichardsMostlySwift/RichardsMostlySwift/IdleTask.swift: Added.
+        (IdleTask.create(_:priority:)):
+        (IdleTask.run(_:)):
+        * APIBench/RichardsMostlySwift/RichardsMostlySwift/Packet.swift: Added.
+        (Packet.addTo(_:)):
+        * APIBench/RichardsMostlySwift/RichardsMostlySwift/Scheduler.swift: Added.
+        (waitCurrent):
+        (handle(_:)):
+        (Scheduler.schedule):
+        (Scheduler.add(_:)):
+        (Scheduler.release_(_:)):
+        (holdCurrent):
+        (queue(_:)):
+        (queueImpl(_:packet:)):
+        * APIBench/RichardsMostlySwift/RichardsMostlySwift/Task.swift: Added.
+        (Task.run(_:)):
+        (Task.release_):
+        (Task.hold):
+        (Task.wait):
+        (Task.resume):
+        (Task.takePacket):
+        (Task.checkPriorityAdd(_:packet:)):
+        * APIBench/RichardsMostlySwift/RichardsMostlySwift/WorkerTask.swift: Added.
+        (WorkerTask.create(_:priority:queue:)):
+        (WorkerTask.run(_:)):
+        * APIBench/RichardsMostlySwift/RichardsMostlySwift/main.swift: Added.
+        * APIBench/RichardsMostlySwift/RichardsMostlySwift/richards.js: Added.
+        (return.prototype.run):
+        * APIBench/RichardsMostlySwift/RichardsMostlySwift/richards.swift: Added.
+        (runRichards):
+        * APIBench/RichardsSwift/RichardsSwift.xcodeproj/project.pbxproj: Added.
+        * APIBench/RichardsSwift/RichardsSwift.xcodeproj/xcshareddata/xcschemes/RichardsSwift.xcscheme: Added.
+        * APIBench/RichardsSwift/RichardsSwift/DeviceTask.swift: Added.
+        (DeviceTask.create(_:device:priority:)):
+        (DeviceTask.run(_:)):
+        * APIBench/RichardsSwift/RichardsSwift/HandlerTask.swift: Added.
+        (HandlerTask.device):
+        (HandlerTask.create(_:device:priority:queue:)):
+        (HandlerTask.run(_:)):
+        * APIBench/RichardsSwift/RichardsSwift/IdleTask.swift: Added.
+        (IdleTask.create(_:priority:)):
+        (IdleTask.run(_:)):
+        * APIBench/RichardsSwift/RichardsSwift/Packet.swift: Added.
+        (Packet.addTo(_:)):
+        * APIBench/RichardsSwift/RichardsSwift/Scheduler.swift: Added.
+        (Scheduler.schedule):
+        (Scheduler.add(_:)):
+        (Scheduler.release(_:)):
+        (holdCurrent):
+        (waitCurrent):
+        (queue(_:)):
+        (handle(_:)):
+        (queueImpl(_:packet:)):
+        * APIBench/RichardsSwift/RichardsSwift/Task.swift: Added.
+        (Task.run(_:)):
+        (Task.release):
+        (Task.hold):
+        (Task.wait):
+        (Task.resume):
+        (Task.takePacket):
+        (Task.checkPriorityAdd(_:packet:)):
+        * APIBench/RichardsSwift/RichardsSwift/WorkerTask.swift: Added.
+        (WorkerTask.create(_:priority:queue:)):
+        (WorkerTask.run(_:)):
+        * APIBench/RichardsSwift/RichardsSwift/main.swift: Added.
+        * APIBench/RichardsSwift/RichardsSwift/richards.swift: Added.
+        (runRichards):
+        * APIBench/api-bench: Added.
+
+2020-05-09  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Use WEBKIT_EXECUTABLE in MallocBench
+        https://bugs.webkit.org/show_bug.cgi?id=211665
+
+        Reviewed by Yusuke Suzuki.
+
+        Cleanup MallocBench definitions using WEBKIT_EXECUTABLE. Notify developers
+        that MallocBench is unavailable only if bmalloc is being used but the platform
+        does not have the functionality required.
+
+        * CMakeLists.txt:
+        * MallocBench/MallocBench/CMakeLists.txt:
+
+2020-05-08  Darin Adler  <darin@apple.com>
+
+        Remove no-longer-used PerformanceTests/StitchMarker
+        https://bugs.webkit.org/show_bug.cgi?id=211639
+
+        Reviewed by Ryosuke Niwa.
+
+        Having this test around can be confusing since it contains old versions
+        of many WebKit source files, which will show up when searching the source
+        tree. And since we're not using it, we don't need to keep a copy of it
+        in the tip of tree in the repository.
+
+        * StitchMarker: Removed.
+
+2020-04-24  Jon Lee  <jonlee@apple.com>
+
+        MotionMark: add link to bug in about page
+
+        Unreviewed.
+
+        * MotionMark/about.html:
+
+2020-04-24  Jon Lee  <jonlee@apple.com>
+
+        MotionMark: ensure that timestamps are valid during warm up phase of tests
+        https://bugs.webkit.org/show_bug.cgi?id=210640
+
+        Reviewed by Said Abou-Hallawa.
+
+        Ensure that Benchmark._benchmarkStartTimestamp is set during warm up phase.
+        Otherwise it is NaN, which makes the Benchmark.timestamp invalid, which is
+        used by tests like Multiply to drive the animation. When the warm up phase
+        completes, the start timestamp is reset.
+
+        Update minor version of benchmark with this bug fix, and include
+        version changelog in the about page.
+
+        For testing, add a parameter that allows for adjusting the length of the
+        warm up phase. It remains at its current default, 100 ms.
+
+        * MotionMark/about.html: Add section of version changelog. Includes links
+        to webkit.org blog posts.
+        * MotionMark/developer.html: Add parameter for setting warmup length.
+        Remove the Kalman filter parameters, since they should always be fixed.
+        * MotionMark/resources/runner/motionmark.css: Include styles to show
+        version log.
+        * MotionMark/resources/runner/motionmark.js: Factor out default options to
+        a property on window.benchmarkController. Include the default warmup length
+        of 100 ms.
+        (window.benchmarkController.startBenchmark): Refactor to use benchmarkDefaultParameters.
+        * MotionMark/resources/debug-runner/motionmark.js: Ditto.
+        * MotionMark/resources/strings.js: Update version number.
+        * MotionMark/tests/resources/main.js:
+        (_animateLoop): Set _benchmarkTimestamp during the warmup phase. Check the
+        warmup length. The _benchmarkTimestamp variable remains reset when the test
+        begins.
+
+2020-04-07  Saam Barati  <sbarati@apple.com>
+
+        RAMification should have a way of gathering vmmaps for each test at the end of each run
+        https://bugs.webkit.org/show_bug.cgi?id=210060
+
+        Reviewed by Yusuke Suzuki.
+
+        When I was debugging a memory issue, I needed to gather vmmaps for each
+        RAMification subtest. This patch is checking in the code I wrote to be able
+        to do this. It works by:
+        - Passing in an argument to RAMification saying we want vmmaps at the end of
+        each subtest run.
+        - RAMification invokes jsc with an environment variable that tells the shell
+        to wait for one character of input from stdin before exiting.
+        - The jsc shell also disables the bmalloc scavenger while waiting for input so the
+        vmmap we take from the python runner script represents the "footprint" score
+        of the benchmark. If the scavenger ran, it would end up releasing too much
+        memory for the vmmap to be useful.
+        - The python script runs a vmmap, and then communicates to the jsc process
+        when the vmmap finishes running.
+
+        * JetStream2/RAMification.py:
+        (parseArgs):
+        (BaseRunner.__init__):
+        (BaseRunner.getResults):
+        (LocalRunner.runOneTest):
+        (main):
+        (main.runTestList):
+
+2020-04-06  Saam Barati  <sbarati@apple.com>
+
+        Implement 1GB of executable memory on arm64
+        https://bugs.webkit.org/show_bug.cgi?id=208490
+        <rdar://problem/60797127>
+
+        Reviewed by Keith Miller.
+
+        * JetStream2/JetStreamDriver.js:
+        (Driver.prototype.dumpJSONResultsIfNeeded):
+        (DefaultBenchmark.prototype.updateUIAfterRun):
+        (DefaultBenchmark):
+        (WSLBenchmark.prototype.updateUIAfterRun):
+        (WSLBenchmark):
+        (WasmBenchmark.prototype.updateUIAfterRun):
+        (WasmBenchmark):
+        (Driver.async fetchResources.statusElement.innerHTML.a.href.string_appeared_here):
+        (Driver.prototype.async fetchResources):
+
+2020-03-26  Saam Barati  <sbarati@apple.com>
+
+        Make it so RAMification can be run with python 3 and 2 and that it recognizes the new JavaScriptCore.framework directory structure
+        https://bugs.webkit.org/show_bug.cgi?id=209636
+
+        Reviewed by Yusuke Suzuki.
+
+        - JavaScriptCore builds now put the jsc shell under JavaScriptCore.framework/Helpers/jsc,
+          not JavaScriptCore.framework/Resources/jsc
+        - It's also helpful to be able to run RAMification with python3.7 and 2.7,
+          since there are some contexts where 3.7 is all we have.
+
+        * JetStream2/RAMification.py:
+        (frameworkPathFromExecutablePath):
+        (BaseRunner.processLine):
+        (LocalRunner.runOneTest):
+        (main.runTestList):
+        (main):
+
+2020-03-15  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Should not use variable-length-array (VLA)
+        https://bugs.webkit.org/show_bug.cgi?id=209043
+
+        Reviewed by Mark Lam.
+
+        * MediaTime/Configurations/Base.xcconfig:
+
+2020-02-17  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Use builtin targets
+        https://bugs.webkit.org/show_bug.cgi?id=205166
+
+        Reviewed by Darin Adler.
+
+        * MallocBench/MallocBench/CMakeLists.txt:
+
+2020-01-28  Sihui Liu  <sihui_liu@apple.com>
+
+        IndexedDB: speed up index records deletion
+        https://bugs.webkit.org/show_bug.cgi?id=206196
+
+        Reviewed by Brady Eidson.
+
+        * IndexedDB/basic/index-cursor-delete-2.html: Added.
+
+2020-01-08  Sihui Liu  <sihui_liu@apple.com>
+
+        REGRESSION (r242911?): High Sierra Release WK2 Perf bot timing out while running IndexedDB/large-number-of-inserts.html
+        https://bugs.webkit.org/show_bug.cgi?id=195952
+        <rdar://problem/49137688>
+
+        Re-enable the test after recent IDB performance improvement.
+
+        Reviewed by Alexey Proskuryakov.
+
+        * Skipped:
+
+2020-01-07  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK][WPE] Add API to set purpose and hints of active editable element to input methods
+        https://bugs.webkit.org/show_bug.cgi?id=205605
+
+        Reviewed by Žan Doberšek.
+
+        Split ENABLE_IOS_AUTOCORRECT_AND_AUTOCAPITALIZE and remove the IOS prefix.
+
+        * StitchMarker/wtf/FeatureDefines.h:
+
+2020-01-06  Mark Lam  <mark.lam@apple.com>
+
+        Convert ASSERT_DISABLED to ASSERT_ENABLED, and fix some tests of NDEBUG that should actually test for ASSERT_ENABLED.
+        https://bugs.webkit.org/show_bug.cgi?id=205776
+
+        Reviewed by Saam Barati.
+
+        * JetStream2/wasm/HashSet.cpp:
+        * StitchMarker/wtf/Assertions.h:
+        * StitchMarker/wtf/DateMath.cpp:
+        (WTF::initializeDates):
+        * StitchMarker/wtf/HashTable.h:
+        * StitchMarker/wtf/Hasher.h:
+        (WTF::StringHasher::addCharacters):
+        * StitchMarker/wtf/NeverDestroyed.h:
+        (WTF::LazyNeverDestroyed::construct):
+        * StitchMarker/wtf/StackBounds.h:
+        (WTF::StackBounds::checkConsistency const):
+        * StitchMarker/wtf/ValueCheck.h:
+        * StitchMarker/wtf/Vector.h:
+        (WTF::minCapacity>::checkConsistency):
+        * StitchMarker/wtf/text/AtomicStringImpl.cpp:
+        * StitchMarker/wtf/text/AtomicStringImpl.h:
+        * StitchMarker/wtf/text/StringCommon.h:
+        (WTF::hasPrefixWithLettersIgnoringASCIICaseCommon):
+        * StitchMarker/wtf/text/StringImpl.h:
+        * StitchMarker/wtf/text/SymbolImpl.h:
+        * StitchMarker/wtf/text/UniquedStringImpl.h:
+
+2020-01-05  Dean Jackson  <dino@apple.com>
+
+        Rename GraphicsContext3D to GraphicsContextGL
+        https://bugs.webkit.org/show_bug.cgi?id=205778
+        <rdar://problem/58327597>
+
+        Reviewed by Sam Weinig.
+
+        Rename all the GraphicsContext3D things to GraphicsContextGL
+        (includes Extensions3D and GRAPHICS_CONTEXT_3D).
+
+        GraphicsContext3DBase now becomes GraphicsContextGL.
+        GraphicsContext3D is now GraphicsContextGLOpenGL (since it represents
+        the OpenGL implementation of the API).
+
+        * StitchMarker/wtf/FeatureDefines.h:
+        * StitchMarker/wtf/Platform.h:
+
+2019-12-16  Antti Koivisto  <antti@apple.com>
+
+        Add StyleBench subtest for dynamic media query performance
+        https://bugs.webkit.org/show_bug.cgi?id=205263
+
+        Reviewed by Zalan Bujtas.
+
+        Add a subtest that contains a small number of rules inside min/max-width media queries.
+        The test is executed by resizing the test frame to various widths.
+
+        * StyleBench/index.html:
+        * StyleBench/resources/style-bench.js:
+        (Random.prototype.chance):
+        (defaultConfiguration):
+        (mediaQueryConfiguration):
+        (predefinedConfigurations):
+        * StyleBench/resources/tests.js:
+        (makeSteps):
+
 2019-10-26  Chris Lord  <clord@igalia.com>
 
         Put OffscreenCanvas behind a build flag
@@ -585,7 +1108,7 @@
 
         Reviewed by Ryosuke Niwa.
 
-        r240358 sets default IDB quota as 50 MB for single test, we need to increase that for big tests. 
+        r240358 sets default IDB quota as 50 MB for single test, we need to increase that for big tests.
 
         * IndexedDB/large-binary-keys.html:
         * IndexedDB/large-string-keys.html:
@@ -920,7 +1443,7 @@
         - Web Tooling Benchmark
         - WasmBench
         - RexBench
-        
+
         JetStream 2 also adds some new benchmarks:
         - Two tests emphasizing web worker performance.
         - One test emphasizing Promise, async iteration, and DataView performance.

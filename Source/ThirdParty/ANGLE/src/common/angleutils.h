@@ -183,6 +183,13 @@ std::string ToString(const T &value)
     return o.str();
 }
 
+inline bool IsLittleEndian()
+{
+    constexpr uint32_t kEndiannessTest = 1;
+    const bool isLittleEndian          = *reinterpret_cast<const uint8_t *>(&kEndiannessTest) == 1;
+    return isLittleEndian;
+}
+
 // snprintf is not defined with MSVC prior to to msvc14
 #if defined(_MSC_VER) && _MSC_VER < 1900
 #    define snprintf _snprintf
@@ -196,6 +203,7 @@ std::string ToString(const T &value)
 #define GL_INT_64_ANGLEX 0x6ABE
 #define GL_UINT_64_ANGLEX 0x6ABF
 #define GL_BGRA8_SRGB_ANGLEX 0x6AC0
+#define GL_BGR10_A2_ANGLEX 0x6AF9
 
 // These are dummy formats used to fit typeless D3D textures that can be bound to EGL pbuffers into
 // the format system (for extension EGL_ANGLE_d3d_texture_client_buffer):

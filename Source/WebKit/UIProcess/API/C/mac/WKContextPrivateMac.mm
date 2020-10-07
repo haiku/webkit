@@ -38,8 +38,8 @@
 #import "WKSharedAPICast.h"
 #import "WKStringCF.h"
 #import "WebProcessPool.h"
-#import <WebCore/PluginBlacklist.h>
-#import <WebCore/WebGLBlacklist.h>
+#import <WebCore/PluginBlocklist.h>
+#import <WebCore/WebGLBlocklist.h>
 #import <wtf/RetainPtr.h>
 
 bool WKContextIsPlugInUpdateAvailable(WKContextRef contextRef, WKStringRef plugInBundleIdentifierRef)
@@ -47,7 +47,7 @@ bool WKContextIsPlugInUpdateAvailable(WKContextRef contextRef, WKStringRef plugI
 #if PLATFORM(IOS_FAMILY)
     return false;
 #else
-    return WebCore::PluginBlacklist::isPluginUpdateAvailable((__bridge NSString *)adoptCF(WKStringCopyCFString(kCFAllocatorDefault, plugInBundleIdentifierRef)).get());
+    return WebCore::PluginBlocklist::isPluginUpdateAvailable((__bridge NSString *)adoptCF(WKStringCopyCFString(kCFAllocatorDefault, plugInBundleIdentifierRef)).get());
 #endif
 }
 
@@ -101,14 +101,12 @@ void WKContextGetInfoForInstalledPlugIns(WKContextRef contextRef, WKContextGetIn
 #endif
 }
 
-void WKContextResetHSTSHosts(WKContextRef context)
+void WKContextResetHSTSHosts(WKContextRef)
 {
-    return WebKit::toImpl(context)->resetHSTSHosts();
 }
 
-void WKContextResetHSTSHostsAddedAfterDate(WKContextRef context, double startDateIntervalSince1970)
+void WKContextResetHSTSHostsAddedAfterDate(WKContextRef, double)
 {
-    return WebKit::toImpl(context)->resetHSTSHostsAddedAfterDate(startDateIntervalSince1970);
 }
 
 void WKContextRegisterSchemeForCustomProtocol(WKContextRef context, WKStringRef scheme)
@@ -156,7 +154,7 @@ WKStringRef WKPlugInInfoIsSandboxedKey()
 bool WKContextShouldBlockWebGL()
 {
 #if PLATFORM(MAC)
-    return WebCore::WebGLBlacklist::shouldBlockWebGL();
+    return WebCore::WebGLBlocklist::shouldBlockWebGL();
 #else
     return false;
 #endif
@@ -165,7 +163,7 @@ bool WKContextShouldBlockWebGL()
 bool WKContextShouldSuggestBlockWebGL()
 {
 #if PLATFORM(MAC)
-    return WebCore::WebGLBlacklist::shouldSuggestBlockingWebGL();
+    return WebCore::WebGLBlocklist::shouldSuggestBlockingWebGL();
 #else
     return false;
 #endif

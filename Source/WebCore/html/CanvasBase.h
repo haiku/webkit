@@ -65,8 +65,8 @@ public:
     virtual bool isOffscreenCanvas() const { return false; }
     virtual bool isCustomPaintCanvas() const { return false; }
 
-    unsigned width() const { return m_size.width(); }
-    unsigned height() const { return m_size.height(); }
+    virtual unsigned width() const { return m_size.width(); }
+    virtual unsigned height() const { return m_size.height(); }
     const IntSize& size() const { return m_size; }
 
     ImageBuffer* buffer() const;
@@ -101,6 +101,8 @@ public:
     virtual void didDraw(const FloatRect&) = 0;
 
     virtual Image* copiedImage() const = 0;
+    virtual void clearCopiedImage() const = 0;
+
     bool callTracingActive() const;
 
 protected:
@@ -110,7 +112,7 @@ protected:
 
     virtual void setSize(const IntSize& size) { m_size = size; }
 
-    void setImageBuffer(std::unique_ptr<ImageBuffer>&&) const;
+    std::unique_ptr<ImageBuffer> setImageBuffer(std::unique_ptr<ImageBuffer>&&) const;
     virtual bool hasCreatedImageBuffer() const { return false; }
     static size_t activePixelMemory();
 
@@ -126,7 +128,7 @@ private:
     mutable std::unique_ptr<GraphicsContextStateSaver> m_contextStateSaver;
 
     bool m_originClean { true };
-#ifndef NDEBUG
+#if ASSERT_ENABLED
     bool m_didNotifyObserversCanvasDestroyed { false };
 #endif
     HashSet<CanvasObserver*> m_observers;

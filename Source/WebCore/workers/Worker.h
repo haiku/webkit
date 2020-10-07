@@ -29,8 +29,8 @@
 #include "ActiveDOMObject.h"
 #include "ContentSecurityPolicyResponseHeaders.h"
 #include "EventTarget.h"
-#include "GenericEventQueue.h"
 #include "MessagePort.h"
+#include "PostMessageOptions.h"
 #include "WorkerScriptLoaderClient.h"
 #include <JavaScriptCore/RuntimeFlags.h>
 #include <wtf/MonotonicTime.h>
@@ -58,22 +58,20 @@ public:
     static ExceptionOr<Ref<Worker>> create(ScriptExecutionContext&, JSC::RuntimeFlags, const String& url, const Options&);
     virtual ~Worker();
 
-    ExceptionOr<void> postMessage(JSC::JSGlobalObject&, JSC::JSValue message, Vector<JSC::Strong<JSC::JSObject>>&&);
+    ExceptionOr<void> postMessage(JSC::JSGlobalObject&, JSC::JSValue message, PostMessageOptions&&);
 
     void terminate();
-
-    bool hasPendingActivity() const final;
+    bool wasTerminated() const { return m_wasTerminated; }
 
     String identifier() const { return m_identifier; }
+    const String& name() const { return m_name; }
 
     ScriptExecutionContext* scriptExecutionContext() const final { return ActiveDOMObject::scriptExecutionContext(); }
 
-    void enqueueEvent(Ref<Event>&&);
+    void dispatchEvent(Event&) final;
 
 private:
     explicit Worker(ScriptExecutionContext&, JSC::RuntimeFlags, const Options&);
-
-    void dispatchEvent(Event&) final;
 
     EventTargetInterface eventTargetInterface() const final { return WorkerEventTargetInterfaceType; }
 
@@ -82,10 +80,12 @@ private:
     void didReceiveResponse(unsigned long identifier, const ResourceResponse&) final;
     void notifyFinished() final;
 
+    // ActiveDOMObject.
     void stop() final;
     void suspend(ReasonForSuspension) final;
     void resume() final;
     const char* activeDOMObjectName() const final;
+    bool virtualHasPendingActivity() const final;
 
     static void networkStateChanged(bool isOnLine);
 
@@ -98,7 +98,8 @@ private:
     bool m_shouldBypassMainWorldContentSecurityPolicy { false };
     bool m_isSuspendedForBackForwardCache { false };
     JSC::RuntimeFlags m_runtimeFlags;
-    UniqueRef<GenericEventQueue> m_eventQueue;
+    Deque<RefPtr<Event>> m_pendingEvents;
+    bool m_wasTerminated { false };
 };
 
 } // namespace WebCore

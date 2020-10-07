@@ -39,14 +39,12 @@ import sys
 import urllib
 
 from datetime import datetime  # used in timestamp()
+from webkitcorepy import BytesIO, StringIO, string_utils, unicode
 
-from webkitpy.common.unicode_compatibility import BytesIO, StringIO, unicode
-from webkitpy.common.net.bugzilla.attachment import Attachment
 from webkitpy.common.net.bugzilla.bug import Bug
 
 from webkitpy.common.config import committers
 import webkitpy.common.config.urls as config_urls
-from webkitpy.common.net.bugzilla.constants import BUGZILLA_DATE_FORMAT
 from webkitpy.common.net.credentials import Credentials
 from webkitpy.common.net.networktransaction import NetworkTransaction
 from webkitpy.common.system.user import User
@@ -141,11 +139,11 @@ class BugzillaQueries(object):
 
     # This is kinda a hack.  There is probably a better way to get this information from bugzilla.
     def _parse_result_count(self, results_page):
-        result_count_text = BeautifulSoup(results_page).find(attrs={'class': 'bz_result_count'}).string
-        if result_count_text is None:
+        result_count_text = BeautifulSoup(results_page).find(attrs={'class': 'bz_result_count'})
+        if result_count_text is None or result_count_text.string is None:
             _log.warn("BeautifulSoup returned None while finding class: bz_result_count in:\n{}".format(results_page))
             return 0
-        result_count_parts = result_count_text.strip().split(" ")
+        result_count_parts = result_count_text.string.strip().split(" ")
         if result_count_parts[0] == "Zarro":
             return 0
         if result_count_parts[0] == "One":
@@ -280,10 +278,8 @@ class BugzillaQueries(object):
 
     # NOTE: This is the only client of _fetch_attachment_ids_request_query
     # This method only makes one request to bugzilla.
-    def fetch_attachment_ids_from_review_queue(self, since=None, only_security_bugs=False):
+    def fetch_attachment_ids_from_review_queue(self, since=None):
         review_queue_url = "request.cgi?action=queue&type=review&group=type"
-        if only_security_bugs:
-            review_queue_url += '&product=Security'
         return self._fetch_attachment_ids_request_query(review_queue_url, since)
 
     # This only works if your account has edituser privileges.
@@ -298,7 +294,7 @@ class BugzillaQueries(object):
     def is_invalid_bugzilla_email(self, search_string):
         review_queue_url = "request.cgi?action=queue&requester=%s&product=&type=review&requestee=&component=&group=requestee" % urllib.quote(search_string)
         results_page = self._load_query(review_queue_url)
-        return bool(re.search("did not match anything", results_page.read()))
+        return bool(re.search('did not match anything', string_utils.decode(results_page.read(), target_type=str)))
 
 
 class CommitQueueFlag(object):
@@ -308,6 +304,8 @@ class CommitQueueFlag(object):
 
 
 class Bugzilla(object):
+    NO_EDIT_BUGS_MESSAGE = "Ignore this message if you don't have EditBugs privileges (https://bugs.webkit.org/userprefs.cgi?tab=permissions)"
+
     def __init__(self, committers=committers.CommitterList()):
         self.authenticated = False
         self.queries = BugzillaQueries(self)
@@ -403,6 +401,12 @@ class Bugzilla(object):
         # convert from NavigableString to a real unicode() object using unicode().
         return unicode(soup.string)
 
+    # Example: 2010-01-20 14:31 PST
+    # FIXME: Some bugzilla dates seem to have seconds in them?
+    # Python does not support timezones out of the box.
+    # Assume that bugzilla always uses PST (which is true for bugs.webkit.org)
+    _bugzilla_date_format = "%Y-%m-%d %H:%M:%S"
+
     @classmethod
     def _parse_date(cls, date_string):
         (date, time, time_zone) = date_string.split(" ")
@@ -411,7 +415,7 @@ class Bugzilla(object):
             time += ':0'
         # Ignore the timezone because python doesn't understand timezones out of the box.
         date_string = "%s %s" % (date, time)
-        return datetime.strptime(date_string, BUGZILLA_DATE_FORMAT)
+        return datetime.strptime(date_string, cls._bugzilla_date_format)
 
     def _date_contents(self, soup):
         return self._parse_date(self._string_contents(soup))
@@ -453,10 +457,6 @@ class Bugzilla(object):
 
     def _parse_bug_dictionary_from_xml(self, page):
         soup = BeautifulStoneSoup(page, convertEntities=BeautifulStoneSoup.XML_ENTITIES)
-        bug_element = soup.find('bug')
-        if bug_element and bug_element.get('error', '') == 'NotPermitted':
-            _log.warning("You don't have permission to view this bug.")
-            return {}
         bug = {}
         bug["id"] = int(soup.find("bug_id").string)
         bug["title"] = self._string_contents(soup.find("short_desc"))
@@ -469,7 +469,6 @@ class Bugzilla(object):
         bug["cc_emails"] = [self._string_contents(element) for element in soup.findAll('cc')]
         bug["attachments"] = [self._parse_attachment_element(element, bug["id"]) for element in soup.findAll('attachment')]
         bug["comments"] = [self._parse_log_descr_element(element) for element in soup.findAll('long_desc')]
-        bug['groups'] = frozenset([self._string_contents(group) for group in soup.findAll('group')])
 
         return bug
 
@@ -491,10 +490,7 @@ class Bugzilla(object):
     # FIXME: A BugzillaCache object should provide all these fetch_ methods.
 
     def fetch_bug(self, bug_id):
-        bug_dictionary = self.fetch_bug_dictionary(bug_id)
-        if bug_dictionary:
-            return Bug(bug_dictionary, self)
-        return None
+        return Bug(self.fetch_bug_dictionary(bug_id), self)
 
     def fetch_attachment_contents(self, attachment_id):
         attachment_url = self.attachment_url_for_id(attachment_id)
@@ -503,58 +499,37 @@ class Bugzilla(object):
         self.authenticate()
         return self.open_url(attachment_url).read()
 
-    class AccessError(Exception):
-        NOT_PERMITTED = 1
-        OTHER = 2
-
-        def __init__(self, attachment_id, error_code, bug_title):
-            super(Bugzilla.AccessError, self).__init__('Failed to access {}'.format(attachment_id))
-            self.attachment_id = attachment_id
-            self.error_code = error_code
-            self.bug_title = bug_title
-
-    def _parse_bug_title_from_attachment_page(self, page):
-        return BeautifulSoup(page).find('div', attrs={'id': 'bug_title'})
-
     def _parse_bug_id_from_attachment_page(self, page):
         # The "Up" relation happens to point to the bug.
-        title = self._parse_bug_title_from_attachment_page(page)
+        title = BeautifulSoup(page).find('div', attrs={'id': 'bug_title'})
         if not title:
-            _log.warning("This attachment does not exist (or you don't have permission to view it).")
-            return (None, Bugzilla.AccessError.OTHER)
-        if title.getText() == 'Bug Access Denied':
-            _log.warning("You don't have permission to view this attachment.")
-            return (None, Bugzilla.AccessError.NOT_PERMITTED)
+            _log.warning("This attachment does not exist (or you don't have permissions to view it).")
+            return None
         match = re.search("show_bug.cgi\?id=(?P<bug_id>\d+)", str(title))
         if not match:
             _log.warning("Unable to parse bug id from attachment")
-            return (None, None)
-        return (int(match.group('bug_id')), None)
+            return None
+        return int(match.group('bug_id'))
 
-    def bug_id_for_attachment_id(self, attachment_id, throw_on_access_error=False):
-        return NetworkTransaction().run(lambda: self.get_bug_id_for_attachment_id(attachment_id, throw_on_access_error))
+    def bug_id_for_attachment_id(self, attachment_id):
+        return NetworkTransaction().run(lambda: self.get_bug_id_for_attachment_id(attachment_id))
 
-    def get_bug_id_for_attachment_id(self, attachment_id, throw_on_access_error=False):
+    def get_bug_id_for_attachment_id(self, attachment_id):
         self.authenticate()
 
         attachment_url = self.attachment_url_for_id(attachment_id, 'edit')
         _log.info("Fetching: %s" % attachment_url)
         page = self.open_url(attachment_url)
-        bug_id, error_code = self._parse_bug_id_from_attachment_page(page)
-        if bug_id:
-            return bug_id
-        if error_code is not None and throw_on_access_error:
-            raise Bugzilla.AccessError(attachment_id, error_code, str(self._parse_bug_title_from_attachment_page(page)))
-        return None
+        return self._parse_bug_id_from_attachment_page(page)
 
     # FIXME: This should just return Attachment(id), which should be able to
     # lazily fetch needed data.
 
-    def fetch_attachment(self, attachment_id, throw_on_access_error=False):
+    def fetch_attachment(self, attachment_id):
         # We could grab all the attachment details off of the attachment edit
         # page but we already have working code to do so off of the bugs page,
         # so re-use that.
-        bug_id = self.bug_id_for_attachment_id(attachment_id, throw_on_access_error)
+        bug_id = self.bug_id_for_attachment_id(attachment_id)
         if not bug_id:
             _log.warning("Unable to parse bug_id from attachment {}".format(attachment_id))
             return None
@@ -585,11 +560,11 @@ class Bugzilla(object):
             self.browser.find_control("Bugzilla_restrictlogin").items[0].selected = False
             response = self.browser.submit()
 
-            match = re.search("<title>(.+?)</title>", response.read())
+            match = re.search(b'<title>(.+?)</title>', response.read())
             # If the resulting page has a title, and it contains the word
             # "invalid" assume it's the login failure page.
-            if match and re.search("Invalid", match.group(1), re.IGNORECASE):
-                errorMessage = "Bugzilla login failed: %s" % match.group(1)
+            if match and re.search(b'Invalid', match.group(1), re.IGNORECASE):
+                errorMessage = "Bugzilla login failed: {}".format(string_utils.decode(match.group(1), target_type=str))
                 # raise an exception only if this was the last attempt
                 if attempts < 5:
                     _log.error(errorMessage)
@@ -624,9 +599,8 @@ class Bugzilla(object):
         self.browser['description'] = description
         if is_patch:
             self.browser['ispatch'] = ("1",)
-        # FIXME: Should this use self._find_select_element_for_flag?
-        self.browser['flag_type-1'] = ('?',) if mark_for_review else ('X',)
-        self.browser['flag_type-3'] = (self._commit_queue_flag(commit_flag),)
+        self._find_select_element_for_flag("review").value = ("?",) if mark_for_review else ("X",)
+        self._find_select_element_for_flag("commit-queue").value = (self._commit_queue_flag(commit_flag),)
 
         filename = filename or "%s.patch" % timestamp()
         if not mimetype:
@@ -665,6 +639,7 @@ class Bugzilla(object):
 
     @staticmethod
     def _parse_attachment_id_from_add_patch_to_bug_response(response_html):
+        response_html = string_utils.decode(response_html, target_type=str)
         match = re.search('<title>Attachment (?P<attachment_id>\d+) added to Bug \d+</title>', response_html)
         if match:
             return match.group('attachment_id')
@@ -708,8 +683,8 @@ class Bugzilla(object):
 
     # FIXME: There has to be a more concise way to write this method.
     def _check_create_bug_response(self, response_html):
-        match = re.search("<title>Bug (?P<bug_id>\d+) Submitted[^<]*</title>",
-                          response_html)
+        response_html = string_utils.decode(response_html, target_type=str)
+        match = re.search('<title>Bug (?P<bug_id>\d+) Submitted[^<]*</title>', response_html)
         if match:
             return match.group('bug_id')
 
@@ -719,12 +694,9 @@ class Bugzilla(object):
             re.DOTALL)
         error_message = "FAIL"
         if match:
-            text_lines = BeautifulSoup(
-                    match.group('error_message')).findAll(text=True)
-            error_message = "\n" + '\n'.join(
-                    ["  " + line.strip()
-                     for line in text_lines if line.strip()])
-        raise Exception("Bug not created: %s" % error_message)
+            text_lines = BeautifulSoup(match.group('error_message')).findAll(text=True)
+            error_message = "\n" + '\n'.join(["  " + line.strip() for line in text_lines if line.strip()])
+        raise Exception("Bug not created: {}".format(error_message))
 
     def create_bug(self,
                    bug_title,
@@ -784,12 +756,16 @@ class Bugzilla(object):
         return bug_id
 
     def _find_select_element_for_flag(self, flag_name):
-        # FIXME: This will break if we ever re-order attachment flags
         if flag_name == "review":
-            return self.browser.find_control(type='select', nr=0)
+            class_name = "flag_type-1"
         elif flag_name == "commit-queue":
-            return self.browser.find_control(type='select', nr=1)
-        raise Exception("Don't know how to find flag named \"%s\"" % flag_name)
+            class_name = "flag_type-3"
+        else:
+            raise Exception("Don't know how to find flag named \"%s\"" % flag_name)
+
+        return self.browser.find_control(
+            type="select",
+            predicate=lambda control: class_name in (control.attrs.get("class") or ""))
 
     def clear_attachment_flags(self,
                                attachment_id,
@@ -836,10 +812,16 @@ class Bugzilla(object):
         _log.info("Obsoleting attachment: %s" % attachment_id)
         self.open_url(self.attachment_url_for_id(attachment_id, 'edit'))
         self.browser.select_form(nr=1)
-        self.browser.find_control('isobsolete').items[0].selected = True
-        # Also clear any review flag (to remove it from review/commit queues)
-        self._find_select_element_for_flag('review').value = ("X",)
-        self._find_select_element_for_flag('commit-queue').value = ("X",)
+
+        try:
+            self.browser.find_control("isobsolete").items[0].selected = True
+            # Also clear any review flag (to remove it from review/commit queues)
+            self._find_select_element_for_flag("review").value = ("X",)
+            self._find_select_element_for_flag("commit-queue").value = ("X",)
+        except (AttributeError, ValueError):
+            _log.warning("Failed to obsolete attachment")
+            _log.warning(self.NO_EDIT_BUGS_MESSAGE)
+
         if comment_text:
             _log.info(comment_text)
             # Bugzilla has two textareas named 'comment', one is somehow
@@ -905,8 +887,8 @@ class Bugzilla(object):
         self.browser.select_form(name="changeform")
 
         if not self._has_control(self.browser, "assigned_to"):
-            _log.warning("""Failed to assign bug to you (can't find assigned_to) control.
-Ignore this message if you don't have EditBugs privileges (https://bugs.webkit.org/userprefs.cgi?tab=permissions)""")
+            _log.warning("Failed to assign bug to you (can't find assigned_to) control.")
+            _log.warning(self.NO_EDIT_BUGS_MESSAGE)
             return
 
         if comment_text:

@@ -28,29 +28,27 @@
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
 #include "FormattingContext.h"
-#include "InlineLineLayout.h"
+#include "InlineLineBuilder.h"
 #include <wtf/IsoMalloc.h>
 
 namespace WebCore {
 namespace Layout {
 
 class InlineFormattingState;
+class InvalidationState;
+class LineBox;
 
 // This class implements the layout logic for inline formatting contexts.
 // https://www.w3.org/TR/CSS22/visuren.html#inline-formatting
-class InlineFormattingContext : public FormattingContext {
+class InlineFormattingContext final : public FormattingContext {
     WTF_MAKE_ISO_ALLOCATED(InlineFormattingContext);
 public:
-    InlineFormattingContext(const Container& formattingContextRoot, InlineFormattingState&);
-    void layoutInFlowContent() override;
-
-private:
-    IntrinsicWidthConstraints computedIntrinsicWidthConstraints() override;
+    InlineFormattingContext(const ContainerBox& formattingContextRoot, InlineFormattingState&);
+    void layoutInFlowContent(InvalidationState&, const ConstraintsForInFlowContent&) override;
 
     class Quirks : public FormattingContext::Quirks {
     public:
-        bool lineDescentNeedsCollapsing(const Line::RunList&) const;
-        Line::InitialConstraints::HeightAndBaseline lineHeightConstraints(const Box& formattingRoot) const;
+        InlineLayoutUnit initialLineHeight() const;
 
     private:
         friend class InlineFormattingContext;
@@ -61,10 +59,20 @@ private:
     };
     InlineFormattingContext::Quirks quirks() const { return Quirks(*this); }
 
+private:
+    IntrinsicWidthConstraints computedIntrinsicWidthConstraints() override;
+
     class Geometry : public FormattingContext::Geometry {
     public:
-        ContentHeightAndMargin inlineBlockHeightAndMargin(const Box&, UsedHorizontalValues, UsedVerticalValues) const;
-        ContentWidthAndMargin inlineBlockWidthAndMargin(const Box&, UsedHorizontalValues);
+        LineBox lineBoxForLineContent(const LineBuilder::LineContent&);
+        struct LineRectAndLineBoxOffset {
+            InlineLayoutUnit lineBoxVerticalOffset;
+            InlineRect logicalRect;
+        };
+        LineRectAndLineBoxOffset computedLineLogicalRect(const LineBox&, const RenderStyle& rootStyle, const LineBuilder::LineContent&) const;
+
+        ContentHeightAndMargin inlineBlockHeightAndMargin(const Box&, const HorizontalConstraints&, const OverrideVerticalValues&) const;
+        ContentWidthAndMargin inlineBlockWidthAndMargin(const Box&, const HorizontalConstraints&, const OverrideHorizontalValues&);
 
     private:
         friend class InlineFormattingContext;
@@ -75,26 +83,21 @@ private:
     };
     InlineFormattingContext::Geometry geometry() const { return Geometry(*this); }
 
-    void lineLayout(UsedHorizontalValues);
-    void layoutFormattingContextRoot(const Box&, UsedHorizontalValues, UsedVerticalValues);
-    void computeHorizontalAndVerticalGeometry(const Box&, UsedHorizontalValues, UsedVerticalValues);
+    void lineLayout(InlineItems&, LineBuilder::InlineItemRange, const ConstraintsForInFlowContent&);
 
-    void computeIntrinsicWidthForFormattingRoot(const Box&, UsedHorizontalValues);
-    void computeWidthAndHeightForReplacedInlineBox(const Box&, UsedHorizontalValues, UsedVerticalValues);
-    LayoutUnit computedIntrinsicWidthForConstraint(UsedHorizontalValues) const;
+    void computeIntrinsicWidthForFormattingRoot(const Box&);
+    InlineLayoutUnit computedIntrinsicWidthForConstraint(InlineLayoutUnit availableWidth) const;
 
-    void computeHorizontalMargin(const Box&, UsedHorizontalValues);
-    void computeHeightAndMargin(const Box&, UsedHorizontalValues, UsedVerticalValues);
-    void computeWidthAndMargin(const Box&, UsedHorizontalValues);
+    void computeHorizontalMargin(const Box&, const HorizontalConstraints&);
+    void computeHeightAndMargin(const Box&, const HorizontalConstraints&);
+    void computeWidthAndMargin(const Box&, const HorizontalConstraints&);
 
-    void collectInlineContent();
-    Line::InitialConstraints initialConstraintsForLine(UsedHorizontalValues, const LayoutUnit lineLogicalTop);
-    void setDisplayBoxesForLine(const LineLayout::LineContent&, UsedHorizontalValues);
+    void collectInlineContentIfNeeded();
+    InlineRect computeGeometryForLineContent(const LineBuilder::LineContent&, const HorizontalConstraints&);
+    void invalidateFormattingState(const InvalidationState&);
 
     const InlineFormattingState& formattingState() const { return downcast<InlineFormattingState>(FormattingContext::formattingState()); }
     InlineFormattingState& formattingState() { return downcast<InlineFormattingState>(FormattingContext::formattingState()); }
-    // FIXME: Come up with a structure that requires no friending.
-    friend class Line;
 };
 
 inline InlineFormattingContext::Geometry::Geometry(const InlineFormattingContext& inlineFormattingContext)

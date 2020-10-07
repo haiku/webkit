@@ -31,9 +31,10 @@ import logging
 import os
 import re
 
+from webkitcorepy import Version
+
 from webkitpy.common.memoized import memoized
 from webkitpy.common.system.executive import ScriptError
-from webkitpy.common.version import Version
 from webkitpy.common.version_name_map import PUBLIC_TABLE, INTERNAL_TABLE
 from webkitpy.common.version_name_map import VersionNameMap
 from webkitpy.port.config import apple_additions, Config
@@ -46,10 +47,11 @@ class MacPort(DarwinPort):
     port_name = "mac"
 
     CURRENT_VERSION = Version(10, 15)
+    LAST_MACOSX = Version(10, 16)  # FIXME: Once we don't need to support the seed, deprecate in favor of Catalina
 
     SDK = 'macosx'
 
-    ARCHITECTURES = ['x86_64', 'x86']
+    ARCHITECTURES = ['x86_64', 'x86', 'arm64']
 
     DEFAULT_ARCHITECTURE = 'x86_64'
 
@@ -64,10 +66,33 @@ class MacPort(DarwinPort):
             self._os_version = self.host.platform.os_version
         if not self._os_version:
             self._os_version = MacPort.CURRENT_VERSION
-        assert self._os_version.major == 10
+
+    def architecture(self):
+        result = self.get_option('architecture') or self.host.platform.architecture()
+        if result == 'arm64e':
+            return 'arm64'
+        return result
+
+    # FIXME: This is a work-around for Rosetta, remove once <https://bugs.webkit.org/show_bug.cgi?id=213761> is resolved
+    def expectations_dict(self, device_type=None):
+        result = super(MacPort, self).expectations_dict(device_type=device_type)
+        if self.architecture() == 'x86_64' and self.host.platform.architecture() == 'arm64':
+            rosetta_expectations = self._filesystem.join(self.layout_tests_dir(), 'platform', 'mac', 'TestExpectationsRosetta')
+            if self._filesystem.exists(rosetta_expectations):
+                result[rosetta_expectations] = self._filesystem.read_text_file(rosetta_expectations)
+            else:
+                _log.warning('Failed to find Rosetta special-case expectation path at {}'.format(rosetta_expectations))
+        return result
+
 
     def _build_driver_flags(self):
-        return ['ARCHS=i386'] if self.architecture() == 'x86' else []
+        architecture = self.architecture()
+        # The Internal SDK should always prefer arm64e binaries to arm64 ones
+        if architecture == 'arm64' and apple_additions():
+            architecture = 'arm64e'
+        if architecture == 'x86':
+            return ['ARCHS=i386']
+        return ['ARCHS={}'.format(architecture)]
 
     def default_baseline_search_path(self, **kwargs):
         versions_to_fallback = []
@@ -80,9 +105,15 @@ class MacPort(DarwinPort):
             while temp_version != self.CURRENT_VERSION:
                 versions_to_fallback.append(Version.from_iterable(temp_version))
                 if temp_version < self.CURRENT_VERSION:
-                    temp_version.minor += 1
+                    if temp_version.minor < self.LAST_MACOSX.minor:
+                        temp_version.minor += 1
+                    else:
+                        temp_version = Version(11, 0)
                 else:
-                    temp_version.minor -= 1
+                    if temp_version.minor > 0:
+                        temp_version.minor -= 1
+                    else:
+                        temp_version = Version(self.LAST_MACOSX.major, self.LAST_MACOSX.minor)
         wk_string = 'wk1'
         if self.get_option('webkit_test_runner'):
             wk_string = 'wk2'
@@ -212,13 +243,15 @@ class MacPort(DarwinPort):
             supportable_instances = default_count
         return min(supportable_instances, default_count)
 
-    def start_helper(self, pixel_tests=False):
+    def start_helper(self, pixel_tests=False, prefer_integrated_gpu=False):
         helper_path = self._path_to_helper()
         if not helper_path:
             _log.error("No path to LayoutTestHelper binary")
             return False
         _log.debug("Starting layout helper %s" % helper_path)
         arguments = [helper_path, '--install-color-profile']
+        if prefer_integrated_gpu:
+            arguments.append('--prefer-integrated-gpu')
         self._helper = self._executive.popen(arguments,
             stdin=self._executive.PIPE, stdout=self._executive.PIPE, stderr=None)
         is_ready = self._helper.stdout.readline()
@@ -278,10 +311,12 @@ class MacPort(DarwinPort):
         host = host or self.host
         configuration = super(MacPort, self).configuration_for_upload(host=host)
 
-        output = host.executive.run_command(['/usr/sbin/sysctl', 'hw.model']).rstrip()
-        match = re.match(r'hw.model: (?P<model>.*)', output)
-        if match:
-            configuration['model'] = match.group('model')
+        # --model should override the detected model
+        if not configuration.get('model'):
+            output = host.executive.run_command(['/usr/sbin/sysctl', 'hw.model']).rstrip()
+            match = re.match(r'hw.model: (?P<model>.*)', output)
+            if match:
+                configuration['model'] = match.group('model')
 
         return configuration
 
@@ -292,3 +327,11 @@ class MacCatalystPort(MacPort):
     def __init__(self, *args, **kwargs):
         super(MacCatalystPort, self).__init__(*args, **kwargs)
         self._config = Config(self._executive, self._filesystem, MacCatalystPort.port_name)
+
+    def _build_driver_flags(self):
+        return ['SDK_VARIANT=iosmac'] + super(MacCatalystPort, self)._build_driver_flags()
+
+    def configuration_for_upload(self, host=None):
+        configuration = super(MacCatalystPort, self).configuration_for_upload(host=host)
+        configuration['platform'] = self.port_name
+        return configuration

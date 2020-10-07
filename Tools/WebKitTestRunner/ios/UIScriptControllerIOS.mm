@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
 #if PLATFORM(IOS_FAMILY)
 
 #import "HIDEventGenerator.h"
-#import "PencilKitTestSPI.h"
+#import "PlatformViewHelpers.h"
 #import "PlatformWebView.h"
 #import "StringFunctions.h"
 #import "TestController.h"
@@ -42,6 +42,7 @@
 #import <WebCore/FloatPoint.h>
 #import <WebCore/FloatRect.h>
 #import <WebKit/WKWebViewPrivate.h>
+#import <WebKit/WKWebViewPrivateForTesting.h>
 #import <WebKit/WebKit.h>
 #import <pal/spi/ios/GraphicsServicesSPI.h>
 #import <wtf/BlockPtr.h>
@@ -67,24 +68,14 @@ static NSDictionary *toNSDictionary(CGRect rect)
     };
 }
 
-static unsigned arrayLength(JSContextRef context, JSObjectRef array)
-{
-    auto lengthString = adopt(JSStringCreateWithUTF8CString("length"));
-    if (auto lengthValue = JSObjectGetProperty(context, array, lengthString.get(), nullptr))
-        return static_cast<unsigned>(JSValueToNumber(context, lengthValue, nullptr));
-    return 0;
-}
-
 static Vector<String> parseModifierArray(JSContextRef context, JSValueRef arrayValue)
 {
     if (!arrayValue)
         return { };
 
     // The value may either be a string with a single modifier or an array of modifiers.
-    if (JSValueIsString(context, arrayValue)) {
-        auto string = toWTFString(toWK(adopt(JSValueToStringCopy(context, arrayValue, nullptr))));
-        return { string };
-    }
+    if (JSValueIsString(context, arrayValue))
+        return { toWTFString(context, arrayValue) };
 
     if (!JSValueIsObject(context, arrayValue))
         return { };
@@ -92,42 +83,9 @@ static Vector<String> parseModifierArray(JSContextRef context, JSValueRef arrayV
     unsigned length = arrayLength(context, array);
     Vector<String> modifiers;
     modifiers.reserveInitialCapacity(length);
-    for (unsigned i = 0; i < length; ++i) {
-        JSValueRef exception = nullptr;
-        JSValueRef value = JSObjectGetPropertyAtIndex(context, array, i, &exception);
-        if (exception)
-            continue;
-        auto string = adopt(JSValueToStringCopy(context, value, &exception));
-        if (exception)
-            continue;
-        modifiers.append(toWTFString(toWK(string.get())));
-    }
+    for (unsigned i = 0; i < length; ++i)
+        modifiers.append(toWTFString(context, JSObjectGetPropertyAtIndex(context, array, i, nullptr)));
     return modifiers;
-}
-
-static BOOL forEachViewInHierarchy(UIView *view, void(^mapFunction)(UIView *subview, BOOL *stop))
-{
-    BOOL stop = NO;
-    mapFunction(view, &stop);
-    if (stop)
-        return YES;
-
-    for (UIView *subview in view.subviews) {
-        stop = forEachViewInHierarchy(subview, mapFunction);
-        if (stop)
-            break;
-    }
-    return stop;
-}
-
-static NSArray<UIView *> *findAllViewsInHierarchyOfType(UIView *view, Class viewClass)
-{
-    __block RetainPtr<NSMutableArray> views = adoptNS([[NSMutableArray alloc] init]);
-    forEachViewInHierarchy(view, ^(UIView *subview, BOOL *stop) {
-        if ([subview isKindOfClass:viewClass])
-            [views addObject:subview];
-    });
-    return views.autorelease();
 }
 
 Ref<UIScriptController> UIScriptController::create(UIScriptContext& context)
@@ -135,71 +93,77 @@ Ref<UIScriptController> UIScriptController::create(UIScriptContext& context)
     return adoptRef(*new UIScriptControllerIOS(context));
 }
 
-void UIScriptControllerIOS::checkForOutstandingCallbacks()
+void UIScriptControllerIOS::waitForOutstandingCallbacks()
 {
-    if (![[HIDEventGenerator sharedHIDEventGenerator] checkForOutstandingCallbacks])
-        [NSException raise:@"WebKitTestRunnerTestProblem" format:@"The test completed before all synthesized events had been handled. Perhaps you're calling notifyDone() too early?"];
+    HIDEventGenerator *eventGenerator = HIDEventGenerator.sharedHIDEventGenerator;
+    NSDate *timeoutDate = [NSDate dateWithTimeIntervalSinceNow:1];
+    while (eventGenerator.hasOutstandingCallbacks) {
+        [NSRunLoop.currentRunLoop runMode:NSDefaultRunLoopMode beforeDate:timeoutDate];
+        if ([timeoutDate compare:NSDate.date] == NSOrderedAscending)
+            [NSException raise:@"WebKitTestRunnerTestProblem" format:@"The previous test completed before all synthesized events had been handled. Perhaps you're calling notifyDone() too early?"];
+    }
 }
 
 void UIScriptControllerIOS::doAfterPresentationUpdate(JSValueRef callback)
 {
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
-    [webView() _doAfterNextPresentationUpdate:^{
+    [webView() _doAfterNextPresentationUpdate:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 void UIScriptControllerIOS::doAfterNextStablePresentationUpdate(JSValueRef callback)
 {
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
-    [webView() _doAfterNextStablePresentationUpdate:^() {
-        if (m_context)
-            m_context->asyncTaskComplete(callbackID);
-    }];
+    [webView() _doAfterNextStablePresentationUpdate:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
+        if (!m_context)
+            return;
+        m_context->asyncTaskComplete(callbackID);
+    }).get()];
 }
 
 void UIScriptControllerIOS::ensurePositionInformationIsUpToDateAt(long x, long y, JSValueRef callback)
 {
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
-    [webView() _requestActivatedElementAtPosition:CGPointMake(x, y) completionBlock:^(_WKActivatedElementInfo *) {
+    [webView() _requestActivatedElementAtPosition:CGPointMake(x, y) completionBlock:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] (_WKActivatedElementInfo *) {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 void UIScriptControllerIOS::doAfterVisibleContentRectUpdate(JSValueRef callback)
 {
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
-    [webView() _doAfterNextVisibleContentRectUpdate:^ {
+    [webView() _doAfterNextVisibleContentRectUpdate:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 void UIScriptControllerIOS::zoomToScale(double scale, JSValueRef callback)
 {
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
 
-    [webView() zoomToScale:scale animated:YES completionHandler:^{
+    [webView() zoomToScale:scale animated:YES completionHandler:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 void UIScriptControllerIOS::retrieveSpeakSelectionContent(JSValueRef callback)
 {
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
     
-    [webView() accessibilityRetrieveSpeakSelectionContentWithCompletionHandler:^() {
+    [webView() accessibilityRetrieveSpeakSelectionContentWithCompletionHandler:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 JSRetainPtr<JSStringRef> UIScriptControllerIOS::accessibilitySpeakSelectionContent() const
@@ -215,11 +179,11 @@ void UIScriptControllerIOS::simulateAccessibilitySettingsChangeNotification(JSVa
     NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
     [center postNotificationName:UIAccessibilityInvertColorsStatusDidChangeNotification object:webView];
 
-    [webView _doAfterNextPresentationUpdate: ^{
+    [webView _doAfterNextPresentationUpdate:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 double UIScriptControllerIOS::zoomScale() const
@@ -241,11 +205,11 @@ void UIScriptControllerIOS::touchDownAtPoint(long x, long y, long touchCount, JS
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
 
     auto location = globalToContentCoordinates(webView(), x, y);
-    [[HIDEventGenerator sharedHIDEventGenerator] touchDown:location touchCount:touchCount completionBlock:^{
+    [[HIDEventGenerator sharedHIDEventGenerator] touchDown:location touchCount:touchCount completionBlock:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 void UIScriptControllerIOS::liftUpAtPoint(long x, long y, long touchCount, JSValueRef callback)
@@ -253,11 +217,11 @@ void UIScriptControllerIOS::liftUpAtPoint(long x, long y, long touchCount, JSVal
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
     
     auto location = globalToContentCoordinates(webView(), x, y);
-    [[HIDEventGenerator sharedHIDEventGenerator] liftUp:location touchCount:touchCount completionBlock:^{
+    [[HIDEventGenerator sharedHIDEventGenerator] liftUp:location touchCount:touchCount completionBlock:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 void UIScriptControllerIOS::singleTapAtPoint(long x, long y, JSValueRef callback)
@@ -268,6 +232,12 @@ void UIScriptControllerIOS::singleTapAtPoint(long x, long y, JSValueRef callback
 void UIScriptControllerIOS::activateAtPoint(long x, long y, JSValueRef callback)
 {
     singleTapAtPoint(x, y, callback);
+}
+
+void UIScriptControllerIOS::waitForModalTransitionToFinish() const
+{
+    while ([webView().window.rootViewController isPerformingModalTransition])
+        [NSRunLoop.currentRunLoop runMode:NSDefaultRunLoopMode beforeDate:NSDate.distantFuture];
 }
 
 void UIScriptControllerIOS::waitForSingleTapToReset() const
@@ -284,11 +254,11 @@ void UIScriptControllerIOS::twoFingerSingleTapAtPoint(long x, long y, JSValueRef
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
 
     auto location = globalToContentCoordinates(webView(), x, y);
-    [[HIDEventGenerator sharedHIDEventGenerator] twoFingerTap:location completionBlock:^{
+    [[HIDEventGenerator sharedHIDEventGenerator] twoFingerTap:location completionBlock:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 void UIScriptControllerIOS::singleTapAtPointWithModifiers(long x, long y, JSValueRef modifierArray, JSValueRef callback)
@@ -303,14 +273,21 @@ void UIScriptControllerIOS::singleTapAtPointWithModifiers(long x, long y, JSValu
 
 void UIScriptControllerIOS::singleTapAtPointWithModifiers(WebCore::FloatPoint location, Vector<String>&& modifierFlags, BlockPtr<void()>&& block)
 {
+    // Animations on the scroll view could be in progress to reveal a form control which may interfere with hit testing (see wkb.ug/205458).
+    [webView().scrollView _removeAllAnimations:NO];
+
+    // Necessary for popovers on iPad (used for elements such as <select>) to finish dismissing (see wkb.ug/206759).
+    waitForModalTransitionToFinish();
+
     waitForSingleTapToReset();
 
     for (auto& modifierFlag : modifierFlags)
         [[HIDEventGenerator sharedHIDEventGenerator] keyDown:modifierFlag];
 
-    [[HIDEventGenerator sharedHIDEventGenerator] tap:globalToContentCoordinates(webView(), location.x(), location.y()) completionBlock:[this, protectedThis = makeRefPtr(*this), modifierFlags = WTFMove(modifierFlags), block = WTFMove(block)] () mutable {
+    [[HIDEventGenerator sharedHIDEventGenerator] tap:globalToContentCoordinates(webView(), location.x(), location.y()) completionBlock:[this, protectedThis = makeRef(*this), modifierFlags = WTFMove(modifierFlags), block = WTFMove(block)] () mutable {
         if (!m_context)
             return;
+
         for (size_t i = modifierFlags.size(); i; ) {
             --i;
             [[HIDEventGenerator sharedHIDEventGenerator] keyUp:modifierFlags[i]];
@@ -323,11 +300,11 @@ void UIScriptControllerIOS::doubleTapAtPoint(long x, long y, float delay, JSValu
 {
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
 
-    [[HIDEventGenerator sharedHIDEventGenerator] doubleTap:globalToContentCoordinates(webView(), x, y) delay:delay completionBlock:^{
+    [[HIDEventGenerator sharedHIDEventGenerator] doubleTap:globalToContentCoordinates(webView(), x, y) delay:delay completionBlock:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 void UIScriptControllerIOS::stylusDownAtPoint(long x, long y, float azimuthAngle, float altitudeAngle, float pressure, JSValueRef callback)
@@ -335,11 +312,11 @@ void UIScriptControllerIOS::stylusDownAtPoint(long x, long y, float azimuthAngle
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
 
     auto location = globalToContentCoordinates(webView(), x, y);
-    [[HIDEventGenerator sharedHIDEventGenerator] stylusDownAtPoint:location azimuthAngle:azimuthAngle altitudeAngle:altitudeAngle pressure:pressure completionBlock:^{
+    [[HIDEventGenerator sharedHIDEventGenerator] stylusDownAtPoint:location azimuthAngle:azimuthAngle altitudeAngle:altitudeAngle pressure:pressure completionBlock:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 void UIScriptControllerIOS::stylusMoveToPoint(long x, long y, float azimuthAngle, float altitudeAngle, float pressure, JSValueRef callback)
@@ -347,11 +324,11 @@ void UIScriptControllerIOS::stylusMoveToPoint(long x, long y, float azimuthAngle
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
 
     auto location = globalToContentCoordinates(webView(), x, y);
-    [[HIDEventGenerator sharedHIDEventGenerator] stylusMoveToPoint:location azimuthAngle:azimuthAngle altitudeAngle:altitudeAngle pressure:pressure completionBlock:^{
+    [[HIDEventGenerator sharedHIDEventGenerator] stylusMoveToPoint:location azimuthAngle:azimuthAngle altitudeAngle:altitudeAngle pressure:pressure completionBlock:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 void UIScriptControllerIOS::stylusUpAtPoint(long x, long y, JSValueRef callback)
@@ -359,11 +336,11 @@ void UIScriptControllerIOS::stylusUpAtPoint(long x, long y, JSValueRef callback)
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
 
     auto location = globalToContentCoordinates(webView(), x, y);
-    [[HIDEventGenerator sharedHIDEventGenerator] stylusUpAtPoint:location completionBlock:^{
+    [[HIDEventGenerator sharedHIDEventGenerator] stylusUpAtPoint:location completionBlock:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 void UIScriptControllerIOS::stylusTapAtPoint(long x, long y, float azimuthAngle, float altitudeAngle, float pressure, JSValueRef callback)
@@ -382,19 +359,19 @@ void UIScriptControllerIOS::stylusTapAtPointWithModifiers(long x, long y, float 
         [[HIDEventGenerator sharedHIDEventGenerator] keyDown:modifierFlag];
 
     auto location = globalToContentCoordinates(webView(), x, y);
-    [[HIDEventGenerator sharedHIDEventGenerator] stylusTapAtPoint:location azimuthAngle:azimuthAngle altitudeAngle:altitudeAngle pressure:pressure completionBlock:^{
+    [[HIDEventGenerator sharedHIDEventGenerator] stylusTapAtPoint:location azimuthAngle:azimuthAngle altitudeAngle:altitudeAngle pressure:pressure completionBlock:makeBlockPtr([this, strongThis = makeRef(*this), callbackID, modifierFlags = WTFMove(modifierFlags)] {
         if (!m_context)
             return;
         for (size_t i = modifierFlags.size(); i; ) {
             --i;
             [[HIDEventGenerator sharedHIDEventGenerator] keyUp:modifierFlags[i]];
         }
-        [[HIDEventGenerator sharedHIDEventGenerator] sendMarkerHIDEventWithCompletionBlock:^{
+        [[HIDEventGenerator sharedHIDEventGenerator] sendMarkerHIDEventWithCompletionBlock:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
             if (!m_context)
                 return;
             m_context->asyncTaskComplete(callbackID);
-        }];
-    }];
+        }).get()];
+    }).get()];
 }
 
 void convertCoordinates(TestRunnerWKWebView *webView, NSMutableDictionary *event)
@@ -445,29 +422,67 @@ void UIScriptControllerIOS::sendEventStream(JSStringRef eventsJSON, JSValueRef c
     [[HIDEventGenerator sharedHIDEventGenerator] sendEventStream:eventInfo completionBlock:completion.get()];
 }
 
+static NSDictionary *dictionaryForFingerEventWithContentPoint(CGPoint point, NSString* phase, Seconds timeOffset)
+{
+    return @{
+        HIDEventCoordinateSpaceKey : HIDEventCoordinateSpaceTypeContent,
+        HIDEventTimeOffsetKey : @(timeOffset.seconds()),
+        HIDEventInputType : HIDEventInputTypeHand,
+        HIDEventTouchesKey : @[
+            @{
+                HIDEventTouchIDKey : @1,
+                HIDEventInputType : HIDEventInputTypeFinger,
+                HIDEventPhaseKey : phase,
+                HIDEventXKey : @(point.x),
+                HIDEventYKey : @(point.y),
+            },
+        ],
+    };
+}
+
 void UIScriptControllerIOS::dragFromPointToPoint(long startX, long startY, long endX, long endY, double durationSeconds, JSValueRef callback)
 {
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
-
+    
     CGPoint startPoint = globalToContentCoordinates(webView(), startX, startY);
     CGPoint endPoint = globalToContentCoordinates(webView(), endX, endY);
-    
-    [[HIDEventGenerator sharedHIDEventGenerator] dragWithStartPoint:startPoint endPoint:endPoint duration:durationSeconds completionBlock:^{
+
+    NSDictionary *touchDownInfo = dictionaryForFingerEventWithContentPoint(startPoint, HIDEventPhaseBegan, 0_s);
+    NSDictionary *interpolatedEvents = @{
+        HIDEventInterpolateKey : HIDEventInterpolationTypeLinear,
+        HIDEventCoordinateSpaceKey : HIDEventCoordinateSpaceTypeContent,
+        HIDEventTimestepKey : @(0.016),
+        HIDEventStartEventKey : dictionaryForFingerEventWithContentPoint(startPoint, HIDEventPhaseMoved, 0_s),
+        HIDEventEndEventKey : dictionaryForFingerEventWithContentPoint(endPoint, HIDEventPhaseMoved, Seconds(durationSeconds)),
+    };
+    NSDictionary *liftUpInfo = dictionaryForFingerEventWithContentPoint(endPoint, HIDEventPhaseEnded, Seconds(durationSeconds));
+
+    NSDictionary *eventStream = @{
+        TopLevelEventInfoKey : @[
+            touchDownInfo,
+            interpolatedEvents,
+            liftUpInfo,
+        ],
+    };
+
+    auto completion = makeBlockPtr([this, protectedThis = makeRefPtr(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    });
+
+    [[HIDEventGenerator sharedHIDEventGenerator] sendEventStream:eventStream completionBlock:completion.get()];
 }
     
 void UIScriptControllerIOS::longPressAtPoint(long x, long y, JSValueRef callback)
 {
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
     
-    [[HIDEventGenerator sharedHIDEventGenerator] longPress:globalToContentCoordinates(webView(), x, y) completionBlock:^{
+    [[HIDEventGenerator sharedHIDEventGenerator] longPress:globalToContentCoordinates(webView(), x, y) completionBlock:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    }];
+    }).get()];
 }
 
 void UIScriptControllerIOS::enterText(JSStringRef text)
@@ -481,11 +496,10 @@ void UIScriptControllerIOS::typeCharacterUsingHardwareKeyboard(JSStringRef chara
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
 
     // Assumes that the keyboard is already shown.
-    [[HIDEventGenerator sharedHIDEventGenerator] keyPress:toWTFString(toWK(character)) completionBlock:^{
-        if (!m_context)
-            return;
-        m_context->asyncTaskComplete(callbackID);
-    }];
+    [[HIDEventGenerator sharedHIDEventGenerator] keyPress:toWTFString(character) completionBlock:makeBlockPtr([strongThis = makeRef(*this), callbackID] {
+        if (strongThis->m_context)
+            strongThis->m_context->asyncTaskComplete(callbackID);
+    }).get()];
 }
 
 static UIPhysicalKeyboardEvent *createUIPhysicalKeyboardEvent(NSString *hidInputString, NSString *uiEventInputString, UIKeyModifierFlags modifierFlags, UIKeyboardInputFlags inputFlags, bool isKeyDown)
@@ -501,7 +515,7 @@ void UIScriptControllerIOS::rawKeyDown(JSStringRef key)
 {
     // Key can be either a single Unicode code point or the name of a special key (e.g. "downArrow").
     // HIDEventGenerator knows how to map these special keys to the appropriate keycode.
-    [[HIDEventGenerator sharedHIDEventGenerator] keyDown:toWTFString(toWK(key))];
+    [[HIDEventGenerator sharedHIDEventGenerator] keyDown:toWTFString(key)];
     [[HIDEventGenerator sharedHIDEventGenerator] sendMarkerHIDEventWithCompletionBlock:^{ /* Do nothing */ }];
 }
 
@@ -509,7 +523,7 @@ void UIScriptControllerIOS::rawKeyUp(JSStringRef key)
 {
     // Key can be either a single Unicode code point or the name of a special key (e.g. "downArrow").
     // HIDEventGenerator knows how to map these special keys to the appropriate keycode.
-    [[HIDEventGenerator sharedHIDEventGenerator] keyUp:toWTFString(toWK(key))];
+    [[HIDEventGenerator sharedHIDEventGenerator] keyUp:toWTFString(key)];
     [[HIDEventGenerator sharedHIDEventGenerator] sendMarkerHIDEventWithCompletionBlock:^{ /* Do nothing */ }];
 }
 
@@ -517,7 +531,7 @@ void UIScriptControllerIOS::keyDown(JSStringRef character, JSValueRef modifierAr
 {
     // Character can be either a single Unicode code point or the name of a special key (e.g. "downArrow").
     // HIDEventGenerator knows how to map these special keys to the appropriate keycode.
-    String inputString = toWTFString(toWK(character));
+    auto inputString = toWTFString(character);
     auto modifierFlags = parseModifierArray(m_context->jsContext(), modifierArray);
 
     for (auto& modifierFlag : modifierFlags)
@@ -546,10 +560,11 @@ void UIScriptControllerIOS::dismissFilePicker(JSValueRef callback)
 
     // Round-trip with the WebProcess to make sure it has been notified of the dismissal.
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
-    [webView evaluateJavaScript:@"" completionHandler:^(id result, NSError *error) {
-        if (m_context)
-            m_context->asyncTaskComplete(callbackID);
-    }];
+    [webView evaluateJavaScript:@"" completionHandler:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] (id result, NSError *error) {
+        if (!m_context)
+            return;
+        m_context->asyncTaskComplete(callbackID);
+    }).get()];
 }
 
 JSRetainPtr<JSStringRef> UIScriptControllerIOS::selectFormPopoverTitle() const
@@ -572,9 +587,24 @@ void UIScriptControllerIOS::selectFormAccessoryPickerRow(long rowIndex)
     [webView() selectFormAccessoryPickerRow:rowIndex];
 }
 
+bool UIScriptControllerIOS::selectFormAccessoryHasCheckedItemAtRow(long rowIndex) const
+{
+    return [webView() selectFormAccessoryHasCheckedItemAtRow:rowIndex];
+}
+
 void UIScriptControllerIOS::setTimePickerValue(long hour, long minute)
 {
     [webView() setTimePickerValueToHour:hour minute:minute];
+}
+
+double UIScriptControllerIOS::timePickerValueHour() const
+{
+    return [webView() timePickerValueHour];
+}
+
+double UIScriptControllerIOS::timePickerValueMinute() const
+{
+    return [webView() timePickerValueMinute];
 }
 
 bool UIScriptControllerIOS::isPresentingModally() const
@@ -633,7 +663,7 @@ void UIScriptControllerIOS::immediateScrollToOffset(long x, long y)
 static UIScrollView *enclosingScrollViewIncludingSelf(UIView *view)
 {
     do {
-        if ([view isKindOfClass:[UIScrollView self]])
+        if ([view isKindOfClass:[UIScrollView class]])
             return static_cast<UIScrollView *>(view);
     } while ((view = [view superview]));
 
@@ -678,15 +708,15 @@ void UIScriptControllerIOS::applyAutocorrection(JSStringRef newString, JSStringR
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
 
     TestRunnerWKWebView *webView = this->webView();
-    [webView applyAutocorrection:toWTFString(toWK(newString)) toString:toWTFString(toWK(oldString)) withCompletionHandler:^ {
-        // applyAutocorrection can call its completion handler synchronously,
-        // which makes UIScriptController unhappy (see bug 172884).
-        dispatch_async(dispatch_get_main_queue(), ^ {
+    [webView applyAutocorrection:toWTFString(newString) toString:toWTFString(oldString) withCompletionHandler:makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
+        dispatch_async(dispatch_get_main_queue(), makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
+            // applyAutocorrection can call its completion handler synchronously,
+            // which makes UIScriptController unhappy (see bug 172884).
             if (!m_context)
                 return;
             m_context->asyncTaskComplete(callbackID);
-        });
-    }];
+        }).get());
+    }).get()];
 }
 
 double UIScriptControllerIOS::minimumZoomScale() const
@@ -740,24 +770,34 @@ JSObjectRef UIScriptControllerIOS::textSelectionCaretRect() const
     return JSValueToObject(m_context->jsContext(), [JSValue valueWithObject:toNSDictionary(webView()._uiTextCaretRect) inContext:[JSContext contextWithJSGlobalContextRef:m_context->jsContext()]].JSValueRef, nullptr);
 }
 
+static void clipSelectionViewRectToContentView(CGRect& rect, UIView *contentView)
+{
+    rect = CGRectIntersection(contentView.bounds, rect);
+    // The content view (a WKContentView in WebKit) is expected to implement the optional text input method -_selectionClipRect.
+    ASSERT([contentView respondsToSelector:@selector(_selectionClipRect)]);
+    auto selectionClipRect = [(UIView <UITextInputInternal> *)contentView _selectionClipRect];
+    if (!CGRectIsNull(selectionClipRect))
+        rect = CGRectIntersection(selectionClipRect, rect);
+}
+
 JSObjectRef UIScriptControllerIOS::selectionStartGrabberViewRect() const
 {
     UIView *contentView = platformContentView();
     UIView *selectionRangeView = [contentView valueForKeyPath:@"interactionAssistant.selectionView.rangeView"];
-    auto frameInContentCoordinates = [selectionRangeView convertRect:[[selectionRangeView valueForKeyPath:@"startGrabber"] frame] toView:contentView];
-    frameInContentCoordinates = CGRectIntersection(contentView.bounds, frameInContentCoordinates);
+    auto frameInContentViewCoordinates = [selectionRangeView convertRect:[[selectionRangeView valueForKeyPath:@"startGrabber"] frame] toView:contentView];
+    clipSelectionViewRectToContentView(frameInContentViewCoordinates, contentView);
     auto jsContext = m_context->jsContext();
-    return JSValueToObject(jsContext, [JSValue valueWithObject:toNSDictionary(frameInContentCoordinates) inContext:[JSContext contextWithJSGlobalContextRef:jsContext]].JSValueRef, nullptr);
+    return JSValueToObject(jsContext, [JSValue valueWithObject:toNSDictionary(frameInContentViewCoordinates) inContext:[JSContext contextWithJSGlobalContextRef:jsContext]].JSValueRef, nullptr);
 }
 
 JSObjectRef UIScriptControllerIOS::selectionEndGrabberViewRect() const
 {
     UIView *contentView = platformContentView();
     UIView *selectionRangeView = [contentView valueForKeyPath:@"interactionAssistant.selectionView.rangeView"];
-    auto frameInContentCoordinates = [selectionRangeView convertRect:[[selectionRangeView valueForKeyPath:@"endGrabber"] frame] toView:contentView];
-    frameInContentCoordinates = CGRectIntersection(contentView.bounds, frameInContentCoordinates);
+    auto frameInContentViewCoordinates = [selectionRangeView convertRect:[[selectionRangeView valueForKeyPath:@"endGrabber"] frame] toView:contentView];
+    clipSelectionViewRectToContentView(frameInContentViewCoordinates, contentView);
     auto jsContext = m_context->jsContext();
-    return JSValueToObject(jsContext, [JSValue valueWithObject:toNSDictionary(frameInContentCoordinates) inContext:[JSContext contextWithJSGlobalContextRef:jsContext]].JSValueRef, nullptr);
+    return JSValueToObject(jsContext, [JSValue valueWithObject:toNSDictionary(frameInContentViewCoordinates) inContext:[JSContext contextWithJSGlobalContextRef:jsContext]].JSValueRef, nullptr);
 }
 
 JSObjectRef UIScriptControllerIOS::selectionCaretViewRect() const
@@ -765,6 +805,7 @@ JSObjectRef UIScriptControllerIOS::selectionCaretViewRect() const
     UIView *contentView = platformContentView();
     UIView *caretView = [contentView valueForKeyPath:@"interactionAssistant.selectionView.caretView"];
     auto rectInContentViewCoordinates = CGRectIntersection([caretView convertRect:caretView.bounds toView:contentView], contentView.bounds);
+    clipSelectionViewRectToContentView(rectInContentViewCoordinates, contentView);
     return JSValueToObject(m_context->jsContext(), [JSValue valueWithObject:toNSDictionary(rectInContentViewCoordinates) inContext:[JSContext contextWithJSGlobalContextRef:m_context->jsContext()]].JSValueRef, nullptr);
 }
 
@@ -777,6 +818,7 @@ JSObjectRef UIScriptControllerIOS::selectionRangeViewRects() const
     for (id textRectInfo in textRectInfoArray) {
         NSValue *rectValue = [textRectInfo valueForKeyPath:@"rect"];
         auto rangeRectInContentViewCoordinates = [rangeView convertRect:rectValue.CGRectValue toView:contentView];
+        clipSelectionViewRectToContentView(rangeRectInContentViewCoordinates, contentView);
         [rectsAsDictionaries addObject:toNSDictionary(CGRectIntersection(rangeRectInContentViewCoordinates, contentView.bounds))];
     }
     return JSValueToObject(m_context->jsContext(), [JSValue valueWithObject:rectsAsDictionaries.get() inContext:[JSContext contextWithJSGlobalContextRef:m_context->jsContext()]].JSValueRef, nullptr);
@@ -787,11 +829,6 @@ JSObjectRef UIScriptControllerIOS::inputViewBounds() const
     return JSValueToObject(m_context->jsContext(), [JSValue valueWithObject:toNSDictionary(webView()._inputViewBounds) inContext:[JSContext contextWithJSGlobalContextRef:m_context->jsContext()]].JSValueRef, nullptr);
 }
 
-void UIScriptControllerIOS::removeAllDynamicDictionaries()
-{
-    [UIKeyboard removeAllDynamicDictionaries];
-}
-
 JSRetainPtr<JSStringRef> UIScriptControllerIOS::scrollingTreeAsText() const
 {
     return adopt(JSStringCreateWithCFString((CFStringRef)[webView() _scrollingTreeAsText]));
@@ -800,6 +837,12 @@ JSRetainPtr<JSStringRef> UIScriptControllerIOS::scrollingTreeAsText() const
 JSObjectRef UIScriptControllerIOS::propertiesOfLayerWithID(uint64_t layerID) const
 {
     return JSValueToObject(m_context->jsContext(), [JSValue valueWithObject:[webView() _propertiesOfLayerWithID:layerID] inContext:[JSContext contextWithJSGlobalContextRef:m_context->jsContext()]].JSValueRef, nullptr);
+}
+
+bool UIScriptControllerIOS::mayContainEditableElementsInRect(unsigned x, unsigned y, unsigned width, unsigned height)
+{
+    auto contentRect = CGRectMake(x, y, width, height);
+    return [webView() _mayContainEditableElementsInRect:[webView() convertRect:contentRect fromView:platformContentView()]];
 }
 
 static UIDeviceOrientation toUIDeviceOrientation(DeviceOrientation* orientation)
@@ -828,11 +871,11 @@ void UIScriptControllerIOS::simulateRotation(DeviceOrientation* orientation, JSV
     
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
     
-    webView.rotationDidEndCallback = ^{
+    webView.rotationDidEndCallback = makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    };
+    }).get();
     
     [[UIDevice currentDevice] setOrientation:toUIDeviceOrientation(orientation) animated:YES];
 }
@@ -844,11 +887,11 @@ void UIScriptControllerIOS::simulateRotationLikeSafari(DeviceOrientation* orient
     
     unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
     
-    webView.rotationDidEndCallback = ^{
+    webView.rotationDidEndCallback = makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
         if (!m_context)
             return;
         m_context->asyncTaskComplete(callbackID);
-    };
+    }).get();
     
     [[UIDevice currentDevice] setOrientation:toUIDeviceOrientation(orientation) animated:YES];
 }
@@ -856,81 +899,81 @@ void UIScriptControllerIOS::simulateRotationLikeSafari(DeviceOrientation* orient
 void UIScriptControllerIOS::setDidStartFormControlInteractionCallback(JSValueRef callback)
 {
     UIScriptController::setDidStartFormControlInteractionCallback(callback);
-    webView().didStartFormControlInteractionCallback = ^{
+    webView().didStartFormControlInteractionCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
         if (!m_context)
             return;
         m_context->fireCallback(CallbackTypeDidStartFormControlInteraction);
-    };
+    }).get();
 }
 
 void UIScriptControllerIOS::setDidEndFormControlInteractionCallback(JSValueRef callback)
 {
     UIScriptController::setDidEndFormControlInteractionCallback(callback);
-    webView().didEndFormControlInteractionCallback = ^{
+    webView().didEndFormControlInteractionCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
         if (!m_context)
             return;
         m_context->fireCallback(CallbackTypeDidEndFormControlInteraction);
-    };
+    }).get();
 }
     
 void UIScriptControllerIOS::setDidShowContextMenuCallback(JSValueRef callback)
 {
     UIScriptController::setDidShowContextMenuCallback(callback);
-    webView().didShowContextMenuCallback = ^{
+    webView().didShowContextMenuCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
         if (!m_context)
             return;
         m_context->fireCallback(CallbackTypeDidShowContextMenu);
-    };
+    }).get();
 }
 
 void UIScriptControllerIOS::setDidDismissContextMenuCallback(JSValueRef callback)
 {
     UIScriptController::setDidDismissContextMenuCallback(callback);
-    webView().didDismissContextMenuCallback = ^{
+    webView().didDismissContextMenuCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
         if (!m_context)
             return;
-        m_context->fireCallback(CallbackTypeDidEndFormControlInteraction);
-    };
+        m_context->fireCallback(CallbackTypeDidDismissContextMenu);
+    }).get();
 }
 
 void UIScriptControllerIOS::setWillBeginZoomingCallback(JSValueRef callback)
 {
     UIScriptController::setWillBeginZoomingCallback(callback);
-    webView().willBeginZoomingCallback = ^{
+    webView().willBeginZoomingCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
         if (!m_context)
             return;
         m_context->fireCallback(CallbackTypeWillBeginZooming);
-    };
+    }).get();
 }
 
 void UIScriptControllerIOS::setDidEndZoomingCallback(JSValueRef callback)
 {
     UIScriptController::setDidEndZoomingCallback(callback);
-    webView().didEndZoomingCallback = ^{
+    webView().didEndZoomingCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
         if (!m_context)
             return;
         m_context->fireCallback(CallbackTypeDidEndZooming);
-    };
+    }).get();
 }
 
 void UIScriptControllerIOS::setDidShowKeyboardCallback(JSValueRef callback)
 {
     UIScriptController::setDidShowKeyboardCallback(callback);
-    webView().didShowKeyboardCallback = ^{
+    webView().didShowKeyboardCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
         if (!m_context)
             return;
         m_context->fireCallback(CallbackTypeDidShowKeyboard);
-    };
+    }).get();
 }
 
 void UIScriptControllerIOS::setDidHideKeyboardCallback(JSValueRef callback)
 {
     UIScriptController::setDidHideKeyboardCallback(callback);
-    webView().didHideKeyboardCallback = ^{
+    webView().didHideKeyboardCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
         if (!m_context)
             return;
         m_context->fireCallback(CallbackTypeDidHideKeyboard);
-    };
+    }).get();
 }
 
 void UIScriptControllerIOS::chooseMenuAction(JSStringRef jsAction, JSValueRef callback)
@@ -955,21 +998,21 @@ bool UIScriptControllerIOS::isShowingPopover() const
 void UIScriptControllerIOS::setWillPresentPopoverCallback(JSValueRef callback)
 {
     UIScriptController::setWillPresentPopoverCallback(callback);
-    webView().willPresentPopoverCallback = ^{
+    webView().willPresentPopoverCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
         if (!m_context)
             return;
         m_context->fireCallback(CallbackTypeWillPresentPopover);
-    };
+    }).get();
 }
 
 void UIScriptControllerIOS::setDidDismissPopoverCallback(JSValueRef callback)
 {
     UIScriptController::setDidDismissPopoverCallback(callback);
-    webView().didDismissPopoverCallback = ^{
+    webView().didDismissPopoverCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
         if (!m_context)
             return;
         m_context->fireCallback(CallbackTypeDidDismissPopover);
-    };
+    }).get();
 }
 
 JSObjectRef UIScriptControllerIOS::rectForMenuAction(JSStringRef jsAction) const
@@ -1028,11 +1071,11 @@ bool UIScriptControllerIOS::isDismissingMenu() const
 void UIScriptControllerIOS::setDidEndScrollingCallback(JSValueRef callback)
 {
     UIScriptController::setDidEndScrollingCallback(callback);
-    webView().didEndScrollingCallback = ^{
+    webView().didEndScrollingCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
         if (!m_context)
             return;
         m_context->fireCallback(CallbackTypeDidEndScrolling);
-    };
+    }).get();
 }
 
 void UIScriptControllerIOS::clearAllCallbacks()
@@ -1054,6 +1097,19 @@ void UIScriptControllerIOS::beginBackSwipe(JSValueRef callback)
 void UIScriptControllerIOS::completeBackSwipe(JSValueRef callback)
 {
     [webView() _completeBackSwipeForTesting];
+}
+
+void UIScriptControllerIOS::activateDataListSuggestion(unsigned index, JSValueRef callback)
+{
+    // FIXME: Not implemented.
+    UNUSED_PARAM(index);
+
+    unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
+    dispatch_async(dispatch_get_main_queue(), makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
+        if (!m_context)
+            return;
+        m_context->asyncTaskComplete(callbackID);
+    }).get());
 }
 
 bool UIScriptControllerIOS::isShowingDataListSuggestions() const
@@ -1080,53 +1136,9 @@ bool UIScriptControllerIOS::isShowingDataListSuggestions() const
     return foundDataListSuggestionsPickerView;
 }
 
-#if HAVE(PENCILKIT)
-static PKCanvasView *findEditableImageCanvas()
-{
-    Class pkCanvasViewClass = NSClassFromString(@"PKCanvasView");
-    __block PKCanvasView *canvasView = nil;
-    forEachViewInHierarchy(webView().window, ^(UIView *subview, BOOL *stop) {
-        if (![subview isKindOfClass:pkCanvasViewClass])
-            return;
-
-        canvasView = (PKCanvasView *)subview;
-        *stop = YES;
-    });
-    return canvasView;
-}
-#endif
-
-void UIScriptControllerIOS::drawSquareInEditableImage()
-{
-#if HAVE(PENCILKIT)
-    Class pkDrawingClass = NSClassFromString(@"PKDrawing");
-    Class pkInkClass = NSClassFromString(@"PKInk");
-    Class pkStrokeClass = NSClassFromString(@"PKStroke");
-
-    PKCanvasView *canvasView = findEditableImageCanvas();
-    RetainPtr<PKDrawing> drawing = canvasView.drawing ?: adoptNS([[pkDrawingClass alloc] init]);
-    RetainPtr<CGPathRef> path = adoptCF(CGPathCreateWithRect(CGRectMake(0, 0, 50, 50), NULL));
-    RetainPtr<PKInk> ink = [pkInkClass inkWithIdentifier:@"com.apple.ink.pen" color:UIColor.greenColor weight:100.0];
-    RetainPtr<PKStroke> stroke = adoptNS([[pkStrokeClass alloc] _initWithPath:path.get() ink:ink.get() inputScale:1]);
-    [drawing _addStroke:stroke.get()];
-
-    [canvasView setDrawing:drawing.get()];
-#endif
-}
-
-long UIScriptControllerIOS::numberOfStrokesInEditableImage()
-{
-#if HAVE(PENCILKIT)
-    PKCanvasView *canvasView = findEditableImageCanvas();
-    return canvasView.drawing._allStrokes.count;
-#else
-    return 0;
-#endif
-}
-
 void UIScriptControllerIOS::setKeyboardInputModeIdentifier(JSStringRef identifier)
 {
-    TestController::singleton().setKeyboardInputModeIdentifier(toWTFString(toWK(identifier)));
+    TestController::singleton().setKeyboardInputModeIdentifier(toWTFString(identifier));
 }
 
 // FIXME: Write this in terms of HIDEventGenerator once we know how to reset caps lock state
@@ -1140,9 +1152,14 @@ void UIScriptControllerIOS::toggleCapsLock(JSValueRef callback)
     doAsyncTask(callback);
 }
 
+bool UIScriptControllerIOS::keyboardIsAutomaticallyShifted() const
+{
+    return UIKeyboardImpl.activeInstance.isAutoShifted;
+}
+
 JSObjectRef UIScriptControllerIOS::attachmentInfo(JSStringRef jsAttachmentIdentifier)
 {
-    auto attachmentIdentifier = toWTFString(toWK(jsAttachmentIdentifier));
+    auto attachmentIdentifier = toWTFString(jsAttachmentIdentifier);
     _WKAttachment *attachment = [webView() _attachmentForIdentifier:attachmentIdentifier];
     _WKAttachmentInfo *attachmentInfo = attachment.info;
 
@@ -1159,13 +1176,13 @@ JSObjectRef UIScriptControllerIOS::attachmentInfo(JSStringRef jsAttachmentIdenti
 
 UIView *UIScriptControllerIOS::platformContentView() const
 {
-    return [webView() valueForKeyPath:@"_currentContentView"];
+    return webView().contentView;
 }
 
 JSObjectRef UIScriptControllerIOS::calendarType() const
 {
-    UIView *contentView = [webView() valueForKeyPath:@"_currentContentView"];
-    NSString *calendarTypeString = [contentView valueForKeyPath:@"formInputControl.dateTimePickerCalendarType"];
+    UIView *contentView = webView().contentView;
+    NSString *calendarTypeString = [contentView valueForKeyPath:@"dateTimeInputControl.dateTimePickerCalendarType"];
     auto jsContext = m_context->jsContext();
     return JSValueToObject(jsContext, [JSValue valueWithObject:calendarTypeString inContext:[JSContext contextWithJSGlobalContextRef:jsContext]].JSValueRef, nullptr);
 }
@@ -1202,15 +1219,31 @@ void UIScriptControllerIOS::doAfterDoubleTapDelay(JSValueRef callback)
         maximumIntervalBetweenSuccessiveTaps += additionalDelayBetweenSuccessiveTaps;
     }
 
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(maximumIntervalBetweenSuccessiveTaps * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        if (m_context)
-            m_context->asyncTaskComplete(callbackID);
-    });
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(maximumIntervalBetweenSuccessiveTaps * NSEC_PER_SEC)), dispatch_get_main_queue(), makeBlockPtr([this, strongThis = makeRef(*this), callbackID] {
+        if (!m_context)
+            return;
+        m_context->asyncTaskComplete(callbackID);
+    }).get());
 }
 
 void UIScriptControllerIOS::copyText(JSStringRef text)
 {
     UIPasteboard.generalPasteboard.string = text->string();
+}
+
+void UIScriptControllerIOS::installTapGestureOnWindow(JSValueRef callback)
+{
+    m_context->registerCallback(callback, CallbackTypeWindowTapRecognized);
+    webView().windowTapRecognizedCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
+        if (!m_context)
+            return;
+        m_context->fireCallback(CallbackTypeWindowTapRecognized);
+    }).get();
+}
+
+bool UIScriptControllerIOS::isShowingContextMenu() const
+{
+    return webView().showingContextMenu;
 }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2009, 2015 Apple Inc.  All rights reserved.
+ * Copyright (C) 2006-2020 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,14 +30,10 @@
 #include <WebCore/BString.h>
 #include <wtf/RetainPtr.h>
 
-class WebPreferences final : public IWebPreferences, public IWebPreferencesPrivate7 {
+class WebPreferences final : public IWebPreferences, public IWebPreferencesPrivate8 {
 public:
     static WebPreferences* createInstance();
-protected:
-    WebPreferences();
-    ~WebPreferences();
 
-public:
     // IUnknown
     virtual HRESULT STDMETHODCALLTYPE QueryInterface(_In_ REFIID riid, _COM_Outptr_ void** ppvObject);
     virtual ULONG STDMETHODCALLTYPE AddRef();
@@ -240,13 +236,9 @@ public:
     virtual HRESULT STDMETHODCALLTYPE setCustomElementsEnabled(BOOL);
     virtual HRESULT STDMETHODCALLTYPE modernMediaControlsEnabled(_Out_ BOOL*);
     virtual HRESULT STDMETHODCALLTYPE setModernMediaControlsEnabled(BOOL);
-    virtual HRESULT STDMETHODCALLTYPE webAnimationsCSSIntegrationEnabled(_Out_ BOOL*);
-    virtual HRESULT STDMETHODCALLTYPE setWebAnimationsCSSIntegrationEnabled(BOOL);
     
     // IWebPreferencesPrivate4
     virtual HRESULT STDMETHODCALLTYPE setApplicationId(BSTR);
-    virtual HRESULT STDMETHODCALLTYPE webAnimationsEnabled(_Out_ BOOL*);
-    virtual HRESULT STDMETHODCALLTYPE setWebAnimationsEnabled(BOOL);
     virtual HRESULT STDMETHODCALLTYPE userTimingEnabled(_Out_ BOOL*);
     virtual HRESULT STDMETHODCALLTYPE setUserTimingEnabled(BOOL);
     virtual HRESULT STDMETHODCALLTYPE resourceTimingEnabled(_Out_ BOOL*);
@@ -271,6 +263,8 @@ public:
     virtual HRESULT STDMETHODCALLTYPE setVisualViewportAPIEnabled(BOOL);
     virtual HRESULT STDMETHODCALLTYPE CSSOMViewScrollingAPIEnabled(_Out_ BOOL*);
     virtual HRESULT STDMETHODCALLTYPE setCSSOMViewScrollingAPIEnabled(BOOL);
+    virtual HRESULT STDMETHODCALLTYPE CSSOMViewSmoothScrollingEnabled(_Out_ BOOL*);
+    virtual HRESULT STDMETHODCALLTYPE setCSSOMViewSmoothScrollingEnabled(BOOL);
     virtual HRESULT STDMETHODCALLTYPE fetchAPIKeepAliveEnabled(_Out_ BOOL*);
     virtual HRESULT STDMETHODCALLTYPE setFetchAPIKeepAliveEnabled(BOOL);
     virtual HRESULT STDMETHODCALLTYPE spatialNavigationEnabled(_Out_ BOOL*);
@@ -293,6 +287,26 @@ public:
     virtual HRESULT STDMETHODCALLTYPE setRequestIdleCallbackEnabled(BOOL);
     virtual HRESULT STDMETHODCALLTYPE asyncClipboardAPIEnabled(_Out_ BOOL*);
     virtual HRESULT STDMETHODCALLTYPE setAsyncClipboardAPIEnabled(BOOL);
+    virtual HRESULT STDMETHODCALLTYPE webAnimationsCompositeOperationsEnabled(_Out_ BOOL*);
+    virtual HRESULT STDMETHODCALLTYPE setWebAnimationsCompositeOperationsEnabled(BOOL);
+    virtual HRESULT STDMETHODCALLTYPE webAnimationsMutableTimelinesEnabled(_Out_ BOOL*);
+    virtual HRESULT STDMETHODCALLTYPE setWebAnimationsMutableTimelinesEnabled(BOOL);
+    virtual HRESULT STDMETHODCALLTYPE CSSCustomPropertiesAndValuesEnabled(_Out_ BOOL*);
+    virtual HRESULT STDMETHODCALLTYPE setCSSCustomPropertiesAndValuesEnabled(BOOL);
+    virtual HRESULT STDMETHODCALLTYPE aspectRatioOfImgFromWidthAndHeightEnabled(_Out_ BOOL*);
+    virtual HRESULT STDMETHODCALLTYPE setAspectRatioOfImgFromWidthAndHeightEnabled(BOOL);
+    virtual HRESULT STDMETHODCALLTYPE webSQLEnabled(_Out_ BOOL*);
+    virtual HRESULT STDMETHODCALLTYPE setWebSQLEnabled(BOOL);
+    virtual HRESULT STDMETHODCALLTYPE CSSIndividualTransformPropertiesEnabled(_Out_ BOOL*);
+    virtual HRESULT STDMETHODCALLTYPE setCSSIndividualTransformPropertiesEnabled(BOOL);
+
+    // IWebPreferencesPrivate8
+    virtual HRESULT STDMETHODCALLTYPE allowTopNavigationToDataURLs(_Out_ BOOL*);
+    virtual HRESULT STDMETHODCALLTYPE setAllowTopNavigationToDataURLs(BOOL);
+    virtual HRESULT STDMETHODCALLTYPE modernUnprefixedWebAudioEnabled(_Out_ BOOL*);
+    virtual HRESULT STDMETHODCALLTYPE setModernUnprefixedWebAudioEnabled(BOOL);
+    virtual HRESULT STDMETHODCALLTYPE contactPickerAPIEnabled(_Out_ BOOL*);
+    virtual HRESULT STDMETHODCALLTYPE setContactPickerAPIEnabled(BOOL);
 
     // WebPreferences
 
@@ -320,7 +334,10 @@ public:
 
     HRESULT postPreferencesChangesNotification();
 
-protected:
+private:
+    WebPreferences();
+    ~WebPreferences();
+
 #if USE(CF)
     void setValueForKey(CFStringRef key, CFPropertyListRef value);
     RetainPtr<CFPropertyListRef> valueForKey(CFStringRef key);
@@ -346,7 +363,6 @@ protected:
     void copyWebKitPreferencesToCFPreferences(CFDictionaryRef);
 #endif
 
-protected:
     ULONG m_refCount { 0 };
     WebCore::BString m_identifier;
     bool m_autoSaves { false };

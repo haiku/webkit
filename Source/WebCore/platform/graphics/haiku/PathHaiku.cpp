@@ -217,12 +217,7 @@ Path& Path::operator=(Path&& other)
     return *this;
 }
 
-bool Path::hasCurrentPoint() const
-{
-    return !isEmpty();
-}
-
-FloatPoint Path::currentPoint() const
+FloatPoint Path::currentPointSlowCase() const
 {
     return m_path->CurrentPosition();
 }
@@ -233,12 +228,10 @@ bool Path::contains(const FloatPoint& point, WindRule rule) const
     return gHitTestBitmap.hitTest(m_path, point.x(), point.y(), rule);
 }
 
-bool Path::strokeContains(StrokeStyleApplier* applier, const FloatPoint& point) const
+bool Path::strokeContains(StrokeStyleApplier& applier, const FloatPoint& point) const
 {
-    ASSERT(applier);
-
     gHitTestBitmap.init();
-    return gHitTestBitmap.hitTest(m_path, point.x(), point.y(), applier);
+    return gHitTestBitmap.hitTest(m_path, point.x(), point.y(), &applier);
 }
 
 void Path::translate(const FloatSize& size)
@@ -302,22 +295,22 @@ void Path::translate(const FloatSize& size)
     translateIterator.Iterate(m_path);
 }
 
-FloatRect Path::boundingRect() const
+FloatRect Path::boundingRectSlowCase() const
 {
     return m_path->Bounds();
 }
 
-void Path::moveTo(const FloatPoint& p)
+void Path::moveToSlowCase(const FloatPoint& p)
 {
     m_path->MoveTo(p);
 }
 
-void Path::addLineTo(const FloatPoint& p)
+void Path::addLineToSlowCase(const FloatPoint& p)
 {
     m_path->LineTo(p);
 }
 
-void Path::addQuadCurveTo(const FloatPoint& cp, const FloatPoint& p)
+void Path::addQuadCurveToSlowCase(const FloatPoint& cp, const FloatPoint& p)
 {
     BPoint control = cp;
 
@@ -334,7 +327,7 @@ void Path::addQuadCurveTo(const FloatPoint& cp, const FloatPoint& p)
     m_path->BezierTo(points);
 }
 
-void Path::addBezierCurveTo(const FloatPoint& cp1, const FloatPoint& cp2, const FloatPoint& p)
+void Path::addBezierCurveToSlowCase(const FloatPoint& cp1, const FloatPoint& cp2, const FloatPoint& p)
 {
     BPoint points[3];
     points[0] = cp1;
@@ -427,42 +420,43 @@ void Path::closeSubpath()
     m_path->Close();
 }
 
-void Path::addArc(const FloatPoint& center, float radius,
-	float startAngleRadiants, float endAngleRadiants, bool anticlockwise)
+void Path::addArcSlowCase(const FloatPoint& center, float radius,
+       float startAngleRadiants, float endAngleRadiants, bool anticlockwise)
 {
-	// Compute start and end positions
-	float startX = center.x() + radius * cos(startAngleRadiants);
-	float startY = center.y() + radius * sin(startAngleRadiants);
-	float endX   = center.x() + radius * cos(endAngleRadiants);
-	float endY   = center.y() + radius * sin(endAngleRadiants);
+       // Compute start and end positions
+       float startX = center.x() + radius * cos(startAngleRadiants);
+      float startY = center.y() + radius * sin(startAngleRadiants);
+      float endX   = center.x() + radius * cos(endAngleRadiants);
+       float endY   = center.y() + radius * sin(endAngleRadiants);
 
-	// Handle special case of ellipse (the code below isn't stable in that case it seems ?)
-	if ((int)startX == (int)endX && (int)startY == (int)endY)
-	{
-		addEllipse(FloatRect(center.x() - radius, center.y() - radius,
-			radius * 2, radius * 2));
-		return;
-	}
+       // Handle special case of ellipse (the code below isn't stable in that case it seems ?)
+       if ((int)startX == (int)endX && (int)startY == (int)endY)
+       {
+               addEllipse(FloatRect(center.x() - radius, center.y() - radius,
+                       radius * 2, radius * 2));
+               return;
+       }
 
-	// Decide if we are drawing a "large" arc (more than PI rad)
-	bool large = anticlockwise;
-	float coverage = fmodf(endAngleRadiants - startAngleRadiants, 2 * M_PI);
-	if (coverage < 0)
-		coverage += 2 * M_PI;
-	if (coverage >= M_PI)
-		large = !anticlockwise;
+       // Decide if we are drawing a "large" arc (more than PI rad)
+       bool large = anticlockwise;
+       float coverage = fmodf(endAngleRadiants - startAngleRadiants, 2 * M_PI);
+       if (coverage < 0)
+               coverage += 2 * M_PI;
+       if (coverage >= M_PI)
+               large = !anticlockwise;
 
-	// Draw the radius or whatever line is needed to get to the start point
-	// (or teleport there if there was no previous position)
-	if (hasCurrentPoint())
-		m_path->LineTo(BPoint(startX, startY));
-	else
-		m_path->MoveTo(BPoint(startX, startY));
+       // Draw the radius or whatever line is needed to get to the start point
+       // (or teleport there if there was no previous position)
+       if (hasCurrentPoint())
+               m_path->LineTo(BPoint(startX, startY));
+       else
+               m_path->MoveTo(BPoint(startX, startY));
 
-	// And finally, draw the arc itself
-	m_path->ArcTo(radius, radius, startAngleRadiants, large, anticlockwise,
-		BPoint(endX, endY));
+       // And finally, draw the arc itself
+       m_path->ArcTo(radius, radius, startAngleRadiants, large, anticlockwise,
+               BPoint(endX, endY));
 }
+
 
 void Path::addRect(const FloatRect& r)
 {
@@ -526,12 +520,14 @@ void Path::clear()
     m_path->Clear();
 }
 
-bool Path::isEmpty() const
+
+bool Path::isEmptySlowCase() const
 {
     return !m_path->Bounds().IsValid();
 }
 
-void Path::apply(const PathApplierFunction& function) const
+
+void Path::applySlowCase(const PathApplierFunction& function) const
 {
     class ApplyIterator : public BShapeIterator {
     public:
@@ -543,9 +539,8 @@ void Path::apply(const PathApplierFunction& function) const
         virtual status_t IterateMoveTo(BPoint* point)
         {
             PathElement pathElement;
-            pathElement.type = PathElementMoveToPoint;
-            pathElement.points = m_pathPoints;
-            m_pathPoints[0] = point[0];
+            pathElement.type = PathElement::Type::MoveToPoint;
+            pathElement.points[0] = point[0];
             m_function(pathElement);
             return B_OK;
         }
@@ -553,10 +548,9 @@ void Path::apply(const PathApplierFunction& function) const
         virtual status_t IterateLineTo(int32 lineCount, BPoint* linePts)
         {
             PathElement pathElement;
-            pathElement.type = PathElementAddLineToPoint;
-            pathElement.points = m_pathPoints;
+            pathElement.type = PathElement::Type::AddLineToPoint;
             while (lineCount--) {
-                m_pathPoints[0] = linePts[0];
+                pathElement.points[0] = linePts[0];
                 m_function(pathElement);
                 linePts++;
             }
@@ -566,12 +560,11 @@ void Path::apply(const PathApplierFunction& function) const
         virtual status_t IterateBezierTo(int32 bezierCount, BPoint* bezierPts)
         {
             PathElement pathElement;
-            pathElement.type = PathElementAddCurveToPoint;
-            pathElement.points = m_pathPoints;
+            pathElement.type = PathElement::Type::AddCurveToPoint;
             while (bezierCount--) {
-                m_pathPoints[0] = bezierPts[0];
-                m_pathPoints[1] = bezierPts[1];
-                m_pathPoints[2] = bezierPts[2];
+                pathElement.points[0] = bezierPts[0];
+            	pathElement.points[1] = bezierPts[1];
+                pathElement.points[2] = bezierPts[2];
                 m_function(pathElement);
                 bezierPts += 3;
             }
@@ -591,15 +584,13 @@ void Path::apply(const PathApplierFunction& function) const
         virtual status_t IterateClose()
         {
             PathElement pathElement;
-            pathElement.type = PathElementCloseSubpath;
-            pathElement.points = m_pathPoints;
+            pathElement.type = PathElement::Type::CloseSubpath;
             m_function(pathElement);
             return B_OK;
         }
 
     private:
         const PathApplierFunction& m_function;
-        FloatPoint m_pathPoints[3];
     } applyIterator(function);
 
     applyIterator.Iterate(m_path);
@@ -667,6 +658,18 @@ FloatRect Path::strokeBoundingRect(StrokeStyleApplier* applier) const
 {
     notImplemented();
     return m_path->Bounds();
+}
+
+
+FloatRect Path::fastBoundingRectSlowCase() const
+{
+    return m_path->Bounds();
+}
+
+
+bool Path::isNull() const
+{
+    return !m_path;
 }
 
 } // namespace WebCore

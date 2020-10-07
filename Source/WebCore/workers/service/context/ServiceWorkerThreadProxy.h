@@ -57,7 +57,7 @@ public:
     }
     WEBCORE_EXPORT ~ServiceWorkerThreadProxy();
 
-    ServiceWorkerIdentifier identifier() const;
+    ServiceWorkerIdentifier identifier() const { return m_serviceWorkerThread->identifier(); }
     ServiceWorkerThread& thread() { return m_serviceWorkerThread.get(); }
     ServiceWorkerInspectorProxy& inspectorProxy() { return m_inspectorProxy; }
 
@@ -68,13 +68,16 @@ public:
 
     const URL& scriptURL() const { return m_document->url(); }
 
-    // Public only for testing purposes.
-    WEBCORE_TESTSUPPORT_EXPORT void notifyNetworkStateChange(bool isOnline);
+    WEBCORE_EXPORT void notifyNetworkStateChange(bool isOnline);
 
     WEBCORE_EXPORT void startFetch(SWServerConnectionIdentifier, FetchIdentifier, Ref<ServiceWorkerFetch::Client>&&, Optional<ServiceWorkerClientIdentifier>&&, ResourceRequest&&, String&& referrer, FetchOptions&&);
     WEBCORE_EXPORT void cancelFetch(SWServerConnectionIdentifier, FetchIdentifier);
     WEBCORE_EXPORT void continueDidReceiveFetchResponse(SWServerConnectionIdentifier, FetchIdentifier);
     WEBCORE_EXPORT void removeFetch(SWServerConnectionIdentifier, FetchIdentifier);
+
+    void postMessageToServiceWorker(MessageWithMessagePorts&&, ServiceWorkerOrClientData&&);
+    void fireInstallEvent();
+    void fireActivateEvent();
 
 private:
     WEBCORE_EXPORT ServiceWorkerThreadProxy(PageConfiguration&&, const ServiceWorkerContextData&, String&& userAgent, CacheStorageProvider&, SecurityOrigin::StorageBlockingPolicy);
@@ -82,9 +85,9 @@ private:
     WEBCORE_EXPORT static void networkStateChanged(bool isOnLine);
 
     // WorkerLoaderProxy
-    bool postTaskForModeToWorkerGlobalScope(ScriptExecutionContext::Task&&, const String& mode) final;
+    bool postTaskForModeToWorkerOrWorkletGlobalScope(ScriptExecutionContext::Task&&, const String& mode) final;
     void postTaskToLoader(ScriptExecutionContext::Task&&) final;
-    Ref<CacheStorageConnection> createCacheStorageConnection() final;
+    RefPtr<CacheStorageConnection> createCacheStorageConnection() final;
 
     // WorkerDebuggerProxy
     void postMessageToDebugger(const String&) final;

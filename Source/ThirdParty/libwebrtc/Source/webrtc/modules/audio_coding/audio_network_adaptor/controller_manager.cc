@@ -11,6 +11,7 @@
 #include "modules/audio_coding/audio_network_adaptor/controller_manager.h"
 
 #include <cmath>
+#include <string>
 #include <utility>
 
 #include "modules/audio_coding/audio_network_adaptor/bitrate_controller.h"
@@ -18,11 +19,11 @@
 #include "modules/audio_coding/audio_network_adaptor/debug_dump_writer.h"
 #include "modules/audio_coding/audio_network_adaptor/dtx_controller.h"
 #include "modules/audio_coding/audio_network_adaptor/fec_controller_plr_based.h"
-#include "modules/audio_coding/audio_network_adaptor/fec_controller_rplr_based.h"
 #include "modules/audio_coding/audio_network_adaptor/frame_length_controller.h"
 #include "modules/audio_coding/audio_network_adaptor/util/threshold_curve.h"
 #include "rtc_base/ignore_wundef.h"
-#include "rtc_base/timeutils.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/time_utils.h"
 
 #if WEBRTC_ENABLE_PROTOBUF
 RTC_PUSH_IGNORING_WUNDEF()
@@ -73,43 +74,6 @@ std::unique_ptr<FecControllerPlrBased> CreateFecControllerPlrBased(
           config.time_constant_ms())));
 }
 
-std::unique_ptr<FecControllerRplrBased> CreateFecControllerRplrBased(
-    const audio_network_adaptor::config::FecControllerRplrBased& config,
-    bool initial_fec_enabled) {
-  RTC_CHECK(config.has_fec_enabling_threshold());
-  RTC_CHECK(config.has_fec_disabling_threshold());
-
-  auto& fec_enabling_threshold = config.fec_enabling_threshold();
-  RTC_CHECK(fec_enabling_threshold.has_low_bandwidth_bps());
-  RTC_CHECK(fec_enabling_threshold.has_low_bandwidth_recoverable_packet_loss());
-  RTC_CHECK(fec_enabling_threshold.has_high_bandwidth_bps());
-  RTC_CHECK(
-      fec_enabling_threshold.has_high_bandwidth_recoverable_packet_loss());
-
-  auto& fec_disabling_threshold = config.fec_disabling_threshold();
-  RTC_CHECK(fec_disabling_threshold.has_low_bandwidth_bps());
-  RTC_CHECK(
-      fec_disabling_threshold.has_low_bandwidth_recoverable_packet_loss());
-  RTC_CHECK(fec_disabling_threshold.has_high_bandwidth_bps());
-  RTC_CHECK(
-      fec_disabling_threshold.has_high_bandwidth_recoverable_packet_loss());
-
-  return std::unique_ptr<FecControllerRplrBased>(
-      new FecControllerRplrBased(FecControllerRplrBased::Config(
-          initial_fec_enabled,
-          ThresholdCurve(
-              fec_enabling_threshold.low_bandwidth_bps(),
-              fec_enabling_threshold.low_bandwidth_recoverable_packet_loss(),
-              fec_enabling_threshold.high_bandwidth_bps(),
-              fec_enabling_threshold.high_bandwidth_recoverable_packet_loss()),
-          ThresholdCurve(
-              fec_disabling_threshold.low_bandwidth_bps(),
-              fec_disabling_threshold.low_bandwidth_recoverable_packet_loss(),
-              fec_disabling_threshold.high_bandwidth_bps(),
-              fec_disabling_threshold
-                  .high_bandwidth_recoverable_packet_loss()))));
-}
-
 std::unique_ptr<FrameLengthController> CreateFrameLengthController(
     const audio_network_adaptor::config::FrameLengthController& config,
     rtc::ArrayView<const int> encoder_frame_lengths_ms,
@@ -117,21 +81,53 @@ std::unique_ptr<FrameLengthController> CreateFrameLengthController(
     int min_encoder_bitrate_bps) {
   RTC_CHECK(config.has_fl_increasing_packet_loss_fraction());
   RTC_CHECK(config.has_fl_decreasing_packet_loss_fraction());
-  RTC_CHECK(config.has_fl_20ms_to_60ms_bandwidth_bps());
-  RTC_CHECK(config.has_fl_60ms_to_20ms_bandwidth_bps());
 
   std::map<FrameLengthController::Config::FrameLengthChange, int>
-      fl_changing_bandwidths_bps = {
-          {FrameLengthController::Config::FrameLengthChange(20, 60),
-           config.fl_20ms_to_60ms_bandwidth_bps()},
-          {FrameLengthController::Config::FrameLengthChange(60, 20),
-           config.fl_60ms_to_20ms_bandwidth_bps()}};
+      fl_changing_bandwidths_bps;
 
-  if (config.has_fl_60ms_to_120ms_bandwidth_bps() &&
-      config.has_fl_120ms_to_60ms_bandwidth_bps()) {
+  if (config.has_fl_20ms_to_60ms_bandwidth_bps()) {
+    fl_changing_bandwidths_bps.insert(
+        std::make_pair(FrameLengthController::Config::FrameLengthChange(20, 60),
+                       config.fl_20ms_to_60ms_bandwidth_bps()));
+  }
+
+  if (config.has_fl_60ms_to_20ms_bandwidth_bps()) {
+    fl_changing_bandwidths_bps.insert(
+        std::make_pair(FrameLengthController::Config::FrameLengthChange(60, 20),
+                       config.fl_60ms_to_20ms_bandwidth_bps()));
+  }
+
+  if (config.has_fl_20ms_to_40ms_bandwidth_bps()) {
+    fl_changing_bandwidths_bps.insert(
+        std::make_pair(FrameLengthController::Config::FrameLengthChange(20, 40),
+                       config.fl_20ms_to_40ms_bandwidth_bps()));
+  }
+
+  if (config.has_fl_40ms_to_20ms_bandwidth_bps()) {
+    fl_changing_bandwidths_bps.insert(
+        std::make_pair(FrameLengthController::Config::FrameLengthChange(40, 20),
+                       config.fl_40ms_to_20ms_bandwidth_bps()));
+  }
+
+  if (config.has_fl_40ms_to_60ms_bandwidth_bps()) {
+    fl_changing_bandwidths_bps.insert(
+        std::make_pair(FrameLengthController::Config::FrameLengthChange(40, 60),
+                       config.fl_40ms_to_60ms_bandwidth_bps()));
+  }
+
+  if (config.has_fl_60ms_to_40ms_bandwidth_bps()) {
+    fl_changing_bandwidths_bps.insert(
+        std::make_pair(FrameLengthController::Config::FrameLengthChange(60, 40),
+                       config.fl_60ms_to_40ms_bandwidth_bps()));
+  }
+
+  if (config.has_fl_60ms_to_120ms_bandwidth_bps()) {
     fl_changing_bandwidths_bps.insert(std::make_pair(
         FrameLengthController::Config::FrameLengthChange(60, 120),
         config.fl_60ms_to_120ms_bandwidth_bps()));
+  }
+
+  if (config.has_fl_120ms_to_60ms_bandwidth_bps()) {
     fl_changing_bandwidths_bps.insert(std::make_pair(
         FrameLengthController::Config::FrameLengthChange(120, 60),
         config.fl_120ms_to_60ms_bandwidth_bps()));
@@ -147,13 +143,13 @@ std::unique_ptr<FrameLengthController> CreateFrameLengthController(
   }
 
   FrameLengthController::Config ctor_config(
-      std::vector<int>(), initial_frame_length_ms, min_encoder_bitrate_bps,
+      std::set<int>(), initial_frame_length_ms, min_encoder_bitrate_bps,
       config.fl_increasing_packet_loss_fraction(),
       config.fl_decreasing_packet_loss_fraction(), fl_increase_overhead_offset,
       fl_decrease_overhead_offset, std::move(fl_changing_bandwidths_bps));
 
   for (auto frame_length : encoder_frame_lengths_ms)
-    ctor_config.encoder_frame_lengths_ms.push_back(frame_length);
+    ctor_config.encoder_frame_lengths_ms.insert(frame_length);
 
   return std::unique_ptr<FrameLengthController>(
       new FrameLengthController(ctor_config));
@@ -213,7 +209,7 @@ ControllerManagerImpl::Config::Config(int min_reordering_time_ms,
 ControllerManagerImpl::Config::~Config() = default;
 
 std::unique_ptr<ControllerManager> ControllerManagerImpl::Create(
-    const ProtoString& config_string,
+    const std::string& config_string,
     size_t num_encoder_channels,
     rtc::ArrayView<const int> encoder_frame_lengths_ms,
     int min_encoder_bitrate_bps,
@@ -229,7 +225,7 @@ std::unique_ptr<ControllerManager> ControllerManagerImpl::Create(
 }
 
 std::unique_ptr<ControllerManager> ControllerManagerImpl::Create(
-    const ProtoString& config_string,
+    const std::string& config_string,
     size_t num_encoder_channels,
     rtc::ArrayView<const int> encoder_frame_lengths_ms,
     int min_encoder_bitrate_bps,
@@ -258,9 +254,9 @@ std::unique_ptr<ControllerManager> ControllerManagerImpl::Create(
             controller_config.fec_controller(), initial_fec_enabled);
         break;
       case audio_network_adaptor::config::Controller::kFecControllerRplrBased:
-        controller = CreateFecControllerRplrBased(
-            controller_config.fec_controller_rplr_based(), initial_fec_enabled);
-        break;
+        // FecControllerRplrBased has been removed and can't be used anymore.
+        RTC_NOTREACHED();
+        continue;
       case audio_network_adaptor::config::Controller::kFrameLengthController:
         controller = CreateFrameLengthController(
             controller_config.frame_length_controller(),

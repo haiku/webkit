@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Apple Inc. All rights reserved.
+ * Copyright (C) 2010-2020 Apple Inc. All rights reserved.
  * Copyright (C) 2017 Sony Interactive Entertainment Inc.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-# pragma once
+#pragma once
 
 #if OS(DARWIN) && !USE(UNIX_DOMAIN_SOCKETS)
 #include <mach/mach_init.h>
@@ -99,7 +99,7 @@ public:
 #endif
 
     void encode(Encoder&) const;
-    static bool decode(Decoder&, Attachment&);
+    static WARN_UNUSED_RETURN bool decode(Decoder&, Attachment&);
     
 private:
     Type m_type;
@@ -108,8 +108,8 @@ private:
     int m_fileDescriptor { -1 };
     size_t m_size;
 #elif OS(DARWIN)
-    mach_port_name_t m_port;
-    mach_msg_type_name_t m_disposition;
+    mach_port_name_t m_port { 0 };
+    mach_msg_type_name_t m_disposition { 0 };
 #elif OS(WINDOWS)
     HANDLE m_handle { INVALID_HANDLE_VALUE };
 #elif PLATFORM(HAIKU)

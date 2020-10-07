@@ -83,7 +83,7 @@ void WebFrameProxy::loadURL(const URL& url, const String& referrer)
     if (!m_page)
         return;
 
-    m_page->process().send(Messages::WebPage::LoadURLInFrame(url, referrer, m_frameID), m_page->webPageID());
+    m_page->send(Messages::WebPage::LoadURLInFrame(url, referrer, m_frameID));
 }
 
 void WebFrameProxy::loadData(const IPC::DataReference& data, const String& MIMEType, const String& encodingName, const URL& baseURL)
@@ -92,7 +92,7 @@ void WebFrameProxy::loadData(const IPC::DataReference& data, const String& MIMET
     if (!m_page)
         return;
 
-    m_page->process().send(Messages::WebPage::LoadDataInFrame(data, MIMEType, encodingName, baseURL, m_frameID), m_page->webPageID());
+    m_page->send(Messages::WebPage::LoadDataInFrame(data, MIMEType, encodingName, baseURL, m_frameID));
 }
 
 void WebFrameProxy::stopLoading() const
@@ -103,7 +103,7 @@ void WebFrameProxy::stopLoading() const
     if (!m_page->hasRunningProcess())
         return;
 
-    m_page->process().send(Messages::WebPage::StopLoadingFrame(m_frameID), m_page->webPageID());
+    m_page->send(Messages::WebPage::StopLoadingFrame(m_frameID));
 }
     
 bool WebFrameProxy::canProvideSource() const
@@ -168,7 +168,6 @@ void WebFrameProxy::didCommitLoad(const String& contentType, WebCertificateInfo&
 
     m_title = String();
     m_MIMEType = contentType;
-    m_isFrameSet = false;
     m_certificateInfo = &certificateInfo;
     m_containsPluginDocument = containsPluginDocument;
 }
@@ -193,14 +192,14 @@ void WebFrameProxy::didChangeTitle(const String& title)
     m_title = title;
 }
 
-WebFramePolicyListenerProxy& WebFrameProxy::setUpPolicyListenerProxy(CompletionHandler<void(PolicyAction, API::WebsitePolicies*, ProcessSwapRequestedByClient, RefPtr<SafeBrowsingWarning>&&)>&& completionHandler, ShouldExpectSafeBrowsingResult expect)
+WebFramePolicyListenerProxy& WebFrameProxy::setUpPolicyListenerProxy(CompletionHandler<void(PolicyAction, API::WebsitePolicies*, ProcessSwapRequestedByClient, RefPtr<SafeBrowsingWarning>&&, Optional<NavigatingToAppBoundDomain>)>&& completionHandler, ShouldExpectSafeBrowsingResult expectSafeBrowsingResult, ShouldExpectAppBoundDomainResult expectAppBoundDomainResult)
 {
     if (m_activeListener)
         m_activeListener->ignore();
-    m_activeListener = WebFramePolicyListenerProxy::create([this, protectedThis = makeRef(*this), completionHandler = WTFMove(completionHandler)] (PolicyAction action, API::WebsitePolicies* policies, ProcessSwapRequestedByClient processSwapRequestedByClient, RefPtr<SafeBrowsingWarning>&& safeBrowsingWarning) mutable {
-        completionHandler(action, policies, processSwapRequestedByClient, WTFMove(safeBrowsingWarning));
+    m_activeListener = WebFramePolicyListenerProxy::create([this, protectedThis = makeRef(*this), completionHandler = WTFMove(completionHandler)] (PolicyAction action, API::WebsitePolicies* policies, ProcessSwapRequestedByClient processSwapRequestedByClient, RefPtr<SafeBrowsingWarning>&& safeBrowsingWarning, Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain) mutable {
+        completionHandler(action, policies, processSwapRequestedByClient, WTFMove(safeBrowsingWarning), isNavigatingToAppBoundDomain);
         m_activeListener = nullptr;
-    }, expect);
+    }, expectSafeBrowsingResult, expectAppBoundDomainResult);
     return *m_activeListener;
 }
 
@@ -263,7 +262,7 @@ void WebFrameProxy::collapseSelection()
     if (!m_page)
         return;
 
-    m_page->process().send(Messages::WebPage::CollapseSelectionInFrame(m_frameID), m_page->webPageID());
+    m_page->send(Messages::WebPage::CollapseSelectionInFrame(m_frameID));
 }
 #endif
 

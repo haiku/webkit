@@ -12,17 +12,18 @@
 #define MODULES_UTILITY_SOURCE_PROCESS_THREAD_IMPL_H_
 
 #include <stdint.h>
+
 #include <list>
 #include <memory>
 #include <queue>
 
+#include "api/task_queue/queued_task.h"
 #include "modules/include/module.h"
 #include "modules/utility/include/process_thread.h"
-#include "rtc_base/criticalsection.h"
+#include "rtc_base/critical_section.h"
 #include "rtc_base/event.h"
 #include "rtc_base/location.h"
 #include "rtc_base/platform_thread.h"
-#include "rtc_base/task_queue.h"
 #include "rtc_base/thread_checker.h"
 
 namespace webrtc {
@@ -36,13 +37,15 @@ class ProcessThreadImpl : public ProcessThread {
   void Stop() override;
 
   void WakeUp(Module* module) override;
-  void PostTask(std::unique_ptr<rtc::QueuedTask> task) override;
+  void PostTask(std::unique_ptr<QueuedTask> task) override;
+  void PostDelayedTask(std::unique_ptr<QueuedTask> task,
+                       uint32_t milliseconds) override;
 
   void RegisterModule(Module* module, const rtc::Location& from) override;
   void DeRegisterModule(Module* module) override;
 
  protected:
-  static bool Run(void* obj);
+  static void Run(void* obj);
   bool Process();
 
  private:
@@ -63,8 +66,25 @@ class ProcessThreadImpl : public ProcessThread {
    private:
     ModuleCallback& operator=(ModuleCallback&);
   };
+  struct DelayedTask {
+    DelayedTask(int64_t run_at_ms, std::unique_ptr<QueuedTask> task)
+        : run_at_ms(run_at_ms), task(task.release()) {}
+    friend bool operator<(const DelayedTask& lhs, const DelayedTask& rhs) {
+      // Earliest DelayedTask should be at the top of the priority queue.
+      return lhs.run_at_ms > rhs.run_at_ms;
+    }
 
+    int64_t run_at_ms;
+    // DelayedTask owns the |task|, but some delayed tasks must be removed from
+    // the std::priority_queue, but mustn't be deleted. std::priority_queue does
+    // not give non-const access to the values, so storing unique_ptr would
+    // delete the task as soon as it is remove from the priority queue.
+    // Thus lifetime of the |task| is managed manually.
+    QueuedTask* task;
+  };
   typedef std::list<ModuleCallback> ModuleList;
+
+  void Delete() override;
 
   // Warning: For some reason, if |lock_| comes immediately before |modules_|
   // with the current class layout, we will  start to have mysterious crashes
@@ -80,7 +100,8 @@ class ProcessThreadImpl : public ProcessThread {
   std::unique_ptr<rtc::PlatformThread> thread_;
 
   ModuleList modules_;
-  std::queue<rtc::QueuedTask*> queue_;
+  std::queue<QueuedTask*> queue_;
+  std::priority_queue<DelayedTask> delayed_tasks_ RTC_GUARDED_BY(lock_);
   bool stop_;
   const char* thread_name_;
 };

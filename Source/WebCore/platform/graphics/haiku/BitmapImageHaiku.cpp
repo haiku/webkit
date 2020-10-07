@@ -53,8 +53,8 @@ Color nativeImageSinglePixelSolidColor(const RefPtr<WebCore::BitmapRef>& image)
     if (image->Bounds().Width() > 1 || image->Bounds().Height() > 1)
         return Color();
 
-    RGBA32* pixel = reinterpret_cast_ptr<RGBA32*>(image->Bits());
-    return colorFromPremultipliedARGB(*pixel);
+    rgb_color* pixel = reinterpret_cast_ptr<rgb_color*>(image->Bits());
+    return Color(*pixel);
 }
 
 float subsamplingScale(GraphicsContext&, const FloatRect&, const FloatRect&)

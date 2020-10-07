@@ -41,7 +41,7 @@
 
 namespace WebCore {
 
-void AXObjectCache::detachWrapper(AccessibilityObject* obj, AccessibilityDetachmentType)
+void AXObjectCache::detachWrapper(AXCoreObject* obj, AccessibilityDetachmentType)
 {
     // On Windows, AccessibilityObjects are created when get_accChildCount is
     // called, but they are not wrapped until get_accChild is called, so this
@@ -50,7 +50,7 @@ void AXObjectCache::detachWrapper(AccessibilityObject* obj, AccessibilityDetachm
         wrapper->detach();
 }
 
-void AXObjectCache::attachWrapper(AccessibilityObject*)
+void AXObjectCache::attachWrapper(AXCoreObject*)
 {
     // On Windows, AccessibilityObjects are wrapped when the accessibility
     // software requests them via get_accChild.

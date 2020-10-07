@@ -25,8 +25,6 @@
 
 #pragma once
 
-#if ENABLE(SVG_FONTS)
-
 #include "CachedFont.h"
 
 namespace WebCore {
@@ -39,10 +37,10 @@ public:
 
     bool ensureCustomFontData(const AtomString& remoteURI) override;
 
-    RefPtr<Font> createFont(const FontDescription&, const AtomString& remoteURI, bool syntheticBold, bool syntheticItalic, const FontFeatureSettings&, const FontVariantSettings&, FontSelectionSpecifiedCapabilities) override;
+    RefPtr<Font> createFont(const FontDescription&, const AtomString& remoteURI, bool syntheticBold, bool syntheticItalic, const FontFeatureSettings&, FontSelectionSpecifiedCapabilities) override;
 
 private:
-    FontPlatformData platformDataFromCustomData(const FontDescription&, bool bold, bool italic, const FontFeatureSettings&, const FontVariantSettings&, FontSelectionSpecifiedCapabilities);
+    FontPlatformData platformDataFromCustomData(const FontDescription&, bool bold, bool italic, const FontFeatureSettings&, FontSelectionSpecifiedCapabilities);
 
     SVGFontElement* getSVGFontById(const String&) const;
 
@@ -57,5 +55,3 @@ private:
 } // namespace WebCore
 
 SPECIALIZE_TYPE_TRAITS_CACHED_RESOURCE(CachedSVGFont, CachedResource::Type::SVGFontResource)
-
-#endif // ENABLE(SVG_FONTS)

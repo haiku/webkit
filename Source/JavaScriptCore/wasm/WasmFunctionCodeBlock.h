@@ -46,6 +46,7 @@ namespace Wasm {
 
 class Signature;
 struct GeneratorTraits;
+enum Type : int8_t;
 
 // FIXME: Consider merging this with LLIntCallee
 // https://bugs.webkit.org/show_bug.cgi?id=203691
@@ -63,12 +64,25 @@ public:
     {
     }
 
-    ALWAYS_INLINE uint64_t getConstant(int index) const { return m_constants[index - FirstConstantRegisterIndex]; }
-    ALWAYS_INLINE uint32_t functionIndex() const { return m_functionIndex; }
+    uint32_t functionIndex() const { return m_functionIndex; }
+    int numVars() const { return m_numVars; }
+    int numCalleeLocals() const { return m_numCalleeLocals; }
+    uint32_t numArguments() const { return m_numArguments; }
+    const Vector<Type>& constantTypes() const { return m_constantTypes; }
+    const Vector<uint64_t>& constants() const { return m_constants; }
+    const InstructionStream& instructions() const { return *m_instructions; }
+
+    void setNumVars(int numVars) { m_numVars = numVars; }
+    void setNumCalleeLocals(int numCalleeLocals) { m_numCalleeLocals = numCalleeLocals; }
+
+    ALWAYS_INLINE uint64_t getConstant(VirtualRegister reg) const { return m_constants[reg.toConstantIndex()]; }
+    ALWAYS_INLINE Type getConstantType(VirtualRegister reg) const
+    {
+        ASSERT(Options::dumpGeneratedWasmBytecodes());
+        return m_constantTypes[reg.toConstantIndex()];
+    }
 
     void setInstructions(std::unique_ptr<InstructionStream>);
-    void dumpBytecode();
-
     void addJumpTarget(InstructionStream::Offset jumpTarget) { m_jumpTargets.append(jumpTarget); }
     InstructionStream::Offset numberOfJumpTargets() { return m_jumpTargets.size(); }
     InstructionStream::Offset lastJumpTarget() { return m_jumpTargets.last(); }
@@ -94,7 +108,14 @@ public:
     unsigned addSignature(const Signature&);
     const Signature& signature(unsigned index) const;
 
-    using JumpTable = Vector<InstructionStream::Offset>;
+    struct JumpTableEntry {
+        int target { 0 };
+        unsigned startOffset;
+        unsigned dropCount;
+        unsigned keepCount;
+    };
+
+    using JumpTable = Vector<JumpTableEntry>;
     JumpTable& addJumpTable(size_t numberOfEntries);
     const JumpTable& jumpTable(unsigned tableIndex) const;
     unsigned numberOfJumpTables() const;
@@ -109,6 +130,7 @@ private:
     // Number of VirtualRegister. The naming is unfortunate, but has to match UnlinkedCodeBlock
     int m_numCalleeLocals { 0 };
     uint32_t m_numArguments { 0 };
+    Vector<Type> m_constantTypes;
     Vector<uint64_t> m_constants;
     std::unique_ptr<InstructionStream> m_instructions;
     const void* m_instructionsRawPointer { nullptr };

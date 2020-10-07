@@ -1,3 +1,221 @@
+2020-10-04  Ryan Hostetler  <rhost@apple.com>
+
+        Submission failure with "make: *** No rule to make target `installsrc'. Stop"
+        https://bugs.webkit.org/show_bug.cgi?id=214696
+        <rdar://problem/62268104>
+
+        Reviewed by Darin Adler.
+
+        Add installsrc phase to support xbs submitproject for WebKit repository.
+        This change allows internal tools to submit and build in a single step.
+
+        * Makefile:
+
+2020-09-22  Keith Rollin  <krollin@apple.com>
+
+        Unify debug and release target aliases
+        https://bugs.webkit.org/show_bug.cgi?id=216863
+        <rdar://problem/69407746>
+
+        Reviewed by Tim Horton.
+
+        All Makefiles have "debug", "d", "release", and "r" for build
+        targets. Others -- but not all -- also include "dev", "develop",
+        "development", "dep", "deploy", and "deployment". Because of this
+        inconsistency, trying to use those additional targets didn't work. It
+        looks like all Makefiles used to support all of those targets, but
+        some got dropped along the way. For instance, the top-level Makefile
+        and Source/Makefile dropped them in 2013 as part of Bug 107863. And it
+        looks like WebKitLibraries/Makefile never had them. Given that those
+        additional targets don't work, it seems like no one uses them, so
+        let's remove them completely.
+
+        * Makefile:
+
+2020-09-22  Keith Rollin  <krollin@apple.com>
+
+        Refactor build rules in Makefiles and Makefile.shared
+        https://bugs.webkit.org/show_bug.cgi?id=216806
+        <rdar://problem/69332316>
+
+        Reviewed by David Kilzer.
+
+        Factor out the common aspects of the build rules in Makefile.shared
+        and the various Makefiles. This allows us to more easily see what's
+        different between the various build targets, and to apply uniform
+        changes across all of the targets.
+
+        * Makefile:
+
+2020-08-05  Tim Horton  <timothy_horton@apple.com>
+
+        Remove all references to non-existent 10.16
+        https://bugs.webkit.org/show_bug.cgi?id=215202
+
+        Reviewed by Wenson Hsieh.
+
+        * gtest/xcode/Config/DebugProject.xcconfig:
+        * gtest/xcode/Config/ReleaseProject.xcconfig:
+
+2020-07-22  Conrad Shultz  <conrad_shultz@apple.com>
+
+        Update macOS Version macros
+        https://bugs.webkit.org/show_bug.cgi?id=214653
+
+        Reviewed by Tim Horton.
+
+        * gtest/xcode/Config/DebugProject.xcconfig:
+        * gtest/xcode/Config/ReleaseProject.xcconfig:
+
+2020-06-30  Andy Estes  <aestes@apple.com>
+
+        [Xcode] Enable the "My Mac (Mac Catalyst)" destination in WebKit Xcode projects
+        https://bugs.webkit.org/show_bug.cgi?id=213740
+
+        Reviewed by Darin Adler.
+
+        * gtest/xcode/Config/General.xcconfig: Set SUPPORTS_MACCATALYST to YES to tell Xcode that
+        this project supports building for Mac Catalyst.
+
+2020-06-22  Tim Horton  <timothy_horton@apple.com>
+
+        Update macOS version macros
+        https://bugs.webkit.org/show_bug.cgi?id=213484
+
+        Reviewed by Alexey Proskuryakov.
+
+        * gtest/xcode/Config/DebugProject.xcconfig:
+        * gtest/xcode/Config/ReleaseProject.xcconfig:
+
+2020-05-14  Daniel Bates  <dabates@apple.com>
+
+        Include LocalOverrides.xcconfig in all Tools projects
+        https://bugs.webkit.org/show_bug.cgi?id=211789
+
+        Reviewed by Dan Bernstein.
+
+        Matches what is done for all Source projects so as to support local overriding of configs.
+        Only allow overrides when building for Debug and Release. Again, this matches what is
+        being done for Source projects.
+
+        * gtest/xcode/Config/DebugProject.xcconfig:
+        * gtest/xcode/Config/ReleaseProject.xcconfig:
+
+2020-04-25  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Deal with another round of Xcode upgrade checks
+        https://bugs.webkit.org/show_bug.cgi?id=211027
+
+        Reviewed by Alexey Proskuryakov.
+
+        * gtest/xcode/gtest.xcodeproj/project.pbxproj: Bump the upgrade check version.
+        Add a harmless base localization, rename English localization to en,
+        remove Japanese, French, German; this project contains nothing localized.
+
+2020-04-03  David Kilzer  <ddkilzer@apple.com>
+
+        [Xcode] Replace ASAN_OTHER_CFLAGS and ASAN_OTHER_CPLUSPLUSFLAGS with $(inherited)
+        <https://webkit.org/b/209963>
+        <rdar://problem/61257504>
+
+        Reviewed by Alexey Proskuryakov.
+
+        * gtest/xcode/Config/General.xcconfig:
+        - Remove ASAN_OTHER_CFLAGS, ASAN_OTHER_CPLUSPLUSFLAGS and
+          ASAN_OTHER_LDFLAGS.
+
+2020-03-01  Ting-Wei Lan  <lantw44@gmail.com>
+
+        Re-add the patch used to work around gtest linking failure on FreeBSD
+        https://bugs.webkit.org/show_bug.cgi?id=208409
+
+        Reviewed by Michael Catanzaro.
+
+        The patch was added in https://bugs.webkit.org/show_bug.cgi?id=138420 to
+        fix gtest linking error on FreeBSD. However, it was accidentally dropped
+        in r235613, the commit updating gtest, causing the error to happen
+        again. Re-add it to fix the build on FreeBSD.
+
+        * gtest/src/gtest-death-test.cc:
+
+2020-01-24  Sergio Villar Senin  <svillar@igalia.com>
+
+        Remove WebVR from the tree
+        https://bugs.webkit.org/show_bug.cgi?id=206739
+
+        Reviewed by Darin Adler.
+
+        Removed as WebVR is gone and this is no longer needed.
+
+        * openvr/CMakeLists.txt: Removed.
+        * openvr/LICENSE: Removed.
+        * openvr/README.md: Removed.
+        * openvr/README.webkit: Removed.
+        * openvr/Toolchain-clang.cmake: Removed.
+        * openvr/headers/openvr.h: Removed.
+        * openvr/headers/openvr_api.cs: Removed.
+        * openvr/headers/openvr_api.json: Removed.
+        * openvr/headers/openvr_capi.h: Removed.
+        * openvr/headers/openvr_driver.h: Removed.
+        * openvr/patches/Path_WriteBinaryFile-fix-return-condition.patch: Removed.
+        * openvr/patches/cmake-build.patch: Removed.
+        * openvr/src/CMakeLists.txt: Removed.
+        * openvr/src/Info.plist: Removed.
+        * openvr/src/README: Removed.
+        * openvr/src/ivrclientcore.h: Removed.
+        * openvr/src/json/json-forwards.h: Removed.
+        * openvr/src/json/json.h: Removed.
+        * openvr/src/jsoncpp.cpp: Removed.
+        * openvr/src/openvr_api_public.cpp: Removed.
+        * openvr/src/vrcommon/dirtools_public.cpp: Removed.
+        * openvr/src/vrcommon/dirtools_public.h: Removed.
+        * openvr/src/vrcommon/envvartools_public.cpp: Removed.
+        * openvr/src/vrcommon/envvartools_public.h: Removed.
+        * openvr/src/vrcommon/hmderrors_public.cpp: Removed.
+        * openvr/src/vrcommon/hmderrors_public.h: Removed.
+        * openvr/src/vrcommon/pathtools_public.cpp: Removed.
+        * openvr/src/vrcommon/pathtools_public.h: Removed.
+        * openvr/src/vrcommon/sharedlibtools_public.cpp: Removed.
+        * openvr/src/vrcommon/sharedlibtools_public.h: Removed.
+        * openvr/src/vrcommon/strtools_public.cpp: Removed.
+        * openvr/src/vrcommon/strtools_public.h: Removed.
+        * openvr/src/vrcommon/vrpathregistry_public.cpp: Removed.
+        * openvr/src/vrcommon/vrpathregistry_public.h: Removed.
+
+2020-01-21  Keith Rollin  <krollin@apple.com>
+
+        Fix tvOS values in SUPPORTED_PLATFORMS
+        https://bugs.webkit.org/show_bug.cgi?id=206435
+        <rdar://problem/58674587>
+
+        Reviewed by Alexey Proskuryakov.
+
+        A number of targets in WebKit have 'tvos' and 'tvsimulator' in
+        SUPPORTED_PLATFORMS. The correct values are 'appletvos' and
+        'appletvsimulator'. These should be updated to the correct ones as the
+        wrong values prevent the tvOS run destination from being usable in the
+        UI to build for tvOS.
+
+        * gtest/xcode/Config/General.xcconfig:
+
+2020-01-08  Mark Lam  <mark.lam@apple.com>
+
+        Rename testing build configuration to release+assert, and add new testing build configuration.
+        https://bugs.webkit.org/show_bug.cgi?id=205954
+
+        Reviewed by Yusuke Suzuki.
+
+        * Makefile:
+
+2020-01-07  Keith Miller  <keith_miller@apple.com>
+
+        Add a testing target to make that is release + assertions
+        https://bugs.webkit.org/show_bug.cgi?id=205895
+
+        Reviewed by Mark Lam.
+
+        * Makefile:
+
 2019-11-01  Tim Horton  <timothy_horton@apple.com>
 
         macCatalyst: Get TestWebKitAPI building

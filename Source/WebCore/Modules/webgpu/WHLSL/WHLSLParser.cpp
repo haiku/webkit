@@ -26,7 +26,7 @@
 #include "config.h"
 #include "WHLSLParser.h"
 
-#if ENABLE(WEBGPU)
+#if ENABLE(WHLSL_COMPILER)
 
 #include "WHLSLAddressSpace.h"
 #include "WHLSLEntryPointType.h"
@@ -696,6 +696,8 @@ auto Parser::parseResourceSemantic() -> Expected<AST::ResourceSemantic, Error>
     case 's':
         mode = AST::ResourceSemantic::Mode::Sampler;
         break;
+    default:
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
     auto index = recognizeSimpleUnsignedInteger(infoStringView.substring(1));
@@ -2083,4 +2085,4 @@ auto Parser::parseTerm() -> Expected<UniqueRef<AST::Expression>, Error>
 
 } // namespace WebCore
 
-#endif // ENABLE(WEBGPU)
+#endif // ENABLE(WHLSL_COMPILER)

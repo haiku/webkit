@@ -32,7 +32,7 @@ namespace JSC {
 
 class CallFrame;
 
-typedef EncodedJSValue (JSC_HOST_CALL *RawNativeFunction)(JSGlobalObject*, CallFrame*);
+using RawNativeFunction = EncodedJSValue(JSC_HOST_CALL_ATTRIBUTES*)(JSGlobalObject*, CallFrame*);
 
 class NativeFunction {
 public:
@@ -108,15 +108,11 @@ static_assert(sizeof(TaggedNativeFunction) == sizeof(void*), "");
 
 namespace WTF {
 
-template<typename T> struct DefaultHash;
-template<> struct DefaultHash<JSC::NativeFunction> {
-    using Hash = JSC::NativeFunctionHash;
-};
+template<typename> struct DefaultHash;
+template<> struct DefaultHash<JSC::NativeFunction> : JSC::NativeFunctionHash { };
 
-template<typename T> struct DefaultHash;
-template<> struct DefaultHash<JSC::TaggedNativeFunction> {
-    using Hash = JSC::TaggedNativeFunctionHash;
-};
+template<typename> struct DefaultHash;
+template<> struct DefaultHash<JSC::TaggedNativeFunction> : JSC::TaggedNativeFunctionHash { };
 
 } // namespace WTF
 

@@ -10,16 +10,20 @@
 #ifndef LIBANGLE_RENDERER_VULKAN_VK_UTILS_H_
 #define LIBANGLE_RENDERER_VULKAN_VK_UTILS_H_
 
+#include <atomic>
 #include <limits>
 
+#include "GLSLANG/ShaderLang.h"
 #include "common/FixedVector.h"
 #include "common/Optional.h"
 #include "common/PackedEnums.h"
 #include "common/debug.h"
 #include "libANGLE/Error.h"
 #include "libANGLE/Observer.h"
+#include "libANGLE/renderer/serial_utils.h"
 #include "libANGLE/renderer/vulkan/SecondaryCommandBuffer.h"
 #include "libANGLE/renderer/vulkan/vk_wrapper.h"
+#include "vulkan/vulkan_fuchsia_ext.h"
 
 #define ANGLE_GL_OBJECTS_X(PROC) \
     PROC(Buffer)                 \
@@ -29,6 +33,7 @@
     PROC(Query)                  \
     PROC(Overlay)                \
     PROC(Program)                \
+    PROC(ProgramPipeline)        \
     PROC(Sampler)                \
     PROC(Semaphore)              \
     PROC(Texture)                \
@@ -41,6 +46,7 @@ namespace egl
 {
 class Display;
 class Image;
+class ShareGroup;
 }  // namespace egl
 
 namespace gl
@@ -62,12 +68,12 @@ ANGLE_GL_OBJECTS_X(ANGLE_PRE_DECLARE_OBJECT)
 
 namespace rx
 {
-class CommandGraphResource;
 class DisplayVk;
 class ImageVk;
 class RenderTargetVk;
 class RendererVk;
 class RenderPassCache;
+class ShareGroupVk;
 }  // namespace rx
 
 namespace angle
@@ -101,15 +107,16 @@ namespace vk
 {
 struct Format;
 
-extern const char *gLoaderLayersPathEnv;
-extern const char *gLoaderICDFilenamesEnv;
-
-enum class ICD
+// Prepend ptr to the pNext chain at chainStart
+template <typename VulkanStruct1, typename VulkanStruct2>
+void AddToPNextChain(VulkanStruct1 *chainStart, VulkanStruct2 *ptr)
 {
-    Default,
-    Mock,
-    SwiftShader,
-};
+    ASSERT(ptr->pNext == nullptr);
+
+    VkBaseOutStructure *localPtr = reinterpret_cast<VkBaseOutStructure *>(chainStart);
+    ptr->pNext                   = localPtr->pNext;
+    localPtr->pNext              = reinterpret_cast<VkBaseOutStructure *>(ptr);
+}
 
 // Abstracts error handling. Implemented by both ContextVk for GL and DisplayVk for EGL errors.
 class Context : angle::NonCopyable
@@ -124,6 +131,10 @@ class Context : angle::NonCopyable
                              unsigned int line) = 0;
     VkDevice getDevice() const;
     RendererVk *getRenderer() const { return mRenderer; }
+
+    // This is a special override needed so we can determine if we need to initialize images.
+    // It corresponds to the EGL or GL extensions depending on the vk::Context type.
+    virtual bool isRobustResourceInitEnabled() const = 0;
 
   protected:
     RendererVk *const mRenderer;
@@ -170,6 +181,12 @@ template <>
 struct ImplTypeHelper<egl::Image>
 {
     using ImplType = ImageVk;
+};
+
+template <>
+struct ImplTypeHelper<egl::ShareGroup>
+{
+    using ImplType = ShareGroupVk;
 };
 
 template <typename T>
@@ -234,17 +251,19 @@ class GarbageObject
     GarbageObject &operator=(GarbageObject &&rhs);
 
     bool valid() const { return mHandle != VK_NULL_HANDLE; }
-    void destroy(VkDevice device);
+    void destroy(RendererVk *renderer);
 
     template <typename DerivedT, typename HandleT>
     static GarbageObject Get(WrappedObject<DerivedT, HandleT> *object)
     {
+        // Using c-style cast here to avoid conditional compile for MSVC 32-bit
+        //  which fails to compile with reinterpret_cast, requiring static_cast.
         return GarbageObject(HandleTypeHelper<DerivedT>::kHandleType,
-                             reinterpret_cast<GarbageHandle>(object->release()));
+                             (GarbageHandle)(object->release()));
     }
 
   private:
-    VK_DEFINE_HANDLE(GarbageHandle)
+    VK_DEFINE_NON_DISPATCHABLE_HANDLE(GarbageHandle)
     GarbageObject(HandleType handleType, GarbageHandle handle);
 
     HandleType mHandleType;
@@ -263,8 +282,8 @@ using GarbageList = std::vector<GarbageObject>;
 // A list of garbage objects and the associated serial after which the objects can be destroyed.
 using GarbageAndSerial = ObjectAndSerial<GarbageList>;
 
-// Houses multiple lists of garbage objects. Each sub-list has a different lifetime. They should
-// be sorted such that later-living garbage is ordered later in the list.
+// Houses multiple lists of garbage objects. Each sub-list has a different lifetime. They should be
+// sorted such that later-living garbage is ordered later in the list.
 using GarbageQueue = std::vector<GarbageAndSerial>;
 
 class MemoryProperties final : angle::NonCopyable
@@ -280,6 +299,12 @@ class MemoryProperties final : angle::NonCopyable
                                             uint32_t *indexOut) const;
     void destroy();
 
+    VkDeviceSize getHeapSizeForMemoryType(uint32_t memoryType) const
+    {
+        uint32_t heapIndex = mMemoryProperties.memoryTypes[memoryType].heapIndex;
+        return mMemoryProperties.memoryHeaps[heapIndex].size;
+    }
+
   private:
     VkPhysicalDeviceMemoryProperties mMemoryProperties;
 };
@@ -290,34 +315,50 @@ class StagingBuffer final : angle::NonCopyable
   public:
     StagingBuffer();
     void release(ContextVk *contextVk);
-    void destroy(VkDevice device);
+    void collectGarbage(RendererVk *renderer, Serial serial);
+    void destroy(RendererVk *renderer);
 
-    angle::Result init(ContextVk *context, VkDeviceSize size, StagingUsage usage);
+    angle::Result init(Context *context, VkDeviceSize size, StagingUsage usage);
 
     Buffer &getBuffer() { return mBuffer; }
     const Buffer &getBuffer() const { return mBuffer; }
-    DeviceMemory &getDeviceMemory() { return mDeviceMemory; }
-    const DeviceMemory &getDeviceMemory() const { return mDeviceMemory; }
     size_t getSize() const { return mSize; }
 
   private:
     Buffer mBuffer;
-    DeviceMemory mDeviceMemory;
+    Allocation mAllocation;
     size_t mSize;
 };
+
+angle::Result InitMappableAllocation(Context *context,
+                                     const vk::Allocator &allocator,
+                                     Allocation *allocation,
+                                     VkDeviceSize size,
+                                     int value,
+                                     VkMemoryPropertyFlags memoryPropertyFlags);
+
+angle::Result InitMappableDeviceMemory(Context *context,
+                                       vk::DeviceMemory *deviceMemory,
+                                       VkDeviceSize size,
+                                       int value,
+                                       VkMemoryPropertyFlags memoryPropertyFlags);
 
 angle::Result AllocateBufferMemory(Context *context,
                                    VkMemoryPropertyFlags requestedMemoryPropertyFlags,
                                    VkMemoryPropertyFlags *memoryPropertyFlagsOut,
                                    const void *extraAllocationInfo,
                                    Buffer *buffer,
-                                   DeviceMemory *deviceMemoryOut);
+                                   DeviceMemory *deviceMemoryOut,
+                                   VkDeviceSize *sizeOut);
 
 angle::Result AllocateImageMemory(Context *context,
                                   VkMemoryPropertyFlags memoryPropertyFlags,
+                                  VkMemoryPropertyFlags *memoryPropertyFlagsOut,
                                   const void *extraAllocationInfo,
                                   Image *image,
-                                  DeviceMemory *deviceMemoryOut);
+                                  DeviceMemory *deviceMemoryOut,
+                                  VkDeviceSize *sizeOut);
+
 angle::Result AllocateImageMemoryWithRequirements(Context *context,
                                                   VkMemoryPropertyFlags memoryPropertyFlags,
                                                   const VkMemoryRequirements &memoryRequirements,
@@ -447,6 +488,12 @@ class BindingPointer final : angle::NonCopyable
     BindingPointer() : mRefCounted(nullptr) {}
 
     ~BindingPointer() { reset(); }
+
+    BindingPointer(BindingPointer &&other)
+    {
+        set(other.mRefCounted);
+        other.reset();
+    }
 
     void set(RefCounted<T> *refCounted)
     {
@@ -590,53 +637,102 @@ class Recycler final : angle::NonCopyable
     std::vector<T> mObjectFreeList;
 };
 
-bool SamplerNameContainsNonZeroArrayElement(const std::string &name);
-std::string GetMappedSamplerName(const std::string &originalName);
+using SpecializationConstantBitSet =
+    angle::PackedEnumBitSet<sh::vk::SpecializationConstantId, uint32_t>;
+static_assert(sizeof(SpecializationConstantBitSet) == sizeof(uint32_t), "Unexpected size");
 
-// A vector of image views, such as one per level or one per layer.
-using ImageViewVector = std::vector<ImageView>;
-// A vector of vector of image views.  Primary index is layer, secondary index is level.
-using LayerLevelImageViewVector = std::vector<ImageViewVector>;
+template <typename T>
+using SpecializationConstantMap = angle::PackedEnumMap<sh::vk::SpecializationConstantId, T>;
 
+void MakeDebugUtilsLabel(GLenum source, const char *marker, VkDebugUtilsLabelEXT *label);
+
+constexpr size_t kClearValueDepthIndex   = gl::IMPLEMENTATION_MAX_DRAW_BUFFERS;
+constexpr size_t kClearValueStencilIndex = gl::IMPLEMENTATION_MAX_DRAW_BUFFERS + 1;
+
+class ClearValuesArray final
+{
+  public:
+    ClearValuesArray();
+    ~ClearValuesArray();
+
+    ClearValuesArray(const ClearValuesArray &other);
+    ClearValuesArray &operator=(const ClearValuesArray &rhs);
+
+    void store(uint32_t index, VkImageAspectFlags aspectFlags, const VkClearValue &clearValue);
+
+    void reset(size_t index)
+    {
+        mValues[index] = {};
+        mEnabled.reset(index);
+    }
+
+    bool test(size_t index) const { return mEnabled.test(index); }
+    bool testDepth() const { return mEnabled.test(kClearValueDepthIndex); }
+    bool testStencil() const { return mEnabled.test(kClearValueStencilIndex); }
+
+    const VkClearValue &operator[](size_t index) const { return mValues[index]; }
+
+    float getDepthValue() const { return mValues[kClearValueDepthIndex].depthStencil.depth; }
+    uint32_t getStencilValue() const
+    {
+        return mValues[kClearValueStencilIndex].depthStencil.stencil;
+    }
+
+    const VkClearValue *data() const { return mValues.data(); }
+    bool empty() const { return mEnabled.none(); }
+
+    gl::DrawBufferMask getEnabledColorAttachmentsMask() const
+    {
+        return gl::DrawBufferMask(mEnabled.to_ulong());
+    }
+
+  private:
+    gl::AttachmentArray<VkClearValue> mValues;
+    gl::AttachmentsMask mEnabled;
+};
 }  // namespace vk
 
-// List of function pointers for used extensions.
-// VK_EXT_debug_utils
-extern PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT;
-extern PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT;
-extern PFN_vkCmdBeginDebugUtilsLabelEXT vkCmdBeginDebugUtilsLabelEXT;
-extern PFN_vkCmdEndDebugUtilsLabelEXT vkCmdEndDebugUtilsLabelEXT;
-extern PFN_vkCmdInsertDebugUtilsLabelEXT vkCmdInsertDebugUtilsLabelEXT;
-
-// VK_EXT_debug_report
-extern PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT;
-extern PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT;
-
-// VK_KHR_get_physical_device_properties2
-extern PFN_vkGetPhysicalDeviceProperties2KHR vkGetPhysicalDeviceProperties2KHR;
-
-// VK_KHR_external_semaphore_fd
-extern PFN_vkImportSemaphoreFdKHR vkImportSemaphoreFdKHR;
-
+#if !defined(ANGLE_SHARED_LIBVULKAN)
 // Lazily load entry points for each extension as necessary.
 void InitDebugUtilsEXTFunctions(VkInstance instance);
 void InitDebugReportEXTFunctions(VkInstance instance);
 void InitGetPhysicalDeviceProperties2KHRFunctions(VkInstance instance);
+void InitTransformFeedbackEXTFunctions(VkDevice device);
+void InitSamplerYcbcrKHRFunctions(VkDevice device);
 
-#if defined(ANGLE_PLATFORM_FUCHSIA)
+#    if defined(ANGLE_PLATFORM_FUCHSIA)
 // VK_FUCHSIA_imagepipe_surface
-extern PFN_vkCreateImagePipeSurfaceFUCHSIA vkCreateImagePipeSurfaceFUCHSIA;
 void InitImagePipeSurfaceFUCHSIAFunctions(VkInstance instance);
-#endif
+#    endif
 
-#if defined(ANGLE_PLATFORM_ANDROID)
+#    if defined(ANGLE_PLATFORM_ANDROID)
 // VK_ANDROID_external_memory_android_hardware_buffer
-extern PFN_vkGetAndroidHardwareBufferPropertiesANDROID vkGetAndroidHardwareBufferPropertiesANDROID;
-extern PFN_vkGetMemoryAndroidHardwareBufferANDROID vkGetMemoryAndroidHardwareBufferANDROID;
 void InitExternalMemoryHardwareBufferANDROIDFunctions(VkInstance instance);
-#endif
+#    endif
 
+#    if defined(ANGLE_PLATFORM_GGP)
+// VK_GGP_stream_descriptor_surface
+void InitGGPStreamDescriptorSurfaceFunctions(VkInstance instance);
+#    endif  // defined(ANGLE_PLATFORM_GGP)
+
+// VK_KHR_external_semaphore_fd
 void InitExternalSemaphoreFdFunctions(VkInstance instance);
+
+// VK_EXT_external_memory_host
+void InitExternalMemoryHostFunctions(VkInstance instance);
+
+// VK_KHR_external_fence_capabilities
+void InitExternalFenceCapabilitiesFunctions(VkInstance instance);
+
+// VK_KHR_external_fence_fd
+void InitExternalFenceFdFunctions(VkInstance instance);
+
+// VK_KHR_external_semaphore_capabilities
+void InitExternalSemaphoreCapabilitiesFunctions(VkInstance instance);
+
+#endif  // !defined(ANGLE_SHARED_LIBVULKAN)
+
+GLenum CalculateGenerateMipmapFilter(ContextVk *contextVk, const vk::Format &format);
 
 namespace gl_vk
 {
@@ -650,12 +746,6 @@ VkFrontFace GetFrontFace(GLenum frontFace, bool invertCullFace);
 VkSampleCountFlagBits GetSamples(GLint sampleCount);
 VkComponentSwizzle GetSwizzle(const GLenum swizzle);
 VkCompareOp GetCompareOp(const GLenum compareFunc);
-
-constexpr angle::PackedEnumMap<gl::DrawElementsType, VkIndexType> kIndexTypeMap = {
-    {gl::DrawElementsType::UnsignedByte, VK_INDEX_TYPE_UINT16},
-    {gl::DrawElementsType::UnsignedShort, VK_INDEX_TYPE_UINT16},
-    {gl::DrawElementsType::UnsignedInt, VK_INDEX_TYPE_UINT32},
-};
 
 constexpr gl::ShaderMap<VkShaderStageFlagBits> kShaderStageMap = {
     {gl::ShaderType::Vertex, VK_SHADER_STAGE_VERTEX_BIT},
@@ -686,6 +776,20 @@ void GetExtentsAndLayerCount(gl::TextureType textureType,
 
 namespace vk_gl
 {
+// The Vulkan back-end will not support a sample count of 1, because of a Vulkan specification
+// restriction:
+//
+//   If the image was created with VkImageCreateInfo::samples equal to VK_SAMPLE_COUNT_1_BIT, the
+//   instruction must: have MS = 0.
+//
+// This restriction was tracked in http://anglebug.com/4196 and Khronos-private Vulkan
+// specification issue https://gitlab.khronos.org/vulkan/vulkan/issues/1925.
+//
+// In addition, the Vulkan back-end will not support sample counts of 32 or 64, since there are no
+// standard sample locations for those sample counts.
+constexpr unsigned int kSupportedSampleCounts = (VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT |
+                                                 VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT);
+
 // Find set bits in sampleCounts and add the corresponding sample count to the set.
 void AddSampleCounts(VkSampleCountFlags sampleCounts, gl::SupportedSampleSet *outSet);
 // Return the maximum sample count with a bit set in |sampleCounts|.

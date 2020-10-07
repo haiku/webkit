@@ -31,8 +31,8 @@ Properties:
 Evaluating expression...
 Getting own properties...
 Properties:
-    "name"       =>  "bound Test" (string)  [configurable | isOwn]
     "length"     =>  0 (number)  [configurable | isOwn]
+    "name"       =>  "bound Test" (string)  [configurable | isOwn]
     "__proto__"  =>  "function () {\n    [native code]\n}" (function)  [writable | configurable | isOwn]
 Internal Properties:
     "targetFunction"  =>  "class Test { }" (function class)  []
@@ -42,8 +42,8 @@ Internal Properties:
 Evaluating expression...
 Getting own properties...
 Properties:
-    "name"       =>  "bound Test" (string)  [configurable | isOwn]
     "length"     =>  0 (number)  [configurable | isOwn]
+    "name"       =>  "bound Test" (string)  [configurable | isOwn]
     "__proto__"  =>  "function () {\n    [native code]\n}" (function)  [writable | configurable | isOwn]
 Internal Properties:
     "targetFunction"  =>  "class Test { }" (function class)  []
@@ -76,8 +76,8 @@ Properties:
 Evaluating expression...
 Getting own properties...
 Properties:
-    "name"       =>  "bound " (string)  [configurable | isOwn]
     "length"     =>  3 (number)  [configurable | isOwn]
+    "name"       =>  "bound " (string)  [configurable | isOwn]
     "__proto__"  =>  "function () {\n    [native code]\n}" (function)  [writable | configurable | isOwn]
 Internal Properties:
     "targetFunction"  =>  "function (a, b, c){}" (function)  []
@@ -87,8 +87,8 @@ Internal Properties:
 Evaluating expression...
 Getting own properties...
 Properties:
-    "name"       =>  "bound " (string)  [configurable | isOwn]
     "length"     =>  0 (number)  [configurable | isOwn]
+    "name"       =>  "bound " (string)  [configurable | isOwn]
     "__proto__"  =>  "function () {\n    [native code]\n}" (function)  [writable | configurable | isOwn]
 Internal Properties:
     "targetFunction"  =>  "function (a, b, c){}" (function)  []
@@ -99,8 +99,8 @@ Internal Properties:
 Evaluating expression...
 Getting own properties...
 Properties:
-    "name"       =>  "bound " (string)  [configurable | isOwn]
     "length"     =>  0 (number)  [configurable | isOwn]
+    "name"       =>  "bound " (string)  [configurable | isOwn]
     "__proto__"  =>  "function () {\n    [native code]\n}" (function)  [writable | configurable | isOwn]
 Internal Properties:
     "targetFunction"  =>  "function (){}" (function)  []
@@ -110,8 +110,8 @@ Internal Properties:
 Evaluating expression...
 Getting own properties...
 Properties:
-    "name"       =>  "bound " (string)  [configurable | isOwn]
     "length"     =>  0 (number)  [configurable | isOwn]
+    "name"       =>  "bound " (string)  [configurable | isOwn]
     "__proto__"  =>  "function () {\n    [native code]\n}" (function)  [writable | configurable | isOwn]
 Internal Properties:
     "targetFunction"  =>  "function (){}" (function)  []
@@ -149,7 +149,6 @@ Properties:
 -- Running test case: Runtime.getProperties.fetchCount.Object
 Evaluating expression...
 Getting own properties with fetchCount 5...
-ASSERT: Should only get 5 properties.
 Properties:
     "A"          =>  0 (number)  [writable | enumerable | configurable | isOwn]
     "Y"          =>  1 (number)  [writable | enumerable | configurable | isOwn]
@@ -180,7 +179,6 @@ Properties:
 -- Running test case: Runtime.getProperties.fetchCount.Array
 Evaluating expression...
 Getting own properties with fetchCount 5...
-ASSERT: Should only get 5 properties.
 Properties:
     "0"          =>  "A" (string)  [writable | enumerable | configurable | isOwn]
     "1"          =>  "Y" (string)  [writable | enumerable | configurable | isOwn]

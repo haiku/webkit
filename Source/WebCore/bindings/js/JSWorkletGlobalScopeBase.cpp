@@ -27,8 +27,6 @@
 #include "config.h"
 #include "JSWorkletGlobalScopeBase.h"
 
-#if ENABLE(CSS_PAINTING_API)
-
 #include "DOMWrapperWorld.h"
 #include "JSDOMGlobalObjectTask.h"
 #include "JSDOMGuardedObject.h"
@@ -49,7 +47,7 @@ const GlobalObjectMethodTable JSWorkletGlobalScopeBase::s_globalObjectMethodTabl
     &supportsRichSourceInfo,
     &shouldInterruptScript,
     &javaScriptRuntimeFlags,
-    nullptr, // queueTaskToEventLoop
+    nullptr, // queueMicrotaskToEventLoop
     &shouldInterruptScriptBeforeTimeout,
     nullptr, // moduleLoaderImportModule
     nullptr, // moduleLoaderResolve
@@ -57,6 +55,7 @@ const GlobalObjectMethodTable JSWorkletGlobalScopeBase::s_globalObjectMethodTabl
     nullptr, // moduleLoaderCreateImportMetaProperties
     nullptr, // moduleLoaderEvaluate
     &promiseRejectionTracker,
+    &reportUncaughtExceptionAtEventLoop,
     &defaultLanguage,
     nullptr, // compileStreaming
     nullptr, // instantiateStreaming
@@ -150,4 +149,3 @@ JSWorkletGlobalScope* toJSWorkletGlobalScope(VM& vm, JSValue value)
 }
 
 } // namespace WebCore
-#endif

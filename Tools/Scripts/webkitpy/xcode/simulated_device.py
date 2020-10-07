@@ -27,11 +27,11 @@ import plistlib
 import re
 import time
 
+from webkitcorepy import Version, Timeout
+
 from webkitpy.common.memoized import memoized
 from webkitpy.common.system.executive import ScriptError
 from webkitpy.common.system.systemhost import SystemHost
-from webkitpy.common.timeout_context import Timeout
-from webkitpy.common.version import Version
 from webkitpy.port.device import Device
 from webkitpy.xcode.device_type import DeviceType
 
@@ -123,13 +123,15 @@ class SimulatedDeviceManager(object):
         return result
 
     @staticmethod
-    def populate_available_devices(host=SystemHost()):
+    def populate_available_devices(host=None):
+        host = host or SystemHost()
         if not host.platform.is_mac():
             return
 
         try:
-            simctl_json = json.loads(host.executive.run_command([SimulatedDeviceManager.xcrun, 'simctl', 'list', '--json'], decode_output=False))
+            simctl_json = json.loads(host.executive.run_command([SimulatedDeviceManager.xcrun, 'simctl', 'list', '--json'], decode_output=False, return_stderr=False))
         except (ValueError, ScriptError):
+            _log.error('Failed to decode json output')
             return
 
         SimulatedDeviceManager._device_identifier_to_name = {device['identifier']: device['name'] for device in simctl_json['devicetypes']}
@@ -157,13 +159,15 @@ class SimulatedDeviceManager(object):
         return
 
     @staticmethod
-    def available_devices(host=SystemHost()):
+    def available_devices(host=None):
+        host = host or SystemHost()
         if SimulatedDeviceManager.AVAILABLE_DEVICES == []:
             SimulatedDeviceManager.populate_available_devices(host)
         return SimulatedDeviceManager.AVAILABLE_DEVICES
 
     @staticmethod
-    def device_by_filter(filter, host=SystemHost()):
+    def device_by_filter(filter, host=None):
+        host = host or SystemHost()
         result = []
         for device in SimulatedDeviceManager.available_devices(host):
             if filter(device):
@@ -200,15 +204,18 @@ class SimulatedDeviceManager(object):
 
     @staticmethod
     def get_runtime_for_device_type(device_type):
+        # Search for an available runtime that best matches the provided device type
+        candidate = None
         for runtime in SimulatedDeviceManager.AVAILABLE_RUNTIMES:
-            if runtime.os_variant == device_type.software_variant and (device_type.software_version is None or device_type.software_version == runtime.version):
-                return runtime
-
-        # Allow for a partial version match.
-        for runtime in SimulatedDeviceManager.AVAILABLE_RUNTIMES:
-            if runtime.os_variant == device_type.software_variant and runtime.version in device_type.software_version:
-                return runtime
-        return None
+            if runtime.os_variant != device_type.software_variant:
+                continue
+            if device_type.software_version and runtime.version.major != device_type.software_version.major:
+                continue
+            if device_type.software_version and runtime.version < device_type.software_version:
+                continue
+            if not candidate or runtime.version < candidate.version:
+                candidate = runtime
+        return candidate
 
     @staticmethod
     def _disambiguate_device_type(device_type):
@@ -243,14 +250,18 @@ class SimulatedDeviceManager(object):
 
     @staticmethod
     def _get_device_identifier_for_type(device_type):
+        type_name_for_request = u'{} {}'.format(device_type.hardware_family.lower(), device_type.standardized_hardware_type.lower())
         for type_id, type_name in SimulatedDeviceManager._device_identifier_to_name.items():
-            if type_name.lower() == u'{} {}'.format(device_type.hardware_family.lower(), device_type.hardware_type.lower()):
+            if type_name.lower() == type_name_for_request:
+                return type_id
+            if type_name.lower().endswith(DeviceType.FIRST_GENERATION) and type_name.lower()[:-len(DeviceType.FIRST_GENERATION)] == type_name_for_request:
                 return type_id
         return None
 
     @staticmethod
-    def _create_or_find_device_for_request(request, host=SystemHost(), name_base='Managed'):
+    def _create_or_find_device_for_request(request, host=None, name_base='Managed'):
         assert isinstance(request, DeviceRequest)
+        host = host or SystemHost()
 
         device = SimulatedDeviceManager._find_exisiting_device_for_request(request)
         if device:
@@ -333,14 +344,16 @@ class SimulatedDeviceManager(object):
             time.sleep(1)
 
     @staticmethod
-    def _boot_device(device, host=SystemHost()):
+    def _boot_device(device, host=None):
+        host = host or SystemHost()
         _log.debug(u"Booting device '{}'".format(device.udid))
         device.platform_device.booted_by_script = True
         host.executive.run_command([SimulatedDeviceManager.xcrun, 'simctl', 'boot', device.udid])
         SimulatedDeviceManager.INITIALIZED_DEVICES.append(device)
 
     @staticmethod
-    def device_count_for_type(device_type, host=SystemHost(), use_booted_simulator=True, **kwargs):
+    def device_count_for_type(device_type, host=None, use_booted_simulator=True, **kwargs):
+        host = host or SystemHost()
         if not host.platform.is_mac():
             return 0
 
@@ -354,7 +367,8 @@ class SimulatedDeviceManager(object):
         return 0
 
     @staticmethod
-    def initialize_devices(requests, host=SystemHost(), name_base='Managed', simulator_ui=True, timeout=SIMULATOR_BOOT_TIMEOUT, **kwargs):
+    def initialize_devices(requests, host=None, name_base='Managed', simulator_ui=True, timeout=SIMULATOR_BOOT_TIMEOUT, **kwargs):
+        host = host or SystemHost()
         if SimulatedDeviceManager.INITIALIZED_DEVICES is not None:
             return SimulatedDeviceManager.INITIALIZED_DEVICES
 
@@ -410,7 +424,8 @@ class SimulatedDeviceManager(object):
 
     @staticmethod
     @memoized
-    def max_supported_simulators(host=SystemHost()):
+    def max_supported_simulators(host=None):
+        host = host or SystemHost()
         if not host.platform.is_mac():
             return 0
 
@@ -438,7 +453,8 @@ class SimulatedDeviceManager(object):
         return min(max_supported_simulators_locally, max_supported_simulators_for_hardware)
 
     @staticmethod
-    def swap(device, request, host=SystemHost(), name_base='Managed', timeout=SIMULATOR_BOOT_TIMEOUT):
+    def swap(device, request, host=None, name_base='Managed', timeout=SIMULATOR_BOOT_TIMEOUT):
+        host = host or SystemHost()
         if SimulatedDeviceManager.INITIALIZED_DEVICES is None:
             raise RuntimeError('Cannot swap when there are no initialized devices')
         if device not in SimulatedDeviceManager.INITIALIZED_DEVICES:
@@ -461,7 +477,8 @@ class SimulatedDeviceManager(object):
         SimulatedDeviceManager._wait_until_device_is_usable(device, max(0, deadline - time.time()))
 
     @staticmethod
-    def tear_down(host=SystemHost(), timeout=SIMULATOR_BOOT_TIMEOUT):
+    def tear_down(host=None, timeout=SIMULATOR_BOOT_TIMEOUT):
+        host = host or SystemHost()
         if SimulatedDeviceManager._managing_simulator_app:
             host.executive.run_command(['killall', '-9', 'Simulator'], return_exit_code=True)
             SimulatedDeviceManager._managing_simulator_app = False
@@ -478,6 +495,10 @@ class SimulatedDeviceManager(object):
             device.platform_device._tear_down(deadline - time.time())
 
         SimulatedDeviceManager.INITIALIZED_DEVICES = None
+
+        if SimulatedDeviceManager._managing_simulator_app:
+            for pid in host.executive.running_pids(lambda name: 'CoreSimulator.framework' in name):
+                host.executive.kill_process(pid)
 
         # If we were managing the simulator, there are some cache files we need to remove
         for directory in host.filesystem.glob('/tmp/com.apple.CoreSimulator.SimDevice.*'):
@@ -549,9 +570,9 @@ class SimulatedDevice(object):
             _log.debug(u'{} has no service to check if the device is usable'.format(self.device_type.software_variant))
             return True
 
-        for line in self.executive.run_command([SimulatedDeviceManager.xcrun, 'simctl', 'spawn', self.udid, 'launchctl', 'print', 'system'], decode_output=False).splitlines():
-            if home_screen_service in line:
-                return True
+        system_processes = self.executive.run_command([SimulatedDeviceManager.xcrun, 'simctl', 'spawn', self.udid, 'launchctl', 'print', 'system'], decode_output=True, return_stderr=False)
+        if re.search(r'"{}"'.format(home_screen_service), system_processes) or re.search(r'A\s+{}'.format(home_screen_service), system_processes):
+            return True
         return False
 
     def _shut_down(self, timeout=30.0):
@@ -590,7 +611,7 @@ class SimulatedDevice(object):
 
     def install_app(self, app_path, env=None):
         # Even after carousel is running, it takes a few seconds for watchOS to allow installs.
-        for i in xrange(self.NUM_INSTALL_RETRIES):
+        for i in range(self.NUM_INSTALL_RETRIES):
             exit_code = self.executive.run_command(['xcrun', 'simctl', 'install', self.udid, app_path], return_exit_code=True)
             if exit_code == 0:
                 return True
@@ -618,12 +639,13 @@ class SimulatedDevice(object):
 
         output = None
 
-        with Timeout(timeout, RuntimeError(u'Timed out waiting for process to open {} on {}'.format(bundle_id, self.udid))):
+        with Timeout(timeout, handler=RuntimeError(u'Timed out waiting for process to open {} on {}'.format(bundle_id, self.udid)), patch=False):
             while True:
                 output = self.executive.run_command(
                     ['xcrun', 'simctl', 'launch', self.udid, bundle_id] + args,
                     env=environment_to_use,
                     error_handler=_log_debug_error,
+                    return_stderr=False,
                 )
                 match = re.match(r'(?P<bundle>[^:]+): (?P<pid>\d+)\n', output)
                 # FIXME: We shouldn't need to check the PID <rdar://problem/31154075>.

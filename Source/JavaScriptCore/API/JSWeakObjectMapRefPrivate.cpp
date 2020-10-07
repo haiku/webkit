@@ -27,11 +27,8 @@
 #include "JSWeakObjectMapRefPrivate.h"
 
 #include "APICast.h"
-#include "JSCJSValue.h"
 #include "JSCallbackObject.h"
 #include "JSWeakObjectMapRefInternal.h"
-#include "JSCInlines.h"
-#include "Weak.h"
 #include "WeakGCMapInlines.h"
 
 using namespace JSC;
@@ -64,7 +61,7 @@ void JSWeakObjectMapSet(JSContextRef ctx, JSWeakObjectMapRef map, void* key, JSO
         return;
     ASSERT(obj->inherits<JSProxy>(vm)
         || obj->inherits<JSCallbackObject<JSGlobalObject>>(vm)
-        || obj->inherits<JSCallbackObject<JSDestructibleObject>>(vm));
+        || obj->inherits<JSCallbackObject<JSNonFinalObject>>(vm));
     map->map().set(key, obj);
 }
 
@@ -72,7 +69,7 @@ JSObjectRef JSWeakObjectMapGet(JSContextRef ctx, JSWeakObjectMapRef map, void* k
 {
     if (!ctx) {
         ASSERT_NOT_REACHED();
-        return 0;
+        return nullptr;
     }
     JSGlobalObject* globalObject = toJS(ctx);
     JSLockHolder locker(globalObject);

@@ -9,7 +9,9 @@
  */
 
 #include "modules/video_coding/codecs/vp8/libvpx_interface.h"
-#include "absl/memory/memory.h"
+
+#include <memory>
+
 #include "rtc_base/checks.h"
 
 namespace webrtc {
@@ -141,7 +143,7 @@ class LibvpxVp8Facade : public LibvpxInterface {
         RTC_NOTREACHED() << "Unsupported libvpx ctrl_id: " << ctrl_id;
     }
     return VPX_CODEC_ERROR;
-  };
+  }
 
   vpx_codec_err_t codec_control(vpx_codec_ctx_t* ctx,
                                 vp8e_enc_control_id ctrl_id,
@@ -153,7 +155,7 @@ class LibvpxVp8Facade : public LibvpxInterface {
         RTC_NOTREACHED() << "Unsupported libvpx ctrl_id: " << ctrl_id;
     }
     return VPX_CODEC_ERROR;
-  };
+  }
 
   vpx_codec_err_t codec_control(vpx_codec_ctx_t* ctx,
                                 vp8e_enc_control_id ctrl_id,
@@ -165,7 +167,7 @@ class LibvpxVp8Facade : public LibvpxInterface {
         RTC_NOTREACHED() << "Unsupported libvpx ctrl_id: " << ctrl_id;
     }
     return VPX_CODEC_ERROR;
-  };
+  }
 
   vpx_codec_err_t codec_control(vpx_codec_ctx_t* ctx,
                                 vp8e_enc_control_id ctrl_id,
@@ -177,7 +179,7 @@ class LibvpxVp8Facade : public LibvpxInterface {
         RTC_NOTREACHED() << "Unsupported libvpx ctrl_id: " << ctrl_id;
     }
     return VPX_CODEC_ERROR;
-  };
+  }
 
   vpx_codec_err_t codec_encode(vpx_codec_ctx_t* ctx,
                                const vpx_image_t* img,
@@ -198,7 +200,7 @@ class LibvpxVp8Facade : public LibvpxInterface {
 }  // namespace
 
 std::unique_ptr<LibvpxInterface> LibvpxInterface::CreateEncoder() {
-  return absl::make_unique<LibvpxVp8Facade>();
+  return std::make_unique<LibvpxVp8Facade>();
 }
 
 }  // namespace webrtc

@@ -572,6 +572,15 @@ EGLBoolean EGLAPIENTRY eglGetSyncValuesCHROMIUM(EGLDisplay dpy,
     return EGL_GetSyncValuesCHROMIUM(dpy, surface, ust, msc, sbc);
 }
 
+EGLBoolean EGLAPIENTRY eglGetMscRateANGLE(EGLDisplay dpy,
+                                          EGLSurface surface,
+                                          EGLint *numerator,
+                                          EGLint *denominator)
+{
+    EnsureEGLLoaded();
+    return EGL_GetMscRateANGLE(dpy, surface, numerator, denominator);
+}
+
 EGLBoolean EGLAPIENTRY eglSwapBuffersWithDamageKHR(EGLDisplay dpy,
                                                    EGLSurface surface,
                                                    EGLint *rects,
@@ -710,6 +719,47 @@ EGLint EGLAPIENTRY eglDupNativeFenceFDANDROID(EGLDisplay dpy, EGLSyncKHR sync)
 {
     EnsureEGLLoaded();
     return EGL_DupNativeFenceFDANDROID(dpy, sync);
+}
+
+EGLBoolean EGLAPIENTRY eglSwapBuffersWithFrameTokenANGLE(EGLDisplay dpy,
+                                                         EGLSurface surface,
+                                                         EGLFrameTokenANGLE frametoken)
+{
+    EnsureEGLLoaded();
+    return EGL_SwapBuffersWithFrameTokenANGLE(dpy, surface, frametoken);
+}
+
+EGLSync EGLAPIENTRY eglCreateSyncKHR(EGLDisplay dpy, EGLenum type, const EGLint *attrib_list)
+{
+    EnsureEGLLoaded();
+    return EGL_CreateSyncKHR(dpy, type, attrib_list);
+}
+
+EGLBoolean EGLAPIENTRY eglDestroySyncKHR(EGLDisplay dpy, EGLSync sync)
+{
+    EnsureEGLLoaded();
+    return EGL_DestroySyncKHR(dpy, sync);
+}
+
+EGLint EGLAPIENTRY eglClientWaitSyncKHR(EGLDisplay dpy, EGLSync sync, EGLint flags, EGLTime timeout)
+{
+    EnsureEGLLoaded();
+    return EGL_ClientWaitSyncKHR(dpy, sync, flags, timeout);
+}
+
+EGLBoolean EGLAPIENTRY eglGetSyncAttribKHR(EGLDisplay dpy,
+                                           EGLSync sync,
+                                           EGLint attribute,
+                                           EGLint *value)
+{
+    EnsureEGLLoaded();
+    return EGL_GetSyncAttribKHR(dpy, sync, attribute, value);
+}
+
+EGLint EGLAPIENTRY eglWaitSyncKHR(EGLDisplay dpy, EGLSync sync, EGLint flags)
+{
+    EnsureEGLLoaded();
+    return EGL_WaitSyncKHR(dpy, sync, flags);
 }
 
 }  // extern "C"

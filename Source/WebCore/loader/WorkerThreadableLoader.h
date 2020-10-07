@@ -42,16 +42,16 @@ namespace WebCore {
     class ResourceError;
     class ResourceRequest;
     class SecurityOrigin;
-    class WorkerGlobalScope;
+    class WorkerOrWorkletGlobalScope;
     class WorkerLoaderProxy;
 
     class WorkerThreadableLoader : public RefCounted<WorkerThreadableLoader>, public ThreadableLoader {
         WTF_MAKE_FAST_ALLOCATED;
     public:
-        static void loadResourceSynchronously(WorkerGlobalScope&, ResourceRequest&&, ThreadableLoaderClient&, const ThreadableLoaderOptions&);
-        static Ref<WorkerThreadableLoader> create(WorkerGlobalScope& workerGlobalScope, ThreadableLoaderClient& client, const String& taskMode, ResourceRequest&& request, const ThreadableLoaderOptions& options, const String& referrer)
+        static void loadResourceSynchronously(WorkerOrWorkletGlobalScope&, ResourceRequest&&, ThreadableLoaderClient&, const ThreadableLoaderOptions&);
+        static Ref<WorkerThreadableLoader> create(WorkerOrWorkletGlobalScope& WorkerOrWorkletGlobalScope, ThreadableLoaderClient& client, const String& taskMode, ResourceRequest&& request, const ThreadableLoaderOptions& options, const String& referrer)
         {
-            return adoptRef(*new WorkerThreadableLoader(workerGlobalScope, client, taskMode, WTFMove(request), options, referrer));
+            return adoptRef(*new WorkerThreadableLoader(WorkerOrWorkletGlobalScope, client, taskMode, WTFMove(request), options, referrer));
         }
 
         ~WorkerThreadableLoader();
@@ -59,6 +59,8 @@ namespace WebCore {
         void cancel() override;
 
         bool done() const { return m_workerClientWrapper->done(); }
+
+        void notifyIsDone(bool isDone);
 
         using RefCounted<WorkerThreadableLoader>::ref;
         using RefCounted<WorkerThreadableLoader>::deref;
@@ -79,7 +81,7 @@ namespace WebCore {
         //
         // case 1. worker.terminate is called.
         //    In this case, no more tasks are posted from the worker object's thread to the worker
-        //    context's thread -- WorkerGlobalScopeProxy implementation enforces this.
+        //    context's thread -- WorkerOrWorkletGlobalScopeProxy implementation enforces this.
         //
         // case 2. xhr gets aborted and the worker context continues running.
         //    The ThreadableLoaderClientWrapper has the underlying client cleared, so no more calls
@@ -89,9 +91,10 @@ namespace WebCore {
         class MainThreadBridge : public ThreadableLoaderClient {
         public:
             // All executed on the worker context's thread.
-            MainThreadBridge(ThreadableLoaderClientWrapper&, WorkerLoaderProxy&, const String& taskMode, ResourceRequest&&, const ThreadableLoaderOptions&, const String& outgoingReferrer, WorkerGlobalScope&);
+            MainThreadBridge(ThreadableLoaderClientWrapper&, WorkerLoaderProxy&, const String& taskMode, ResourceRequest&&, const ThreadableLoaderOptions&, const String& outgoingReferrer, WorkerOrWorkletGlobalScope&);
             void cancel();
             void destroy();
+            void computeIsDone();
 
         private:
             // Executed on the worker context's thread.
@@ -104,6 +107,7 @@ namespace WebCore {
             void didFinishLoading(unsigned long identifier) override;
             void didFail(const ResourceError&) override;
             void didFinishTiming(const ResourceTiming&) override;
+            void notifyIsDone(bool isDone) final;
 
             // Only to be used on the main thread.
             RefPtr<ThreadableLoader> m_mainThreadLoader;
@@ -122,9 +126,11 @@ namespace WebCore {
             NetworkLoadMetrics m_networkLoadMetrics;
         };
 
-        WorkerThreadableLoader(WorkerGlobalScope&, ThreadableLoaderClient&, const String& taskMode, ResourceRequest&&, const ThreadableLoaderOptions&, const String& referrer);
+        WorkerThreadableLoader(WorkerOrWorkletGlobalScope&, ThreadableLoaderClient&, const String& taskMode, ResourceRequest&&, const ThreadableLoaderOptions&, const String& referrer);
 
-        Ref<WorkerGlobalScope> m_workerGlobalScope;
+        void computeIsDone() final;
+
+        Ref<WorkerOrWorkletGlobalScope> m_WorkerOrWorkletGlobalScope;
         Ref<ThreadableLoaderClientWrapper> m_workerClientWrapper;
         MainThreadBridge& m_bridge;
     };

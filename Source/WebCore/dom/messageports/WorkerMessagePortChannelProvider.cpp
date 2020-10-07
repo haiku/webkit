@@ -74,17 +74,15 @@ void WorkerMessagePortChannelProvider::messagePortDisentangled(const MessagePort
     });
 }
 
-void WorkerMessagePortChannelProvider::messagePortClosed(const MessagePortIdentifier& local)
+void WorkerMessagePortChannelProvider::messagePortClosed(const MessagePortIdentifier&)
 {
-    callOnMainThread([local] {
-        MessagePortChannelProvider::singleton().messagePortClosed(local);
-    });
+    ASSERT_NOT_REACHED();
 }
 
-void WorkerMessagePortChannelProvider::postMessageToRemote(const MessageWithMessagePorts& message, const MessagePortIdentifier& remoteTarget)
+void WorkerMessagePortChannelProvider::postMessageToRemote(MessageWithMessagePorts&& message, const MessagePortIdentifier& remoteTarget)
 {
-    callOnMainThreadAndWait([&]() mutable {
-        MessagePortChannelProvider::singleton().postMessageToRemote(message, remoteTarget);
+    callOnMainThread([message = WTFMove(message), remoteTarget]() mutable {
+        MessagePortChannelProvider::singleton().postMessageToRemote(WTFMove(message), remoteTarget);
     });
 }
 

@@ -28,35 +28,15 @@
 
 #if PLATFORM(IOS_FAMILY)
 
-#import "EditableImageController.h"
 #import "RemoteLayerTreeDrawingAreaProxy.h"
 #import "RemoteLayerTreeViews.h"
 #import "UIKitSPI.h"
-#import "WKDrawingView.h"
 #import "WebPageProxy.h"
 #import <UIKit/UIScrollView.h>
 #import <pal/spi/cocoa/QuartzCoreSPI.h>
-#import <wtf/SoftLinking.h>
 
 namespace WebKit {
 using namespace WebCore;
-
-static RetainPtr<UIView> createRemoteView(pid_t pid, uint32_t contextID)
-{
-#if USE(UIREMOTEVIEW_CONTEXT_HOSTING)
-    // FIXME: Remove this respondsToSelector check when possible.
-    static BOOL canUseUIRemoteView;
-    static std::once_flag initializeCanUseUIRemoteView;
-    std::call_once(initializeCanUseUIRemoteView, [] {
-        canUseUIRemoteView = [_UIRemoteView instancesRespondToSelector:@selector(initWithFrame:pid:contextID:)];
-    });
-    if (canUseUIRemoteView)
-        return adoptNS([[WKUIRemoteView alloc] initWithFrame:CGRectZero pid:pid contextID:contextID]);
-#else
-    UNUSED_PARAM(pid);
-#endif
-    return adoptNS([[WKRemoteView alloc] initWithFrame:CGRectZero contextID:contextID]);
-}
 
 std::unique_ptr<RemoteLayerTreeNode> RemoteLayerTreeHost::makeNode(const RemoteLayerTreeTransaction::LayerCreationProperties& properties)
 {
@@ -95,7 +75,8 @@ std::unique_ptr<RemoteLayerTreeNode> RemoteLayerTreeHost::makeNode(const RemoteL
     case PlatformCALayer::LayerTypeAVPlayerLayer:
     case PlatformCALayer::LayerTypeContentsProvidedLayer:
         if (!m_isDebugLayerTreeHost) {
-            auto view = createRemoteView(m_drawingArea->page().processIdentifier(), properties.hostingContextID);
+            auto view = adoptNS([[WKUIRemoteView alloc] initWithFrame:CGRectZero
+                pid:m_drawingArea->page().processIdentifier() contextID:properties.hostingContextID]);
             if (properties.type == PlatformCALayer::LayerTypeAVPlayerLayer) {
                 // Invert the scale transform added in the WebProcess to fix <rdar://problem/18316542>.
                 float inverseScale = 1 / properties.hostingDeviceScaleFactor;
@@ -114,37 +95,10 @@ std::unique_ptr<RemoteLayerTreeNode> RemoteLayerTreeHost::makeNode(const RemoteL
         // The debug indicator parents views under layers, which can cause crashes with UIScrollView.
         return makeAdoptingView([[UIView alloc] init]);
 
-    case PlatformCALayer::LayerTypeEditableImageLayer:
-        return makeWithView(createEmbeddedView(properties));
-
     default:
         ASSERT_NOT_REACHED();
         return nullptr;
     }
-}
-
-RetainPtr<WKEmbeddedView> RemoteLayerTreeHost::createEmbeddedView(const RemoteLayerTreeTransaction::LayerCreationProperties& properties)
-{
-    if (m_isDebugLayerTreeHost)
-        return adoptNS([[UIView alloc] init]);
-
-    auto result = m_embeddedViews.ensure(properties.embeddedViewID, [&]() -> RetainPtr<UIView> {
-        switch (properties.type) {
-#if HAVE(PENCILKIT)
-        case PlatformCALayer::LayerTypeEditableImageLayer: {
-            auto editableImage = m_drawingArea->page().editableImageController().editableImage(properties.embeddedViewID);
-            return editableImage ? editableImage->drawingView : nil;
-        }
-#endif
-        default:
-            return adoptNS([[UIView alloc] init]);
-        }
-    });
-    auto view = result.iterator->value;
-    if (!result.isNewEntry)
-        m_layerToEmbeddedViewMap.remove(RemoteLayerTreeNode::layerID([view layer]));
-    m_layerToEmbeddedViewMap.set(properties.layerID, properties.embeddedViewID);
-    return view;
 }
 
 } // namespace WebKit

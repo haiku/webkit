@@ -60,12 +60,12 @@ bool ResourceHandle::start()
     if (d->m_context && !d->m_context->isValid())
         return false;
 
-    if (!d->m_user.isEmpty() || !d->m_pass.isEmpty()) {
+    if (!d->m_user.isEmpty() || !d->m_password.isEmpty()) {
         // If credentials were specified for this request, add them to the url,
         // so that they will be passed to QNetworkRequest.
         URL urlWithCredentials(firstRequest().url());
         urlWithCredentials.setUser(d->m_user);
-        urlWithCredentials.setPass(d->m_pass);
+        urlWithCredentials.setPassword(d->m_password);
         d->m_firstRequest.setURL(urlWithCredentials);
     }
 
@@ -119,7 +119,7 @@ void ResourceHandle::receivedCredential(const AuthenticationChallenge& challenge
         return;
 
     internal->m_user = credential.user();
-    internal->m_pass = credential.password();
+    internal->m_password = credential.password();
 
     clearAuthentication();
 }
@@ -132,7 +132,7 @@ void ResourceHandle::receivedRequestToContinueWithoutCredential(const Authentica
         return;
 
     internal->m_user = "";
-    internal->m_pass = "";
+    internal->m_password = "";
 
     clearAuthentication();
 }

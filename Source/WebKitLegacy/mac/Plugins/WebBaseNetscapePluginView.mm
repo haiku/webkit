@@ -54,6 +54,7 @@
 #import <WebCore/RenderEmbeddedObject.h>
 #import <WebCore/RenderView.h>
 #import <WebCore/SecurityOrigin.h>
+#import <WebCore/WebCoreJITOperations.h>
 #import <WebKitLegacy/DOMPrivate.h>
 #import <pal/spi/cg/CoreGraphicsSPI.h>
 #import <wtf/Assertions.h>
@@ -70,8 +71,9 @@ using namespace WebCore;
 
 + (void)initialize
 {
-    JSC::initializeThreading();
-    RunLoop::initializeMainRunLoop();
+    JSC::initialize();
+    WTF::initializeMainThread();
+    WebCore::populateJITOperations();
     WebKit::sendUserChangeNotifications();
 }
 
@@ -664,7 +666,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
     return [self window] ? [self window] : [[self webView] hostWindow];
 }
 
-- (WebCore::HTMLPlugInElement*)element
+- (NakedPtr<WebCore::HTMLPlugInElement>)element
 {
     return _element.get();
 }

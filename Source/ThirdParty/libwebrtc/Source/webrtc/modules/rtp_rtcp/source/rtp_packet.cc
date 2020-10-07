@@ -14,11 +14,12 @@
 #include <cstring>
 #include <utility>
 
-#include "api/rtpparameters.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
+#include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
+#include "rtc_base/strings/string_builder.h"
 
 namespace webrtc {
 namespace {
@@ -61,12 +62,10 @@ RtpPacket::RtpPacket(const ExtensionManager* extensions)
 RtpPacket::RtpPacket(const RtpPacket&) = default;
 
 RtpPacket::RtpPacket(const ExtensionManager* extensions, size_t capacity)
-    : buffer_(capacity) {
+    : extensions_(extensions ? *extensions : ExtensionManager()),
+      buffer_(capacity) {
   RTC_DCHECK_GE(capacity, kFixedHeaderSize);
   Clear();
-  if (extensions) {
-    extensions_ = *extensions;
-  }
 }
 
 RtpPacket::~RtpPacket() {}
@@ -123,7 +122,7 @@ void RtpPacket::CopyHeaderFrom(const RtpPacket& packet) {
   extensions_ = packet.extensions_;
   extension_entries_ = packet.extension_entries_;
   extensions_size_ = packet.extensions_size_;
-  buffer_.SetData(packet.data(), packet.headers_size());
+  buffer_ = packet.buffer_.Slice(0, packet.headers_size());
   // Reset payload and padding.
   payload_size_ = 0;
   padding_size_ = 0;
@@ -157,6 +156,55 @@ void RtpPacket::SetTimestamp(uint32_t timestamp) {
 void RtpPacket::SetSsrc(uint32_t ssrc) {
   ssrc_ = ssrc;
   ByteWriter<uint32_t>::WriteBigEndian(WriteAt(8), ssrc);
+}
+
+void RtpPacket::ZeroMutableExtensions() {
+  for (const ExtensionInfo& extension : extension_entries_) {
+    switch (extensions_.GetType(extension.id)) {
+      case RTPExtensionType::kRtpExtensionNone: {
+        RTC_LOG(LS_WARNING) << "Unidentified extension in the packet.";
+        break;
+      }
+      case RTPExtensionType::kRtpExtensionVideoTiming: {
+        // Nullify last entries, starting at pacer delay.
+        // These are set by pacer and SFUs
+        if (VideoTimingExtension::kPacerExitDeltaOffset < extension.length) {
+          memset(
+              WriteAt(extension.offset +
+                      VideoTimingExtension::kPacerExitDeltaOffset),
+              0,
+              extension.length - VideoTimingExtension::kPacerExitDeltaOffset);
+        }
+        break;
+      }
+      case RTPExtensionType::kRtpExtensionTransportSequenceNumber:
+      case RTPExtensionType::kRtpExtensionTransportSequenceNumber02:
+      case RTPExtensionType::kRtpExtensionTransmissionTimeOffset:
+      case RTPExtensionType::kRtpExtensionAbsoluteSendTime: {
+        // Nullify whole extension, as it's filled in the pacer.
+        memset(WriteAt(extension.offset), 0, extension.length);
+        break;
+      }
+      case RTPExtensionType::kRtpExtensionAudioLevel:
+      case RTPExtensionType::kRtpExtensionAbsoluteCaptureTime:
+      case RTPExtensionType::kRtpExtensionColorSpace:
+      case RTPExtensionType::kRtpExtensionFrameMarking:
+      case RTPExtensionType::kRtpExtensionGenericFrameDescriptor00:
+      case RTPExtensionType::kRtpExtensionGenericFrameDescriptor01:
+      case RTPExtensionType::kRtpExtensionGenericFrameDescriptor02:
+      case RTPExtensionType::kRtpExtensionMid:
+      case RTPExtensionType::kRtpExtensionNumberOfExtensions:
+      case RTPExtensionType::kRtpExtensionPlayoutDelay:
+      case RTPExtensionType::kRtpExtensionRepairedRtpStreamId:
+      case RTPExtensionType::kRtpExtensionRtpStreamId:
+      case RTPExtensionType::kRtpExtensionVideoContentType:
+      case RTPExtensionType::kRtpExtensionVideoRotation:
+      case RTPExtensionType::kRtpExtensionInbandComfortNoise: {
+        // Non-mutable extension. Don't change it.
+        break;
+      }
+    }
+  }
 }
 
 void RtpPacket::SetCsrcs(rtc::ArrayView<const uint32_t> csrcs) {
@@ -567,6 +615,83 @@ rtc::ArrayView<uint8_t> RtpPacket::AllocateExtension(ExtensionType type,
     return nullptr;
   }
   return AllocateRawExtension(id, length);
+}
+
+bool RtpPacket::HasExtension(ExtensionType type) const {
+  uint8_t id = extensions_.GetId(type);
+  if (id == ExtensionManager::kInvalidId) {
+    // Extension not registered.
+    return false;
+  }
+  return FindExtensionInfo(id) != nullptr;
+}
+
+bool RtpPacket::RemoveExtension(ExtensionType type) {
+  uint8_t id_to_remove = extensions_.GetId(type);
+  if (id_to_remove == ExtensionManager::kInvalidId) {
+    // Extension not registered.
+    RTC_LOG(LS_ERROR) << "Extension not registered, type=" << type
+                      << ", packet=" << ToString();
+    return false;
+  }
+
+  // Rebuild new packet from scratch.
+  RtpPacket new_packet;
+
+  new_packet.SetMarker(Marker());
+  new_packet.SetPayloadType(PayloadType());
+  new_packet.SetSequenceNumber(SequenceNumber());
+  new_packet.SetTimestamp(Timestamp());
+  new_packet.SetSsrc(Ssrc());
+  new_packet.IdentifyExtensions(extensions_);
+
+  // Copy all extensions, except the one we are removing.
+  bool found_extension = false;
+  for (const ExtensionInfo& ext : extension_entries_) {
+    if (ext.id == id_to_remove) {
+      found_extension = true;
+    } else {
+      auto extension_data = new_packet.AllocateRawExtension(ext.id, ext.length);
+      if (extension_data.size() != ext.length) {
+        RTC_LOG(LS_ERROR) << "Failed to allocate extension id=" << ext.id
+                          << ", length=" << ext.length
+                          << ", packet=" << ToString();
+        return false;
+      }
+
+      // Copy extension data to new packet.
+      memcpy(extension_data.data(), ReadAt(ext.offset), ext.length);
+    }
+  }
+
+  if (!found_extension) {
+    RTC_LOG(LS_WARNING) << "Extension not present in RTP packet, type=" << type
+                        << ", packet=" << ToString();
+    return false;
+  }
+
+  // Copy payload data to new packet.
+  memcpy(new_packet.AllocatePayload(payload_size()), payload().data(),
+         payload_size());
+
+  // Allocate padding -- must be last!
+  new_packet.SetPadding(padding_size());
+
+  // Success, replace current packet with newly built packet.
+  *this = new_packet;
+  return true;
+}
+
+std::string RtpPacket::ToString() const {
+  rtc::StringBuilder result;
+  result << "{payload_type=" << payload_type_ << "marker=" << marker_
+         << ", sequence_number=" << sequence_number_
+         << ", padding_size=" << padding_size_ << ", timestamp=" << timestamp_
+         << ", ssrc=" << ssrc_ << ", payload_offset=" << payload_offset_
+         << ", payload_size=" << payload_size_ << ", total_size=" << size()
+         << "}";
+
+  return result.Release();
 }
 
 }  // namespace webrtc

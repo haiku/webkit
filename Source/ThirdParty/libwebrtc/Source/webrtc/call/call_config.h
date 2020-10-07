@@ -10,10 +10,14 @@
 #ifndef CALL_CALL_CONFIG_H_
 #define CALL_CALL_CONFIG_H_
 
-#include "api/bitrate_constraints.h"
 #include "api/fec_controller.h"
-#include "api/rtcerror.h"
+#include "api/neteq/neteq_factory.h"
+#include "api/network_state_predictor.h"
+#include "api/rtc_error.h"
+#include "api/task_queue/task_queue_factory.h"
+#include "api/transport/bitrate_settings.h"
 #include "api/transport/network_control.h"
+#include "api/transport/webrtc_key_value_config.h"
 #include "call/audio_state.h"
 
 namespace webrtc {
@@ -33,11 +37,9 @@ struct CallConfig {
   BitrateConstraints bitrate_config;
 
   // AudioState which is possibly shared between multiple calls.
-  // TODO(solenberg): Change this to a shared_ptr once we can use C++11.
   rtc::scoped_refptr<AudioState> audio_state;
 
   // Audio Processing Module to be used in this call.
-  // TODO(solenberg): Change this to a shared_ptr once we can use C++11.
   AudioProcessing* audio_processing = nullptr;
 
   // RtcEventLog to use for this call. Required.
@@ -47,8 +49,22 @@ struct CallConfig {
   // FecController to use for this call.
   FecControllerFactoryInterface* fec_controller_factory = nullptr;
 
+  // Task Queue Factory to be used in this call. Required.
+  TaskQueueFactory* task_queue_factory = nullptr;
+
+  // NetworkStatePredictor to use for this call.
+  NetworkStatePredictorFactoryInterface* network_state_predictor_factory =
+      nullptr;
+
   // Network controller factory to use for this call.
   NetworkControllerFactoryInterface* network_controller_factory = nullptr;
+
+  // NetEq factory to use for this call.
+  NetEqFactory* neteq_factory = nullptr;
+
+  // Key-value mapping of internal configurations to apply,
+  // e.g. field trials.
+  const WebRtcKeyValueConfig* trials = nullptr;
 };
 
 }  // namespace webrtc

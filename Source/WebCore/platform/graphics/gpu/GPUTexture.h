@@ -31,22 +31,30 @@
 #include <wtf/OptionSet.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
-#include <wtf/RetainPtr.h>
 
+#if USE(METAL)
+#include <wtf/RetainPtr.h>
+#endif
+
+#if USE(METAL)
 OBJC_PROTOCOL(MTLTexture);
+#endif
 
 namespace WebCore {
 
 class GPUDevice;
+class GPUErrorScopes;
 
 struct GPUTextureDescriptor;
 
+#if USE(METAL)
 using PlatformTexture = MTLTexture;
 using PlatformTextureSmartPtr = RetainPtr<MTLTexture>;
+#endif
 
 class GPUTexture : public RefCounted<GPUTexture> {
 public:
-    static RefPtr<GPUTexture> tryCreate(const GPUDevice&, const GPUTextureDescriptor&);
+    static RefPtr<GPUTexture> tryCreate(const GPUDevice&, const GPUTextureDescriptor&, GPUErrorScopes&);
     static Ref<GPUTexture> create(PlatformTextureSmartPtr&&, OptionSet<GPUTextureUsage::Flags>);
 
     PlatformTexture *platformTexture() const { return m_platformTexture.get(); }

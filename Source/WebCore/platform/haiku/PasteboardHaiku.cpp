@@ -120,7 +120,7 @@ void Pasteboard::writeString(const String& type, const String& data)
     }
 }
 
-void Pasteboard::writeSelection(Range& selectedRange, bool canSmartCopyOrDelete, Frame& frame, ShouldSerializeSelectedTextForDataTransfer)
+void Pasteboard::writeSelection(const SimpleRange& selectedRange, bool canSmartCopyOrDelete, Frame& frame, ShouldSerializeSelectedTextForDataTransfer)
 {
     AutoClipboardLocker locker(be_clipboard);
     if (!locker.isLocked())
@@ -226,11 +226,6 @@ void Pasteboard::write(const Color&)
 {
 }
 
-void Pasteboard::writeImage(Element&, const URL&, const String&)
-{
-    notImplemented();
-}
-
 Pasteboard::FileContentState Pasteboard::fileContentState()
 {
     notImplemented();
@@ -248,12 +243,6 @@ void Pasteboard::read(PasteboardWebContentReader&, WebContentReadingPolicy, WTF:
 {
     notImplemented();
 }
-
-void Pasteboard::read(PasteboardFileReader& reader)
-{
-	notImplemented();
-}
-
 
 
 void Pasteboard::read(PasteboardPlainText& text, WebCore::PlainTextURLReadingPolicy, WTF::Optional<long unsigned int>)
@@ -273,7 +262,7 @@ void Pasteboard::read(PasteboardPlainText& text, WebCore::PlainTextURLReadingPol
         text.text = String::fromUTF8(buffer, bufferLength);
 }
 
-RefPtr<DocumentFragment> Pasteboard::documentFragment(Frame& frame, Range& context,
+RefPtr<DocumentFragment> Pasteboard::documentFragment(Frame& frame, const SimpleRange& context,
                                                           bool allowPlainText, bool& chosePlainText)
 {
     chosePlainText = false;
@@ -424,6 +413,12 @@ Vector<String> Pasteboard::typesSafeForBindings(const String&)
 
 void Pasteboard::writeCustomData(const WTF::Vector<PasteboardCustomData>&)
 {
+	notImplemented();
+}
+
+void Pasteboard::read(WebCore::PasteboardFileReader&, WTF::Optional<unsigned long>)
+{
+	notImplemented();
 }
 
 

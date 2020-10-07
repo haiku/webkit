@@ -20,6 +20,9 @@
 #elif defined(ANDROID)
 #    define ANGLE_PLATFORM_ANDROID 1
 #    define ANGLE_PLATFORM_POSIX 1
+#elif defined(__ggp__)
+#    define ANGLE_PLATFORM_GGP 1
+#    define ANGLE_PLATFORM_POSIX 1
 #elif defined(__linux__) || defined(EMSCRIPTEN)
 #    define ANGLE_PLATFORM_LINUX 1
 #    define ANGLE_PLATFORM_POSIX 1
@@ -115,8 +118,26 @@
 #    include <TargetConditionals.h>
 #    if TARGET_OS_OSX
 #        define ANGLE_PLATFORM_MACOS 1
-#    elif TARGET_OS_IOS
+#    elif TARGET_OS_IPHONE
 #        define ANGLE_PLATFORM_IOS 1
+#        if TARGET_OS_SIMULATOR
+#            define ANGLE_PLATFORM_IOS_SIMULATOR 1
+#        endif
+#        if TARGET_OS_MACCATALYST
+#            define ANGLE_PLATFORM_MACCATALYST
+#        endif
+#    endif
+#    // This might be useful globally. At the moment it is used
+#    // to differentiate MacCatalyst on Intel and Apple Silicon.
+#    if defined(__arm64__) || defined(__aarch64__)
+#        define ANGLE_CPU_ARM64
+#    endif
+#endif
+
+// Define ANGLE_WITH_ASAN macro.
+#if defined(__has_feature)
+#    if __has_feature(address_sanitizer)
+#        define ANGLE_WITH_ASAN 1
 #    endif
 #endif
 

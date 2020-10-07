@@ -26,7 +26,7 @@
 #include "config.h"
 #include "WHLSLHighZombieFinder.h"
 
-#if ENABLE(WEBGPU)
+#if ENABLE(WHLSL_COMPILER)
 
 #include "WHLSLAST.h"
 #include "WHLSLVisitor.h"
@@ -61,7 +61,7 @@ void findHighZombies(Program& program)
 {
     UNUSED_PARAM(program);
 
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
     HighZombieFinder finder;
     finder.Visitor::visit(program);
 #endif
@@ -71,4 +71,4 @@ void findHighZombies(Program& program)
 
 }
 
-#endif
+#endif // ENABLE(WHLSL_COMPILER)

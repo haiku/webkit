@@ -14,23 +14,19 @@
 #include <vector>
 
 #include "api/video/encoded_image.h"
-#include "common_types.h"  // NOLINT(build/include)
-#include "modules/include/module_common_types.h"
+#include "modules/rtp_rtcp/source/rtp_video_header.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "modules/video_coding/include/video_coding_defines.h"
+#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
-class VCMEncodedFrame : protected EncodedImage {
+class RTC_EXPORT VCMEncodedFrame : protected EncodedImage {
  public:
   VCMEncodedFrame();
-  VCMEncodedFrame(const VCMEncodedFrame&) = delete;
+  VCMEncodedFrame(const VCMEncodedFrame&);
 
   ~VCMEncodedFrame();
-  /**
-   *   Delete VideoFrame and resets members to zero
-   */
-  void Free();
   /**
    *   Set render time in milliseconds
    */
@@ -56,31 +52,23 @@ class VCMEncodedFrame : protected EncodedImage {
   const webrtc::EncodedImage& EncodedImage() const {
     return static_cast<const webrtc::EncodedImage&>(*this);
   }
-  /**
-   *   Get pointer to frame buffer
-   */
-  const uint8_t* Buffer() const { return _buffer; }
-  /**
-   *   Get pointer to frame buffer that can be mutated.
-   */
-  uint8_t* MutableBuffer() { return _buffer; }
-  /**
-   *   Get frame length
-   */
-  size_t Length() const { return _length; }
-  /**
-   *   Set frame length
-   */
-  void SetLength(size_t length) {
-    RTC_DCHECK(length <= _size);
-    _length = length;
-  }
-  /**
-   *   Frame RTP timestamp (90kHz)
-   */
+
+  using EncodedImage::ColorSpace;
+  using EncodedImage::data;
+  using EncodedImage::GetEncodedData;
+  using EncodedImage::NtpTimeMs;
+  using EncodedImage::PacketInfos;
+  using EncodedImage::Retain;
   using EncodedImage::set_size;
+  using EncodedImage::SetColorSpace;
+  using EncodedImage::SetEncodedData;
+  using EncodedImage::SetPacketInfos;
+  using EncodedImage::SetSpatialIndex;
+  using EncodedImage::SetSpatialLayerFrameSize;
   using EncodedImage::SetTimestamp;
   using EncodedImage::size;
+  using EncodedImage::SpatialIndex;
+  using EncodedImage::SpatialLayerFrameSize;
   using EncodedImage::Timestamp;
 
   /**
@@ -90,7 +78,13 @@ class VCMEncodedFrame : protected EncodedImage {
   /**
    *   Get frame type
    */
-  webrtc::FrameType FrameType() const { return _frameType; }
+  webrtc::VideoFrameType FrameType() const { return _frameType; }
+  /**
+   *   Set frame type
+   */
+  void SetFrameType(webrtc::VideoFrameType frame_type) {
+    _frameType = frame_type;
+  }
   /**
    *   Get frame rotation
    */
@@ -127,16 +121,6 @@ class VCMEncodedFrame : protected EncodedImage {
     _codecSpecificInfo = *codec_specific;
   }
 
-  /**
-   * Verifies that current allocated buffer size is larger than or equal to the
-   * input size.
-   * If the current buffer size is smaller, a new allocation is made and the old
-   * buffer data
-   * is copied to the new buffer.
-   * Buffer size is updated to minimumSize.
-   */
-  void VerifyAndAllocate(size_t minimumSize);
-
  protected:
   void Reset();
 
@@ -147,11 +131,6 @@ class VCMEncodedFrame : protected EncodedImage {
   bool _missingFrame;
   CodecSpecificInfo _codecSpecificInfo;
   webrtc::VideoCodecType _codec;
-
-  // Video rotation is only set along with the last packet for each frame
-  // (same as marker bit). This |_rotation_set| is only for debugging purpose
-  // to ensure we don't set it twice for a frame.
-  bool _rotation_set;
 };
 
 }  // namespace webrtc

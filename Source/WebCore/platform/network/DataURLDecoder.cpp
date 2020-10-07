@@ -43,7 +43,7 @@ namespace DataURLDecoder {
 
 static WorkQueue& decodeQueue()
 {
-    static auto& queue = WorkQueue::create("org.webkit.DataURLDecoder").leakRef();
+    static auto& queue = WorkQueue::create("org.webkit.DataURLDecoder", WorkQueue::Type::Serial, WorkQueue::QOS::UserInitiated).leakRef();
     return queue;
 }
 
@@ -66,25 +66,42 @@ public:
 
     bool process()
     {
+        // Syntax:
+        //  url := data:<header>,<encodedData>
+        //  header := [<mediatype>][;base64]
+        //  mediatype := [<mimetype>][;charset=<charsettype>]
+
         if (urlString.find(',') == notFound)
             return false;
-        const char dataString[] = "data:";
-        const char base64String[] = ";base64";
 
+        const char dataString[] = "data:";
         ASSERT(urlString.startsWith(dataString));
 
-        size_t headerEnd = urlString.find(',', strlen(dataString));
+        size_t headerStart = strlen(dataString);
+        size_t headerEnd = urlString.find(',', headerStart);
         size_t encodedDataStart = headerEnd == notFound ? headerEnd : headerEnd + 1;
 
         encodedData = StringView(urlString).substring(encodedDataStart);
-        auto header = StringView(urlString).substring(strlen(dataString), headerEnd - strlen(dataString));
-        isBase64 = header.endsWithIgnoringASCIICase(StringView(base64String));
-        auto mediaType = (isBase64 ? header.substring(0, header.length() - strlen(base64String)) : header).toString();
-        mediaType = mediaType.stripWhiteSpace();
+        auto header = StringView(urlString).substring(headerStart, headerEnd - headerStart);
+        
+        // There might one or two semicolons in the header, find the last one.
+        size_t mediaTypeEnd = header.reverseFind(';');
+        mediaTypeEnd = mediaTypeEnd == notFound ? header.length() : mediaTypeEnd;
+
+        // formatTypeStart might be at the begining of "base64" or "charset=...".
+        size_t formatTypeStart = mediaTypeEnd + 1;
+        auto formatType = header.substring(formatTypeStart, header.length() - formatTypeStart);
+        formatType = stripLeadingAndTrailingHTTPSpaces(formatType);
+
+        isBase64 = equalLettersIgnoringASCIICase(formatType, "base64");
+
+        // If header does not end with "base64", mediaType should be the whole header.
+        auto mediaType = (isBase64 ? header.substring(0, mediaTypeEnd) : header).toString();
+        mediaType = stripLeadingAndTrailingHTTPSpaces(mediaType);
         if (mediaType.startsWith(';'))
             mediaType.insert("text/plain", 0);
-        result = parseMediaType(mediaType);
 
+        result = parseMediaType(mediaType);
         return true;
     }
 
@@ -97,52 +114,6 @@ public:
     Result result;
 };
 
-#if HAVE(RUNLOOP_TIMER)
-
-class DecodingResultDispatcher : public ThreadSafeRefCounted<DecodingResultDispatcher> {
-public:
-    static void dispatch(std::unique_ptr<DecodeTask> decodeTask)
-    {
-        Ref<DecodingResultDispatcher> dispatcher = adoptRef(*new DecodingResultDispatcher(WTFMove(decodeTask)));
-        dispatcher->startTimer();
-    }
-
-private:
-    DecodingResultDispatcher(std::unique_ptr<DecodeTask> decodeTask)
-        : m_timer(*this, &DecodingResultDispatcher::timerFired)
-        , m_decodeTask(WTFMove(decodeTask))
-    {
-    }
-
-    void startTimer()
-    {
-        // Keep alive until the timer has fired.
-        ref();
-
-        auto scheduledPairs = m_decodeTask->scheduleContext.scheduledPairs;
-        m_timer.startOneShot(0_s);
-        m_timer.schedule(scheduledPairs);
-    }
-
-    void timerFired()
-    {
-        if (m_decodeTask->result.data)
-            m_decodeTask->completionHandler(WTFMove(m_decodeTask->result));
-        else
-            m_decodeTask->completionHandler({ });
-
-        // Ensure DecodeTask gets deleted in the main thread.
-        m_decodeTask = nullptr;
-
-        deref();
-    }
-
-    RunLoopTimer<DecodingResultDispatcher> m_timer;
-    std::unique_ptr<DecodeTask> m_decodeTask;
-};
-
-#endif // HAVE(RUNLOOP_TIMER)
-
 static std::unique_ptr<DecodeTask> createDecodeTask(const URL& url, const ScheduleContext& scheduleContext, DecodeCompletionHandler&& completionHandler)
 {
     return makeUnique<DecodeTask>(
@@ -152,15 +123,21 @@ static std::unique_ptr<DecodeTask> createDecodeTask(const URL& url, const Schedu
     );
 }
 
-static void decodeBase64(DecodeTask& task)
+static void decodeBase64(DecodeTask& task, Mode mode)
 {
     Vector<char> buffer;
-    // First try base64url.
-    if (!base64URLDecode(task.encodedData.toStringWithoutCopying(), buffer)) {
-        // Didn't work, try unescaping and decoding as base64.
+    if (mode == Mode::ForgivingBase64) {
         auto unescapedString = decodeURLEscapeSequences(task.encodedData.toStringWithoutCopying());
-        if (!base64Decode(unescapedString, buffer, Base64IgnoreSpacesAndNewLines))
+        if (!base64Decode(unescapedString, buffer, Base64ValidatePadding | Base64IgnoreSpacesAndNewLines | Base64DiscardVerticalTab))
             return;
+    } else {
+        // First try base64url.
+        if (!base64URLDecode(task.encodedData.toStringWithoutCopying(), buffer)) {
+            // Didn't work, try unescaping and decoding as base64.
+            auto unescapedString = decodeURLEscapeSequences(task.encodedData.toStringWithoutCopying());
+            if (!base64Decode(unescapedString, buffer, Base64IgnoreSpacesAndNewLines | Base64DiscardVerticalTab))
+                return;
+        }
     }
     buffer.shrinkToFit();
     task.result.data = SharedBuffer::create(WTFMove(buffer));
@@ -176,28 +153,34 @@ static void decodeEscaped(DecodeTask& task)
     task.result.data = SharedBuffer::create(WTFMove(buffer));
 }
 
-void decode(const URL& url, const ScheduleContext& scheduleContext, DecodeCompletionHandler&& completionHandler)
+void decode(const URL& url, const ScheduleContext& scheduleContext, Mode mode, DecodeCompletionHandler&& completionHandler)
 {
     ASSERT(url.protocolIsData());
 
-    decodeQueue().dispatch([decodeTask = createDecodeTask(url, scheduleContext, WTFMove(completionHandler))]() mutable {
+    decodeQueue().dispatch([decodeTask = createDecodeTask(url, scheduleContext, WTFMove(completionHandler)), mode]() mutable {
         if (decodeTask->process()) {
             if (decodeTask->isBase64)
-                decodeBase64(*decodeTask);
+                decodeBase64(*decodeTask, mode);
             else
                 decodeEscaped(*decodeTask);
         }
 
-#if HAVE(RUNLOOP_TIMER)
-        DecodingResultDispatcher::dispatch(WTFMove(decodeTask));
-#else
-        callOnMainThread([decodeTask = WTFMove(decodeTask)] {
+#if USE(COCOA_EVENT_LOOP)
+        auto scheduledPairs = decodeTask->scheduleContext.scheduledPairs;
+#endif
+
+        auto callCompletionHandler = [decodeTask = WTFMove(decodeTask)] {
             if (!decodeTask->result.data) {
                 decodeTask->completionHandler({ });
                 return;
             }
             decodeTask->completionHandler(WTFMove(decodeTask->result));
-        });
+        };
+
+#if USE(COCOA_EVENT_LOOP)
+        RunLoop::dispatch(scheduledPairs, WTFMove(callCompletionHandler));
+#else
+        RunLoop::main().dispatch(WTFMove(callCompletionHandler));
 #endif
     });
 }

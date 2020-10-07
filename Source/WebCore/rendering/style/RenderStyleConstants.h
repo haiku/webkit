@@ -2,7 +2,7 @@
  * Copyright (C) 2000 Lars Knoll (knoll@kde.org)
  *           (C) 2000 Antti Koivisto (koivisto@kde.org)
  *           (C) 2000 Dirk Mueller (mueller@kde.org)
- * Copyright (C) 2003, 2005, 2006, 2007, 2008, 2009, 2010 Apple Inc. All rights reserved.
+ * Copyright (C) 2003-2020 Apple Inc. All rights reserved.
  * Copyright (C) 2006 Graham Dennis (graham.dennis@gmail.com)
  * Copyright (C) 2009 Torch Mobile Inc. All rights reserved. (http://www.torchmobile.com/)
  *
@@ -82,13 +82,14 @@ enum class StyleDifferenceContextSensitiveProperty {
 };
 
 // Static pseudo styles. Dynamic ones are produced on the fly.
-enum class PseudoId : uint8_t {
+enum class PseudoId : uint16_t {
     // The order must be None, public IDs, and then internal IDs.
     None,
 
     // Public:
     FirstLine,
     FirstLetter,
+    Highlight,
     Marker,
     Before,
     After,
@@ -139,6 +140,12 @@ public:
     {
         ASSERT((sizeof(m_data) * 8) > static_cast<unsigned>(pseudoId));
         m_data |= (1U << static_cast<unsigned>(pseudoId));
+    }
+
+    void remove(PseudoId pseudoId)
+    {
+        ASSERT((sizeof(m_data) * 8) > static_cast<unsigned>(pseudoId));
+        m_data &= ~(1U << static_cast<unsigned>(pseudoId));
     }
 
     void merge(PseudoIdSet source)
@@ -631,6 +638,7 @@ enum class ListStyleType : uint8_t {
     Katakana,
     HiraganaIroha,
     KatakanaIroha,
+    String,
     None
 };
 
@@ -865,7 +873,6 @@ enum class DisplayType : uint8_t {
     Inline,
     Block,
     ListItem,
-    Compact,
     InlineBlock,
     Table,
     InlineTable,
@@ -1141,10 +1148,18 @@ enum class ApplePayButtonType : uint8_t {
     Buy,
     SetUp,
     Donate,
-#if ENABLE(APPLE_PAY_SESSION_V4)
     CheckOut,
     Book,
     Subscribe,
+#if ENABLE(APPLE_PAY_NEW_BUTTON_TYPES)
+    Reload,
+    AddMoney,
+    TopUp,
+    Order,
+    Rent,
+    Support,
+    Contribute,
+    Tip,
 #endif
 };
 #endif
@@ -1172,6 +1187,16 @@ enum class FontLoadingBehavior : uint8_t {
     Swap,
     Fallback,
     Optional
+};
+
+enum class EventListenerRegionType : uint8_t {
+    Wheel           = 1 << 0,
+    NonPassiveWheel = 1 << 1,
+};
+
+enum class MathStyle : uint8_t {
+    Normal,
+    Compact,
 };
 
 extern const float defaultMiterLimit;
@@ -1216,6 +1241,7 @@ WTF::TextStream& operator<<(WTF::TextStream&, CursorVisibility);
 WTF::TextStream& operator<<(WTF::TextStream&, DisplayType);
 WTF::TextStream& operator<<(WTF::TextStream&, Edge);
 WTF::TextStream& operator<<(WTF::TextStream&, EmptyCell);
+WTF::TextStream& operator<<(WTF::TextStream&, EventListenerRegionType);
 WTF::TextStream& operator<<(WTF::TextStream&, FillAttachment);
 WTF::TextStream& operator<<(WTF::TextStream&, FillBox);
 WTF::TextStream& operator<<(WTF::TextStream&, FillRepeat);
@@ -1286,5 +1312,6 @@ WTF::TextStream& operator<<(WTF::TextStream&, VerticalAlign);
 WTF::TextStream& operator<<(WTF::TextStream&, Visibility);
 WTF::TextStream& operator<<(WTF::TextStream&, WhiteSpace);
 WTF::TextStream& operator<<(WTF::TextStream&, WordBreak);
+WTF::TextStream& operator<<(WTF::TextStream&, MathStyle);
 
 } // namespace WebCore

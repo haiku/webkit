@@ -17,12 +17,6 @@ gles1_no_context_decl_extensions = [
     "GL_OES_framebuffer_object",
 ]
 
-# List of GLES1 API calls that have had their semantics changed in later GLES versions, but the
-# name was kept the same
-gles1_overloaded = [
-    "glGetPointerv",
-]
-
 # This is a list of exceptions for entry points which don't want to have
 # the EVENT macro. This is required for some debug marker entry points.
 no_event_marker_exceptions_list = sorted([
@@ -155,7 +149,7 @@ template_entry_point_no_return = """void GL_APIENTRY {name}{explicit_context_suf
 
     if (context)
     {{{assert_explicit_context}{packed_gl_enum_conversions}
-        std::unique_lock<std::mutex> shareContextLock = GetShareGroupLock(context);
+        std::unique_lock<angle::GlobalMutex> shareContextLock = GetShareGroupLock(context);
         bool isCallValid = (context->skipValidation() || Validate{name}({validate_params}));
         if (isCallValid)
         {{
@@ -174,7 +168,7 @@ template_entry_point_with_return = """{return_type}GL_APIENTRY {name}{explicit_c
     {return_type} returnValue;
     if (context)
     {{{assert_explicit_context}{packed_gl_enum_conversions}
-        std::unique_lock<std::mutex> shareContextLock = GetShareGroupLock(context);
+        std::unique_lock<angle::GlobalMutex> shareContextLock = GetShareGroupLock(context);
         bool isCallValid = (context->skipValidation() || Validate{name}({validate_params}));
         if (isCallValid)
         {{
@@ -212,7 +206,7 @@ context_header = """// GENERATED FILE - DO NOT EDIT.
 #endif // ANGLE_CONTEXT_API_{version}_AUTOGEN_H_
 """
 
-context_decl_format = """    {return_type} {name_lower_no_suffix}({internal_params}); \\"""
+context_decl_format = """    {return_type} {name_lower_no_suffix}({internal_params}){maybe_const}; \\"""
 
 libgles_entry_point_def = """{return_type}GL_APIENTRY gl{name}{explicit_context_suffix}({explicit_context_param}{explicit_context_comma}{params})
 {{
@@ -282,8 +276,6 @@ template_capture_header = """// GENERATED FILE - DO NOT EDIT.
 
 namespace gl
 {{
-class Context;
-
 {prototypes}
 }}  // namespace gl
 
@@ -304,7 +296,7 @@ template_capture_source = """// GENERATED FILE - DO NOT EDIT.
 
 #include "libANGLE/Context.h"
 #include "libANGLE/FrameCapture.h"
-#include "libANGLE/gl_enum_utils_autogen.h"
+#include "libANGLE/gl_enum_utils.h"
 #include "libANGLE/validation{annotation_no_dash}.h"
 
 using namespace angle;
@@ -453,7 +445,7 @@ template_sources_includes = """#include "libGLESv2/entry_points_{header_version}
 #include "libANGLE/Context.h"
 #include "libANGLE/Context.inl.h"
 #include "libANGLE/capture_{header_version}_autogen.h"
-#include "libANGLE/gl_enum_utils_autogen.h"
+#include "libANGLE/gl_enum_utils.h"
 #include "libANGLE/validation{validation_header_version}.h"
 #include "libANGLE/entry_points_utils.h"
 #include "libGLESv2/global_state.h"
@@ -468,13 +460,14 @@ template_sources_includes_gl32 = """#include "libGL/entry_points_{}_autogen.h"
 
 #include "libANGLE/Context.h"
 #include "libANGLE/Context.inl.h"
-#include "libANGLE/gl_enum_utils_autogen.h"
+#include "libANGLE/gl_enum_utils.h"
 #include "libANGLE/validationEGL.h"
 #include "libANGLE/validationES.h"
 #include "libANGLE/validationES1.h"
 #include "libANGLE/validationES2.h"
 #include "libANGLE/validationES3.h"
 #include "libANGLE/validationES31.h"
+#include "libANGLE/validationES32.h"
 #include "libANGLE/validationESEXT.h"
 #include "libANGLE/validationGL{}{}_autogen.h"
 #include "libANGLE/entry_points_utils.h"
@@ -570,7 +563,10 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
     }}
 }}
 
-void WriteParamTypeToStream(std::ostream &os, ParamType paramType, const ParamValue& paramValue);
+struct CallCapture;
+struct ParamCapture;
+
+void WriteParamCaptureReplay(std::ostream &os, const CallCapture &call, const ParamCapture &param);
 const char *ParamTypeToString(ParamType paramType);
 
 enum class ResourceIDType
@@ -601,9 +597,9 @@ template_frame_capture_utils_source = """// GENERATED FILE - DO NOT EDIT.
 
 namespace angle
 {{
-void WriteParamTypeToStream(std::ostream &os, ParamType paramType, const ParamValue& paramValue)
+void WriteParamCaptureReplay(std::ostream &os, const CallCapture &call, const ParamCapture &param)
 {{
-    switch (paramType)
+    switch (param.type)
     {{
 {write_param_type_to_stream_cases}
         default:
@@ -666,7 +662,7 @@ template_init_param_value_case = """        case ParamType::T{enum}:
             break;"""
 
 template_write_param_type_to_stream_case = """        case ParamType::T{enum}:
-            WriteParamValueToStream<ParamType::T{enum}>(os, paramValue.{union_name});
+            WriteParamValueReplay<ParamType::T{enum}>(os, call, param.value.{union_name});
             break;"""
 
 template_param_type_to_string_case = """        case ParamType::T{enum}:
@@ -903,9 +899,9 @@ def format_capture_method(command, cmd_name, proto, params, all_param_types, cap
     packed_gl_enums = get_packed_enums(cmd_packed_gl_enums, cmd_name)
 
     params_with_type = get_internal_params(
-        cmd_name, ["const Context *context", "bool isCallValid"] + params, cmd_packed_gl_enums)
+        cmd_name, ["const State &glState", "bool isCallValid"] + params, cmd_packed_gl_enums)
     params_just_name = ", ".join(
-        ["context", "isCallValid"] +
+        ["glState", "isCallValid"] +
         [just_the_name_packed(param, packed_gl_enums) for param in params])
 
     parameter_captures = []
@@ -955,6 +951,16 @@ def format_capture_method(command, cmd_name, proto, params, all_param_types, cap
         return template_capture_method_with_return_value.format(**format_args)
 
 
+def const_pointer_type(param, packed_gl_enums):
+    type = just_the_type_packed(param, packed_gl_enums)
+    if "**" in type and "const" not in type:
+        return type.replace("**", "* const *")
+    elif "*" in type and "const" not in type:
+        return "const " + type
+    else:
+        return type
+
+
 def get_internal_params(cmd_name, params, cmd_packed_gl_enums):
     packed_gl_enums = get_packed_enums(cmd_packed_gl_enums, cmd_name)
     return ", ".join([
@@ -964,17 +970,29 @@ def get_internal_params(cmd_name, params, cmd_packed_gl_enums):
     ])
 
 
+def get_validation_params(cmd_name, params, cmd_packed_gl_enums):
+    packed_gl_enums = get_packed_enums(cmd_packed_gl_enums, cmd_name)
+    return ", ".join([
+        make_param(
+            const_pointer_type(param, packed_gl_enums), just_the_name_packed(
+                param, packed_gl_enums)) for param in params
+    ])
+
+
 def format_context_decl(cmd_name, proto, params, template, cmd_packed_gl_enums):
     internal_params = get_internal_params(cmd_name, params, cmd_packed_gl_enums)
 
     return_type = proto[:-len(cmd_name)]
     name_lower_no_suffix = cmd_name[2:3].lower() + cmd_name[3:]
     name_lower_no_suffix = strip_suffix(name_lower_no_suffix)
+    maybe_const = " const" if name_lower_no_suffix.startswith(
+        "is") and name_lower_no_suffix[2].isupper() else ""
 
     return template.format(
         return_type=return_type,
         name_lower_no_suffix=name_lower_no_suffix,
-        internal_params=internal_params)
+        internal_params=internal_params,
+        maybe_const=maybe_const)
 
 
 def format_libgles_entry_point_def(cmd_name, proto, params, is_explicit_context):
@@ -993,14 +1011,14 @@ def format_libgles_entry_point_def(cmd_name, proto, params, is_explicit_context)
 
 
 def format_validation_proto(cmd_name, params, cmd_packed_gl_enums):
-    internal_params = get_internal_params(cmd_name, ["Context *context"] + params,
-                                          cmd_packed_gl_enums)
+    internal_params = get_validation_params(cmd_name, ["Context *context"] + params,
+                                            cmd_packed_gl_enums)
     return template_validation_proto % (cmd_name[2:], internal_params)
 
 
 def format_capture_proto(cmd_name, proto, params, cmd_packed_gl_enums):
     internal_params = get_internal_params(
-        cmd_name, ["const Context *context", "bool isCallValid"] + params, cmd_packed_gl_enums)
+        cmd_name, ["const State &glState", "bool isCallValid"] + params, cmd_packed_gl_enums)
     return_type = proto[:-len(cmd_name)].strip()
     if return_type != "void":
         internal_params += ", %s returnValue" % return_type
@@ -1053,17 +1071,13 @@ def get_entry_points(all_commands, commands, is_explicit_context, is_wgl, all_pa
     return decls, defs, export_defs, validation_protos, capture_protos, capture_methods, capture_pointer_funcs
 
 
-def get_decls(formatter, all_commands, gles_commands, already_included, overloaded,
-              cmd_packed_gl_enums):
+def get_decls(formatter, all_commands, gles_commands, already_included, cmd_packed_gl_enums):
     decls = []
     for command in all_commands:
         proto = command.find('proto')
         cmd_name = proto.find('name').text
 
         if cmd_name not in gles_commands:
-            continue
-
-        if cmd_name in overloaded:
             continue
 
         name_no_suffix = strip_suffix(cmd_name)
@@ -1204,7 +1218,8 @@ def write_context_api_decls(template, decls, api):
 
 
 def write_glext_explicit_context_inc(version, ptrs, protos):
-    folder_version = version if version != "31" else "3"
+    possible_versions = ["31", "32"]
+    folder_version = version if version not in possible_versions else "3"
 
     content = template_glext_explicit_context_inc.format(
         script_name=os.path.basename(sys.argv[0]),
@@ -1624,6 +1639,7 @@ def main():
             '../src/libANGLE/Context_gles_2_0_autogen.h',
             '../src/libANGLE/Context_gles_3_0_autogen.h',
             '../src/libANGLE/Context_gles_3_1_autogen.h',
+            '../src/libANGLE/Context_gles_3_2_autogen.h',
             '../src/libANGLE/Context_gles_ext_autogen.h',
             '../src/libANGLE/capture_gles_1_0_autogen.cpp',
             '../src/libANGLE/capture_gles_1_0_autogen.h',
@@ -1633,6 +1649,8 @@ def main():
             '../src/libANGLE/capture_gles_3_0_autogen.h',
             '../src/libANGLE/capture_gles_3_1_autogen.cpp',
             '../src/libANGLE/capture_gles_3_1_autogen.h',
+            '../src/libANGLE/capture_gles_3_2_autogen.cpp',
+            '../src/libANGLE/capture_gles_3_2_autogen.h',
             '../src/libANGLE/capture_gles_ext_autogen.cpp',
             '../src/libANGLE/capture_gles_ext_autogen.h',
             '../src/libANGLE/frame_capture_replay_autogen.cpp',
@@ -1643,6 +1661,7 @@ def main():
             '../src/libANGLE/validationES1_autogen.h',
             '../src/libANGLE/validationES2_autogen.h',
             '../src/libANGLE/validationES31_autogen.h',
+            '../src/libANGLE/validationES32_autogen.h',
             '../src/libANGLE/validationES3_autogen.h',
             '../src/libANGLE/validationESEXT_autogen.h',
             '../src/libANGLE/validationGL1_autogen.h',
@@ -1672,6 +1691,8 @@ def main():
             '../src/libGLESv2/entry_points_gles_3_0_autogen.h',
             '../src/libGLESv2/entry_points_gles_3_1_autogen.cpp',
             '../src/libGLESv2/entry_points_gles_3_1_autogen.h',
+            '../src/libGLESv2/entry_points_gles_3_2_autogen.cpp',
+            '../src/libGLESv2/entry_points_gles_3_2_autogen.h',
             '../src/libGLESv2/entry_points_gles_ext_autogen.cpp',
             '../src/libGLESv2/entry_points_gles_ext_autogen.h',
             '../src/libGLESv2/libGLESv2_autogen.cpp',
@@ -1735,7 +1756,7 @@ def main():
     glesdecls = {}
     glesdecls['core'] = {}
     glesdecls['exts'] = {}
-    for ver in [(1, 0), (2, 0), (3, 0), (3, 1)]:
+    for ver in [(1, 0), (2, 0), (3, 0), (3, 1), (3, 2)]:
         glesdecls['core'][ver] = []
     for ver in ['GLES1 Extensions', 'GLES2+ Extensions', 'ANGLE Extensions']:
         glesdecls['exts'][ver] = {}
@@ -1752,13 +1773,13 @@ def main():
 
     # First run through the main GLES entry points.  Since ES2+ is the primary use
     # case, we go through those first and then add ES1-only APIs at the end.
-    for major_version, minor_version in [[2, 0], [3, 0], [3, 1], [1, 0]]:
+    versions = [[2, 0], [3, 0], [3, 1], [3, 2], [1, 0]]
+    for major_version, minor_version in versions:
         version = "{}_{}".format(major_version, minor_version)
         annotation = "GLES_{}".format(version)
         name_prefix = "GL_ES_VERSION_"
 
-        is_gles1 = major_version == 1
-        if is_gles1:
+        if major_version == 1:
             name_prefix = "GL_VERSION_ES_CM_"
 
         comment = version.replace("_", ".")
@@ -1800,10 +1821,8 @@ def main():
         write_file(annotation, "GLES " + comment, template_entry_point_source, "\n".join(defs),
                    "cpp", source_includes, "libGLESv2", "gl.xml")
 
-        gles_overloaded = gles1_overloaded if is_gles1 else []
         glesdecls['core'][(major_version, minor_version)] = get_decls(
-            context_decl_format, all_commands, gles_commands, [], gles_overloaded,
-            cmd_packed_gl_enums)
+            context_decl_format, all_commands, gles_commands, [], cmd_packed_gl_enums)
 
         validation_annotation = "ES%s%s" % (major_version, minor_if_not_zero)
         write_validation_header(validation_annotation, "ES %s" % comment, validation_protos,
@@ -1867,14 +1886,14 @@ def main():
                 extension_name not in gles1_no_context_decl_extensions):
             glesdecls['exts']['GLES1 Extensions'][extension_name] = get_decls(
                 context_decl_format, all_commands, ext_cmd_names, all_commands_no_suffix,
-                gles1_overloaded, cmd_packed_gl_enums)
+                cmd_packed_gl_enums)
         if extension_name in registry_xml.gles_extensions:
             glesdecls['exts']['GLES2+ Extensions'][extension_name] = get_decls(
-                context_decl_format, all_commands, ext_cmd_names, all_commands_no_suffix, [],
+                context_decl_format, all_commands, ext_cmd_names, all_commands_no_suffix,
                 cmd_packed_gl_enums)
         if extension_name in registry_xml.angle_extensions:
             glesdecls['exts']['ANGLE Extensions'][extension_name] = get_decls(
-                context_decl_format, all_commands, ext_cmd_names, all_commands_no_suffix, [],
+                context_decl_format, all_commands, ext_cmd_names, all_commands_no_suffix,
                 cmd_packed_gl_enums)
 
     for name in extension_commands:
@@ -1903,7 +1922,7 @@ def main():
         libgles_ep_exports += get_exports(cmds, lambda x: "%sContextANGLE" % x)
 
         # Generate .inc files for extension function pointers and declarations
-        for major, minor in [[2, 0], [3, 0], [3, 1], [1, 0]]:
+        for major, minor in versions:
             annotation = "{}_{}".format(major, minor)
 
             major_if_not_one = major if major != 1 else ""
@@ -1994,7 +2013,7 @@ def main():
                    "cpp", source_includes, "libGL", "gl.xml")
 
         gldecls['core'][(major_version, minor_version)] = get_decls(
-            context_decl_format, all_commands32, just_libgl_commands, all_commands_no_suffix, [],
+            context_decl_format, all_commands32, just_libgl_commands, all_commands_no_suffix,
             cmd_packed_gl_enums)
 
         # Validation files
@@ -2033,6 +2052,7 @@ def main():
     #include <GLES/glext.h>
     #include <GLES2/gl2.h>
     #include <GLES2/gl2ext.h>
+    #include <GLES3/gl32.h>
     """
 
     source_includes = template_sources_includes.format(
@@ -2042,10 +2062,12 @@ def main():
     #include "libANGLE/capture_gles_2_0_autogen.h"
     #include "libANGLE/capture_gles_3_0_autogen.h"
     #include "libANGLE/capture_gles_3_1_autogen.h"
+    #include "libANGLE/capture_gles_3_2_autogen.h"
     #include "libANGLE/validationES1.h"
     #include "libANGLE/validationES2.h"
     #include "libANGLE/validationES3.h"
     #include "libANGLE/validationES31.h"
+    #include "libANGLE/validationES32.h"
     """
 
     write_file("gles_ext", "GLES extension", template_entry_point_header,
@@ -2103,6 +2125,7 @@ def main():
     #include "libGLESv2/entry_points_gles_2_0_autogen.h"
     #include "libGLESv2/entry_points_gles_3_0_autogen.h"
     #include "libGLESv2/entry_points_gles_3_1_autogen.h"
+    #include "libGLESv2/entry_points_gles_3_2_autogen.h"
     #include "libGLESv2/entry_points_gles_ext_autogen.h"
 
     #include "common/event_tracer.h"

@@ -28,9 +28,12 @@
 
 #if ENABLE(NETSCAPE_PLUGIN_API)
 
+#import "LayerTreeContext.h"
 #import "NetscapeBrowserFuncs.h"
 #import "PluginController.h"
-#import "WebEvent.h"
+#import "WebKeyboardEvent.h"
+#import "WebMouseEvent.h"
+#import "WebWheelEvent.h"
 #import <Carbon/Carbon.h>
 #import <WebCore/GraphicsContext.h>
 #import <WebCore/NotImplemented.h>

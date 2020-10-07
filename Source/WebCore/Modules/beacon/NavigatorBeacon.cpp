@@ -64,7 +64,7 @@ const char* NavigatorBeacon::supplementName()
     return "NavigatorBeacon";
 }
 
-void NavigatorBeacon::notifyFinished(CachedResource& resource)
+void NavigatorBeacon::notifyFinished(CachedResource& resource, const NetworkLoadMetrics&)
 {
     if (!resource.resourceError().isNull())
         logError(resource.resourceError());
@@ -121,7 +121,7 @@ ExceptionOr<bool> NavigatorBeacon::sendBeacon(Document& document, const String& 
 
     ResourceRequest request(parsedUrl);
     request.setHTTPMethod("POST"_s);
-    request.setPriority(ResourceLoadPriority::VeryLow);
+    request.setRequester(ResourceRequest::Requester::Beacon);
 
     ResourceLoaderOptions options;
     options.credentials = FetchOptions::Credentials::Include;
@@ -139,7 +139,7 @@ ExceptionOr<bool> NavigatorBeacon::sendBeacon(Document& document, const String& 
         if (fetchBody.hasReadableStream())
             return Exception { TypeError, "Beacons cannot send ReadableStream body"_s };
 
-        request.setHTTPBody(fetchBody.bodyAsFormData(document));
+        request.setHTTPBody(fetchBody.bodyAsFormData());
         if (!mimeType.isEmpty()) {
             request.setHTTPContentType(mimeType);
             if (isCrossOriginSafeRequestHeader(HTTPHeaderName::ContentType, mimeType))

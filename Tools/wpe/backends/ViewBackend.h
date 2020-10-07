@@ -34,6 +34,10 @@ typedef void* EGLDisplay;
 typedef struct _AtkObject AtkObject;
 struct wpe_fdo_egl_exported_image;
 
+#if WPE_FDO_CHECK_VERSION(1, 5, 0)
+struct wpe_fdo_shm_exported_buffer;
+#endif
+
 // Manually provide the EGL_CAST C++ definition in case eglplatform.h doesn't provide it.
 #ifndef EGL_CAST
 #define EGL_CAST(type, value) (static_cast<type>(value))
@@ -44,6 +48,8 @@ namespace WPEToolingBackends {
 class ViewBackend {
 public:
     virtual ~ViewBackend();
+
+    virtual struct wpe_view_backend* backend() const = 0;
 
     class InputClient {
     public:
@@ -59,32 +65,22 @@ public:
     void setAccessibleChild(AtkObject*);
 #endif
 
-    struct wpe_view_backend* backend() const;
+    void addActivityState(uint32_t);
+    void removeActivityState(uint32_t);
 
 protected:
     ViewBackend(uint32_t width, uint32_t height);
 
-    bool initialize(EGLDisplay);
-    void deinitialize(EGLDisplay);
-
     void initializeAccessibility();
     void updateAccessibilityState(uint32_t);
-
-    void addActivityState(uint32_t);
-    void removeActivityState(uint32_t);
 
     void dispatchInputPointerEvent(struct wpe_input_pointer_event*);
     void dispatchInputAxisEvent(struct wpe_input_axis_event*);
     void dispatchInputKeyboardEvent(struct wpe_input_keyboard_event*);
     void dispatchInputTouchEvent(struct wpe_input_touch_event*);
 
-    virtual void displayBuffer(struct wpe_fdo_egl_exported_image*) = 0;
-
     uint32_t m_width { 0 };
     uint32_t m_height { 0 };
-    EGLContext m_eglContext { nullptr };
-    EGLConfig m_eglConfig;
-    struct wpe_view_backend_exportable_fdo* m_exportable { nullptr };
     std::unique_ptr<InputClient> m_inputClient;
 };
 

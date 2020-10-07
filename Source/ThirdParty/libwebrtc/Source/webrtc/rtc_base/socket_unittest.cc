@@ -8,20 +8,33 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <memory>
+#include "rtc_base/socket.h"
 
-#include "rtc_base/socket_unittest.h"
+#include <errno.h>
+#include <stdint.h>
+#include <string.h>
+
+#include <memory>
 
 #include "absl/memory/memory.h"
 #include "rtc_base/arraysize.h"
-#include "rtc_base/asyncudpsocket.h"
+#include "rtc_base/async_packet_socket.h"
+#include "rtc_base/async_socket.h"
+#include "rtc_base/async_udp_socket.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/gunit.h"
-#include "rtc_base/nethelpers.h"
-#include "rtc_base/socketserver.h"
-#include "rtc_base/testclient.h"
-#include "rtc_base/testutils.h"
+#include "rtc_base/location.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/message_handler.h"
+#include "rtc_base/net_helpers.h"
+#include "rtc_base/socket_address.h"
+#include "rtc_base/socket_server.h"
+#include "rtc_base/socket_unittest.h"
+#include "rtc_base/test_client.h"
+#include "rtc_base/test_utils.h"
+#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
+#include "rtc_base/time_utils.h"
 
 namespace rtc {
 
@@ -378,7 +391,7 @@ void SocketTest::ConnectWithDnsLookupFailInternal(const IPAddress& loopback) {
         dns_lookup_finished);
   if (!dns_lookup_finished) {
     RTC_LOG(LS_WARNING) << "Skipping test; DNS resolution took longer than 5 "
-                        << "seconds.";
+                           "seconds.";
     return;
   }
 
@@ -1014,6 +1027,15 @@ void SocketTest::GetSetOptionsInternal(const IPAddress& loopback) {
   int current_nd, desired_nd = 1;
   ASSERT_EQ(-1, socket->GetOption(Socket::OPT_NODELAY, &current_nd));
   ASSERT_EQ(-1, socket->SetOption(Socket::OPT_NODELAY, desired_nd));
+
+#if defined(WEBRTC_POSIX)
+  // Check DSCP.
+  int current_dscp, desired_dscp = 1;
+  ASSERT_NE(-1, socket->GetOption(Socket::OPT_DSCP, &current_dscp));
+  ASSERT_NE(-1, socket->SetOption(Socket::OPT_DSCP, desired_dscp));
+  ASSERT_NE(-1, socket->GetOption(Socket::OPT_DSCP, &current_dscp));
+  ASSERT_EQ(desired_dscp, current_dscp);
+#endif
 }
 
 void SocketTest::SocketRecvTimestamp(const IPAddress& loopback) {

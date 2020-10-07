@@ -26,16 +26,26 @@
 #include "config.h"
 #include "InlineItem.h"
 
+#include "InlineTextItem.h"
+
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
 namespace WebCore {
 namespace Layout {
 
-InlineItem::InlineItem(const Box& layoutBox, Type type)
-    : m_layoutBox(layoutBox)
-    , m_type(type)
-{
-}
+struct SameSizeAsInlineItem {
+    void* layoutBox;
+    uint8_t enum1;
+    uint8_t enum2;
+    bool widthBool;
+    bool softHyphenBool;
+    bool isCollapsible;
+    InlineLayoutUnit width;
+    unsigned start;
+    unsigned length;
+};
+
+static_assert(sizeof(InlineItem) == sizeof(SameSizeAsInlineItem), "");
 
 }
 }

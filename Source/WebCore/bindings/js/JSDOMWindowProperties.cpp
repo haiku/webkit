@@ -34,6 +34,7 @@
 #include "JSDOMWindowBase.h"
 #include "JSElement.h"
 #include "JSHTMLCollection.h"
+#include "WebCoreJSClientData.h"
 
 namespace WebCore {
 
@@ -81,6 +82,13 @@ static bool jsDOMWindowPropertiesGetOwnPropertySlotNamedItemGetter(JSDOMWindowPr
     return false;
 }
 
+void JSDOMWindowProperties::finishCreation(VM& vm)
+{
+    Base::finishCreation(vm);
+    ASSERT(inherits(vm, info()));
+    JSC_TO_STRING_TAG_WITHOUT_TRANSITION();
+}
+
 bool JSDOMWindowProperties::getOwnPropertySlot(JSObject* object, JSGlobalObject* lexicalGlobalObject, PropertyName propertyName, PropertySlot& slot)
 {
     auto* thisObject = jsCast<JSDOMWindowProperties*>(object);
@@ -106,6 +114,11 @@ bool JSDOMWindowProperties::getOwnPropertySlotByIndex(JSObject* object, JSGlobal
 {
     VM& vm = lexicalGlobalObject->vm();
     return getOwnPropertySlot(object, lexicalGlobalObject, Identifier::from(vm, index), slot);
+}
+
+JSC::IsoSubspace* JSDOMWindowProperties::subspaceForImpl(JSC::VM& vm)
+{
+    return &static_cast<JSVMClientData*>(vm.clientData)->domWindowPropertiesSpace();
 }
 
 } // namespace WebCore

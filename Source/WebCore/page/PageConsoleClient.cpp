@@ -131,9 +131,9 @@ void PageConsoleClient::addMessage(std::unique_ptr<Inspector::ConsoleMessage>&& 
         if (UNLIKELY(m_page.settings().logsPageMessagesToSystemConsoleEnabled() || shouldPrintExceptions())) {
             if (consoleMessage->type() == MessageType::Image) {
                 ASSERT(consoleMessage->arguments());
-                ConsoleClient::printConsoleMessageWithArguments(MessageSource::ConsoleAPI, MessageType::Log, consoleMessage->level(), consoleMessage->arguments()->globalObject(), *consoleMessage->arguments());
+                ConsoleClient::printConsoleMessageWithArguments(consoleMessage->source(), consoleMessage->type(), consoleMessage->level(), consoleMessage->arguments()->globalObject(), *consoleMessage->arguments());
             } else
-                ConsoleClient::printConsoleMessage(MessageSource::ConsoleAPI, MessageType::Log, consoleMessage->level(), consoleMessage->message(), consoleMessage->url(), consoleMessage->line(), consoleMessage->column());
+                ConsoleClient::printConsoleMessage(consoleMessage->source(), consoleMessage->type(), consoleMessage->level(), consoleMessage->message(), consoleMessage->url(), consoleMessage->line(), consoleMessage->column());
         }
     }
 
@@ -272,6 +272,9 @@ static CanvasRenderingContext* canvasRenderingContext(JSC::VM& vm, JSC::JSValue 
 
 void PageConsoleClient::record(JSC::JSGlobalObject* lexicalGlobalObject, Ref<ScriptArguments>&& arguments)
 {
+    if (LIKELY(!InspectorInstrumentation::hasFrontends()))
+        return;
+
     if (auto* target = objectArgumentAt(arguments, 0)) {
         if (auto* context = canvasRenderingContext(lexicalGlobalObject->vm(), target))
             InspectorInstrumentation::consoleStartRecordingCanvas(*context, *lexicalGlobalObject, objectArgumentAt(arguments, 1));
@@ -280,9 +283,12 @@ void PageConsoleClient::record(JSC::JSGlobalObject* lexicalGlobalObject, Ref<Scr
 
 void PageConsoleClient::recordEnd(JSC::JSGlobalObject* lexicalGlobalObject, Ref<ScriptArguments>&& arguments)
 {
+    if (LIKELY(!InspectorInstrumentation::hasFrontends()))
+        return;
+
     if (auto* target = objectArgumentAt(arguments, 0)) {
         if (auto* context = canvasRenderingContext(lexicalGlobalObject->vm(), target))
-            InspectorInstrumentation::didFinishRecordingCanvasFrame(*context, true);
+            InspectorInstrumentation::consoleStopRecordingCanvas(*context);
     }
 }
 
@@ -370,7 +376,7 @@ void PageConsoleClient::screenshot(JSC::JSGlobalObject* lexicalGlobalObject, Ref
                 auto sourceSize = imageData->size();
                 if (auto imageBuffer = ImageBuffer::create(sourceSize, RenderingMode::Unaccelerated)) {
                     IntRect sourceRect(IntPoint(), sourceSize);
-                    imageBuffer->putByteArray(*imageData->data(), AlphaPremultiplication::Unpremultiplied, sourceSize, sourceRect, IntPoint());
+                    imageBuffer->putImageData(AlphaPremultiplication::Unpremultiplied, *imageData, sourceRect);
                     dataURL = imageBuffer->toDataURL("image/png"_s, WTF::nullopt, PreserveResolution::Yes);
                 }
             }

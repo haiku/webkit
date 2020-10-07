@@ -29,6 +29,7 @@
 #pragma once
 
 #include "UIScriptContext.h"
+#include "UIScriptController.h"
 #include <JavaScriptCore/JSObjectRef.h>
 #include <map>
 #include <set>
@@ -53,7 +54,7 @@ public:
     
     void cleanup();
 
-    void makeWindowObject(JSContextRef, JSObjectRef windowObject, JSValueRef* exception);
+    void makeWindowObject(JSContextRef);
 
     void addDisallowedURL(JSStringRef url);
     const std::set<std::string>& allowedHosts() const { return m_allowedHosts; }
@@ -94,7 +95,6 @@ public:
     void queueReload();
     void removeAllVisitedLinks();
     void setAcceptsEditing(bool);
-    void setFetchAPIEnabled(bool);
     void setAllowUniversalAccessFromFileURLs(bool);
     void setAllowFileAccessFromFileURLs(bool);
     void setNeedsStorageAccessFromFileURLsQuirk(bool);
@@ -313,8 +313,8 @@ public:
     const std::vector<char>& audioResult() const { return m_audioResult; }
     void setAudioResult(const std::vector<char>& audioData) { m_audioResult = audioData; }
 
-    void addOriginAccessWhitelistEntry(JSStringRef sourceOrigin, JSStringRef destinationProtocol, JSStringRef destinationHost, bool allowDestinationSubdomains);
-    void removeOriginAccessWhitelistEntry(JSStringRef sourceOrigin, JSStringRef destinationProtocol, JSStringRef destinationHost, bool allowDestinationSubdomains);
+    void addOriginAccessAllowListEntry(JSStringRef sourceOrigin, JSStringRef destinationProtocol, JSStringRef destinationHost, bool allowDestinationSubdomains);
+    void removeOriginAccessAllowListEntry(JSStringRef sourceOrigin, JSStringRef destinationProtocol, JSStringRef destinationHost, bool allowDestinationSubdomains);
 
     void addUserScript(JSStringRef source, bool runAtStart, bool allFrames);
     void addUserStyleSheet(JSStringRef source, bool allFrames);
@@ -384,7 +384,6 @@ public:
     bool dumpJSConsoleLogInStdErr() const { return m_dumpJSConsoleLogInStdErr; }
 
     void setSpellCheckerLoggingEnabled(bool);
-    void setSpellCheckerResults(JSContextRef, JSObjectRef results);
 
     const std::vector<std::string>& openPanelFiles() const { return m_openPanelFiles; }
     void setOpenPanelFiles(JSContextRef, JSValueRef);
@@ -498,7 +497,7 @@ private:
     std::vector<char> m_openPanelFilesMediaIcon;
 #endif
 
-    static JSClassRef getJSClass();
-    static JSStaticValue* staticValues();
-    static JSStaticFunction* staticFunctions();
+    static JSRetainPtr<JSClassRef> createJSClass();
+    static const JSStaticValue* staticValues();
+    static const JSStaticFunction* staticFunctions();
 };

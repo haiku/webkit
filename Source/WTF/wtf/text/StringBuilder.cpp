@@ -28,7 +28,6 @@
 #include <wtf/text/StringBuilder.h>
 
 #include <wtf/dtoa.h>
-#include <wtf/MathExtras.h>
 
 namespace WTF {
 
@@ -50,7 +49,7 @@ void StringBuilder::reifyString() const
         return;
     }
 
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
     m_isReified = true;
 #endif
 
@@ -422,18 +421,6 @@ void StringBuilder::appendNumber(unsigned long long number)
     numberToStringUnsigned<StringBuilder>(number, this);
 }
 
-void StringBuilder::appendFixedPrecisionNumber(float number, unsigned precision, TrailingZerosTruncatingPolicy policy)
-{
-    NumberToStringBuffer buffer;
-    append(numberToFixedPrecisionString(number, precision, buffer, policy == TruncateTrailingZeros));
-}
-
-void StringBuilder::appendFixedPrecisionNumber(double number, unsigned precision, TrailingZerosTruncatingPolicy policy)
-{
-    NumberToStringBuffer buffer;
-    append(numberToFixedPrecisionString(number, precision, buffer, policy == TruncateTrailingZeros));
-}
-
 void StringBuilder::appendNumber(float number)
 {
     NumberToStringBuffer buffer;
@@ -444,18 +431,6 @@ void StringBuilder::appendNumber(double number)
 {
     NumberToStringBuffer buffer;
     append(numberToString(number, buffer));
-}
-
-void StringBuilder::appendFixedWidthNumber(float number, unsigned decimalPlaces)
-{
-    NumberToStringBuffer buffer;
-    append(numberToFixedWidthString(number, decimalPlaces, buffer));
-}
-
-void StringBuilder::appendFixedWidthNumber(double number, unsigned decimalPlaces)
-{
-    NumberToStringBuffer buffer;
-    append(numberToFixedWidthString(number, decimalPlaces, buffer));
 }
 
 bool StringBuilder::canShrink() const
@@ -478,6 +453,16 @@ void StringBuilder::shrinkToFit()
         ASSERT(!hasOverflowed());
         m_string = WTFMove(m_buffer);
     }
+}
+
+bool StringBuilder::isAllASCII() const
+{
+    auto length = this->length();
+    if (!length)
+        return true;
+    if (m_is8Bit)
+        return charactersAreAllASCII(characters8(), length);
+    return charactersAreAllASCII(characters16(), length);
 }
 
 } // namespace WTF

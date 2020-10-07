@@ -44,7 +44,6 @@ class CallFrame;
 class Exception;
 class JSPromise;
 class VM;
-template<typename> class Strong;
 }
 
 namespace Inspector {
@@ -54,10 +53,11 @@ class ScriptCallStack;
 
 namespace WebCore {
 
-class AbstractEventLoop;
+class EventLoop;
 class CachedScript;
 class DatabaseContext;
 class EventQueue;
+class EventLoopTaskGroup;
 class EventTarget;
 class MessagePort;
 class PublicURLManager;
@@ -65,6 +65,8 @@ class RejectedPromiseTracker;
 class ResourceRequest;
 class SecurityOrigin;
 class SocketProvider;
+enum class ReferrerPolicy : uint8_t;
+enum class TaskSource : uint8_t;
 
 #if ENABLE(SERVICE_WORKER)
 class ServiceWorker;
@@ -90,12 +92,15 @@ public:
     virtual bool isContextThread() const { return true; }
     virtual bool isJSExecutionForbidden() const = 0;
 
-    virtual AbstractEventLoop& eventLoop() = 0;
+    virtual EventLoopTaskGroup& eventLoop() = 0;
 
     virtual const URL& url() const = 0;
-    virtual URL completeURL(const String& url) const = 0;
+    enum class ForceUTF8 { No, Yes };
+    virtual URL completeURL(const String& url, ForceUTF8 = ForceUTF8::No) const = 0;
 
     virtual String userAgent(const URL&) const = 0;
+
+    virtual ReferrerPolicy referrerPolicy() const = 0;
 
     virtual void disableEval(const String& errorMessage) = 0;
     virtual void disableWebAssembly(const String& errorMessage) = 0;
@@ -119,17 +124,11 @@ public:
     virtual void addConsoleMessage(MessageSource, MessageLevel, const String& message, unsigned long requestIdentifier = 0) = 0;
 
     virtual SecurityOrigin& topOrigin() const = 0;
-    virtual String origin() const = 0;
 
     virtual bool shouldBypassMainWorldContentSecurityPolicy() const { return false; }
 
     PublicURLManager& publicURLManager();
 
-    // Active objects are not garbage collected even if inaccessible, e.g. because their activity may result in callbacks being invoked.
-    WEBCORE_EXPORT bool canSuspendActiveDOMObjectsForDocumentSuspension(Vector<ActiveDOMObject*>* unsuspendableObjects = nullptr);
-
-    // Active objects can be asked to suspend even if canSuspendActiveDOMObjectsForDocumentSuspension() returns 'false' -
-    // step-by-step JS debugging is one example.
     virtual void suspendActiveDOMObjects(ReasonForSuspension);
     virtual void resumeActiveDOMObjects(ReasonForSuspension);
     virtual void stopActiveDOMObjects();
@@ -153,7 +152,7 @@ public:
     void createdMessagePort(MessagePort&);
     void destroyedMessagePort(MessagePort&);
 
-    virtual void didLoadResourceSynchronously();
+    virtual void didLoadResourceSynchronously(const URL&);
 
     void ref() { refScriptExecutionContext(); }
     void deref() { derefScriptExecutionContext(); }
@@ -191,6 +190,7 @@ public:
         bool m_isCleanupTask;
     };
 
+    void enqueueTaskForDispatcher(Function<void()>&& function) { postTask(WTFMove(function)); }
     virtual void postTask(Task&&) = 0; // Executes the task on context's thread asynchronously.
 
     template<typename... Arguments>
@@ -216,7 +216,6 @@ public:
     void didChangeTimerAlignmentInterval();
     virtual Seconds domTimerAlignmentInterval(bool hasReachedMaxNestingLevel) const;
 
-    virtual EventQueue& eventQueue() const = 0;
     virtual EventTarget* errorEventTarget() = 0;
 
     DatabaseContext* databaseContext() { return m_databaseContext.get(); }
@@ -246,7 +245,6 @@ public:
     void setDomainForCachePartition(String&& domain) { m_domainForCachePartition = WTFMove(domain); }
 
     bool allowsMediaDevices() const;
-    bool hasServiceWorkerScheme() const;
 #if ENABLE(SERVICE_WORKER)
     ServiceWorker* activeServiceWorker() const;
     void setActiveServiceWorker(RefPtr<ServiceWorker>&&);
@@ -257,8 +255,6 @@ public:
 
     ServiceWorkerContainer* serviceWorkerContainer();
     ServiceWorkerContainer* ensureServiceWorkerContainer();
-
-    WEBCORE_EXPORT static bool postTaskTo(const DocumentOrWorkerIdentifier&, WTF::Function<void(ScriptExecutionContext&)>&&);
 #endif
     WEBCORE_EXPORT static bool postTaskTo(ScriptExecutionContextIdentifier, Task&&);
 
@@ -330,7 +326,7 @@ private:
     mutable bool m_activeDOMObjectAdditionForbidden { false };
     bool m_willprocessMessageWithMessagePortsSoon { false };
 
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
     bool m_inScriptExecutionContextDestructor { false };
 #endif
 

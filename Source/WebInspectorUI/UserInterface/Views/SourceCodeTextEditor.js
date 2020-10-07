@@ -66,10 +66,11 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
         this.element.classList.add("source-code");
 
         if (this._supportsDebugging) {
-            WI.Breakpoint.addEventListener(WI.Breakpoint.Event.DisabledStateDidChange, this._breakpointStatusDidChange, this);
-            WI.Breakpoint.addEventListener(WI.Breakpoint.Event.AutoContinueDidChange, this._breakpointStatusDidChange, this);
-            WI.Breakpoint.addEventListener(WI.Breakpoint.Event.ResolvedStateDidChange, this._breakpointStatusDidChange, this);
-            WI.Breakpoint.addEventListener(WI.Breakpoint.Event.LocationDidChange, this._updateBreakpointLocation, this);
+            WI.JavaScriptBreakpoint.addEventListener(WI.Breakpoint.Event.DisabledStateDidChange, this._breakpointStatusDidChange, this);
+            WI.JavaScriptBreakpoint.addEventListener(WI.Breakpoint.Event.AutoContinueDidChange, this._breakpointStatusDidChange, this);
+
+            WI.JavaScriptBreakpoint.addEventListener(WI.JavaScriptBreakpoint.Event.ResolvedStateDidChange, this._breakpointStatusDidChange, this);
+            WI.JavaScriptBreakpoint.addEventListener(WI.JavaScriptBreakpoint.Event.LocationDidChange, this._updateBreakpointLocation, this);
 
             WI.targetManager.addEventListener(WI.TargetManager.Event.TargetAdded, this._targetAdded, this);
             WI.targetManager.addEventListener(WI.TargetManager.Event.TargetRemoved, this._targetRemoved, this);
@@ -167,7 +168,7 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
     close()
     {
         if (this._supportsDebugging) {
-            WI.Breakpoint.removeEventListener(null, null, this);
+            WI.JavaScriptBreakpoint.removeEventListener(null, null, this);
             WI.debuggerManager.removeEventListener(null, null, this);
             WI.targetManager.removeEventListener(null, null, this);
 
@@ -208,6 +209,13 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
 
     customPerformSearch(query)
     {
+        let queryRegex = WI.SearchUtilities.searchRegExpForString(query, WI.SearchUtilities.defaultSettings);
+        if (!queryRegex) {
+            this.searchCleared();
+            this.dispatchEventToListeners(WI.TextEditor.Event.NumberOfSearchResultsDidChange);
+            return true;
+        }
+
         function searchResultCallback(error, matches)
         {
             // Bail if the query changed since we started.
@@ -220,7 +228,6 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
                 return;
             }
 
-            let queryRegex = WI.SearchUtilities.regExpForString(query, WI.SearchUtilities.defaultSettings);
             var searchResults = [];
 
             for (var i = 0; i < matches.length; ++i) {
@@ -255,14 +262,21 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
         if (this._sourceCode instanceof WI.LocalScript)
             return false;
 
+        let target = this._sourceCode.target;
         let caseSensitive = WI.SearchUtilities.defaultSettings.caseSensitive.value;
         let isRegex = WI.SearchUtilities.defaultSettings.regularExpression.value;
 
-        if (this._sourceCode instanceof WI.Resource)
-            this._sourceCode.target.PageAgent.searchInResource(this._sourceCode.parentFrame.id, this._sourceCode.url, query, caseSensitive, isRegex, searchResultCallback.bind(this));
-        else if (this._sourceCode instanceof WI.Script)
-            this._sourceCode.target.DebuggerAgent.searchInContent(this._sourceCode.id, query, caseSensitive, isRegex, searchResultCallback.bind(this));
-        return true;
+        if (this._sourceCode instanceof WI.Resource && target.hasCommand("Page.searchInResource")) {
+            target.PageAgent.searchInResource(this._sourceCode.parentFrame.id, this._sourceCode.url, query, caseSensitive, isRegex, searchResultCallback.bind(this));
+            return true;
+        }
+
+        if (this._sourceCode instanceof WI.Script) {
+            target.DebuggerAgent.searchInContent(this._sourceCode.id, query, caseSensitive, isRegex, searchResultCallback.bind(this));
+            return true;
+        }
+
+        return false;
     }
 
     showGoToLineDialog()
@@ -1257,12 +1271,15 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
 
         // Single breakpoint.
         if (breakpoints.length === 1) {
-            WI.breakpointPopoverController.appendContextMenuItems(contextMenu, breakpoints[0], event.target);
+            WI.BreakpointPopover.appendContextMenuItems(contextMenu, breakpoints[0], event.target);
 
             if (!WI.isShowingSourcesTab()) {
                 contextMenu.appendSeparator();
                 contextMenu.appendItem(WI.UIString("Reveal in Sources Tab"), () => {
-                    WI.showSourcesTab({breakpointToSelect: breakpoints[0]});
+                    WI.showSourcesTab({
+                        breakpointToSelect: breakpoints[0],
+                        initiatorHint: WI.TabBrowser.TabNavigationInitiator.ContextMenu,
+                    });
                 });
             }
 
@@ -1289,7 +1306,7 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
         var editorLineInfo = {lineNumber, columnNumber};
         var unformattedLineInfo = this._unformattedLineInfoForEditorLineInfo(editorLineInfo);
         var sourceCodeLocation = this._sourceCode.createSourceCodeLocation(unformattedLineInfo.lineNumber, unformattedLineInfo.columnNumber);
-        var breakpoint = new WI.Breakpoint(sourceCodeLocation);
+        var breakpoint = new WI.JavaScriptBreakpoint(sourceCodeLocation);
 
         var lineInfo = this._editorLineInfoForSourceCodeLocation(breakpoint.sourceCodeLocation);
         this._addBreakpointWithEditorLineInfo(breakpoint, lineInfo);
@@ -1938,9 +1955,15 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
                 if (!domNode.ownerDocument)
                     return;
 
+                WI.bindInteractionsForNodeToElement(domNode, titleElement, {
+                    ignoreClick: true,
+                });
+
                 var goToButton = titleElement.appendChild(WI.createGoToArrowButton());
                 goToButton.addEventListener("click", function() {
-                    WI.domManager.inspectElement(nodeId);
+                    WI.domManager.inspectElement(nodeId, {
+                        initiatorHint: WI.TabBrowser.TabNavigationInitiator.LinkClick,
+                    });
                 });
             });
         }
@@ -2180,10 +2203,6 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
 
     _createTypeTokenAnnotator()
     {
-        // COMPATIBILITY (iOS 8): Runtime.getRuntimeTypesForVariablesAtOffsets did not exist yet.
-        if (!this.target || !this.target.hasCommand("Runtime.getRuntimeTypesForVariablesAtOffsets"))
-            return;
-
         var script = this._getAssociatedScript();
         if (!script)
             return;
@@ -2193,10 +2212,6 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
 
     _createBasicBlockAnnotator()
     {
-        // COMPATIBILITY (iOS 8): Runtime.getBasicBlocks did not exist yet.
-        if (!this.target || !this.target.hasCommand("Runtime.getBasicBlocks"))
-            return;
-
         var script = this._getAssociatedScript();
         if (!script)
             return;

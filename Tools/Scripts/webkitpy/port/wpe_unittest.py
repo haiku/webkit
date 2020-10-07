@@ -33,7 +33,6 @@ import unittest
 
 from webkitpy.common.system.executive_mock import MockExecutive
 from webkitpy.common.system.filesystem_mock import MockFileSystem
-from webkitpy.common.system.outputcapture import OutputCapture
 from webkitpy.port.config import clear_cached_configuration
 from webkitpy.port.wpe import WPEPort
 from webkitpy.port.pulseaudio_sanitizer_mock import PulseAudioSanitizerMock
@@ -54,14 +53,18 @@ class WPEPortTest(port_testcase.PortTestCase):
 
     def test_default_baseline_search_path(self):
         port = self.make_port()
-        self.assertEqual(port.default_baseline_search_path(), ['/mock-checkout/LayoutTests/platform/wpe',
-            '/mock-checkout/LayoutTests/platform/wk2'])
+        self.assertEqual(port.default_baseline_search_path(),
+                         ['/mock-checkout/LayoutTests/platform/wpe',
+                          '/mock-checkout/LayoutTests/platform/glib',
+                          '/mock-checkout/LayoutTests/platform/wk2'])
 
     def test_port_specific_expectations_files(self):
         port = self.make_port()
-        self.assertEqual(port.expectations_files(), ['/mock-checkout/LayoutTests/TestExpectations',
-            '/mock-checkout/LayoutTests/platform/wk2/TestExpectations',
-            '/mock-checkout/LayoutTests/platform/wpe/TestExpectations'])
+        self.assertEqual(port.expectations_files(),
+                         ['/mock-checkout/LayoutTests/TestExpectations',
+                          '/mock-checkout/LayoutTests/platform/wk2/TestExpectations',
+                          '/mock-checkout/LayoutTests/platform/glib/TestExpectations',
+                          '/mock-checkout/LayoutTests/platform/wpe/TestExpectations'])
 
     def test_default_timeout_ms(self):
         self.assertEqual(self.make_port(options=MockOptions(configuration='Release')).default_timeout_ms(), 15000)

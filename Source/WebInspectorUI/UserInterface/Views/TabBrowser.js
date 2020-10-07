@@ -168,7 +168,7 @@ WI.TabBrowser = class TabBrowser extends WI.View
         else
             this._tabBar.addTabBarItem(tabBarItem, options);
 
-        console.assert(this._recentTabContentViews.length === this._tabBar.saveableTabCount);
+        console.assert(this._recentTabContentViews.length === this._tabBar.tabCount);
         console.assert(!this.selectedTabContentView || this.selectedTabContentView === this._recentTabContentViews[0]);
 
         return true;
@@ -179,7 +179,7 @@ WI.TabBrowser = class TabBrowser extends WI.View
         if (!this.addTabForContentView(tabContentView, options))
             return false;
 
-        this._tabBar.selectedTabBarItem = tabContentView.tabBarItem;
+        this._tabBar.selectTabBarItem(tabContentView.tabBarItem, options);
 
         // FIXME: this is a workaround for <https://webkit.org/b/151876>.
         // Without this extra call, we might never lay out the child tab
@@ -206,7 +206,7 @@ WI.TabBrowser = class TabBrowser extends WI.View
 
         this._tabBar.removeTabBarItem(tabContentView.tabBarItem, options);
 
-        console.assert(this._recentTabContentViews.length === this._tabBar.saveableTabCount);
+        console.assert(this._recentTabContentViews.length === this._tabBar.tabCount);
         console.assert(!this.selectedTabContentView || this.selectedTabContentView === this._recentTabContentViews[0]);
 
         return true;
@@ -231,7 +231,8 @@ WI.TabBrowser = class TabBrowser extends WI.View
         let tabContentView = this._tabBar.selectedTabBarItem ? this._tabBar.selectedTabBarItem.representedObject : null;
 
         if (tabContentView) {
-            let shouldSaveTab = tabContentView.constructor.shouldSaveTab();
+            let tabClass = tabContentView.constructor;
+            let shouldSaveTab = tabClass.shouldSaveTab() || tabClass.shouldPinTab();
             if (shouldSaveTab) {
                 this._recentTabContentViews.remove(tabContentView);
                 this._recentTabContentViews.unshift(tabContentView);
@@ -240,7 +241,7 @@ WI.TabBrowser = class TabBrowser extends WI.View
             this._contentViewContainer.showContentView(tabContentView);
 
             console.assert(this.selectedTabContentView);
-            console.assert(this._recentTabContentViews.length === this._tabBar.saveableTabCount);
+            console.assert(this._recentTabContentViews.length === this._tabBar.tabCount);
             console.assert(this.selectedTabContentView === this._recentTabContentViews[0] || !shouldSaveTab);
         } else {
             this._contentViewContainer.closeAllContentViews();
@@ -257,7 +258,10 @@ WI.TabBrowser = class TabBrowser extends WI.View
             tabContentView.updateLayout(WI.View.LayoutReason.Resize);
         }
 
-        this.dispatchEventToListeners(WI.TabBrowser.Event.SelectedTabContentViewDidChange);
+        let outgoingTab = event.data.previousTabBarItem ? event.data.previousTabBarItem.representedObject : null;
+        let incomingTab = tabContentView;
+        let initiator = event.data.initiatorHint || WI.TabBrowser.TabNavigationInitiator.Unknown;
+        this.dispatchEventToListeners(WI.TabBrowser.Event.SelectedTabContentViewDidChange, {outgoingTab, incomingTab, initiator});
 
         this._restoreFocusedNodeForTabContentView(tabContentView);
     }
@@ -283,12 +287,12 @@ WI.TabBrowser = class TabBrowser extends WI.View
 
         this._recentTabContentViews.remove(tabContentView);
 
-        if (!tabContentView.constructor.tabInfo().isEphemeral)
+        if (tabContentView.constructor.shouldSaveTab())
             this._closedTabClasses.add(tabContentView.constructor);
 
         this._contentViewContainer.closeContentView(tabContentView);
 
-        console.assert(this._recentTabContentViews.length === this._tabBar.saveableTabCount);
+        console.assert(this._recentTabContentViews.length === this._tabBar.tabCount);
         console.assert(!this.selectedTabContentView || this.selectedTabContentView === this._recentTabContentViews[0]);
     }
 
@@ -484,6 +488,38 @@ WI.TabBrowser = class TabBrowser extends WI.View
 
 WI.TabBrowser.NeedsResizeLayoutSymbol = Symbol("needs-resize-layout");
 WI.TabBrowser.FocusedNodeSymbol = Symbol("focused-node");
+
+WI.TabBrowser.TabNavigationInitiator = {
+    // Initiated by clicking on the TabBar UI (switching, opening, closing).
+    TabClick: "tab-browser-tab-navigation-initiator-tab-click",
+
+    // Initiated by clicking a URL, symbol, go-to-arrow, or other link to a resource/source code location.
+    LinkClick: "tab-browser-tab-navigation-initiator-link-click",
+
+    // Initiated by clicking miscellaneous UI (i.e., Quick Console's chevron, New Tab Tab's buttons).
+    ButtonClick: "tab-browser-tab-navigation-initiator-button-click",
+
+    // Initiated by selecting a context menu item in Web Inspector (i.e., "Reveal in Network Tab").
+    ContextMenu: "tab-browser-tab-navigation-initiator-context-menu",
+
+    // Initiated by clicking a dashboard element.
+    Dashboard: "tab-browser-tab-navigation-initiator-dashboard",
+
+    // Initiated by automatically switching tabs when a breakpoint is hit.
+    Breakpoint: "tab-browser-tab-navigation-initiator-breakpoint",
+
+    // Initiated by inspecting a DOM element, database, or other object via Console API's inspect() or live node selection.
+    Inspect: "tab-browser-tab-navigation-initiator-inspect",
+
+    // Initiated by keyboard shortcut (tab switching, new tab, search bar).
+    KeyboardShortcut: "tab-browser-tab-navigation-initiator-keyboard-shortcut",
+
+    // Initiated from outside of Web Inspector (Develop Menu, _WKInspector SPI).
+    FrontendAPI: "tab-browser-tab-navigation-initiator-frontend-api",
+
+    // Uncategorized; these should be investigated and categorized as one of the above.
+    Unknown: "tab-browser-tab-navigation-initiator-unknown"
+}
 
 WI.TabBrowser.Event = {
     SelectedTabContentViewDidChange: "tab-browser-selected-tab-content-view-did-change"

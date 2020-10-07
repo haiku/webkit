@@ -33,7 +33,7 @@ namespace JSC {
 
 class JSWebAssemblyCompileError final : public ErrorInstance {
 public:
-    typedef ErrorInstance Base;
+    using Base = ErrorInstance;
 
     static JSWebAssemblyCompileError* create(JSGlobalObject*, VM&, Structure*, const String&);
     static JSWebAssemblyCompileError* create(JSGlobalObject* globalObject, VM& vm, Structure* structure, JSValue message)
@@ -43,9 +43,10 @@ public:
 
     DECLARE_INFO;
 
-protected:
+private:
     JSWebAssemblyCompileError(VM&, Structure*);
 };
+STATIC_ASSERT_ISO_SUBSPACE_SHARABLE(JSWebAssemblyCompileError, ErrorInstance);
 
 JSObject* createJSWebAssemblyCompileError(JSGlobalObject*, VM&, const String&);
 

@@ -86,34 +86,31 @@ public:
 
     static constexpr bool needsDestruction = false;
 
-    // Don't call this directly. Call JSC::subspaceFor<Type>(vm) instead.
-    // FIXME: Refer to Subspace by reference.
-    // https://bugs.webkit.org/show_bug.cgi?id=166988
-    template<typename CellType, SubspaceAccess>
-    static CompleteSubspace* subspaceFor(VM&);
+    static constexpr uint8_t numberOfLowerTierCells = 8;
 
     static JSCell* seenMultipleCalleeObjects() { return bitwise_cast<JSCell*>(static_cast<uintptr_t>(1)); }
 
     enum CreatingEarlyCellTag { CreatingEarlyCell };
     JSCell(CreatingEarlyCellTag);
     
+    JS_EXPORT_PRIVATE static void destroy(JSCell*);
+
 protected:
     JSCell(VM&, Structure*);
-    JS_EXPORT_PRIVATE static void destroy(JSCell*);
 
 public:
     // Querying the type.
     bool isString() const;
-    bool isBigInt() const;
+    bool isHeapBigInt() const;
     bool isSymbol() const;
     bool isObject() const;
     bool isGetterSetter() const;
     bool isCustomGetterSetter() const;
     bool isProxy() const;
-    bool isFunction(VM&);
-    bool isCallable(VM&, CallType&, CallData&);
+    bool isCallable(VM&);
     bool isConstructor(VM&);
-    bool isConstructor(VM&, ConstructType&, ConstructData&);
+    template<Concurrency> TriState isCallableWithConcurrency(VM&);
+    template<Concurrency> TriState isConstructorWithConcurrency(VM&);
     bool inherits(VM&, const ClassInfo*) const;
     template<typename Target> bool inherits(VM&) const;
     bool isAPIValueWrapper() const;
@@ -154,8 +151,8 @@ public:
     // this is an object, then typeof will return "function" instead of "object". These methods
     // cannot change their minds and must be thread-safe. They are sometimes called from compiler
     // threads.
-    JS_EXPORT_PRIVATE static CallType getCallData(JSCell*, CallData&);
-    JS_EXPORT_PRIVATE static ConstructType getConstructData(JSCell*, ConstructData&);
+    JS_EXPORT_PRIVATE static CallData getCallData(JSCell*);
+    JS_EXPORT_PRIVATE static CallData getConstructData(JSCell*);
 
     // Basic conversions.
     JS_EXPORT_PRIVATE JSValue toPrimitive(JSGlobalObject*, PreferredPrimitiveType) const;
@@ -183,7 +180,8 @@ public:
     static bool putByIndex(JSCell*, JSGlobalObject*, unsigned propertyName, JSValue, bool shouldThrow);
     bool putInline(JSGlobalObject*, PropertyName, JSValue, PutPropertySlot&);
         
-    static bool deleteProperty(JSCell*, JSGlobalObject*, PropertyName);
+    static bool deleteProperty(JSCell*, JSGlobalObject*, PropertyName, DeletePropertySlot&);
+    JS_EXPORT_PRIVATE static bool deleteProperty(JSCell*, JSGlobalObject*, PropertyName);
     static bool deletePropertyByIndex(JSCell*, JSGlobalObject*, unsigned propertyName);
 
     static JSValue toThis(JSCell*, JSGlobalObject*, ECMAMode);
@@ -304,5 +302,9 @@ inline auto subspaceForConcurrently(VM& vm)
 {
     return Type::template subspaceFor<Type, SubspaceAccess::Concurrently>(vm);
 }
+
+#if CPU(X86_64)
+JS_EXPORT_PRIVATE NEVER_INLINE NO_RETURN_DUE_TO_CRASH NOT_TAIL_CALLED void reportZappedCellAndCrash(Heap&, const JSCell*);
+#endif
 
 } // namespace JSC

@@ -39,6 +39,10 @@
 #include <wtf/win/Win32Handle.h>
 #endif
 
+#if PLATFORM(COCOA)
+#include "XPCEventHandler.h"
+#endif
+
 namespace WebKit {
 
 #if PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(HAIKU)
@@ -57,15 +61,20 @@ public:
         virtual void didFinishLaunching(ProcessLauncher*, IPC::Connection::Identifier) = 0;
         virtual bool shouldConfigureJSCForTesting() const { return false; }
         virtual bool isJITEnabled() const { return true; }
+#if PLATFORM(COCOA)
+        virtual RefPtr<XPCEventHandler> xpcEventHandler() const { return nullptr; }
+#endif
     };
     
     enum class ProcessType {
         Web,
 #if ENABLE(NETSCAPE_PLUGIN_API)
-        Plugin32,
-        Plugin64,
+        Plugin,
 #endif
-        Network
+        Network,
+#if ENABLE(GPU_PROCESS)
+        GPU
+#endif
     };
 
     struct LaunchOptions {
@@ -81,6 +90,11 @@ public:
 #if ENABLE(DEVELOPER_MODE)
         String processCmdPrefix;
 #endif
+#endif
+
+#if PLATFORM(PLAYSTATION)
+        String processPath;
+        int32_t userId { -1 };
 #endif
     };
 

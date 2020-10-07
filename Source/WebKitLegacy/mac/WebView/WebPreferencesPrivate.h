@@ -1,18 +1,18 @@
 /*
- * Copyright (C) 2005-2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2005-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  *
  * 1.  Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer. 
+ *     notice, this list of conditions and the following disclaimer.
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution. 
+ *     documentation and/or other materials provided with the distribution.
  * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission. 
+ *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -31,6 +31,8 @@
 #if !TARGET_OS_IPHONE
 #import <Quartz/Quartz.h>
 #endif
+
+@class WebFeature;
 
 typedef enum {
     WebKitEditableLinkDefaultBehavior,
@@ -77,8 +79,6 @@ extern NSString *WebPreferencesChangedInternalNotification WEBKIT_DEPRECATED_MAC
 extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPRECATED_MAC(10_5, 10_14);
 
 @interface WebPreferences (WebPrivate)
-
-// Preferences that might be public in a future release
 
 - (BOOL)isDNSPrefetchingEnabled;
 - (void)setDNSPrefetchingEnabled:(BOOL)flag;
@@ -152,6 +152,9 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 
 - (BOOL)allowFileAccessFromFileURLs;
 - (void)setAllowFileAccessFromFileURLs:(BOOL)flag;
+
+- (BOOL)allowTopNavigationToDataURLs;
+- (void)setAllowTopNavigationToDataURLs:(BOOL)flag;
 
 - (BOOL)allowCrossOriginSubresourcesToAskForCredentials;
 - (void)setAllowCrossOriginSubresourcesToAskForCredentials:(BOOL)flag;
@@ -266,20 +269,12 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 - (BOOL)webAudioEnabled;
 - (void)setWebAudioEnabled:(BOOL)enabled;
 
-- (BOOL)subpixelCSSOMElementMetricsEnabled;
-- (void)setSubpixelCSSOMElementMetricsEnabled:(BOOL)enabled;
 
 - (BOOL)webGLEnabled;
 - (void)setWebGLEnabled:(BOOL)enabled;
 
-- (BOOL)webGL2Enabled;
-- (void)setWebGL2Enabled:(BOOL)enabled;
-
 - (BOOL)forceLowPowerGPUForWebGL;
 - (void)setForceWebGLUsesLowPower:(BOOL)forceLowPower;
-
-- (BOOL)webGPUEnabled;
-- (void)setWebGPUEnabled:(BOOL)enabled;
 
 - (BOOL)accelerated2dCanvasEnabled;
 - (void)setAccelerated2dCanvasEnabled:(BOOL)enabled;
@@ -352,9 +347,6 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 - (void)_setMinimumZoomFontSize:(float)size;
 - (float)_minimumZoomFontSize;
 
-// Deprecated. Has no effect.
-- (void)setDiskImageCacheEnabled:(BOOL)enabled;
-
 - (void)setMediaPlaybackAllowsAirPlay:(BOOL)flag;
 - (BOOL)mediaPlaybackAllowsAirPlay;
 
@@ -368,9 +360,6 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 - (BOOL)isInheritURIQueryComponentEnabled;
 - (void)setEnableInheritURIQueryComponent:(BOOL)flag;
 
-- (BOOL)_mediaRecorderEnabled;
-- (void)_setMediaRecorderEnabled:(BOOL)flag;
-
 // Other private methods
 #if TARGET_OS_IPHONE
 - (BOOL)_standalone;
@@ -383,8 +372,6 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 - (BOOL)_alwaysRequestGeolocationPermission;
 - (void)_setAlwaysUseAcceleratedOverflowScroll:(BOOL)flag;
 - (BOOL)_alwaysUseAcceleratedOverflowScroll;
-- (void)_setLayoutInterval:(int)milliseconds;
-- (int)_layoutInterval; // Milliseonds.
 - (void)_setMaxParseDuration:(float)d;
 - (float)_maxParseDuration;
 - (void)_setInterpolationQuality:(int)quality;
@@ -414,7 +401,7 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 - (void)didRemoveFromWebView;
 
 // Full screen support is dependent on WebCore/WebKit being
-// compiled with ENABLE_FULLSCREEN_API. 
+// compiled with ENABLE_FULLSCREEN_API.
 - (void)setFullScreenEnabled:(BOOL)flag;
 - (BOOL)fullScreenEnabled;
 
@@ -434,13 +421,6 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 
 - (void)setAVFoundationNSURLSessionEnabled:(BOOL)flag;
 - (BOOL)isAVFoundationNSURLSessionEnabled;
-
-// Deprecated, has no effect.
-- (void)setVideoPluginProxyEnabled:(BOOL)flag;
-- (BOOL)isVideoPluginProxyEnabled;
-
-- (void)setHixie76WebSocketProtocolEnabled:(BOOL)flag;
-- (BOOL)isHixie76WebSocketProtocolEnabled;
 
 #if TARGET_OS_IPHONE
 - (void)_invalidateCachedPreferences;
@@ -537,32 +517,14 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 - (void)setMediaCaptureRequiresSecureConnection:(BOOL)flag;
 - (BOOL)mediaCaptureRequiresSecureConnection;
 
-- (void)setShadowDOMEnabled:(BOOL)flag;
-- (BOOL)shadowDOMEnabled;
-
-- (void)setCustomElementsEnabled:(BOOL)flag;
-- (BOOL)customElementsEnabled;
-
 - (void)setDataTransferItemsEnabled:(BOOL)flag;
 - (BOOL)dataTransferItemsEnabled;
 
 - (void)setCustomPasteboardDataEnabled:(BOOL)flag;
 - (BOOL)customPasteboardDataEnabled;
 
-- (void)setDialogElementEnabled:(BOOL)enabled;
-- (BOOL)dialogElementEnabled;
-
 - (BOOL)cacheAPIEnabled;
 - (void)setCacheAPIEnabled:(BOOL)enabled;
-
-- (void)setFetchAPIEnabled:(BOOL)flag;
-- (BOOL)fetchAPIEnabled;
-
-- (void)setReadableByteStreamAPIEnabled:(BOOL)flag;
-- (BOOL)readableByteStreamAPIEnabled;
-
-- (void)setWritableStreamAPIEnabled:(BOOL)flag;
-- (BOOL)writableStreamAPIEnabled;
 
 - (void)setDownloadAttributeEnabled:(BOOL)flag;
 - (BOOL)downloadAttributeEnabled;
@@ -570,32 +532,8 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 - (void)setDirectoryUploadEnabled:(BOOL)flag;
 - (BOOL)directoryUploadEnabled;
 
-- (void)setWebAnimationsEnabled:(BOOL)flag;
-- (BOOL)webAnimationsEnabled;
-
-- (void)setPointerEventsEnabled:(BOOL)flag;
-- (BOOL)pointerEventsEnabled;
-
-- (void)setSyntheticEditingCommandsEnabled:(BOOL)flag;
-- (BOOL)syntheticEditingCommandsEnabled;
-
-- (void)setFetchAPIKeepAliveEnabled:(BOOL)flag;
-- (BOOL)fetchAPIKeepAliveEnabled;
-
 - (void)setModernMediaControlsEnabled:(BOOL)flag;
 - (BOOL)modernMediaControlsEnabled;
-
-- (void)setWebAnimationsCSSIntegrationEnabled:(BOOL)flag;
-- (BOOL)webAnimationsCSSIntegrationEnabled;
-
-- (void)setIntersectionObserverEnabled:(BOOL)flag;
-- (BOOL)intersectionObserverEnabled;
-
-- (void)setIsSecureContextAttributeEnabled:(BOOL)flag;
-- (BOOL)isSecureContextAttributeEnabled;
-
-- (void)setServerTimingEnabled:(BOOL)flag;
-- (BOOL)serverTimingEnabled;
 
 - (void)setSelectionAcrossShadowBoundariesEnabled:(BOOL)flag;
 - (BOOL)selectionAcrossShadowBoundariesEnabled;
@@ -603,28 +541,18 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 - (void)setCSSLogicalEnabled:(BOOL)flag;
 - (BOOL)cssLogicalEnabled;
 
-- (BOOL)adClickAttributionEnabled;
-- (void)setAdClickAttributionEnabled:(BOOL)flag;
+- (void)setLineHeightUnitsEnabled:(BOOL)flag;
+- (BOOL)lineHeightUnitsEnabled;
 
-- (void)setReferrerPolicyAttributeEnabled:(BOOL)flag;
-- (BOOL)referrerPolicyAttributeEnabled;
+- (void)setLayoutFormattingContextIntegrationEnabled:(BOOL)flag;
+- (BOOL)layoutFormattingContextIntegrationEnabled;
 
-- (void)setCoreMathMLEnabled:(BOOL)flag;
-- (BOOL)coreMathMLEnabled;
+- (BOOL)isInAppBrowserPrivacyEnabled;
+- (void)setInAppBrowserPrivacyEnabled:(BOOL)flag;
 
-- (void)setRequestIdleCallbackEnabled:(BOOL)flag;
-- (BOOL)requestIdleCallbackEnabled;
+- (void)setWebSQLEnabled:(BOOL)flag;
+- (BOOL)webSQLEnabled;
 
-- (void)setAsyncClipboardAPIEnabled:(BOOL)flag;
-- (BOOL)asyncClipboardAPIEnabled;
-
-- (void)setLinkPreloadResponsiveImagesEnabled:(BOOL)flag;
-- (BOOL)linkPreloadResponsiveImagesEnabled;
-
-- (void)setCSSShadowPartsEnabled:(BOOL)flag;
-- (BOOL)cssShadowPartsEnabled;
-
-@property (nonatomic) BOOL visualViewportAPIEnabled;
 @property (nonatomic) BOOL CSSOMViewScrollingAPIEnabled;
 @property (nonatomic) BOOL largeImageAsyncDecodingEnabled;
 @property (nonatomic) BOOL animatedImageAsyncDecodingEnabled;
@@ -632,38 +560,24 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 @property (nonatomic) BOOL mediaDataLoadsAutomatically;
 @property (nonatomic) BOOL attachmentElementEnabled;
 @property (nonatomic) BOOL allowsInlineMediaPlaybackAfterFullscreen;
-@property (nonatomic) BOOL remotePlaybackEnabled;
-@property (nonatomic) BOOL intersectionObserverEnabled;
 @property (nonatomic) BOOL menuItemElementEnabled;
 @property (nonatomic) BOOL keygenElementEnabled;
-@property (nonatomic) BOOL displayContentsEnabled;
-@property (nonatomic) BOOL userTimingEnabled;
-@property (nonatomic) BOOL resourceTimingEnabled;
 @property (nonatomic) BOOL linkPreloadEnabled;
 @property (nonatomic) BOOL mediaUserGestureInheritsFromDocument;
 @property (nonatomic) BOOL isSecureContextAttributeEnabled;
 @property (nonatomic) BOOL legacyEncryptedMediaAPIEnabled;
 @property (nonatomic) BOOL encryptedMediaAPIEnabled;
 @property (nonatomic) BOOL pictureInPictureAPIEnabled;
-@property (nonatomic) BOOL genericCueAPIEnabled;
 @property (nonatomic) BOOL viewportFitEnabled;
 @property (nonatomic) BOOL constantPropertiesEnabled;
 @property (nonatomic) BOOL colorFilterEnabled;
 @property (nonatomic) BOOL punchOutWhiteBackgroundsInDarkMode;
 @property (nonatomic) BOOL inspectorAdditionsEnabled;
 @property (nonatomic) BOOL allowMediaContentTypesRequiringHardwareSupportAsFallback;
-@property (nonatomic) BOOL accessibilityObjectModelEnabled;
 @property (nonatomic) BOOL ariaReflectionEnabled;
 @property (nonatomic) BOOL mediaCapabilitiesEnabled;
-@property (nonatomic) BOOL mediaRecorderEnabled;
 @property (nonatomic) BOOL allowCrossOriginSubresourcesToAskForCredentials;
 @property (nonatomic) BOOL sourceBufferChangeTypeEnabled;
-@property (nonatomic) BOOL referrerPolicyAttributeEnabled;
-@property (nonatomic) BOOL resizeObserverEnabled;
-@property (nonatomic) BOOL coreMathMLEnabled;
-@property (nonatomic) BOOL requestIdleCallbackEnabled;
-@property (nonatomic) BOOL asyncClipboardAPIEnabled;
-@property (nonatomic) BOOL linkPreloadResponsiveImagesEnabled;
 
 #if TARGET_OS_IPHONE
 @property (nonatomic) BOOL quickLookDocumentSavingEnabled;
@@ -673,5 +587,80 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 
 // additionalSupportedImageTypes is an array of image UTIs.
 @property (nonatomic, retain) NSArray<NSString *> *additionalSupportedImageTypes;
+
+@end
+
+// For use by MiniBrowser and testing infrastructure only
+
+@interface WebPreferences (WebPrivateExperimentalFeatures)
++ (NSArray<WebFeature *> *)_experimentalFeatures;
+@end
+
+@interface WebPreferences (WebPrivateInternalFeatures)
++ (NSArray<WebFeature *> *)_internalFeatures;
+@end
+
+@interface WebPreferences (WebPrivateFeatures)
+- (BOOL)_isEnabledForFeature:(WebFeature *)feature;
+- (void)_setEnabled:(BOOL)value forFeature:(WebFeature *)feature;
+@end
+
+// FIXME: If these are not used anywhere, we should remove them and only use WebFeature mechanism for the preference.
+@interface WebPreferences (WebPrivatePreferencesConvertedToWebFeature)
+@property (nonatomic) BOOL userGesturePromisePropagationEnabled;
+@property (nonatomic) BOOL modernUnprefixedWebAudioEnabled;
+@property (nonatomic) BOOL audioWorkletEnabled;
+@property (nonatomic) BOOL requestIdleCallbackEnabled;
+@property (nonatomic) BOOL highlightAPIEnabled;
+@property (nonatomic) BOOL asyncClipboardAPIEnabled;
+@property (nonatomic) BOOL intersectionObserverEnabled;
+@property (nonatomic) BOOL visualViewportAPIEnabled;
+@property (nonatomic) BOOL syntheticEditingCommandsEnabled;
+@property (nonatomic) BOOL CSSOMViewSmoothScrollingEnabled;
+@property (nonatomic) BOOL webAnimationsCompositeOperationsEnabled;
+@property (nonatomic) BOOL webAnimationsMutableTimelinesEnabled;
+@property (nonatomic) BOOL webGL2Enabled;
+@property (nonatomic) BOOL webGPUEnabled;
+@property (nonatomic) BOOL maskWebGLStringsEnabled;
+@property (nonatomic) BOOL accessibilityObjectModelEnabled;
+@property (nonatomic) BOOL serverTimingEnabled;
+@property (nonatomic) BOOL CSSCustomPropertiesAndValuesEnabled;
+@property (nonatomic) BOOL resizeObserverEnabled;
+@property (nonatomic) BOOL adClickAttributionEnabled;
+@property (nonatomic) BOOL fetchAPIKeepAliveEnabled;
+@property (nonatomic) BOOL genericCueAPIEnabled;
+@property (nonatomic) BOOL useGPUProcessForMediaEnabled;
+@property (nonatomic) BOOL aspectRatioOfImgFromWidthAndHeightEnabled;
+@property (nonatomic) BOOL referrerPolicyAttributeEnabled;
+@property (nonatomic) BOOL coreMathMLEnabled;
+@property (nonatomic) BOOL linkPreloadResponsiveImagesEnabled;
+@property (nonatomic) BOOL remotePlaybackEnabled;
+@property (nonatomic) BOOL dialogElementEnabled;
+@property (nonatomic) BOOL readableByteStreamAPIEnabled;
+@property (nonatomic) BOOL writableStreamAPIEnabled;
+@property (nonatomic) BOOL transformStreamAPIEnabled;
+@property (nonatomic) BOOL mediaRecorderEnabled;
+@property (nonatomic, setter=_setMediaRecorderEnabled:) BOOL _mediaRecorderEnabled;
+@property (nonatomic) BOOL CSSIndividualTransformPropertiesEnabled;
+@property (nonatomic) BOOL contactPickerAPIEnabled;
+@end
+
+@interface WebPreferences (WebPrivateDeprecated)
+
+// The preferences in this category are deprecated and have no effect. They should
+// be removed when it is considered safe to do so.
+
+@property (nonatomic) BOOL subpixelCSSOMElementMetricsEnabled;
+@property (nonatomic) BOOL userTimingEnabled;
+@property (nonatomic) BOOL resourceTimingEnabled;
+@property (nonatomic, getter=cssShadowPartsEnabled) BOOL CSSShadowPartsEnabled;
+@property (nonatomic) BOOL isSecureContextAttributeEnabled;
+@property (nonatomic) BOOL fetchAPIEnabled;
+@property (nonatomic) BOOL shadowDOMEnabled;
+@property (nonatomic) BOOL customElementsEnabled;
+@property (nonatomic, getter=isVideoPluginProxyEnabled) BOOL videoPluginProxyEnabled;
+@property (nonatomic, getter=isHixie76WebSocketProtocolEnabled) BOOL hixie76WebSocketProtocolEnabled;
+
+- (void)setDiskImageCacheEnabled:(BOOL)enabled;
 
 @end

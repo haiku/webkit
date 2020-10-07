@@ -32,6 +32,7 @@
 
 #import "DefaultPolicyDelegate.h"
 #import "EditingDelegate.h"
+#import "JSBasics.h"
 #import "LayoutTestSpellChecker.h"
 #import "MockGeolocationProvider.h"
 #import "MockWebNotificationProvider.h"
@@ -173,19 +174,16 @@ void TestRunner::clearApplicationCacheForOrigin(JSStringRef url)
     [origin release];
 }
 
-JSValueRef originsArrayToJS(JSContextRef context, NSArray *origins)
+static JSObjectRef originsArrayToJS(JSContextRef context, NSArray *origins)
 {
-    NSUInteger count = [origins count];
-
-    JSValueRef arrayResult = JSObjectMakeArray(context, 0, 0, 0);
-    JSObjectRef arrayObj = JSValueToObject(context, arrayResult, 0);
+    auto count = [origins count];
+    auto array = JSObjectMakeArray(context, 0, nullptr, nullptr);
     for (NSUInteger i = 0; i < count; i++) {
         NSString *origin = [[origins objectAtIndex:i] databaseIdentifier];
         auto originJS = adopt(JSStringCreateWithCFString((__bridge CFStringRef)origin));
-        JSObjectSetPropertyAtIndex(context, arrayObj, i, JSValueMakeString(context, originJS.get()), 0);
+        JSObjectSetPropertyAtIndex(context, array, i, JSValueMakeString(context, originJS.get()), 0);
     }
-
-    return arrayResult;
+    return array;
 }
 
 JSValueRef TestRunner::originsWithApplicationCache(JSContextRef context)
@@ -210,16 +208,6 @@ void TestRunner::setSpellCheckerLoggingEnabled(bool enabled)
     [LayoutTestSpellChecker checker].spellCheckerLoggingEnabled = enabled;
 #else
     UNUSED_PARAM(enabled);
-#endif
-}
-
-void TestRunner::setSpellCheckerResults(JSContextRef context, JSObjectRef results)
-{
-#if PLATFORM(MAC)
-    [[LayoutTestSpellChecker checker] setResultsFromJSObject:results inContext:context];
-#else
-    UNUSED_PARAM(results);
-    UNUSED_PARAM(context);
 #endif
 }
 
@@ -683,15 +671,10 @@ bool TestRunner::findString(JSContextRef context, JSStringRef target, JSObjectRe
 {
     WebFindOptions options = 0;
 
-    auto lengthPropertyName = adopt(JSStringCreateWithUTF8CString("length"));
-    JSValueRef lengthValue = JSObjectGetProperty(context, optionsArray, lengthPropertyName.get(), 0);
-    if (!JSValueIsNumber(context, lengthValue))
-        return false;
+    auto length = WTR::arrayLength(context, optionsArray);
+    auto targetCFString = adoptCF(JSStringCopyCFString(kCFAllocatorDefault, target));
 
-    RetainPtr<CFStringRef> targetCFString = adoptCF(JSStringCopyCFString(kCFAllocatorDefault, target));
-
-    size_t length = static_cast<size_t>(JSValueToNumber(context, lengthValue, 0));
-    for (size_t i = 0; i < length; ++i) {
+    for (unsigned i = 0; i < length; ++i) {
         JSValueRef value = JSObjectGetPropertyAtIndex(context, optionsArray, i, 0);
         if (!JSValueIsString(context, value))
             continue;
@@ -755,7 +738,7 @@ void TestRunner::waitForPolicyDelegate()
     [[mainFrame webView] setPolicyDelegate:policyDelegate];
 }
 
-void TestRunner::addOriginAccessWhitelistEntry(JSStringRef sourceOrigin, JSStringRef destinationProtocol, JSStringRef destinationHost, bool allowDestinationSubdomains)
+void TestRunner::addOriginAccessAllowListEntry(JSStringRef sourceOrigin, JSStringRef destinationProtocol, JSStringRef destinationHost, bool allowDestinationSubdomains)
 {
     RetainPtr<CFStringRef> sourceOriginCF = adoptCF(JSStringCopyCFString(kCFAllocatorDefault, sourceOrigin));
     NSString *sourceOriginNS = (__bridge NSString *)sourceOriginCF.get();
@@ -763,10 +746,10 @@ void TestRunner::addOriginAccessWhitelistEntry(JSStringRef sourceOrigin, JSStrin
     NSString *destinationProtocolNS = (__bridge NSString *)protocolCF.get();
     RetainPtr<CFStringRef> hostCF = adoptCF(JSStringCopyCFString(kCFAllocatorDefault, destinationHost));
     NSString *destinationHostNS = (__bridge NSString *)hostCF.get();
-    [WebView _addOriginAccessWhitelistEntryWithSourceOrigin:sourceOriginNS destinationProtocol:destinationProtocolNS destinationHost:destinationHostNS allowDestinationSubdomains:allowDestinationSubdomains];
+    [WebView _addOriginAccessAllowListEntryWithSourceOrigin:sourceOriginNS destinationProtocol:destinationProtocolNS destinationHost:destinationHostNS allowDestinationSubdomains:allowDestinationSubdomains];
 }
 
-void TestRunner::removeOriginAccessWhitelistEntry(JSStringRef sourceOrigin, JSStringRef destinationProtocol, JSStringRef destinationHost, bool allowDestinationSubdomains)
+void TestRunner::removeOriginAccessAllowListEntry(JSStringRef sourceOrigin, JSStringRef destinationProtocol, JSStringRef destinationHost, bool allowDestinationSubdomains)
 {
     RetainPtr<CFStringRef> sourceOriginCF = adoptCF(JSStringCopyCFString(kCFAllocatorDefault, sourceOrigin));
     NSString *sourceOriginNS = (__bridge NSString *)sourceOriginCF.get();
@@ -774,7 +757,7 @@ void TestRunner::removeOriginAccessWhitelistEntry(JSStringRef sourceOrigin, JSSt
     NSString *destinationProtocolNS = (__bridge NSString *)protocolCF.get();
     RetainPtr<CFStringRef> hostCF = adoptCF(JSStringCopyCFString(kCFAllocatorDefault, destinationHost));
     NSString *destinationHostNS = (__bridge NSString *)hostCF.get();
-    [WebView _removeOriginAccessWhitelistEntryWithSourceOrigin:sourceOriginNS destinationProtocol:destinationProtocolNS destinationHost:destinationHostNS allowDestinationSubdomains:allowDestinationSubdomains];
+    [WebView _removeOriginAccessAllowListEntryWithSourceOrigin:sourceOriginNS destinationProtocol:destinationProtocolNS destinationHost:destinationHostNS allowDestinationSubdomains:allowDestinationSubdomains];
 }
 
 void TestRunner::setScrollbarPolicy(JSStringRef orientation, JSStringRef policy)
@@ -786,14 +769,14 @@ void TestRunner::addUserScript(JSStringRef source, bool runAtStart, bool allFram
 {
     RetainPtr<CFStringRef> sourceCF = adoptCF(JSStringCopyCFString(kCFAllocatorDefault, source));
     NSString *sourceNS = (__bridge NSString *)sourceCF.get();
-    [WebView _addUserScriptToGroup:@"org.webkit.DumpRenderTree" world:[WebScriptWorld world] source:sourceNS url:nil whitelist:nil blacklist:nil injectionTime:(runAtStart ? WebInjectAtDocumentStart : WebInjectAtDocumentEnd) injectedFrames:(allFrames ? WebInjectInAllFrames : WebInjectInTopFrameOnly)];
+    [WebView _addUserScriptToGroup:@"org.webkit.DumpRenderTree" world:[WebScriptWorld world] source:sourceNS url:nil includeMatchPatternStrings:nil excludeMatchPatternStrings:nil injectionTime:(runAtStart ? WebInjectAtDocumentStart : WebInjectAtDocumentEnd) injectedFrames:(allFrames ? WebInjectInAllFrames : WebInjectInTopFrameOnly)];
 }
 
 void TestRunner::addUserStyleSheet(JSStringRef source, bool allFrames)
 {
     RetainPtr<CFStringRef> sourceCF = adoptCF(JSStringCopyCFString(kCFAllocatorDefault, source));
     NSString *sourceNS = (__bridge NSString *)sourceCF.get();
-    [WebView _addUserStyleSheetToGroup:@"org.webkit.DumpRenderTree" world:[WebScriptWorld world] source:sourceNS url:nil whitelist:nil blacklist:nil injectedFrames:(allFrames ? WebInjectInAllFrames : WebInjectInTopFrameOnly)];
+    [WebView _addUserStyleSheetToGroup:@"org.webkit.DumpRenderTree" world:[WebScriptWorld world] source:sourceNS url:nil includeMatchPatternStrings:nil excludeMatchPatternStrings:nil injectedFrames:(allFrames ? WebInjectInAllFrames : WebInjectInTopFrameOnly)];
 }
 
 void TestRunner::setDeveloperExtrasEnabled(bool enabled)
@@ -1260,16 +1243,16 @@ void TestRunner::simulateLegacyWebNotificationClick(JSStringRef jsTitle)
 {
 }
 
-static NSString * const WebArchivePboardType = @"Apple Web Archive pasteboard type";
 static NSString * const WebSubresourcesKey = @"WebSubresources";
 static NSString * const WebSubframeArchivesKey = @"WebResourceMIMEType like 'image*'";
 
 unsigned TestRunner::imageCountInGeneralPasteboard() const
 {
+    NSString *webArchivePboardType = @"Apple Web Archive pasteboard type";
 #if PLATFORM(MAC)
-    NSData *data = [[NSPasteboard generalPasteboard] dataForType:WebArchivePboardType];
+    NSData *data = [[NSPasteboard generalPasteboard] dataForType:webArchivePboardType];
 #elif PLATFORM(IOS_FAMILY)
-    NSData *data = [[UIPasteboard generalPasteboard] valueForPasteboardType:WebArchivePboardType];
+    NSData *data = [[UIPasteboard generalPasteboard] valueForPasteboardType:webArchivePboardType];
 #endif
     if (!data)
         return 0;

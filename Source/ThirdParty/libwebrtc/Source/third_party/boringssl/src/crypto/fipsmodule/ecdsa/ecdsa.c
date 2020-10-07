@@ -122,6 +122,14 @@ void ECDSA_SIG_free(ECDSA_SIG *sig) {
   OPENSSL_free(sig);
 }
 
+const BIGNUM *ECDSA_SIG_get0_r(const ECDSA_SIG *sig) {
+  return sig->r;
+}
+
+const BIGNUM *ECDSA_SIG_get0_s(const ECDSA_SIG *sig) {
+  return sig->s;
+}
+
 void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **out_r,
                     const BIGNUM **out_s) {
   if (out_r != NULL) {
@@ -232,7 +240,7 @@ static int ecdsa_sign_setup(const EC_KEY *eckey, EC_SCALAR *out_kinv_mont,
     ec_scalar_from_montgomery(group, out_kinv_mont, out_kinv_mont);
 
     // Compute r, the x-coordinate of generator * k.
-    if (!ec_point_mul_scalar(group, &tmp_point, &k, NULL, NULL) ||
+    if (!ec_point_mul_scalar_base(group, &tmp_point, &k) ||
         !ec_get_x_coordinate_as_scalar(group, out_r, &tmp_point)) {
       goto err;
     }

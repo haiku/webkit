@@ -11,9 +11,7 @@ import("../../../webrtc.gni")
 if (rtc_include_tests) {
   rtc_test("scenario_tests") {
     testonly = true
-    sources = [
-      "bbr_performance.cc",
-    ]
+    sources = [ "bbr_performance.cc" ]
     deps = [
       "../:scenario",
       "../..:test_main",
@@ -21,13 +19,10 @@ if (rtc_include_tests) {
       "../../:fileutils",
       "../../:test_common",
       "../../:test_support",
+      "../../../modules/congestion_controller/bbr",
       "../../../rtc_base:rtc_base_approved",
-      "../../../rtc_base:stringutils",
       "../../../rtc_base/experiments:field_trial_parser",
       "//testing/gtest",
     ]
-    if (!build_with_chromium && is_clang) {
-      suppressed_configs += [ "//build/config/clang:find_bad_constructs" ]
-    }
   }
 }

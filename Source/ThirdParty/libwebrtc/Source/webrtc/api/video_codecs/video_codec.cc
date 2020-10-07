@@ -11,13 +11,26 @@
 #include "api/video_codecs/video_codec.h"
 
 #include <string.h>
+
 #include <string>
 
 #include "absl/strings/match.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/stringutils.h"
 
 namespace webrtc {
+namespace {
+constexpr char kPayloadNameVp8[] = "VP8";
+constexpr char kPayloadNameVp9[] = "VP9";
+// TODO(bugs.webrtc.org/11042): Rename to AV1 when rtp payload format for av1 is
+// frozen.
+constexpr char kPayloadNameAv1[] = "AV1X";
+constexpr char kPayloadNameH264[] = "H264";
+#ifndef DISABLE_H265
+constexpr char kPayloadNameH265[] = "H265";
+#endif
+constexpr char kPayloadNameGeneric[] = "Generic";
+constexpr char kPayloadNameMultiplex[] = "Multiplex";
+}  // namespace
 
 bool VideoCodecVP8::operator==(const VideoCodecVP8& other) const {
   return (complexity == other.complexity &&
@@ -43,14 +56,23 @@ bool VideoCodecVP9::operator==(const VideoCodecVP9& other) const {
 bool VideoCodecH264::operator==(const VideoCodecH264& other) const {
   return (frameDroppingOn == other.frameDroppingOn &&
           keyFrameInterval == other.keyFrameInterval &&
-          spsLen == other.spsLen && ppsLen == other.ppsLen &&
-          profile == other.profile &&
+          numberOfTemporalLayers == other.numberOfTemporalLayers);
+}
+
+#ifndef DISABLE_H265
+bool VideoCodecH265::operator==(const VideoCodecH265& other) const {
+  return (frameDroppingOn == other.frameDroppingOn &&
+          keyFrameInterval == other.keyFrameInterval &&
+          vpsLen == other.vpsLen && spsLen == other.spsLen &&
+          ppsLen == other.ppsLen &&
           (spsLen == 0 || memcmp(spsData, other.spsData, spsLen) == 0) &&
           (ppsLen == 0 || memcmp(ppsData, other.ppsData, ppsLen) == 0));
 }
+#endif
 
 bool SpatialLayer::operator==(const SpatialLayer& other) const {
   return (width == other.width && height == other.height &&
+          maxFramerate == other.maxFramerate &&
           numberOfTemporalLayers == other.numberOfTemporalLayers &&
           maxBitrate == other.maxBitrate &&
           targetBitrate == other.targetBitrate &&
@@ -66,7 +88,6 @@ VideoCodec::VideoCodec()
       startBitrate(0),
       maxBitrate(0),
       minBitrate(0),
-      targetBitrate(0),
       maxFramerate(0),
       active(true),
       qpMax(0),
@@ -108,12 +129,17 @@ const VideoCodecH264& VideoCodec::H264() const {
   return codec_specific_.H264;
 }
 
-static const char* kPayloadNameVp8 = "VP8";
-static const char* kPayloadNameVp9 = "VP9";
-static const char* kPayloadNameH264 = "H264";
-static const char* kPayloadNameI420 = "I420";
-static const char* kPayloadNameGeneric = "Generic";
-static const char* kPayloadNameMultiplex = "Multiplex";
+#ifndef DISABLE_H265
+VideoCodecH265* VideoCodec::H265() {
+  RTC_DCHECK_EQ(codecType, kVideoCodecH265);
+  return &codec_specific_.H265;
+}
+
+const VideoCodecH265& VideoCodec::H265() const {
+  RTC_DCHECK_EQ(codecType, kVideoCodecH265);
+  return codec_specific_.H265;
+}
+#endif
 
 const char* CodecTypeToPayloadString(VideoCodecType type) {
   switch (type) {
@@ -121,12 +147,17 @@ const char* CodecTypeToPayloadString(VideoCodecType type) {
       return kPayloadNameVp8;
     case kVideoCodecVP9:
       return kPayloadNameVp9;
+    case kVideoCodecAV1:
+      return kPayloadNameAv1;
     case kVideoCodecH264:
       return kPayloadNameH264;
-    case kVideoCodecI420:
-      return kPayloadNameI420;
-    // Other codecs default to generic.
-    default:
+#ifndef DISABLE_H265
+    case kVideoCodecH265:
+      return kPayloadNameH265;
+#endif
+    case kVideoCodecMultiplex:
+      return kPayloadNameMultiplex;
+    case kVideoCodecGeneric:
       return kPayloadNameGeneric;
   }
 }
@@ -136,10 +167,14 @@ VideoCodecType PayloadStringToCodecType(const std::string& name) {
     return kVideoCodecVP8;
   if (absl::EqualsIgnoreCase(name, kPayloadNameVp9))
     return kVideoCodecVP9;
+  if (absl::EqualsIgnoreCase(name, kPayloadNameAv1))
+    return kVideoCodecAV1;
   if (absl::EqualsIgnoreCase(name, kPayloadNameH264))
     return kVideoCodecH264;
-  if (absl::EqualsIgnoreCase(name, kPayloadNameI420))
-    return kVideoCodecI420;
+#ifndef DISABLE_H265
+  if (absl::EqualsIgnoreCase(name, kPayloadNameH265))
+    return kVideoCodecH265;
+#endif
   if (absl::EqualsIgnoreCase(name, kPayloadNameMultiplex))
     return kVideoCodecMultiplex;
   return kVideoCodecGeneric;

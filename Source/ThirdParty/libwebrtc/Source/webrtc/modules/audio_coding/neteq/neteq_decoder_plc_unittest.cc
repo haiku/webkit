@@ -11,6 +11,7 @@
 // Test to verify correct operation when using the decoder-internal PLC.
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -23,8 +24,10 @@
 #include "modules/audio_coding/neteq/tools/input_audio_file.h"
 #include "modules/audio_coding/neteq/tools/neteq_test.h"
 #include "rtc_base/numerics/safe_conversions.h"
+#include "rtc_base/ref_counted_object.h"
+#include "test/audio_decoder_proxy_factory.h"
 #include "test/gtest.h"
-#include "test/testsupport/fileutils.h"
+#include "test/testsupport/file_utils.h"
 
 namespace webrtc {
 namespace test {
@@ -153,40 +156,40 @@ NetEqNetworkStatistics RunTest(int loss_cadence, std::string* checksum) {
   // The input is mostly useless. It sends zero-samples to a PCM16b encoder,
   // but the actual encoded samples will never be used by the decoder in the
   // test. See below about the decoder.
-  auto generator = absl::make_unique<ZeroSampleGenerator>();
+  auto generator = std::make_unique<ZeroSampleGenerator>();
   constexpr int kSampleRateHz = 32000;
   constexpr int kPayloadType = 100;
   AudioEncoderPcm16B::Config encoder_config;
   encoder_config.sample_rate_hz = kSampleRateHz;
   encoder_config.payload_type = kPayloadType;
-  auto encoder = absl::make_unique<AudioEncoderPcm16B>(encoder_config);
+  auto encoder = std::make_unique<AudioEncoderPcm16B>(encoder_config);
   constexpr int kRunTimeMs = 10000;
-  auto input = absl::make_unique<EncodeNetEqInput>(
+  auto input = std::make_unique<EncodeNetEqInput>(
       std::move(generator), std::move(encoder), kRunTimeMs);
   // Wrap the input in a loss function.
   auto lossy_input =
-      absl::make_unique<LossyInput>(loss_cadence, std::move(input));
+      std::make_unique<LossyInput>(loss_cadence, std::move(input));
 
   // Settinng up decoders.
   NetEqTest::DecoderMap decoders;
   // Using a fake decoder which simply reads the output audio from a file.
-  auto input_file = absl::make_unique<InputAudioFile>(
+  auto input_file = std::make_unique<InputAudioFile>(
       webrtc::test::ResourcePath("audio_coding/testfile32kHz", "pcm"));
   AudioDecoderPlc dec(std::move(input_file), kSampleRateHz);
   // Masquerading as a PCM16b decoder.
-  NetEqTest::ExternalDecoderInfo dec_info = {
-      &dec, NetEqDecoder::kDecoderPCM16Bswb32kHz, "pcm16b_PLC"};
-  NetEqTest::ExtDecoderMap external_decoders;
-  external_decoders.insert(std::make_pair(kPayloadType, dec_info));
+  decoders.emplace(kPayloadType, SdpAudioFormat("l16", 32000, 1));
 
   // Output is simply a checksum calculator.
-  auto output = absl::make_unique<AudioChecksumWithOutput>(checksum);
+  auto output = std::make_unique<AudioChecksumWithOutput>(checksum);
 
   // No callback objects.
   NetEqTest::Callbacks callbacks;
 
-  NetEqTest neteq_test(config, decoders, external_decoders,
-                       std::move(lossy_input), std::move(output), callbacks);
+  NetEqTest neteq_test(
+      config, /*decoder_factory=*/
+      new rtc::RefCountedObject<test::AudioDecoderProxyFactory>(&dec),
+      /*codecs=*/decoders, /*text_log=*/nullptr, /*neteq_factory=*/nullptr,
+      /*input=*/std::move(lossy_input), std::move(output), callbacks);
   EXPECT_LE(kRunTimeMs, neteq_test.Run());
 
   auto lifetime_stats = neteq_test.LifetimeStats();

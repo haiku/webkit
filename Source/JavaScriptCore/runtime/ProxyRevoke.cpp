@@ -38,26 +38,24 @@ const ClassInfo ProxyRevoke::s_info = { "ProxyRevoke", &Base::s_info, nullptr, n
 ProxyRevoke* ProxyRevoke::create(VM& vm, Structure* structure, ProxyObject* proxy)
 {
     ProxyRevoke* revoke = new (NotNull, allocateCell<ProxyRevoke>(vm.heap)) ProxyRevoke(vm, structure);
-    revoke->finishCreation(vm, "revoke", proxy);
+    revoke->finishCreation(vm, proxy);
     return revoke;
 }
 
-static EncodedJSValue JSC_HOST_CALL performProxyRevoke(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(performProxyRevoke);
 
 ProxyRevoke::ProxyRevoke(VM& vm, Structure* structure)
     : Base(vm, structure, performProxyRevoke, nullptr)
 {
 }
 
-void ProxyRevoke::finishCreation(VM& vm, const char* name, ProxyObject* proxy)
+void ProxyRevoke::finishCreation(VM& vm, ProxyObject* proxy)
 {
-    Base::finishCreation(vm, String(name), NameVisibility::Anonymous);
+    Base::finishCreation(vm, 0, emptyString());
     m_proxy.set(vm, this, proxy);
-
-    putDirect(vm, vm.propertyNames->length, jsNumber(0), PropertyAttribute::ReadOnly | PropertyAttribute::DontEnum);
 }
 
-static EncodedJSValue JSC_HOST_CALL performProxyRevoke(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(performProxyRevoke, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     ProxyRevoke* proxyRevoke = jsCast<ProxyRevoke*>(callFrame->jsCallee());
     JSValue proxyValue = proxyRevoke->proxy();

@@ -28,8 +28,8 @@
 
 #if ENABLE(WEBASSEMBLY)
 
-#include "LLIntThunks.h"
 #include "WasmCalleeRegistry.h"
+#include "WasmCallingConvention.h"
 
 namespace JSC { namespace Wasm {
 
@@ -93,8 +93,6 @@ RegisterAtOffsetList* LLIntCallee::calleeSaveRegisters()
 #else
 #error Unsupported architecture.
 #endif
-        registers.set(GPRInfo::regCS3); // Memory base
-        registers.set(GPRInfo::regCS4); // Memory size
         ASSERT(registers.numberOfSetRegisters() == numberOfLLIntCalleeSaveRegisters);
         calleeSaveRegisters.construct(WTFMove(registers));
     });

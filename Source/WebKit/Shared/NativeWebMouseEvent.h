@@ -23,10 +23,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NativeWebMouseEvent_h
-#define NativeWebMouseEvent_h
+#pragma once
 
-#include "WebEvent.h"
+#include "WebMouseEvent.h"
 
 #if USE(APPKIT)
 #include <wtf/RetainPtr.h>
@@ -35,7 +34,11 @@ OBJC_CLASS NSView;
 
 #if PLATFORM(GTK)
 #include <WebCore/GUniquePtrGtk.h>
+#if USE(GTK4)
+typedef struct _GdkEvent GdkEvent;
+#else
 typedef union _GdkEvent GdkEvent;
+#endif
 #endif
 
 #if PLATFORM(IOS_FAMILY)
@@ -59,7 +62,10 @@ public:
     NativeWebMouseEvent(NSEvent *, NSEvent *lastPressureEvent, NSView *);
 #elif PLATFORM(GTK)
     NativeWebMouseEvent(const NativeWebMouseEvent&);
-    NativeWebMouseEvent(GdkEvent*, int);
+    NativeWebMouseEvent(GdkEvent*, int, Optional<WebCore::FloatSize>);
+    NativeWebMouseEvent(GdkEvent*, const WebCore::IntPoint&, int, Optional<WebCore::FloatSize>);
+    NativeWebMouseEvent(Type, Button, unsigned short buttons, const WebCore::IntPoint& position, const WebCore::IntPoint& globalPosition, int clickCount, OptionSet<Modifier> modifiers, Optional<WebCore::FloatSize>);
+    explicit NativeWebMouseEvent(const WebCore::IntPoint&);
 #elif PLATFORM(IOS_FAMILY)
     NativeWebMouseEvent(::WebEvent *);
     NativeWebMouseEvent(Type, Button, unsigned short buttons, const WebCore::IntPoint& position, const WebCore::IntPoint& globalPosition, float deltaX, float deltaY, float deltaZ, int clickCount, OptionSet<Modifier>, WallTime timestamp, double force);
@@ -100,5 +106,3 @@ private:
 };
 
 } // namespace WebKit
-
-#endif // NativeWebMouseEvent_h

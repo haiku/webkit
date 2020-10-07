@@ -26,7 +26,6 @@
 #include "config.h"
 #include <wtf/text/TextStream.h>
 
-#include <wtf/MathExtras.h>
 #include <wtf/text/WTFString.h>
 
 namespace WTF {
@@ -93,7 +92,7 @@ TextStream& TextStream::operator<<(float f)
     if (m_formattingFlags & Formatting::NumberRespectingIntegers)
         return *this << FormatNumberRespectingIntegers(f);
 
-    m_text.appendFixedWidthNumber(f, 2);
+    m_text.append(FormattedNumber::fixedWidth(f, 2));
     return *this;
 }
 
@@ -102,7 +101,7 @@ TextStream& TextStream::operator<<(double d)
     if (m_formattingFlags & Formatting::NumberRespectingIntegers)
         return *this << FormatNumberRespectingIntegers(d);
 
-    m_text.appendFixedWidthNumber(d, 2);
+    m_text.append(FormattedNumber::fixedWidth(d, 2));
     return *this;
 }
 
@@ -128,7 +127,7 @@ TextStream& TextStream::operator<<(const String& string)
 TextStream& TextStream::operator<<(const FormatNumberRespectingIntegers& numberToFormat)
 {
     if (hasFractions(numberToFormat.value)) {
-        m_text.appendFixedWidthNumber(numberToFormat.value, 2);
+        m_text.append(FormattedNumber::fixedWidth(numberToFormat.value, 2));
         return *this;
     }
 

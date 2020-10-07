@@ -7,8 +7,7 @@ Scrolling content
 (Frame scrolling node
   (scrollable area size 785 600)
   (contents size 785 741)
-  (parent relative scrollable rect at (0,0) size 800x600)
-  (scrollable area parameters 
+  (scrollable area parameters
     (horizontal scroll elasticity 2)
     (vertical scroll elasticity 2)
     (horizontal scrollbar mode 0)
@@ -22,8 +21,7 @@ Scrolling content
     (Overflow scrolling node
       (scrollable area size 205 155)
       (contents size 205 1020)
-      (parent relative scrollable rect at (19,11) size 205x155)
-      (scrollable area parameters 
+      (scrollable area parameters
         (horizontal scroll elasticity 0)
         (vertical scroll elasticity 0)
         (horizontal scrollbar mode 0)
@@ -33,8 +31,7 @@ Scrolling content
     (Overflow scrolling node
       (scrollable area size 205 155)
       (contents size 242 1020)
-      (parent relative scrollable rect at (19,193) size 205x155)
-      (scrollable area parameters 
+      (scrollable area parameters
         (horizontal scroll elasticity 0)
         (vertical scroll elasticity 0)
         (horizontal scrollbar mode 0)
@@ -45,8 +42,7 @@ Scrolling content
         (Overflow scrolling node
           (scrollable area size 205 155)
           (contents size 205 1020)
-          (parent relative scrollable rect at (22,40) size 205x155)
-          (scrollable area parameters 
+          (scrollable area parameters
             (horizontal scroll elasticity 0)
             (vertical scroll elasticity 0)
             (horizontal scrollbar mode 0)
@@ -61,8 +57,7 @@ Scrolling content
     (Overflow scrolling node
       (scrollable area size 205 155)
       (contents size 205 1020)
-      (parent relative scrollable rect at (19,375) size 205x155)
-      (scrollable area parameters 
+      (scrollable area parameters
         (horizontal scroll elasticity 0)
         (vertical scroll elasticity 0)
         (horizontal scrollbar mode 0)
@@ -72,8 +67,7 @@ Scrolling content
     (Overflow scrolling node
       (scrollable area size 205 155)
       (contents size 205 1020)
-      (parent relative scrollable rect at (19,557) size 205x155)
-      (scrollable area parameters 
+      (scrollable area parameters
         (horizontal scroll elasticity 0)
         (vertical scroll elasticity 0)
         (horizontal scrollbar mode 0)
@@ -81,7 +75,7 @@ Scrolling content
         (has enabled vertical scrollbar 1))
       (children 1
         (Positioned node
-          (layout constraints 
+          (layout constraints
             (layer-position-at-last-layout (81,28)))
           (related overflow nodes 1)
         )

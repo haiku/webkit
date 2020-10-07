@@ -35,6 +35,7 @@
 #include "IDBResourceIdentifier.h"
 #include "IDBTransactionInfo.h"
 #include "ThreadSafeDataBuffer.h"
+#include <wtf/EnumTraits.h>
 
 namespace WebCore {
 
@@ -88,11 +89,12 @@ public:
     static IDBResultData iterateCursorSuccess(const IDBResourceIdentifier&, const IDBGetResult&);
 
     WEBCORE_EXPORT IDBResultData(const IDBResultData&);
+    IDBResultData(IDBResultData&&) = default;
     IDBResultData& operator=(IDBResultData&&) = default;
 
     enum IsolatedCopyTag { IsolatedCopy };
     IDBResultData(const IDBResultData&, IsolatedCopyTag);
-    IDBResultData isolatedCopy() const;
+    WEBCORE_EXPORT IDBResultData isolatedCopy() const;
 
     IDBResultType type() const { return m_type; }
     IDBResourceIdentifier requestIdentifier() const { return m_requestIdentifier; }
@@ -138,7 +140,7 @@ void IDBResultData::encode(Encoder& encoder) const
 {
     encoder << m_requestIdentifier << m_error << m_databaseConnectionIdentifier << m_resultInteger;
 
-    encoder.encodeEnum(m_type);
+    encoder << m_type;
 
     encoder << !!m_databaseInfo;
     if (m_databaseInfo)
@@ -176,7 +178,7 @@ template<class Decoder> Optional<IDBResultData> IDBResultData::decode(Decoder& d
     if (!decoder.decode(result.m_resultInteger))
         return WTF::nullopt;
 
-    if (!decoder.decodeEnum(result.m_type))
+    if (!decoder.decode(result.m_type))
         return WTF::nullopt;
 
     bool hasObject;
@@ -233,5 +235,33 @@ template<class Decoder> Optional<IDBResultData> IDBResultData::decode(Decoder& d
 }
 
 } // namespace WebCore
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::IDBResultType> {
+    using values = EnumValues<
+        WebCore::IDBResultType,
+        WebCore::IDBResultType::Error,
+        WebCore::IDBResultType::OpenDatabaseSuccess,
+        WebCore::IDBResultType::OpenDatabaseUpgradeNeeded,
+        WebCore::IDBResultType::DeleteDatabaseSuccess,
+        WebCore::IDBResultType::CreateObjectStoreSuccess,
+        WebCore::IDBResultType::DeleteObjectStoreSuccess,
+        WebCore::IDBResultType::ClearObjectStoreSuccess,
+        WebCore::IDBResultType::PutOrAddSuccess,
+        WebCore::IDBResultType::GetRecordSuccess,
+        WebCore::IDBResultType::GetAllRecordsSuccess,
+        WebCore::IDBResultType::GetCountSuccess,
+        WebCore::IDBResultType::DeleteRecordSuccess,
+        WebCore::IDBResultType::CreateIndexSuccess,
+        WebCore::IDBResultType::DeleteIndexSuccess,
+        WebCore::IDBResultType::OpenCursorSuccess,
+        WebCore::IDBResultType::IterateCursorSuccess,
+        WebCore::IDBResultType::RenameObjectStoreSuccess,
+        WebCore::IDBResultType::RenameIndexSuccess
+    >;
+};
+
+} // namespace WTF
 
 #endif // ENABLE(INDEXED_DATABASE)

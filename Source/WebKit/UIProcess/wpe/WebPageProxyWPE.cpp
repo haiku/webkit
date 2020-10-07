@@ -26,6 +26,8 @@
 #include "config.h"
 #include "WebPageProxy.h"
 
+#include "EditorState.h"
+#include "InputMethodState.h"
 #include "PageClientImpl.h"
 #include "WebsiteDataStore.h"
 #include <WebCore/NotImplemented.h>
@@ -45,6 +47,11 @@ void WebPageProxy::platformInitialize()
 struct wpe_view_backend* WebPageProxy::viewBackend()
 {
     return static_cast<PageClientImpl&>(pageClient()).viewBackend();
+}
+
+String WebPageProxy::userAgentForURL(const URL&)
+{
+    return userAgent();
 }
 
 String WebPageProxy::standardUserAgent(const String& applicationNameForUserAgent)
@@ -77,9 +84,11 @@ void WebsiteDataStore::platformRemoveRecentSearches(WallTime)
     notImplemented();
 }
 
-void WebPageProxy::updateEditorState(const EditorState&)
+void WebPageProxy::updateEditorState(const EditorState& editorState)
 {
-    notImplemented();
+    m_editorState = editorState;
+    if (!editorState.shouldIgnoreSelectionChanges)
+        pageClient().selectionDidChange();
 }
 
 void WebPageProxy::sendMessageToWebViewWithReply(UserMessage&& message, CompletionHandler<void(UserMessage&&)>&& completionHandler)
@@ -90,6 +99,11 @@ void WebPageProxy::sendMessageToWebViewWithReply(UserMessage&& message, Completi
 void WebPageProxy::sendMessageToWebView(UserMessage&& message)
 {
     sendMessageToWebViewWithReply(WTFMove(message), [](UserMessage&&) { });
+}
+
+void WebPageProxy::setInputMethodState(Optional<InputMethodState>&& state)
+{
+    static_cast<PageClientImpl&>(pageClient()).setInputMethodState(WTFMove(state));
 }
 
 } // namespace WebKit

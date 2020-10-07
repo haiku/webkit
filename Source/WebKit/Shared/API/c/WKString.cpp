@@ -28,8 +28,10 @@
 #include "WKStringPrivate.h"
 
 #include "WKAPICast.h"
+#include "WebKitJITOperations.h"
 #include <JavaScriptCore/InitializeThreading.h>
 #include <JavaScriptCore/OpaqueJSString.h>
+#include <WebCore/WebCoreJITOperations.h>
 #include <wtf/unicode/UTF8Conversion.h>
 
 WKTypeID WKStringGetTypeID()
@@ -65,7 +67,7 @@ size_t WKStringGetCharacters(WKStringRef stringRef, WKChar* buffer, size_t buffe
 
 size_t WKStringGetMaximumUTF8CStringSize(WKStringRef stringRef)
 {
-    return WebKit::toImpl(stringRef)->stringView().length() * 3 + 1;
+    return static_cast<size_t>(WebKit::toImpl(stringRef)->stringView().length()) * 3 + 1;
 }
 
 enum StrictType { NonStrict = false, Strict = true };
@@ -133,6 +135,8 @@ WKStringRef WKStringCreateWithJSString(JSStringRef jsStringRef)
 
 JSStringRef WKStringCopyJSString(WKStringRef stringRef)
 {
-    JSC::initializeThreading();
+    JSC::initialize();
+    WebCore::populateJITOperations();
+    WebKit::populateJITOperations();
     return OpaqueJSString::tryCreate(WebKit::toImpl(stringRef)->string()).leakRef();
 }

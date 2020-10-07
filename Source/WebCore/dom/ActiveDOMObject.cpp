@@ -28,6 +28,7 @@
 #include "ActiveDOMObject.h"
 
 #include "Document.h"
+#include "EventLoop.h"
 #include "ScriptExecutionContext.h"
 
 namespace WebCore {
@@ -66,7 +67,7 @@ ActiveDOMObject::ActiveDOMObject(Document& document)
 
 ActiveDOMObject::~ActiveDOMObject()
 {
-    ASSERT(canAccessThreadLocalDataForThread(m_creationThread));
+    ASSERT(canCurrentThreadAccessThreadLocalData(m_creationThread));
 
     // ActiveDOMObject may be inherited by a sub-class whose life-cycle
     // exceeds that of the associated ScriptExecutionContext. In those cases,
@@ -84,7 +85,7 @@ ActiveDOMObject::~ActiveDOMObject()
 
 void ActiveDOMObject::suspendIfNeeded()
 {
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
     ASSERT(!m_suspendIfNeededWasCalled);
     m_suspendIfNeededWasCalled = true;
 #endif
@@ -94,19 +95,16 @@ void ActiveDOMObject::suspendIfNeeded()
     m_scriptExecutionContext->suspendActiveDOMObjectIfNeeded(*this);
 }
 
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
 
 void ActiveDOMObject::assertSuspendIfNeededWasCalled() const
 {
+    if (!m_suspendIfNeededWasCalled)
+        WTFLogAlways("Failed to call suspendIfNeeded() for %s", activeDOMObjectName());
     ASSERT(m_suspendIfNeededWasCalled);
 }
 
-#endif
-
-bool ActiveDOMObject::hasPendingActivity() const
-{
-    return m_pendingActivityCount;
-}
+#endif // ASSERT_ENABLED
 
 void ActiveDOMObject::suspend(ReasonForSuspension)
 {
@@ -128,6 +126,50 @@ bool ActiveDOMObject::isContextStopped() const
 bool ActiveDOMObject::isAllowedToRunScript() const
 {
     return scriptExecutionContext() && !scriptExecutionContext()->activeDOMObjectsAreStopped() && !scriptExecutionContext()->activeDOMObjectsAreSuspended();
+}
+
+void ActiveDOMObject::queueTaskInEventLoop(TaskSource source, Function<void ()>&& function)
+{
+    auto* context = scriptExecutionContext();
+    if (!context)
+        return;
+    context->eventLoop().queueTask(source, WTFMove(function));
+}
+
+class ActiveDOMObjectEventDispatchTask : public EventLoopTask {
+public:
+    ActiveDOMObjectEventDispatchTask(TaskSource source, EventLoopTaskGroup& group, ActiveDOMObject& object, EventTarget& target, Ref<Event>&& event)
+        : EventLoopTask(source, group)
+        , m_object(object)
+        , m_target(target)
+        , m_event(WTFMove(event))
+    {
+        ++m_object.m_pendingActivityInstanceCount;
+    }
+
+    ~ActiveDOMObjectEventDispatchTask()
+    {
+        ASSERT(m_object.m_pendingActivityInstanceCount);
+        --m_object.m_pendingActivityInstanceCount;
+    }
+
+    void execute() final { m_target->dispatchEvent(m_event.get()); }
+
+private:
+    ActiveDOMObject& m_object;
+    Ref<EventTarget> m_target;
+    Ref<Event> m_event;
+};
+
+void ActiveDOMObject::queueTaskToDispatchEventInternal(EventTarget& target, TaskSource source, Ref<Event>&& event)
+{
+    ASSERT(!event->target() || &target == event->target());
+    auto* context = scriptExecutionContext();
+    if (!context)
+        return;
+    auto& eventLoopTaskGroup = context->eventLoop();
+    auto task = makeUnique<ActiveDOMObjectEventDispatchTask>(source, eventLoopTaskGroup, *this, target, WTFMove(event));
+    eventLoopTaskGroup.queueTask(WTFMove(task));
 }
 
 } // namespace WebCore

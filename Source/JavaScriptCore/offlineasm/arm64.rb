@@ -351,34 +351,6 @@ def arm64FixSpecialRegisterArithmeticMode(list)
     newList
 end
 
-# Workaround for Cortex-A53 erratum (835769)
-def arm64CortexA53Fix835769(list)
-    newList = []
-    lastOpcodeUnsafe = false
-
-    list.each {
-        | node |
-        if node.is_a? Instruction
-            case node.opcode
-            when /^store/, /^load/
-                # List all macro instructions that can be lowered to a load, store or prefetch ARM64 assembly instruction
-                lastOpcodeUnsafe = true
-            when  "muli", "mulp", "mulq", "smulli"
-                # List all macro instructions that can be lowered to a 64-bit multiply-accumulate ARM64 assembly instruction
-                # (defined as one of MADD, MSUB, SMADDL, SMSUBL, UMADDL or UMSUBL).
-                if lastOpcodeUnsafe
-                    newList << Instruction.new(node.codeOrigin, "nopCortexA53Fix835769", [])
-                end
-                lastOpcodeUnsafe = false
-            else
-                lastOpcodeUnsafe = false
-            end
-        end
-        newList << node
-    }
-    newList
-end
-
 class Sequence
     def getModifiedListARM64(result = @list)
         result = riscLowerNot(result)
@@ -393,7 +365,7 @@ class Sequence
             case node.opcode
             when "loadb", "loadbsi", "loadbsq", "storeb", /^bb/, /^btb/, /^cb/, /^tb/
                 size = 1
-            when "loadh", "loadhsi", "loadhsq", "storeh"
+            when "loadh", "loadhsi", "loadhsq", "orh", "storeh"
                 size = 2
             when "loadi", "loadis", "storei", "addi", "andi", "lshifti", "muli", "negi",
                 "noti", "ori", "rshifti", "urshifti", "subi", "xori", /^bi/, /^bti/,
@@ -418,7 +390,7 @@ class Sequence
             end
         }
 
-        result = riscLowerMisplacedImmediates(result, ["storeb", "storei", "storep", "storeq"])
+        result = riscLowerMisplacedImmediates(result, ["storeb", "storeh", "storei", "storep", "storeq"])
 
         # The rules for which immediates are valid for and/or/xor instructions are fairly involved, see https://dinfuehr.github.io/blog/encoding-of-immediate-values-on-aarch64/
         validLogicalImmediates = []
@@ -470,7 +442,6 @@ class Sequence
         result = arm64FixSpecialRegisterArithmeticMode(result)
         result = assignRegistersToTemporaries(result, :gpr, ARM64_EXTRA_GPRS)
         result = assignRegistersToTemporaries(result, :fpr, ARM64_EXTRA_FPRS)
-        result = arm64CortexA53Fix835769(result)
         return result
     end
 end
@@ -711,6 +682,8 @@ class Instruction
             emitARM64TAC("orr", operands, :ptr)
         when "orq"
             emitARM64TAC("orr", operands, :quad)
+        when "orh"
+            emitARM64TAC("orr", operands, :word) # not :half because 16-bit registers don't exist on ARM.
         when "xori"
             emitARM64TAC("eor", operands, :word)
         when "xorp"
@@ -1113,10 +1086,6 @@ class Instruction
             $asm.puts "bfi #{operands[3].arm64Operand(:quad)}, #{operands[0].arm64Operand(:quad)}, #{operands[1].value}, #{operands[2].value}"
         when "pcrtoaddr"
             $asm.puts "adr #{operands[1].arm64Operand(:quad)}, #{operands[0].value}"
-        when "nopCortexA53Fix835769"
-            $asm.putStr("#if CPU(ARM64_CORTEXA53)")
-            $asm.puts "nop"
-            $asm.putStr("#endif")
         when "globaladdr"
             uid = $asm.newUID
 

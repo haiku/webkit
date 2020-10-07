@@ -37,20 +37,30 @@ class JSMap;
 
 // Based on the Source Text Module Record
 // http://www.ecma-international.org/ecma-262/6.0/#sec-source-text-module-records
-class AbstractModuleRecord : public JSDestructibleObject {
+class AbstractModuleRecord : public JSNonFinalObject {
     friend class LLIntOffsetsExtractor;
 public:
-    typedef JSDestructibleObject Base;
+    using Base = JSNonFinalObject;
+
+    static constexpr bool needsDestruction = true;
+
+    template<typename CellType, SubspaceAccess>
+    static void subspaceFor(VM&)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 
     // https://tc39.github.io/ecma262/#sec-source-text-module-records
     struct ExportEntry {
         enum class Type {
             Local,
-            Indirect
+            Indirect,
+            Namespace,
         };
 
         static ExportEntry createLocal(const Identifier& exportName, const Identifier& localName);
         static ExportEntry createIndirect(const Identifier& exportName, const Identifier& importName, const Identifier& moduleName);
+        static ExportEntry createNamespace(const Identifier& exportName, const Identifier& moduleName);
 
         Type type;
         Identifier exportName;
@@ -127,9 +137,8 @@ protected:
     void finishCreation(JSGlobalObject*, VM&);
 
     static void visitChildren(JSCell*, SlotVisitor&);
-    static void destroy(JSCell*);
 
-    WriteBarrier<JSModuleEnvironment> m_moduleEnvironment;
+    void setModuleEnvironment(JSGlobalObject*, JSModuleEnvironment*);
 
 private:
     struct ResolveQuery;
@@ -169,6 +178,8 @@ private:
     WriteBarrier<JSMap> m_dependenciesMap;
     
     WriteBarrier<JSModuleNamespaceObject> m_moduleNamespaceObject;
+
+    WriteBarrier<JSModuleEnvironment> m_moduleEnvironment;
 
     // We assume that all the AbstractModuleRecord are retained by JSModuleLoader's registry.
     // So here, we don't visit each object for GC. The resolution cache map caches the once

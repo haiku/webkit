@@ -99,9 +99,8 @@ Optional<SessionID> SessionID::decode(Decoder& decoder)
 {
     Optional<uint64_t> sessionID;
     decoder >> sessionID;
-    if (!sessionID)
+    if (!sessionID || !isValidSessionIDValue(*sessionID))
         return WTF::nullopt;
-    ASSERT(isValidSessionIDValue(*sessionID));
     return SessionID { *sessionID };
 }
 
@@ -121,8 +120,6 @@ template<> struct HashTraits<PAL::SessionID> : GenericHashTraits<PAL::SessionID>
     static bool isDeletedValue(const PAL::SessionID& slot) { return slot.isHashTableDeletedValue(); }
 };
 
-template<> struct DefaultHash<PAL::SessionID> {
-    typedef SessionIDHash Hash;
-};
+template<> struct DefaultHash<PAL::SessionID> : SessionIDHash { };
 
 } // namespace WTF

@@ -72,7 +72,7 @@ public:
         EnforceIFrameAllowFullscreenRequirement,
         ExemptIFrameAllowFullscreenRequirement,
     };
-    void requestFullscreenForElement(Element*, FullscreenCheckType);
+    WEBCORE_EXPORT void requestFullscreenForElement(Element*, FullscreenCheckType);
 
     WEBCORE_EXPORT void willEnterFullscreen(Element&);
     WEBCORE_EXPORT void didEnterFullscreen();
@@ -83,7 +83,6 @@ public:
     RenderFullScreen* fullscreenRenderer() const;
 
     void dispatchFullscreenChangeEvents();
-    bool fullscreenIsAllowedForElement(Element&) const;
     void fullscreenElementRemoved();
 
     void adjustFullscreenElementOnNodeRemoval(Node&, Document::NodeRemoval = Document::NodeRemoval::Node);

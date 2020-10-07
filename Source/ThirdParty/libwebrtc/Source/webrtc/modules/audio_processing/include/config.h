@@ -13,7 +13,7 @@
 
 #include <map>
 
-#include "rtc_base/constructormagic.h"
+#include "rtc_base/constructor_magic.h"
 #include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
@@ -27,15 +27,15 @@ enum class ConfigOptionID {
   kNetEqCapacityConfig,    // Deprecated
   kNetEqFastAccelerate,    // Deprecated
   kVoicePacing,            // Deprecated
-  kExtendedFilter,
-  kDelayAgnostic,
+  kExtendedFilter,         // Deprecated
+  kDelayAgnostic,          // Deprecated
   kExperimentalAgc,
   kExperimentalNs,
-  kBeamforming,      // Deprecated
-  kIntelligibility,  // Deprecated
-  kEchoCanceller3,   // Deprecated
-  kAecRefinedAdaptiveFilter,
-  kLevelControl  // Deprecated
+  kBeamforming,               // Deprecated
+  kIntelligibility,           // Deprecated
+  kEchoCanceller3,            // Deprecated
+  kAecRefinedAdaptiveFilter,  // Deprecated
+  kLevelControl               // Deprecated
 };
 
 // Class Config is designed to ease passing a set of options across webrtc code.

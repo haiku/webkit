@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Apple Inc. All rights reserved.
+# Copyright (C) 2018-2020 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -39,12 +39,16 @@ class Buildbot():
     ALL_RESULTS = lrange(7)
     SUCCESS, WARNINGS, FAILURE, SKIPPED, EXCEPTION, RETRY, CANCELLED = ALL_RESULTS
     icons_for_queues_mapping = {}
+    queue_name_by_shortname_mapping = {}
+    builder_name_to_id_mapping = {}
 
     @classmethod
-    def send_patch_to_buildbot(cls, patch_path, properties=[]):
+    def send_patch_to_buildbot(cls, patch_path, send_to_commit_queue=False, properties=None):
+        properties = properties or []
+        buildbot_port = config.COMMIT_QUEUE_PORT if send_to_commit_queue else config.BUILDBOT_SERVER_PORT
         command = ['buildbot', 'try',
                    '--connect=pb',
-                   '--master={}:{}'.format(config.BUILDBOT_SERVER_HOST, config.BUILDBOT_SERVER_PORT),
+                   '--master={}:{}'.format(config.BUILDBOT_SERVER_HOST, buildbot_port),
                    '--username={}'.format(config.BUILDBOT_TRY_USERNAME),
                    '--passwd={}'.format(config.BUILDBOT_TRY_PASSWORD),
                    '--diff={}'.format(patch_path),
@@ -53,10 +57,9 @@ class Buildbot():
         for property in properties:
             command.append('--property={}'.format(property))
 
-        _log.debug('Executing command: {}'.format(command))
         return_code = subprocess.call(command)
         if return_code:
-            _log.warn('Error executing: {}, return code={}'.format(command, return_code))
+            _log.warn('Error executing buildbot try command for {}, return code={}'.format(patch_path, return_code))
 
         return return_code
 
@@ -89,16 +92,59 @@ class Buildbot():
         config_data = util.fetch_data_from_url(config_url)
         if not config_data:
             return {}
-        return config_data.json()
+        try:
+            return config_data.json()
+        except Exception as e:
+            _log.error('Error in fetching {}. Error: {}'.format(config_url, e))
+            return {}
 
     @classmethod
     def update_icons_for_queues_mapping(cls):
         config = cls.fetch_config()
+        if not config:
+            _log.error('Unable to fetch buildbot config.json')
+            return
         for builder in config.get('builders', []):
             shortname = builder.get('shortname')
             Buildbot.icons_for_queues_mapping[shortname] = builder.get('icon')
+            Buildbot.queue_name_by_shortname_mapping[shortname] = builder.get('name')
 
-        return Buildbot.icons_for_queues_mapping
+    @classmethod
+    def update_builder_name_to_id_mapping(cls):
+        url = 'https://{}/api/v2/builders'.format(config.BUILDBOT_SERVER_HOST)
+        builders_data = util.fetch_data_from_url(url)
+        if not builders_data:
+            return
+        for builder in builders_data.json().get('builders', []):
+            name = builder.get('name')
+            Buildbot.builder_name_to_id_mapping[name] = builder.get('builderid')
+
+    @classmethod
+    def fetch_pending_and_inprogress_builds(cls, builder_full_name):
+        builderid = Buildbot.builder_name_to_id_mapping.get(builder_full_name)
+        if not Buildbot.builder_name_to_id_mapping:
+            _log.warn('Missing builder_name_to_id_mapping, refetching it from {}'.format(config.BUILDBOT_SERVER_HOST))
+            cls.update_builder_name_to_id_mapping()
+
+        if not builderid:
+            _log.error('Invalid builder: {}. Number of builders: {}'.format(builder_full_name, len(cls.builder_name_to_id_mapping)))
+            return {}
+        url = 'https://{}/api/v2/builders/{}/buildrequests?complete=false&property=*'.format(config.BUILDBOT_SERVER_HOST, builderid)
+        builders_data = util.fetch_data_from_url(url)
+        if not builders_data:
+            return {}
+        return builders_data.json()
+
+    @classmethod
+    def get_patches_in_queue(cls, builder_full_name):
+        patch_ids = []
+        builds = cls.fetch_pending_and_inprogress_builds(builder_full_name)
+        for buildrequest in builds.get('buildrequests', []):
+            properties = buildrequest.get('properties')
+            if properties:
+                patch_ids.append(properties.get('patch_id')[0])
+        _log.debug('Patches in queue for {}: {}'.format(builder_full_name, patch_ids))
+        return patch_ids
 
     @classmethod
     def retry_build(cls, builder_id, build_number):

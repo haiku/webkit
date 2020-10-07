@@ -58,7 +58,13 @@ ComplexLineLayout::ComplexLineLayout(RenderBlockFlow& flow)
 {
 }
 
-ComplexLineLayout::~ComplexLineLayout() = default;
+ComplexLineLayout::~ComplexLineLayout()
+{
+    if (m_flow.containsFloats())
+        m_flow.floatingObjects()->clearLineBoxTreePointers();
+
+    lineBoxes().deleteLineBoxTree();
+};
 
 static void determineDirectionality(TextDirection& dir, InlineIterator iter)
 {
@@ -304,7 +310,7 @@ RootInlineBox* ComplexLineLayout::constructLine(BidiRunList<BidiRun>& bidiRuns, 
         InlineBox* box = createInlineBoxForRenderer(&r->renderer(), isOnlyRun);
         r->setBox(box);
 
-        if (!rootHasSelectedChildren && box->renderer().selectionState() != RenderObject::SelectionNone)
+        if (!rootHasSelectedChildren && box->renderer().selectionState() != RenderObject::HighlightState::None)
             rootHasSelectedChildren = true;
         
         // If we have no parent box yet, or if the run is not simply a sibling,
@@ -539,6 +545,9 @@ static inline void setLogicalWidthForTextRun(RootInlineBox* lineBox, BidiRun* ru
     if (!measuredWidth)
         measuredWidth = renderer.width(run->m_start, run->m_stop - run->m_start, xPos, lineInfo.isFirstLine(), &fallbackFonts, &glyphOverflow);
 
+    ASSERT(measuredWidth >= 0);
+    ASSERT(hyphenWidth >= 0);
+
     run->box()->setLogicalWidth(measuredWidth + hyphenWidth);
     if (!fallbackFonts.isEmpty()) {
         ASSERT(run->box()->behavesLikeText());
@@ -725,11 +734,11 @@ static inline ExpansionBehavior expansionBehaviorForInlineTextBox(RenderBlockFlo
 {
     // Tatechuyoko is modeled as the Object Replacement Character (U+FFFC), which can never have expansion opportunities inside nor intrinsically adjacent to it.
     if (textBox.renderer().style().textCombine() == TextCombine::Horizontal)
-        return ForbidLeadingExpansion | ForbidTrailingExpansion;
+        return ForbidLeftExpansion | ForbidRightExpansion;
 
     ExpansionBehavior result = 0;
-    bool setLeadingExpansion = false;
-    bool setTrailingExpansion = false;
+    bool setLeftExpansion = false;
+    bool setRightExpansion = false;
     if (textAlign == TextAlignMode::Justify) {
         // If the next box is ruby, and we're justifying, and the first box in the ruby base has a leading expansion, and we are a text box, then force a trailing expansion.
         if (nextRun && is<RenderRubyRun>(nextRun->renderer()) && downcast<RenderRubyRun>(nextRun->renderer()).rubyBase() && nextRun->renderer().style().collapseWhiteSpace()) {
@@ -737,10 +746,10 @@ static inline ExpansionBehavior expansionBehaviorForInlineTextBox(RenderBlockFlo
             if (rubyBase.firstRootBox() && !rubyBase.firstRootBox()->nextRootBox()) {
                 if (auto* leafChild = rubyBase.firstRootBox()->firstLeafDescendant()) {
                     if (is<InlineTextBox>(*leafChild)) {
-                        // FIXME: This leadingExpansionOpportunity doesn't actually work because it doesn't perform the UBA
-                        if (FontCascade::leadingExpansionOpportunity(downcast<RenderText>(leafChild->renderer()).stringView(), leafChild->direction())) {
-                            setTrailingExpansion = true;
-                            result |= ForceTrailingExpansion;
+                        // FIXME: This leftExpansionOpportunity doesn't actually work because it doesn't perform the UBA
+                        if (FontCascade::leftExpansionOpportunity(downcast<RenderText>(leafChild->renderer()).stringView(), leafChild->direction())) {
+                            setRightExpansion = true;
+                            result |= ForceRightExpansion;
                         }
                     }
                 }
@@ -752,10 +761,10 @@ static inline ExpansionBehavior expansionBehaviorForInlineTextBox(RenderBlockFlo
             if (rubyBase.firstRootBox() && !rubyBase.firstRootBox()->nextRootBox()) {
                 if (auto* leafChild = rubyBase.firstRootBox()->lastLeafDescendant()) {
                     if (is<InlineTextBox>(*leafChild)) {
-                        // FIXME: This leadingExpansionOpportunity doesn't actually work because it doesn't perform the UBA
-                        if (FontCascade::trailingExpansionOpportunity(downcast<RenderText>(leafChild->renderer()).stringView(), leafChild->direction())) {
-                            setLeadingExpansion = true;
-                            result |= ForceLeadingExpansion;
+                        // FIXME: This leftExpansionOpportunity doesn't actually work because it doesn't perform the UBA
+                        if (FontCascade::rightExpansionOpportunity(downcast<RenderText>(leafChild->renderer()).stringView(), leafChild->direction())) {
+                            setLeftExpansion = true;
+                            result |= ForceLeftExpansion;
                         }
                     }
                 }
@@ -765,46 +774,46 @@ static inline ExpansionBehavior expansionBehaviorForInlineTextBox(RenderBlockFlo
         if (is<RenderRubyBase>(block)) {
             RenderRubyBase& rubyBase = downcast<RenderRubyBase>(block);
             if (&textBox == rubyBase.firstRootBox()->firstLeafDescendant()) {
-                setLeadingExpansion = true;
-                result |= ForbidLeadingExpansion;
+                setLeftExpansion = true;
+                result |= ForbidLeftExpansion;
             } if (&textBox == rubyBase.firstRootBox()->lastLeafDescendant()) {
-                setTrailingExpansion = true;
-                result |= ForbidTrailingExpansion;
+                setRightExpansion = true;
+                result |= ForbidRightExpansion;
             }
         }
     }
-    if (!setLeadingExpansion)
-        result |= isAfterExpansion ? ForbidLeadingExpansion : AllowLeadingExpansion;
-    if (!setTrailingExpansion)
-        result |= AllowTrailingExpansion;
+    if (!setLeftExpansion)
+        result |= isAfterExpansion ? ForbidLeftExpansion : AllowLeftExpansion;
+    if (!setRightExpansion)
+        result |= AllowRightExpansion;
     return result;
 }
 
 static inline void applyExpansionBehavior(InlineTextBox& textBox, ExpansionBehavior expansionBehavior)
 {
-    switch (expansionBehavior & LeadingExpansionMask) {
-    case ForceLeadingExpansion:
-        textBox.setForceLeadingExpansion();
+    switch (expansionBehavior & LeftExpansionMask) {
+    case ForceLeftExpansion:
+        textBox.setForceLeftExpansion();
         break;
-    case ForbidLeadingExpansion:
-        textBox.setCanHaveLeadingExpansion(false);
+    case ForbidLeftExpansion:
+        textBox.setCanHaveLeftExpansion(false);
         break;
-    case AllowLeadingExpansion:
-        textBox.setCanHaveLeadingExpansion(true);
+    case AllowLeftExpansion:
+        textBox.setCanHaveLeftExpansion(true);
         break;
     default:
         ASSERT_NOT_REACHED();
         break;
     }
-    switch (expansionBehavior & TrailingExpansionMask) {
-    case ForceTrailingExpansion:
-        textBox.setForceTrailingExpansion();
+    switch (expansionBehavior & RightExpansionMask) {
+    case ForceRightExpansion:
+        textBox.setForceRightExpansion();
         break;
-    case ForbidTrailingExpansion:
-        textBox.setCanHaveTrailingExpansion(false);
+    case ForbidRightExpansion:
+        textBox.setCanHaveRightExpansion(false);
         break;
-    case AllowTrailingExpansion:
-        textBox.setCanHaveTrailingExpansion(true);
+    case AllowRightExpansion:
+        textBox.setCanHaveRightExpansion(true);
         break;
     default:
         ASSERT_NOT_REACHED();
@@ -843,8 +852,8 @@ static bool isLastInFlowRun(BidiRun& runToCheck)
     }
     return true;
 }
-    
-BidiRun* ComplexLineLayout::computeInlineDirectionPositionsForSegment(RootInlineBox* lineBox, const LineInfo& lineInfo, TextAlignMode textAlign, float& logicalLeft,
+
+BidiRun* ComplexLineLayout::computeInlineDirectionPositionsForSegment(RootInlineBox* lineBox, const LineInfo& lineInfo, TextAlignMode textAlign, float& lineLogicalLeft,
     float& availableLogicalWidth, BidiRun* firstRun, BidiRun* trailingSpaceRun, GlyphOverflowAndFallbackFontsMap& textBoxDataMap, VerticalPositionCache& verticalPositionCache,
     WordMeasurements& wordMeasurements)
 {
@@ -852,10 +861,48 @@ BidiRun* ComplexLineLayout::computeInlineDirectionPositionsForSegment(RootInline
     bool canHangPunctuationAtStart = style().hangingPunctuation().contains(HangingPunctuation::First);
     bool canHangPunctuationAtEnd = style().hangingPunctuation().contains(HangingPunctuation::Last);
     bool isLTR = style().isLeftToRightDirection();
-    float totalLogicalWidth = lineBox->getFlowSpacingLogicalWidth();
+    float contentWidth = 0;
     unsigned expansionOpportunityCount = 0;
     bool isAfterExpansion = is<RenderRubyBase>(m_flow) ? downcast<RenderRubyBase>(m_flow).isAfterExpansion() : true;
     Vector<unsigned, 16> expansionOpportunities;
+
+    HashMap<InlineTextBox*, LayoutUnit> logicalSpacingForInlineTextBoxes;
+    auto collectSpacingLogicalWidths = [&] () {
+        auto totalSpacingWidth = LayoutUnit { };
+        // Collect the spacing positions (margin, border padding) for the textboxes by traversing the inline tree of the current line.
+        Vector<InlineBox*> queue;
+        queue.append(lineBox);
+        // 1. Visit each inline box in a preorder fashion
+        // 2. Accumulate the spacing when we find an InlineFlowBox (inline container e.g. span)
+        // 3. Add the InlineTextBoxes to the hashmap
+        while (!queue.isEmpty()) {
+            while (true) {
+                auto* inlineBox = queue.last();
+                if (is<InlineFlowBox>(inlineBox)) {
+                    auto& inlineFlowBox = downcast<InlineFlowBox>(*inlineBox);
+                    totalSpacingWidth += inlineFlowBox.marginBorderPaddingLogicalLeft();
+                    if (auto* child = inlineFlowBox.firstChild()) {
+                        queue.append(child);
+                        continue;
+                    }
+                    break;
+                }
+                if (is<InlineTextBox>(inlineBox))
+                    logicalSpacingForInlineTextBoxes.add(downcast<InlineTextBox>(inlineBox), totalSpacingWidth);
+                break;
+            }
+            while (!queue.isEmpty()) {
+                auto& inlineBox = *queue.takeLast();
+                if (is<InlineFlowBox>(inlineBox))
+                    totalSpacingWidth += downcast<InlineFlowBox>(inlineBox).marginBorderPaddingLogicalRight();
+                if (auto* nextSibling = inlineBox.nextOnLine()) {
+                    queue.append(nextSibling);
+                    break;
+                }
+            }
+        }
+    };
+    collectSpacingLogicalWidths();
 
     BidiRun* run = firstRun;
     BidiRun* previousRun = nullptr;
@@ -888,7 +935,7 @@ BidiRun* ComplexLineLayout::computeInlineDirectionPositionsForSegment(RootInline
                 float hangStartWidth = renderText.hangablePunctuationStartWidth(run->m_start);
                 availableLogicalWidth += hangStartWidth;
                 if (style().isLeftToRightDirection())
-                    logicalLeft -= hangStartWidth;
+                    lineLogicalLeft -= hangStartWidth;
                 canHangPunctuationAtStart = false;
             }
             
@@ -897,7 +944,7 @@ BidiRun* ComplexLineLayout::computeInlineDirectionPositionsForSegment(RootInline
                 float hangEndWidth = renderText.hangablePunctuationEndWidth(run->m_stop - 1);
                 availableLogicalWidth += hangEndWidth;
                 if (!style().isLeftToRightDirection())
-                    logicalLeft -= hangEndWidth;
+                    lineLogicalLeft -= hangEndWidth;
                 canHangPunctuationAtEnd = false;
             }
             
@@ -906,13 +953,13 @@ BidiRun* ComplexLineLayout::computeInlineDirectionPositionsForSegment(RootInline
 
             if (unsigned length = renderText.text().length()) {
                 if (!run->m_start && needsWordSpacing && isSpaceOrNewline(renderText.characterAt(run->m_start)))
-                    totalLogicalWidth += lineStyle(*renderText.parent(), lineInfo).fontCascade().wordSpacing();
+                    contentWidth += lineStyle(*renderText.parent(), lineInfo).fontCascade().wordSpacing();
                 // run->m_start == run->m_stop should only be true iff the run is a replaced run for bidi: isolate.
                 ASSERT(run->m_stop > 0 || run->m_start == run->m_stop);
                 needsWordSpacing = run->m_stop == length && !isSpaceOrNewline(renderText.characterAt(run->m_stop - 1));
             }
-
-            setLogicalWidthForTextRun(lineBox, run, renderText, totalLogicalWidth, lineInfo, textBoxDataMap, verticalPositionCache, wordMeasurements);
+            auto currentLogicalLeftPosition = logicalSpacingForInlineTextBoxes.get(&textBox) + contentWidth;
+            setLogicalWidthForTextRun(lineBox, run, renderText, currentLogicalLeftPosition, lineInfo, textBoxDataMap, verticalPositionCache, wordMeasurements);
         } else {
             canHangPunctuationAtStart = false;
             bool encounteredJustifiedRuby = false;
@@ -938,11 +985,11 @@ BidiRun* ComplexLineLayout::computeInlineDirectionPositionsForSegment(RootInline
                 if (is<RenderRubyRun>(renderBox))
                     setMarginsForRubyRun(run, downcast<RenderRubyRun>(renderBox), previousRun ? &previousRun->renderer() : nullptr, lineInfo);
                 run->box()->setLogicalWidth(m_flow.logicalWidthForChild(renderBox));
-                totalLogicalWidth += m_flow.marginStartForChild(renderBox) + m_flow.marginEndForChild(renderBox);
+                contentWidth += m_flow.marginStartForChild(renderBox) + m_flow.marginEndForChild(renderBox);
             }
         }
 
-        totalLogicalWidth += run->box()->logicalWidth();
+        contentWidth += run->box()->logicalWidth();
         previousRun = run;
     }
 
@@ -961,17 +1008,16 @@ BidiRun* ComplexLineLayout::computeInlineDirectionPositionsForSegment(RootInline
     if (is<RenderRubyBase>(m_flow) && !expansionOpportunityCount)
         textAlign = TextAlignMode::Center;
 
-    updateLogicalWidthForAlignment(m_flow, textAlign, lineBox, trailingSpaceRun, logicalLeft, totalLogicalWidth, availableLogicalWidth, expansionOpportunityCount);
-
+    auto totalLogicalWidth = contentWidth + lineBox->getFlowSpacingLogicalWidth();
+    updateLogicalWidthForAlignment(m_flow, textAlign, lineBox, trailingSpaceRun, lineLogicalLeft, totalLogicalWidth, availableLogicalWidth, expansionOpportunityCount);
     computeExpansionForJustifiedText(firstRun, trailingSpaceRun, expansionOpportunities, expansionOpportunityCount, totalLogicalWidth, availableLogicalWidth);
-
     return run;
 }
 
 void ComplexLineLayout::removeInlineBox(BidiRun& run, const RootInlineBox& rootLineBox) const
 {
     auto* inlineBox = run.box();
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
     auto* inlineParent = inlineBox->parent();
     while (inlineParent && inlineParent != &rootLineBox) {
         ASSERT(!inlineParent->isDirty());
@@ -1550,7 +1596,7 @@ void ComplexLineLayout::layoutRunsAndFloatsInRange(LineLayoutState& layoutState,
                 lineBox = lineBox->prevRootBox();
 
             // We now want to break at this line. Remember for next layout and trigger relayout.
-            m_flow.setBreakAtLineToAvoidWidow(m_flow.lineCount(lineBox));
+            m_flow.setBreakAtLineToAvoidWidow(lineCountUntil(lineBox));
             m_flow.markLinesDirtyInBlockRange(lastRootBox()->lineBottomWithLeading(), lineBox->lineBottomWithLeading(), lineBox);
         }
     }
@@ -1651,8 +1697,6 @@ void ComplexLineLayout::linkToEndLineIfNeeded(LineLayoutState& layoutState)
 
 void ComplexLineLayout::layoutLineBoxes(bool relayoutChildren, LayoutUnit& repaintLogicalTop, LayoutUnit& repaintLogicalBottom)
 {
-    ASSERT(!m_flow.simpleLineLayout());
-
     m_flow.setLogicalHeight(m_flow.borderAndPaddingBefore());
     
     // Lay out our hypothetical grid line as though it occurs at the top of the block.
@@ -2082,10 +2126,10 @@ bool ComplexLineLayout::matchedEndLine(LineLayoutState& layoutState, const Inlin
 
 void ComplexLineLayout::addOverflowFromInlineChildren()
 {
-    ASSERT(!m_flow.simpleLineLayout());
-
     LayoutUnit endPadding = m_flow.hasOverflowClip() ? m_flow.paddingEnd() : 0_lu;
     // FIXME: Need to find another way to do this, since scrollbars could show when we don't want them to.
+    if (!endPadding)
+        endPadding = m_flow.endPaddingWidthForCaret();
     if (m_flow.hasOverflowClip() && !endPadding && m_flow.element() && m_flow.element()->isRootEditableElement() && style().isLeftToRightDirection())
         endPadding = 1;
     for (RootInlineBox* curr = firstRootBox(); curr; curr = curr->nextRootBox()) {
@@ -2100,6 +2144,27 @@ void ComplexLineLayout::addOverflowFromInlineChildren()
                 fragment->addVisualOverflowForBox(&m_flow, childVisualOverflowRect);
         }
     }
+}
+
+size_t ComplexLineLayout::lineCount() const
+{
+    size_t count = 0;
+    for (auto* box = firstRootBox(); box; box = box->nextRootBox())
+        ++count;
+
+    return count;
+}
+
+size_t ComplexLineLayout::lineCountUntil(const RootInlineBox* stopRootInlineBox) const
+{
+    size_t count = 0;
+    for (auto* box = firstRootBox(); box; box = box->nextRootBox()) {
+        ++count;
+        if (box == stopRootInlineBox)
+            break;
+    }
+
+    return count;
 }
 
 void ComplexLineLayout::deleteEllipsisLineBoxes()
@@ -2131,7 +2196,7 @@ void ComplexLineLayout::checkLinesForTextOverflow()
     // Determine the width of the ellipsis using the current font.
     // FIXME: CSS3 says this is configurable, also need to use 0x002E (FULL STOP) if horizontal ellipsis is "not renderable"
     const FontCascade& font = style().fontCascade();
-    static NeverDestroyed<AtomString> ellipsisStr(&horizontalEllipsis, 1);
+    static MainThreadNeverDestroyed<const AtomString> ellipsisStr(&horizontalEllipsis, 1);
     const FontCascade& firstLineFont = m_flow.firstLineStyle().fontCascade();
     float firstLineEllipsisWidth = firstLineFont.width(m_flow.constructTextRun(&horizontalEllipsis, 1, m_flow.firstLineStyle()));
     float ellipsisWidth = (font == firstLineFont) ? firstLineEllipsisWidth : font.width(m_flow.constructTextRun(&horizontalEllipsis, 1, style()));

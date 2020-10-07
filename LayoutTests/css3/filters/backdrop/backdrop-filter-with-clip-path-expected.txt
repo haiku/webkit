@@ -1,4 +1,4 @@
-CONSOLE MESSAGE: line 4: Viewport argument value "200px" for key "width" was truncated to its numeric prefix.
+CONSOLE MESSAGE: Viewport argument value "200px" for key "width" was truncated to its numeric prefix.
 layer at (0,0) size 800x600
   RenderView at (0,0) size 800x600
 layer at (0,0) size 800x8
@@ -27,4 +27,4 @@ layer at (8,8) size 200x200 scrollHeight 342
       text run at (0,306) width 192: "augue, vel eleifend augue erat"
       text run at (0,324) width 62: "eget ante."
 layer at (50,50) size 100x100
-  RenderBlock (positioned) {DIV} at (50,50) size 100x100 [bgcolor=#FF00007F]
+  RenderBlock (positioned) {DIV} at (50,50) size 100x100 [bgcolor=#FF000080]

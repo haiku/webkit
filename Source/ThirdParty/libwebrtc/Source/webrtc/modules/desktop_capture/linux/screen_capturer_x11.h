@@ -11,21 +11,25 @@
 #ifndef MODULES_DESKTOP_CAPTURE_LINUX_SCREEN_CAPTURER_X11_H_
 #define MODULES_DESKTOP_CAPTURE_LINUX_SCREEN_CAPTURER_X11_H_
 
+#include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/Xdamage.h>
+#include <X11/extensions/Xfixes.h>
+#include <X11/extensions/Xrandr.h>
 
 #include <memory>
-#include <set>
-#include <utility>
 
 #include "modules/desktop_capture/desktop_capture_options.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_frame.h"
+#include "modules/desktop_capture/desktop_region.h"
+#include "modules/desktop_capture/linux/shared_x_display.h"
+#include "modules/desktop_capture/linux/x_atom_cache.h"
 #include "modules/desktop_capture/linux/x_server_pixel_buffer.h"
 #include "modules/desktop_capture/screen_capture_frame_queue.h"
 #include "modules/desktop_capture/screen_capturer_helper.h"
 #include "modules/desktop_capture/shared_desktop_frame.h"
-#include "rtc_base/constructormagic.h"
+#include "rtc_base/constructor_magic.h"
 
 namespace webrtc {
 
@@ -61,6 +65,8 @@ class ScreenCapturerX11 : public DesktopCapturer,
   bool HandleXEvent(const XEvent& event) override;
 
   void InitXDamage();
+  void InitXrandr();
+  void UpdateMonitors();
 
   // Capture screen pixels to the current buffer in the queue. In the DAMAGE
   // case, the ScreenCapturerHelper already holds the list of invalid rectangles
@@ -89,6 +95,22 @@ class ScreenCapturerX11 : public DesktopCapturer,
   GC gc_ = nullptr;
   Window root_window_ = BadValue;
 
+  // XRandR 1.5 monitors.
+  bool use_randr_ = false;
+  int randr_event_base_ = 0;
+  XRRMonitorInfo* monitors_ = nullptr;
+  int num_monitors_ = 0;
+  DesktopRect selected_monitor_rect_;
+  // selected_monitor_name_ will be changed to kFullDesktopScreenId
+  // by a call to SelectSource() at the end of Init() because
+  // selected_monitor_rect_ should be updated as well.
+  // Setting it to kFullDesktopScreenId here might be misleading.
+  Atom selected_monitor_name_ = 0;
+  typedef XRRMonitorInfo* (*get_monitors_func)(Display*, Window, Bool, int*);
+  typedef void (*free_monitors_func)(XRRMonitorInfo*);
+  get_monitors_func get_monitors_ = nullptr;
+  free_monitors_func free_monitors_ = nullptr;
+
   // XFixes.
   bool has_xfixes_ = false;
   int xfixes_event_base_ = -1;
@@ -114,6 +136,8 @@ class ScreenCapturerX11 : public DesktopCapturer,
   // Invalid region from the previous capture. This is used to synchronize the
   // current with the last buffer used.
   DesktopRegion last_invalid_region_;
+
+  std::unique_ptr<XAtomCache> atom_cache_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(ScreenCapturerX11);
 };

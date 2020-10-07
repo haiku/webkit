@@ -1,10 +1,11 @@
 after
 before
-#if ENABLE(VIDEO_TRACK)
+#if ENABLE(VIDEO)
 cue
 #endif
 first-letter
 first-line
+highlight
 marker
 part
 placeholder, PseudoElementWebKitCustom

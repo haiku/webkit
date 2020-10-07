@@ -59,6 +59,7 @@ public:
     virtual void loadResource(Frame&, CachedResource&, ResourceRequest&&, const ResourceLoaderOptions&, CompletionHandler<void(RefPtr<SubresourceLoader>&&)>&&) = 0;
     virtual void loadResourceSynchronously(FrameLoader&, unsigned long identifier, const ResourceRequest&, ClientCredentialPolicy, const FetchOptions&, const HTTPHeaderMap&, ResourceError&, ResourceResponse&, Vector<char>& data) = 0;
     virtual void pageLoadCompleted(Page&) = 0;
+    virtual void browsingContextRemoved(Frame&) = 0;
 
     virtual void remove(ResourceLoader*) = 0;
     virtual void setDefersLoading(ResourceLoader&, bool) = 0;
@@ -86,6 +87,8 @@ public:
     virtual ResourceResponse responseFromResourceLoadIdentifier(uint64_t resourceLoadIdentifier);
     virtual Vector<NetworkTransactionInformation> intermediateLoadInformationFromResourceLoadIdentifier(uint64_t resourceLoadIdentifier);
     virtual NetworkLoadMetrics networkMetricsFromResourceLoadIdentifier(uint64_t resourceLoadIdentifier);
+
+    virtual void isResourceLoadFinished(CachedResource&, CompletionHandler<void(bool)>&& callback) = 0;
 
     // Used for testing only.
     virtual Vector<uint64_t> ongoingLoads() const { return { }; }

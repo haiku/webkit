@@ -55,6 +55,8 @@ public:
     static String deviceOrientationKey();
     static String diskCacheKey();
     static String diskCacheAfterValidationKey();
+    static String memoryCacheKey();
+    static String memoryCacheAfterValidationKey();
     static String documentLoaderStoppingKey();
     WEBCORE_EXPORT static String domainCausingCrashKey();
     static String domainCausingEnergyDrainKey();
@@ -149,6 +151,7 @@ public:
     static String sameLoadKey();
     static String scriptKey();
     static String serviceWorkerKey();
+    static String siteSpecificQuirkKey();
     WEBCORE_EXPORT static String streamingMedia();
     static String styleSheetKey();
     WEBCORE_EXPORT static String succeededLessThan2SecondsKey();

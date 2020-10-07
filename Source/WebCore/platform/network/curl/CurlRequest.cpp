@@ -35,15 +35,16 @@
 #include "NetworkLoadMetrics.h"
 #include "ResourceError.h"
 #include "SharedBuffer.h"
+#include "SynchronousLoaderClient.h"
 #include <wtf/CrossThreadCopier.h>
 #include <wtf/Language.h>
 #include <wtf/MainThread.h>
 
 namespace WebCore {
 
-CurlRequest::CurlRequest(const ResourceRequest&request, CurlRequestClient* client, ShouldSuspend shouldSuspend, EnableMultipart enableMultipart, CaptureNetworkLoadMetrics captureExtraMetrics, MessageQueue<Function<void()>>* messageQueue)
+CurlRequest::CurlRequest(const ResourceRequest&request, CurlRequestClient* client, ShouldSuspend shouldSuspend, EnableMultipart enableMultipart, CaptureNetworkLoadMetrics captureExtraMetrics, RefPtr<SynchronousLoaderMessageQueue>&& messageQueue)
     : m_client(client)
-    , m_messageQueue(messageQueue)
+    , m_messageQueue(WTFMove(messageQueue))
     , m_request(request.isolatedCopy())
     , m_shouldSuspend(shouldSuspend == ShouldSuspend::Yes)
     , m_enableMultipart(enableMultipart == EnableMultipart::Yes)
@@ -52,6 +53,8 @@ CurlRequest::CurlRequest(const ResourceRequest&request, CurlRequestClient* clien
 {
     ASSERT(isMainThread());
 }
+
+CurlRequest::~CurlRequest() = default;
 
 void CurlRequest::invalidateClient()
 {
@@ -589,7 +592,7 @@ void CurlRequest::invokeDidReceiveResponseForFile(const URL& url)
     ASSERT(url.isLocalFile());
 
     // Determine the MIME type based on the path.
-    auto mimeType = MIMETypeRegistry::getMIMETypeForPath(url.path());
+    auto mimeType = MIMETypeRegistry::mimeTypeForPath(url.path().toString());
 
     // DidReceiveResponse must not be called immediately
     runOnWorkerThreadIfRequired([this, protectedThis = makeRef(*this), url = crossThreadCopy(url), mimeType = crossThreadCopy(WTFMove(mimeType))]() mutable {

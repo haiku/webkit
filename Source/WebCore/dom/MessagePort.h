@@ -29,10 +29,10 @@
 #include "ActiveDOMObject.h"
 #include "EventTarget.h"
 #include "ExceptionOr.h"
-#include "GenericEventQueue.h"
 #include "MessagePortChannel.h"
 #include "MessagePortIdentifier.h"
 #include "MessageWithMessagePorts.h"
+#include "PostMessageOptions.h"
 #include <wtf/WeakPtr.h>
 
 namespace JSC {
@@ -52,7 +52,7 @@ public:
     static Ref<MessagePort> create(ScriptExecutionContext&, const MessagePortIdentifier& local, const MessagePortIdentifier& remote);
     virtual ~MessagePort();
 
-    ExceptionOr<void> postMessage(JSC::JSGlobalObject&, JSC::JSValue message, Vector<JSC::Strong<JSC::JSObject>>&&);
+    ExceptionOr<void> postMessage(JSC::JSGlobalObject&, JSC::JSValue message, PostMessageOptions&&);
 
     void start();
     void close();
@@ -82,12 +82,6 @@ public:
     WEBCORE_EXPORT void ref() const;
     WEBCORE_EXPORT void deref() const;
 
-    // ActiveDOMObject
-    const char* activeDOMObjectName() const final;
-    void contextDestroyed() final;
-    void stop() final { close(); }
-    bool hasPendingActivity() const final;
-
     WEBCORE_EXPORT bool isLocallyReachable() const;
 
     // EventTargetWithInlineData.
@@ -96,11 +90,19 @@ public:
     void refEventTarget() final { ref(); }
     void derefEventTarget() final { deref(); }
 
+    void dispatchEvent(Event&) final;
+
 private:
     explicit MessagePort(ScriptExecutionContext&, const MessagePortIdentifier& local, const MessagePortIdentifier& remote);
 
     bool addEventListener(const AtomString& eventType, Ref<EventListener>&&, const AddEventListenerOptions&) final;
     bool removeEventListener(const AtomString& eventType, EventListener&, const ListenerOptions&) final;
+
+    // ActiveDOMObject
+    const char* activeDOMObjectName() const final;
+    void contextDestroyed() final;
+    void stop() final { close(); }
+    bool virtualHasPendingActivity() const final;
 
     void disentangle();
 
@@ -126,7 +128,6 @@ private:
     MessagePortIdentifier m_remoteIdentifier;
 
     mutable std::atomic<unsigned> m_refCount { 1 };
-    UniqueRef<GenericEventQueue> m_eventQueue;
 };
 
 } // namespace WebCore

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2019-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,6 +28,7 @@
 
 #if ENABLE(WEBASSEMBLY)
 
+#include "ButterflyInlines.h"
 #include "FrameTracers.h"
 #include "IteratorOperations.h"
 #include "JITExceptions.h"
@@ -42,22 +43,19 @@
 #include "WasmContextInlines.h"
 #include "WasmInstance.h"
 #include "WasmMemory.h"
-#include "WasmNameSection.h"
 #include "WasmOMGForOSREntryPlan.h"
 #include "WasmOMGPlan.h"
 #include "WasmOSREntryData.h"
-#include "WasmSignatureInlines.h"
 #include "WasmWorklist.h"
 #include <wtf/DataLog.h>
 #include <wtf/Locker.h>
-#include <wtf/MonotonicTime.h>
 #include <wtf/StdLibExtras.h>
 
 IGNORE_WARNINGS_BEGIN("frame-address")
 
 namespace JSC { namespace Wasm {
 
-void JIT_OPERATION operationWasmThrowBadI64(JSWebAssemblyInstance* instance)
+JSC_DEFINE_JIT_OPERATION(operationWasmThrowBadI64, void, (JSWebAssemblyInstance* instance))
 {
     VM& vm = instance->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -125,6 +123,8 @@ static void doOSREntry(Instance* instance, Probe::Context& context, BBQCallee& c
     auto returnWithoutOSREntry = [&] {
         context.gpr(GPRInfo::argumentGPR0) = 0;
     };
+
+    RELEASE_ASSERT(osrEntryCallee.osrEntryScratchBufferSize() == osrEntryData.values().size());
 
     uint64_t* buffer = instance->context()->scratchBufferForSize(osrEntryCallee.osrEntryScratchBufferSize());
     if (!buffer)
@@ -230,7 +230,16 @@ static void doOSREntry(Instance* instance, Probe::Context& context, BBQCallee& c
     context.gpr(GPRInfo::argumentGPR1) = bitwise_cast<UCPURegister>(osrEntryCallee.entrypoint().executableAddress<>());
 }
 
-void JIT_OPERATION operationWasmTriggerOSREntryNow(Probe::Context& context)
+inline bool shouldJIT(unsigned functionIndex)
+{
+    if (!Options::useOMGJIT())
+        return false;
+    if (!Options::wasmFunctionIndexRangeToCompile().isInRange(functionIndex))
+        return false;
+    return true;
+}
+
+JSC_DEFINE_JIT_OPERATION(operationWasmTriggerOSREntryNow, void, (Probe::Context& context))
 {
     OSREntryData& osrEntryData = *context.arg<OSREntryData*>();
     uint32_t functionIndex = osrEntryData.functionIndex();
@@ -250,9 +259,20 @@ void JIT_OPERATION operationWasmTriggerOSREntryNow(Probe::Context& context)
     ASSERT(codeBlock.wasmBBQCalleeFromFunctionIndexSpace(functionIndexInSpace).compilationMode() == Wasm::CompilationMode::BBQMode);
     BBQCallee& callee = static_cast<BBQCallee&>(codeBlock.wasmBBQCalleeFromFunctionIndexSpace(functionIndexInSpace));
     TierUpCount& tierUp = *callee.tierUpCount();
+
+    if (!shouldJIT(functionIndex)) {
+        tierUp.deferIndefinitely();
+        return returnWithoutOSREntry();
+    }
+
     dataLogLnIf(Options::verboseOSR(), "Consider OMGForOSREntryPlan for [", functionIndex, "] loopIndex#", loopIndex, " with executeCounter = ", tierUp, " ", RawPointer(callee.replacement()));
 
     if (!Options::useWebAssemblyOSR()) {
+        if (!wasmFunctionSizeCanBeOMGCompiled(instance->module().moduleInformation().functions[functionIndex].data.size())) {
+            tierUp.deferIndefinitely();
+            return returnWithoutOSREntry();
+        }
+
         if (shouldTriggerOMGCompile(tierUp, callee.replacement(), functionIndex))
             triggerOMGReplacementCompile(tierUp, callee.replacement(), instance, codeBlock, functionIndex);
 
@@ -319,6 +339,9 @@ void JIT_OPERATION operationWasmTriggerOSREntryNow(Probe::Context& context)
         return returnWithoutOSREntry();
 
     if (!triggeredSlowPathToStartCompilation) {
+        if (!wasmFunctionSizeCanBeOMGCompiled(instance->module().moduleInformation().functions[functionIndex].data.size()))
+            return returnWithoutOSREntry();
+
         triggerOMGReplacementCompile(tierUp, callee.replacement(), instance, codeBlock, functionIndex);
 
         if (!callee.replacement())
@@ -414,7 +437,7 @@ void JIT_OPERATION operationWasmTriggerOSREntryNow(Probe::Context& context)
     return returnWithoutOSREntry();
 }
 
-void JIT_OPERATION operationWasmTriggerTierUpNow(Instance* instance, uint32_t functionIndex)
+JSC_DEFINE_JIT_OPERATION(operationWasmTriggerTierUpNow, void, (Instance* instance, uint32_t functionIndex))
 {
     Wasm::CodeBlock& codeBlock = *instance->codeBlock();
     ASSERT(instance->memory()->mode() == codeBlock.mode());
@@ -423,6 +446,12 @@ void JIT_OPERATION operationWasmTriggerTierUpNow(Instance* instance, uint32_t fu
     ASSERT(codeBlock.wasmBBQCalleeFromFunctionIndexSpace(functionIndexInSpace).compilationMode() == Wasm::CompilationMode::BBQMode);
     BBQCallee& callee = static_cast<BBQCallee&>(codeBlock.wasmBBQCalleeFromFunctionIndexSpace(functionIndexInSpace));
     TierUpCount& tierUp = *callee.tierUpCount();
+
+    if (!shouldJIT(functionIndex)) {
+        tierUp.deferIndefinitely();
+        return;
+    }
+
     dataLogLnIf(Options::verboseOSR(), "Consider OMGPlan for [", functionIndex, "] with executeCounter = ", tierUp, " ", RawPointer(callee.replacement()));
 
     if (shouldTriggerOMGCompile(tierUp, callee.replacement(), functionIndex))
@@ -447,7 +476,7 @@ void JIT_OPERATION operationWasmTriggerTierUpNow(Instance* instance, uint32_t fu
     }
 }
 
-void JIT_OPERATION operationWasmUnwind(CallFrame* callFrame)
+JSC_DEFINE_JIT_OPERATION(operationWasmUnwind, void, (CallFrame* callFrame))
 {
     // FIXME: Consider passing JSWebAssemblyInstance* instead.
     // https://bugs.webkit.org/show_bug.cgi?id=203206
@@ -457,7 +486,7 @@ void JIT_OPERATION operationWasmUnwind(CallFrame* callFrame)
     ASSERT(!!vm.callFrameForCatch);
 }
 
-double JIT_OPERATION operationConvertToF64(CallFrame* callFrame, JSValue v)
+JSC_DEFINE_JIT_OPERATION(operationConvertToF64, double, (CallFrame* callFrame, JSValue v))
 {
     // FIXME: Consider passing JSWebAssemblyInstance* instead.
     // https://bugs.webkit.org/show_bug.cgi?id=203206
@@ -466,7 +495,7 @@ double JIT_OPERATION operationConvertToF64(CallFrame* callFrame, JSValue v)
     return v.toNumber(callFrame->lexicalGlobalObject(vm));
 }
 
-int32_t JIT_OPERATION operationConvertToI32(CallFrame* callFrame, JSValue v)
+JSC_DEFINE_JIT_OPERATION(operationConvertToI32, int32_t, (CallFrame* callFrame, JSValue v))
 {
     // FIXME: Consider passing JSWebAssemblyInstance* instead.
     // https://bugs.webkit.org/show_bug.cgi?id=203206
@@ -475,7 +504,7 @@ int32_t JIT_OPERATION operationConvertToI32(CallFrame* callFrame, JSValue v)
     return v.toInt32(callFrame->lexicalGlobalObject(vm));
 }
 
-float JIT_OPERATION operationConvertToF32(CallFrame* callFrame, JSValue v)
+JSC_DEFINE_JIT_OPERATION(operationConvertToF32, float, (CallFrame* callFrame, JSValue v))
 {
     // FIXME: Consider passing JSWebAssemblyInstance* instead.
     // https://bugs.webkit.org/show_bug.cgi?id=203206
@@ -484,7 +513,7 @@ float JIT_OPERATION operationConvertToF32(CallFrame* callFrame, JSValue v)
     return static_cast<float>(v.toNumber(callFrame->lexicalGlobalObject(vm)));
 }
 
-void JIT_OPERATION operationIterateResults(CallFrame* callFrame, Instance* instance, const Signature* signature, JSValue result, uint64_t* registerResults, uint64_t* calleeFramePointer)
+JSC_DEFINE_JIT_OPERATION(operationIterateResults, void, (CallFrame* callFrame, Instance* instance, const Signature* signature, JSValue result, uint64_t* registerResults, uint64_t* calleeFramePointer))
 {
     // FIXME: Consider passing JSWebAssemblyInstance* instead.
     // https://bugs.webkit.org/show_bug.cgi?id=203206
@@ -513,7 +542,7 @@ void JIT_OPERATION operationIterateResults(CallFrame* callFrame, Instance* insta
                 unboxedValue = bitwise_cast<uint64_t>(value.toNumber(globalObject));
                 break;
             case Funcref:
-                if (!value.isFunction(vm)) {
+                if (!value.isCallable(vm)) {
                     throwTypeError(globalObject, scope, "Funcref value is not a function"_s);
                     return;
                 }
@@ -543,7 +572,7 @@ void JIT_OPERATION operationIterateResults(CallFrame* callFrame, Instance* insta
 // FIXME: It would be much easier to inline this when we have a global GC, which could probably mean we could avoid
 // spilling the results onto the stack.
 // Saved result registers should be placed on the stack just above the last stack result.
-JSArray* JIT_OPERATION operationAllocateResultsArray(CallFrame* callFrame, Wasm::Instance* instance, const Signature* signature, IndexingType indexingType, JSValue* stackPointerFromCallee)
+JSC_DEFINE_JIT_OPERATION(operationAllocateResultsArray, JSArray*, (CallFrame* callFrame, Wasm::Instance* instance, const Signature* signature, IndexingType indexingType, JSValue* stackPointerFromCallee))
 {
     JSWebAssemblyInstance* jsInstance = instance->owner<JSWebAssemblyInstance>();
     VM& vm = jsInstance->vm();
@@ -574,7 +603,7 @@ JSArray* JIT_OPERATION operationAllocateResultsArray(CallFrame* callFrame, Wasm:
     return result;
 }
 
-void JIT_OPERATION operationWasmWriteBarrierSlowPath(JSWebAssemblyInstance* cell, VM* vmPointer)
+JSC_DEFINE_JIT_OPERATION(operationWasmWriteBarrierSlowPath, void, (JSCell* cell, VM* vmPointer))
 {
     ASSERT(cell);
     ASSERT(vmPointer);
@@ -582,17 +611,17 @@ void JIT_OPERATION operationWasmWriteBarrierSlowPath(JSWebAssemblyInstance* cell
     vm.heap.writeBarrierSlowPath(cell);
 }
 
-uint32_t JIT_OPERATION operationPopcount32(int32_t value)
+JSC_DEFINE_JIT_OPERATION(operationPopcount32, uint32_t, (int32_t value))
 {
     return __builtin_popcount(value);
 }
 
-uint64_t JIT_OPERATION operationPopcount64(int64_t value)
+JSC_DEFINE_JIT_OPERATION(operationPopcount64, uint64_t, (int64_t value))
 {
     return __builtin_popcountll(value);
 }
 
-int32_t JIT_OPERATION operationGrowMemory(void* callFrame, Instance* instance, int32_t delta)
+JSC_DEFINE_JIT_OPERATION(operationGrowMemory, int32_t, (void* callFrame, Instance* instance, int32_t delta))
 {
     instance->storeTopCallFrame(callFrame);
 
@@ -614,7 +643,7 @@ int32_t JIT_OPERATION operationGrowMemory(void* callFrame, Instance* instance, i
     return grown.value().pageCount();
 }
 
-EncodedJSValue JIT_OPERATION operationGetWasmTableElement(Instance* instance, unsigned tableIndex, int32_t signedIndex)
+JSC_DEFINE_JIT_OPERATION(operationGetWasmTableElement, EncodedJSValue, (Instance* instance, unsigned tableIndex, int32_t signedIndex))
 {
     ASSERT(tableIndex < instance->module().moduleInformation().tableCount());
     if (signedIndex < 0)
@@ -660,12 +689,12 @@ static bool setWasmTableElement(Instance* instance, unsigned tableIndex, int32_t
     return true;
 }
 
-bool JIT_OPERATION operationSetWasmTableElement(Instance* instance, unsigned tableIndex, int32_t signedIndex, EncodedJSValue encValue)
+JSC_DEFINE_JIT_OPERATION(operationSetWasmTableElement, bool, (Instance* instance, unsigned tableIndex, int32_t signedIndex, EncodedJSValue encValue))
 {
     return setWasmTableElement(instance, tableIndex, signedIndex, encValue);
 }
 
-int32_t JIT_OPERATION operationWasmTableGrow(Instance* instance, unsigned tableIndex, EncodedJSValue fill, int32_t delta)
+JSC_DEFINE_JIT_OPERATION(operationWasmTableGrow, int32_t, (Instance* instance, unsigned tableIndex, EncodedJSValue fill, int32_t delta))
 {
     ASSERT(tableIndex < instance->module().moduleInformation().tableCount());
     auto oldSize = instance->table(tableIndex)->length();
@@ -681,7 +710,7 @@ int32_t JIT_OPERATION operationWasmTableGrow(Instance* instance, unsigned tableI
     return oldSize;
 }
 
-bool JIT_OPERATION operationWasmTableFill(Instance* instance, unsigned tableIndex, int32_t unsafeOffset, EncodedJSValue fill, int32_t unsafeCount)
+JSC_DEFINE_JIT_OPERATION(operationWasmTableFill, bool, (Instance* instance, unsigned tableIndex, int32_t unsafeOffset, EncodedJSValue fill, int32_t unsafeCount))
 {
     ASSERT(tableIndex < instance->module().moduleInformation().tableCount());
     if (unsafeOffset < 0 || unsafeCount < 0)
@@ -699,19 +728,19 @@ bool JIT_OPERATION operationWasmTableFill(Instance* instance, unsigned tableInde
     return true;
 }
 
-EncodedJSValue JIT_OPERATION operationWasmRefFunc(Instance* instance, uint32_t index)
+JSC_DEFINE_JIT_OPERATION(operationWasmRefFunc, EncodedJSValue, (Instance* instance, uint32_t index))
 {
     JSValue value = instance->getFunctionWrapper(index);
-    ASSERT(value.isFunction(instance->owner<JSObject>()->vm()));
+    ASSERT(value.isCallable(instance->owner<JSObject>()->vm()));
     return JSValue::encode(value);
 }
 
-int32_t JIT_OPERATION operationGetWasmTableSize(Instance* instance, unsigned tableIndex)
+JSC_DEFINE_JIT_OPERATION(operationGetWasmTableSize, int32_t, (Instance* instance, unsigned tableIndex))
 {
     return instance->table(tableIndex)->length();
 }
 
-void* JIT_OPERATION operationWasmToJSException(CallFrame* callFrame, Wasm::ExceptionType type, Instance* wasmInstance)
+JSC_DEFINE_JIT_OPERATION(operationWasmToJSException, void*, (CallFrame* callFrame, Wasm::ExceptionType type, Instance* wasmInstance))
 {
     wasmInstance->storeTopCallFrame(callFrame);
     JSWebAssemblyInstance* instance = wasmInstance->owner<JSWebAssemblyInstance>();
@@ -735,13 +764,13 @@ void* JIT_OPERATION operationWasmToJSException(CallFrame* callFrame, Wasm::Excep
     ASSERT(!!vm.callFrameForCatch);
     ASSERT(!!vm.targetMachinePCForThrow);
     // FIXME: We could make this better:
-    // This is a total hack, but the llint (both op_catch and handleUncaughtException)
+    // This is a total hack, but the llint (both op_catch and llint_handle_uncaught_exception)
     // require a cell in the callee field to load the VM. (The baseline JIT does not require
     // this since it is compiled with a constant VM pointer.) We could make the calling convention
     // for exceptions first load callFrameForCatch info call frame register before jumping
     // to the exception handler. If we did this, we could remove this terrible hack.
     // https://bugs.webkit.org/show_bug.cgi?id=170440
-    bitwise_cast<uint64_t*>(callFrame)[CallFrameSlot::callee] = bitwise_cast<uint64_t>(instance->webAssemblyToJSCallee());
+    bitwise_cast<uint64_t*>(callFrame)[static_cast<int>(CallFrameSlot::callee)] = bitwise_cast<uint64_t>(instance->module());
     return vm.targetMachinePCForThrow;
 }
 

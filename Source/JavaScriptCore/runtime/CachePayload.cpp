@@ -26,10 +26,6 @@
 #include "config.h"
 #include "CachePayload.h"
 
-#if !OS(WINDOWS)
-#include <sys/mman.h>
-#endif
-
 namespace JSC {
 
 CachePayload CachePayload::makeMappedPayload(FileSystem::MappedFileData&& data)
@@ -37,7 +33,7 @@ CachePayload CachePayload::makeMappedPayload(FileSystem::MappedFileData&& data)
     return CachePayload(true, data.leakHandle(), data.size());
 }
 
-CachePayload CachePayload::makeMallocPayload(MallocPtr<uint8_t>&& data, size_t size)
+CachePayload CachePayload::makeMallocPayload(MallocPtr<uint8_t, VMMalloc>&& data, size_t size)
 {
     return CachePayload(false, data.leakPtr(), size);
 }

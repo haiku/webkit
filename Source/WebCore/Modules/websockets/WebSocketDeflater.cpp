@@ -31,8 +31,6 @@
 #include "config.h"
 #include "WebSocketDeflater.h"
 
-#if USE(ZLIB)
-
 #include "Logging.h"
 #include <wtf/FastMalloc.h>
 #include <wtf/HashMap.h>
@@ -101,11 +99,13 @@ bool WebSocketDeflater::finish()
         size_t availableCapacity = m_buffer.size() - writePosition;
         setStreamParameter(m_stream.get(), 0, 0, m_buffer.data() + writePosition, availableCapacity);
         int result = deflate(m_stream.get(), Z_SYNC_FLUSH);
-        m_buffer.shrink(writePosition + availableCapacity - m_stream->avail_out);
-        if (result == Z_OK)
-            break;
-        if (result != Z_BUF_ERROR)
-            return false;
+        if (m_stream->avail_out) {
+            m_buffer.shrink(writePosition + availableCapacity - m_stream->avail_out);
+            if (result == Z_OK)
+                break;
+            if (result != Z_BUF_ERROR)
+                return false;
+        }
     }
     // Remove 4 octets from the tail as the specification requires.
     if (m_buffer.size() <= 4)
@@ -204,5 +204,3 @@ void WebSocketInflater::reset()
 }
 
 } // namespace WebCore
-
-#endif // USE(ZLIB)

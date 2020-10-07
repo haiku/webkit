@@ -25,6 +25,8 @@
 
 #import "config.h"
 
+#if ENABLE(CONTENT_FILTERING)
+
 #import "ContentFiltering.h"
 #import "MockContentFilterSettings.h"
 #import "PlatformUtilities.h"
@@ -38,7 +40,16 @@
 #import <WebKit/_WKDownloadDelegate.h>
 #import <WebKit/_WKRemoteObjectInterface.h>
 #import <WebKit/_WKRemoteObjectRegistry.h>
+#import <pal/spi/cocoa/NEFilterSourceSPI.h>
+#import <pal/spi/cocoa/WebFilterEvaluatorSPI.h>
 #import <wtf/RetainPtr.h>
+#import <wtf/SoftLinking.h>
+
+SOFT_LINK_FRAMEWORK_OPTIONAL(NetworkExtension);
+SOFT_LINK_CLASS_OPTIONAL(NetworkExtension, NEFilterSource);
+
+SOFT_LINK_PRIVATE_FRAMEWORK(WebContentAnalysis);
+SOFT_LINK_CLASS(WebContentAnalysis, WebFilterEvaluator);
 
 using Decision = WebCore::MockContentFilterSettings::Decision;
 using DecisionPoint = WebCore::MockContentFilterSettings::DecisionPoint;
@@ -360,9 +371,7 @@ TEST(ContentFiltering, LoadAlternateAfterFinishedAddingDataWK2)
 #if HAVE(PARENTAL_CONTROLS)
         EXPECT_EQ(static_cast<bool>(parentalControlsShouldBeLoaded), static_cast<bool>(parentalControlsLoaded));
 #endif
-#if HAVE(NETWORK_EXTENSION)
         EXPECT_EQ(static_cast<bool>(networkExtensionShouldBeLoaded), static_cast<bool>(networkExtensionLoaded));
-#endif // HAVE(NETWORK_EXTENSION)
         isDone = true;
     }];
     TestWebKitAPI::Util::run(&isDone);
@@ -375,8 +384,26 @@ TEST(ContentFiltering, LoadAlternateAfterFinishedAddingDataWK2)
 
 @end
 
+static BOOL filterRequired(id self, SEL _cmd)
+{
+    return YES;
+}
+
+static BOOL isManagedSession(id self, SEL _cmd)
+{
+    return YES;
+}
+
 TEST(ContentFiltering, LazilyLoadPlatformFrameworks)
 {
+    // Swizzle [NEFilterSource filterRequired] to return YES in the UI process since NetworkExtension will not be loaded otherwise.
+    Method method = class_getClassMethod(getNEFilterSourceClass(), @selector(filterRequired));
+    method_setImplementation(method, reinterpret_cast<IMP>(filterRequired));
+
+    // Swizzle [WebFilterEvaluator isManagedSession] to return YES in the UI process since WebContentAnalysis will not be loaded otherwise.
+    method = class_getClassMethod(getWebFilterEvaluatorClass(), @selector(isManagedSession));
+    method_setImplementation(method, reinterpret_cast<IMP>(isManagedSession));
+
     @autoreleasepool {
         auto controller = adoptNS([[LazilyLoadPlatformFrameworksController alloc] init]);
         [controller expectParentalControlsLoaded:NO networkExtensionLoaded:NO];
@@ -425,3 +452,5 @@ TEST(ContentFiltering, LazilyLoadPlatformFrameworks)
 #endif
     }
 }
+
+#endif // ENABLE(CONTENT_FILTERING)

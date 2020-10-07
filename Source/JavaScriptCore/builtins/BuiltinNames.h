@@ -45,19 +45,15 @@ namespace JSC {
     JSC_COMMON_BYTECODE_INTRINSIC_FUNCTIONS_EACH_NAME(macro) \
     JSC_COMMON_BYTECODE_INTRINSIC_CONSTANTS_EACH_NAME(macro) \
     macro(add) \
-    macro(arrayIteratorNextIndex) \
-    macro(arrayIterationKind) \
-    macro(arrayIteratorNext) \
-    macro(arrayIteratorIsDone) \
-    macro(arrayIteratorKind) \
+    macro(applyFunction) \
     macro(arraySpeciesCreate) \
     macro(assert) \
+    macro(callFunction) \
     macro(charCodeAt) \
     macro(executor) \
     macro(isView) \
     macro(iteratedObject) \
     macro(iteratedString) \
-    macro(stringIteratorNextIndex) \
     macro(promise) \
     macro(promiseOrCapability) \
     macro(Object) \
@@ -69,10 +65,10 @@ namespace JSC {
     macro(create) \
     macro(defineProperty) \
     macro(defaultPromiseThen) \
-    macro(getPrototypeOf) \
     macro(getOwnPropertyNames) \
     macro(ownKeys) \
     macro(Set) \
+    macro(throwTypeErrorFunction) \
     macro(typedArrayLength) \
     macro(typedArraySort) \
     macro(typedArrayGetOriginalConstructor) \
@@ -87,11 +83,13 @@ namespace JSC {
     macro(push) \
     macro(repeatCharacter) \
     macro(starDefault) \
+    macro(starNamespace) \
     macro(InspectorInstrumentation) \
+    macro(keys) \
+    macro(values) \
     macro(get) \
     macro(set) \
     macro(shift) \
-    macro(allocateTypedArray) \
     macro(Int8Array) \
     macro(Int16Array) \
     macro(Int32Array) \
@@ -113,34 +111,34 @@ namespace JSC {
     macro(nextMethod) \
     macro(asyncGeneratorQueueItemNext) \
     macro(dateTimeFormat) \
-    macro(intlSubstituteValue) \
+    macro(this) \
     macro(thisTimeValue) \
     macro(newTargetLocal) \
     macro(derivedConstructor) \
     macro(isTypedArrayView) \
+    macro(isNeutered) \
     macro(isBoundFunction) \
     macro(hasInstanceBoundFunction) \
     macro(instanceOf) \
     macro(isArraySlow) \
-    macro(isConstructor) \
+    macro(sameValue) \
     macro(concatMemcpy) \
     macro(appendMemcpy) \
     macro(regExpCreate) \
     macro(isRegExp) \
     macro(replaceUsingRegExp) \
     macro(replaceUsingStringSearch) \
+    macro(replaceAllUsingStringSearch) \
     macro(makeTypeError) \
-    macro(mapBucket) \
+    macro(AggregateError) \
     macro(mapBucketHead) \
     macro(mapBucketNext) \
     macro(mapBucketKey) \
     macro(mapBucketValue) \
-    macro(mapIteratorKind) \
-    macro(setBucket) \
     macro(setBucketHead) \
     macro(setBucketNext) \
     macro(setBucketKey) \
-    macro(setIteratorKind) \
+    macro(setPrototypeDirect) \
     macro(regExpBuiltinExec) \
     macro(regExpMatchFast) \
     macro(regExpProtoFlagsGetter) \
@@ -150,6 +148,7 @@ namespace JSC {
     macro(regExpProtoSourceGetter) \
     macro(regExpProtoStickyGetter) \
     macro(regExpProtoUnicodeGetter) \
+    macro(regExpPrototypeSymbolMatch) \
     macro(regExpPrototypeSymbolReplace) \
     macro(regExpSearchFast) \
     macro(regExpSplitFast) \
@@ -160,8 +159,9 @@ namespace JSC {
     macro(regExpStringIteratorUnicode) \
     macro(regExpStringIteratorDone) \
     macro(stringIncludesInternal) \
+    macro(stringIndexOfInternal) \
     macro(stringSplitFast) \
-    macro(stringSubstrInternal) \
+    macro(stringSubstringInternal) \
     macro(makeBoundFunction) \
     macro(hasOwnLengthProperty) \
     macro(importModule) \
@@ -169,6 +169,9 @@ namespace JSC {
     macro(meta) \
     macro(webAssemblyCompileStreamingInternal) \
     macro(webAssemblyInstantiateStreamingInternal) \
+    macro(instanceFieldInitializer) \
+    macro(hasOwnPropertyFunction) \
+    macro(createPrivateSymbol)
 
 namespace Symbols {
 #define DECLARE_BUILTIN_STATIC_SYMBOLS(name) extern JS_EXPORT_PRIVATE SymbolImpl::StaticSymbolImpl name##Symbol;
@@ -190,8 +193,15 @@ class BuiltinNames {
 public:
     BuiltinNames(VM&, CommonIdentifiers*);
 
-    SymbolImpl* lookUpPrivateName(const Identifier&) const;
-    Identifier getPublicName(VM&, SymbolImpl*) const;
+    PrivateSymbolImpl* lookUpPrivateName(const Identifier&) const;
+    PrivateSymbolImpl* lookUpPrivateName(const String&) const;
+    PrivateSymbolImpl* lookUpPrivateName(const LChar*, unsigned length) const;
+    PrivateSymbolImpl* lookUpPrivateName(const UChar*, unsigned length) const;
+
+    SymbolImpl* lookUpWellKnownSymbol(const Identifier&) const;
+    SymbolImpl* lookUpWellKnownSymbol(const String&) const;
+    SymbolImpl* lookUpWellKnownSymbol(const LChar*, unsigned length) const;
+    SymbolImpl* lookUpWellKnownSymbol(const UChar*, unsigned length) const;
     
     void appendExternalName(const Identifier& publicName, const Identifier& privateName);
 
@@ -201,65 +211,52 @@ public:
     const JSC::Identifier& dollarVMPublicName() const { return m_dollarVMName; }
     const JSC::Identifier& dollarVMPrivateName() const { return m_dollarVMPrivateName; }
     const JSC::Identifier& polyProtoName() const { return m_polyProtoPrivateName; }
+    const JSC::Identifier& intlLegacyConstructedSymbol() const { return m_intlLegacyConstructedSymbol; }
 
 private:
-    void checkPublicToPrivateMapConsistency(UniquedStringImpl* publicName, UniquedStringImpl* privateName);
+    void checkPublicToPrivateMapConsistency(UniquedStringImpl* privateName);
 
     Identifier m_emptyIdentifier;
     JSC_FOREACH_BUILTIN_FUNCTION_NAME(DECLARE_BUILTIN_NAMES_IN_JSC)
     JSC_COMMON_PRIVATE_IDENTIFIERS_EACH_PROPERTY_NAME(DECLARE_BUILTIN_NAMES_IN_JSC)
     JSC_COMMON_PRIVATE_IDENTIFIERS_EACH_WELL_KNOWN_SYMBOL(DECLARE_BUILTIN_SYMBOLS_IN_JSC)
+    const JSC::Identifier m_intlLegacyConstructedSymbol;
     const JSC::Identifier m_dollarVMName;
     const JSC::Identifier m_dollarVMPrivateName;
     const JSC::Identifier m_polyProtoPrivateName;
-    typedef HashMap<RefPtr<UniquedStringImpl>, SymbolImpl*, IdentifierRepHash> BuiltinNamesMap;
-    BuiltinNamesMap m_publicToPrivateMap;
+    using PrivateNameSet = HashSet<String>;
+    using WellKnownSymbolMap = HashMap<String, SymbolImpl*>;
+    PrivateNameSet m_privateNameSet;
+    WellKnownSymbolMap m_wellKnownSymbolsMap;
 };
 
-inline SymbolImpl* BuiltinNames::lookUpPrivateName(const Identifier& ident) const
+inline PrivateSymbolImpl* BuiltinNames::lookUpPrivateName(const Identifier& ident) const
 {
-    auto iter = m_publicToPrivateMap.find(ident.impl());
-    if (iter != m_publicToPrivateMap.end())
-        return iter->value;
-    return nullptr;
+    return lookUpPrivateName(ident.impl());
 }
 
-inline Identifier BuiltinNames::getPublicName(VM& vm, SymbolImpl* symbol) const
+inline SymbolImpl* BuiltinNames::lookUpWellKnownSymbol(const Identifier& ident) const
 {
-    if (symbol->isPrivate())
-        return Identifier::fromString(vm, symbol);
-    // We have special handling for well-known symbols.
-    ASSERT(symbol->startsWith("Symbol."));
-    return Identifier::fromString(vm, makeString(String(symbol->substring(strlen("Symbol."))), "Symbol"));
+    return lookUpWellKnownSymbol(ident.impl());
 }
 
-inline void BuiltinNames::checkPublicToPrivateMapConsistency(UniquedStringImpl* publicName, UniquedStringImpl* privateName)
+inline void BuiltinNames::checkPublicToPrivateMapConsistency(UniquedStringImpl* privateName)
 {
-#ifndef NDEBUG
-    for (const auto& key : m_publicToPrivateMap.keys())
-        ASSERT(String(publicName) != *key);
-
+#if ASSERT_ENABLED
+    for (const auto& key : m_privateNameSet)
+        ASSERT(String(privateName) != key);
     ASSERT(privateName->isSymbol());
-    SymbolImpl* symbol = static_cast<SymbolImpl*>(privateName);
-    if (symbol->isPrivate()) {
-        // This guarantees that we can get public symbols from private symbols by using content of private symbols.
-        ASSERT(String(symbol) == *publicName);
-    } else {
-        // We have a hack in m_publicToPrivateMap: adding non-private Symbol with readable name to use it
-        // in builtin code. The example is @iteratorSymbol => Symbol.iterator mapping. To allow the reverse
-        // transformation, we ensure that non-private symbol mapping has xxxSymbol => Symbol.xxx.
-        ASSERT(makeString(String(symbol), "Symbol") == makeString("Symbol.", String(publicName)));
-    }
+    ASSERT(static_cast<SymbolImpl*>(privateName)->isPrivate());
 #else
-    UNUSED_PARAM(publicName);
     UNUSED_PARAM(privateName);
 #endif
 }
 
 inline void BuiltinNames::appendExternalName(const Identifier& publicName, const Identifier& privateName)
 {
-    checkPublicToPrivateMapConsistency(publicName.impl(), privateName.impl());
-    m_publicToPrivateMap.add(publicName.impl(), static_cast<SymbolImpl*>(privateName.impl()));
+    ASSERT_UNUSED(publicName, String(publicName.impl()) == String(privateName.impl()));
+    checkPublicToPrivateMapConsistency(privateName.impl());
+    m_privateNameSet.add(privateName.impl());
 }
 
 } // namespace JSC

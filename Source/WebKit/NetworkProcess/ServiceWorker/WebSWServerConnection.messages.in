@@ -22,9 +22,11 @@
 
 #if ENABLE(SERVICE_WORKER)
 
-messages -> WebSWServerConnection {
+messages -> WebSWServerConnection NotRefCounted {
     # When possible, these messages can be implemented directly by WebCore::SWClientConnection
     ScheduleJobInServer(struct WebCore::ServiceWorkerJobData jobData)
+    ScheduleUnregisterJobInServer(WebCore::ServiceWorkerJobIdentifier jobIdentifier, WebCore::ServiceWorkerRegistrationIdentifier identifier, WebCore::DocumentOrWorkerIdentifier documentIdentifier) -> (Expected<bool, WebCore::ExceptionData> result) Async
+
     FinishFetchingScriptInServer(struct WebCore::ServiceWorkerFetchResult result)
     AddServiceWorkerRegistrationInServer(WebCore::ServiceWorkerRegistrationIdentifier identifier)
     RemoveServiceWorkerRegistrationInServer(WebCore::ServiceWorkerRegistrationIdentifier identifier)
@@ -39,7 +41,8 @@ messages -> WebSWServerConnection {
     RegisterServiceWorkerClient(struct WebCore::SecurityOriginData topOrigin, struct WebCore::ServiceWorkerClientData data, Optional<WebCore::ServiceWorkerRegistrationIdentifier> controllingServiceWorkerRegistrationIdentifier, String userAgent)
     UnregisterServiceWorkerClient(struct WebCore::ServiceWorkerClientIdentifier identifier)
 
-    SyncTerminateWorkerFromClient(WebCore::ServiceWorkerIdentifier workerIdentifier) -> () Synchronous
+    TerminateWorkerFromClient(WebCore::ServiceWorkerIdentifier workerIdentifier) -> () Async
+    WhenServiceWorkerIsTerminatedForTesting(WebCore::ServiceWorkerIdentifier workerIdentifier) -> () Async
 
     SetThrottleState(bool isThrottleable)
     StoreRegistrationsOnDisk() -> () Async

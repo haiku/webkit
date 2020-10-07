@@ -220,13 +220,7 @@ static bool isValidStandardizedPaymentMethodIdentifier(StringView identifier)
 // https://www.w3.org/TR/payment-method-id/#validation
 static bool isValidURLBasedPaymentMethodIdentifier(const URL& url)
 {
-    if (!url.protocolIs("https"))
-        return false;
-
-    if (!url.user().isEmpty() || !url.pass().isEmpty())
-        return false;
-
-    return true;
+    return url.protocolIs("https") && !url.hasCredentials();
 }
 
 // Implements "validate a payment method identifier"
@@ -311,6 +305,15 @@ static ExceptionOr<std::tuple<String, Vector<String>>> checkAndCanonicalizeDetai
     return std::make_tuple(WTFMove(selectedShippingOption), WTFMove(serializedModifierData));
 }
 
+static ExceptionOr<JSC::JSValue> parse(ScriptExecutionContext& context, const String& string)
+{
+    auto scope = DECLARE_THROW_SCOPE(context.vm());
+    JSC::JSValue data = JSONParse(context.execState(), string);
+    if (scope.exception())
+        return Exception { ExistingExceptionError };
+    return data;
+}
+
 // Implements the PaymentRequest Constructor
 // https://www.w3.org/TR/payment-request/#constructor
 ExceptionOr<Ref<PaymentRequest>> PaymentRequest::create(Document& document, Vector<PaymentMethodData>&& methodData, PaymentDetailsInit&& details, PaymentOptions&& options)
@@ -338,6 +341,14 @@ ExceptionOr<Ref<PaymentRequest>> PaymentRequest::create(Document& document, Vect
             serializedData = JSONStringify(document.execState(), paymentMethod.data.get(), 0);
             if (scope.exception())
                 return Exception { ExistingExceptionError };
+            
+            auto parsedDataOrException = parse(document, serializedData);
+            if (parsedDataOrException.hasException())
+                return parsedDataOrException.releaseException();
+            
+            auto exception = PaymentHandler::validateData(document, parsedDataOrException.releaseReturnValue(), *identifier);
+            if (exception.hasException())
+                return exception.releaseException();
         }
         serializedMethodData.uncheckedAppend({ WTFMove(*identifier), WTFMove(serializedData) });
     }
@@ -374,15 +385,6 @@ PaymentRequest::~PaymentRequest()
 {
     ASSERT(!hasPendingActivity());
     ASSERT(!m_activePaymentHandler);
-}
-
-static ExceptionOr<JSC::JSValue> parse(ScriptExecutionContext& context, const String& string)
-{
-    auto scope = DECLARE_THROW_SCOPE(context.vm());
-    JSC::JSValue data = JSONParse(context.execState(), string);
-    if (scope.exception())
-        return Exception { ExistingExceptionError };
-    return WTFMove(data);
 }
 
 // https://www.w3.org/TR/payment-request/#show()-method
@@ -488,6 +490,20 @@ void PaymentRequest::stop()
     settleShowPromise(Exception { AbortError });
 }
 
+void PaymentRequest::suspend(ReasonForSuspension reason)
+{
+    if (reason != ReasonForSuspension::BackForwardCache)
+        return;
+
+    if (!m_activePaymentHandler) {
+        ASSERT(!m_showPromise);
+        ASSERT(m_state != State::Interactive);
+        return;
+    }
+
+    stop();
+}
+
 // https://www.w3.org/TR/payment-request/#abort()-method
 void PaymentRequest::abort(AbortPromise&& promise)
 {
@@ -537,12 +553,6 @@ Optional<PaymentShippingType> PaymentRequest::shippingType() const
     if (m_options.requestShipping)
         return m_options.shippingType;
     return WTF::nullopt;
-}
-
-// FIXME: This should never prevent entering the back/forward cache.
-bool PaymentRequest::shouldPreventEnteringBackForwardCache_DEPRECATED() const
-{
-    return hasPendingActivity();
 }
 
 void PaymentRequest::shippingAddressChanged(Ref<PaymentAddress>&& shippingAddress)

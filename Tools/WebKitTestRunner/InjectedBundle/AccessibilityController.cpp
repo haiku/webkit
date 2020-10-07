@@ -32,7 +32,10 @@
 #include "InjectedBundle.h"
 #include "InjectedBundlePage.h"
 #include "JSAccessibilityController.h"
-
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+#include <pal/spi/cocoa/AccessibilitySupportSPI.h>
+#include <pal/spi/mac/HIServicesSPI.h>
+#endif
 #include <WebKit/WKBundle.h>
 #include <WebKit/WKBundlePage.h>
 #include <WebKit/WKBundlePagePrivate.h>
@@ -52,9 +55,29 @@ AccessibilityController::~AccessibilityController()
 {
 }
 
-void AccessibilityController::makeWindowObject(JSContextRef context, JSObjectRef windowObject, JSValueRef* exception)
+void AccessibilityController::setIsolatedTreeMode(bool flag)
 {
-    setProperty(context, windowObject, "accessibilityController", this, kJSPropertyAttributeReadOnly | kJSPropertyAttributeDontDelete, exception);
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+    if (m_accessibilityIsolatedTreeMode != flag) {
+        m_accessibilityIsolatedTreeMode = flag;
+        updateIsolatedTreeMode();
+    }
+#endif
+}
+
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+void AccessibilityController::updateIsolatedTreeMode()
+{
+    // Override to set identifier to VoiceOver so that requests are handled in isolated mode.
+    _AXSetClientIdentificationOverride(m_accessibilityIsolatedTreeMode ? (AXClientType)kAXClientTypeWebKitTesting : kAXClientTypeNoActiveRequestFound);
+    _AXSSetIsolatedTreeMode(m_accessibilityIsolatedTreeMode ? AXSIsolatedTreeModeMainThread : AXSIsolatedTreeModeOff);
+    m_useMockAXThread = WKAccessibilityCanUseSecondaryAXThread(InjectedBundle::singleton().page()->page());
+}
+#endif
+
+void AccessibilityController::makeWindowObject(JSContextRef context)
+{
+    setGlobalObjectProperty(context, "accessibilityController", this);
 }
 
 JSClassRef AccessibilityController::wrapperClass()
@@ -73,28 +96,162 @@ bool AccessibilityController::enhancedAccessibilityEnabled()
 }
 
 #if PLATFORM(COCOA)
+
 Ref<AccessibilityUIElement> AccessibilityController::rootElement()
 {
-    WKBundlePageRef page = InjectedBundle::singleton().page()->page();
-    void* root = WKAccessibilityRootObject(page);
-    
-    return AccessibilityUIElement::create(static_cast<PlatformUIElement>(root));    
+    auto page = InjectedBundle::singleton().page()->page();
+    PlatformUIElement root = static_cast<PlatformUIElement>(WKAccessibilityRootObject(page));
+    return AccessibilityUIElement::create(root);
 }
 
 Ref<AccessibilityUIElement> AccessibilityController::focusedElement()
 {
-    WKBundlePageRef page = InjectedBundle::singleton().page()->page();
-    void* root = WKAccessibilityFocusedObject(page);
-    
-    return AccessibilityUIElement::create(static_cast<PlatformUIElement>(root));    
+    auto page = InjectedBundle::singleton().page()->page();
+    PlatformUIElement focusedElement = static_cast<PlatformUIElement>(WKAccessibilityFocusedObject(page));
+    return AccessibilityUIElement::create(focusedElement);
 }
+
+void AccessibilityController::executeOnAXThreadAndWait(Function<void()>&& function)
+{
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+    if (m_useMockAXThread) {
+        AXThread::dispatch([&function, this] {
+            function();
+            m_semaphore.signal();
+        });
+
+        m_semaphore.wait();
+    } else
 #endif
+        function();
+}
+
+void AccessibilityController::executeOnAXThread(Function<void()>&& function)
+{
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+    if (m_useMockAXThread) {
+        AXThread::dispatch([function = WTFMove(function)] {
+            function();
+        });
+    } else
+#endif
+        function();
+}
+
+void AccessibilityController::executeOnMainThread(Function<void()>&& function)
+{
+    if (isMainThread()) {
+        function();
+        return;
+    }
+
+    AXThread::dispatchBarrier([function = WTFMove(function)] {
+        function();
+    });
+}
+#endif // PLATFORM(COCOA)
 
 RefPtr<AccessibilityUIElement> AccessibilityController::elementAtPoint(int x, int y)
 {
     auto uiElement = rootElement();
     return uiElement->elementAtPoint(x, y);
 }
+
+#if PLATFORM(COCOA)
+
+// AXThread implementation
+
+AXThread::AXThread()
+{
+}
+
+bool AXThread::isCurrentThread()
+{
+    return AXThread::singleton().m_thread == &Thread::current();
+}
+
+void AXThread::dispatch(Function<void()>&& function)
+{
+    auto& axThread = AXThread::singleton();
+    axThread.createThreadIfNeeded();
+
+    {
+        auto locker = holdLock(axThread.m_functionsMutex);
+        axThread.m_functions.append(WTFMove(function));
+    }
+
+    axThread.wakeUpRunLoop();
+}
+
+void AXThread::dispatchBarrier(Function<void()>&& function)
+{
+    dispatch([function = WTFMove(function)] () mutable {
+        callOnMainThread(WTFMove(function));
+    });
+}
+
+AXThread& AXThread::singleton()
+{
+    static NeverDestroyed<AXThread> axThread;
+    return axThread;
+}
+
+void AXThread::createThreadIfNeeded()
+{
+    // Wait for the thread to initialize the run loop.
+    std::unique_lock<Lock> lock(m_initializeRunLoopMutex);
+
+    if (!m_thread) {
+        m_thread = Thread::create("WKTR: AccessibilityController", [this] {
+            WTF::Thread::setCurrentThreadIsUserInteractive();
+            initializeRunLoop();
+        });
+    }
+
+    m_initializeRunLoopConditionVariable.wait(lock, [this] {
+#if PLATFORM(COCOA)
+        return m_threadRunLoop;
+#else
+        return m_runLoop;
+#endif
+    });
+}
+
+void AXThread::dispatchFunctionsFromAXThread()
+{
+    ASSERT(isCurrentThread());
+
+    Vector<Function<void()>> functions;
+
+    {
+        auto locker = holdLock(m_functionsMutex);
+        functions = WTFMove(m_functions);
+    }
+
+    for (auto& function : functions)
+        function();
+}
+
+#if !PLATFORM(MAC)
+NO_RETURN_DUE_TO_ASSERT void AXThread::initializeRunLoop()
+{
+    ASSERT_NOT_REACHED();
+}
+
+void AXThread::wakeUpRunLoop()
+{
+}
+
+void AXThread::threadRunLoopSourceCallback(void*)
+{
+}
+
+void AXThread::threadRunLoopSourceCallback()
+{
+}
+#endif // !PLATFORM(MAC)
+
+#endif // PLATFORM(COCOA)
 
 } // namespace WTR
 #endif // ENABLE(ACCESSIBILITY)

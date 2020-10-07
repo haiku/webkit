@@ -33,9 +33,9 @@
 
 namespace WebCore {
 
+DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(Region);
 class Region {
-    WTF_MAKE_FAST_ALLOCATED;
-
+    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Region);
 public:
     WEBCORE_EXPORT Region();
     WEBCORE_EXPORT Region(const IntRect&);
@@ -79,7 +79,7 @@ public:
     template<class Encoder> void encode(Encoder&) const;
     template<class Decoder> static Optional<Region> decode(Decoder&);
     // FIXME: Remove legacy decode.
-    template<class Decoder> static bool decode(Decoder&, Region&);
+    template<class Decoder> static WARN_UNUSED_RETURN bool decode(Decoder&, Region&);
 
 private:
     struct Span {

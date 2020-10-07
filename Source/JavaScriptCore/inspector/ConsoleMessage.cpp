@@ -187,10 +187,12 @@ static Protocol::Console::ChannelSource messageSourceValue(MessageSource source)
     case MessageSource::CSS: return Protocol::Console::ChannelSource::CSS;
     case MessageSource::Security: return Protocol::Console::ChannelSource::Security;
     case MessageSource::ContentBlocker: return Protocol::Console::ChannelSource::ContentBlocker;
-    case MessageSource::Other: return Protocol::Console::ChannelSource::Other;
     case MessageSource::Media: return Protocol::Console::ChannelSource::Media;
-    case MessageSource::WebRTC: return Protocol::Console::ChannelSource::WebRTC;
     case MessageSource::MediaSource: return Protocol::Console::ChannelSource::MediaSource;
+    case MessageSource::WebRTC: return Protocol::Console::ChannelSource::WebRTC;
+    case MessageSource::ITPDebug: return Protocol::Console::ChannelSource::ITPDebug;
+    case MessageSource::AdClickAttribution: return Protocol::Console::ChannelSource::AdClickAttribution;
+    case MessageSource::Other: return Protocol::Console::ChannelSource::Other;
     }
     return Protocol::Console::ChannelSource::Other;
 }
@@ -259,9 +261,11 @@ void ConsoleMessage::addToFrontend(ConsoleFrontendDispatcher& consoleFrontendDis
                         ASSERT_NOT_REACHED();
                         return;
                     }
-                    argumentsObject->addItem(WTFMove(inspectorValue));
-                    if (m_arguments->argumentCount() > 1)
-                        argumentsObject->addItem(injectedScript.wrapObject(columns, "console"_s, true));
+                    argumentsObject->addItem(inspectorValue.releaseNonNull());
+                    if (m_arguments->argumentCount() > 1) {
+                        if (auto inspectorObject = injectedScript.wrapObject(columns, "console"_s, true))
+                            argumentsObject->addItem(inspectorObject.releaseNonNull());
+                    }
                 } else {
                     for (unsigned i = 0; i < m_arguments->argumentCount(); ++i) {
                         auto inspectorValue = injectedScript.wrapObject(m_arguments->argumentAt(i), "console"_s, generatePreview);
@@ -269,7 +273,7 @@ void ConsoleMessage::addToFrontend(ConsoleFrontendDispatcher& consoleFrontendDis
                             ASSERT_NOT_REACHED();
                             return;
                         }
-                        argumentsObject->addItem(WTFMove(inspectorValue));
+                        argumentsObject->addItem(inspectorValue.releaseNonNull());
                     }
                 }
             }
@@ -282,7 +286,7 @@ void ConsoleMessage::addToFrontend(ConsoleFrontendDispatcher& consoleFrontendDis
                     if (!inspectorValue)
                         continue;
 
-                    argumentsObject->addItem(WTFMove(inspectorValue));
+                    argumentsObject->addItem(inspectorValue.releaseNonNull());
                 }
             }
 

@@ -27,6 +27,31 @@ WI.AnimationObserver = class AnimationObserver extends InspectorBackend.Dispatch
 {
     // Events defined by the "Animation" domain.
 
+    animationCreated(animation)
+    {
+        WI.animationManager.animationCreated(animation);
+    }
+
+    nameChanged(animationId, name)
+    {
+        WI.animationManager.nameChanged(animationId, name);
+    }
+
+    effectChanged(animationId, effect)
+    {
+        WI.animationManager.effectChanged(animationId, effect);
+    }
+
+    targetChanged(animationId)
+    {
+        WI.animationManager.targetChanged(animationId);
+    }
+
+    animationDestroyed(animationId)
+    {
+        WI.animationManager.animationDestroyed(animationId);
+    }
+
     trackingStart(timestamp)
     {
         WI.timelineManager.animationTrackingStarted(timestamp);

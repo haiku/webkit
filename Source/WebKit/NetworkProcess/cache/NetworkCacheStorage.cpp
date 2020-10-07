@@ -34,6 +34,7 @@
 #include <mutex>
 #include <wtf/Condition.h>
 #include <wtf/Lock.h>
+#include <wtf/PageBlock.h>
 #include <wtf/RandomNumber.h>
 #include <wtf/RunLoop.h>
 #include <wtf/text/CString.h>
@@ -47,7 +48,11 @@ static const char versionDirectoryPrefix[] = "Version ";
 static const char recordsDirectoryName[] = "Records";
 static const char blobsDirectoryName[] = "Blobs";
 static const char blobSuffix[] = "-blob";
-constexpr size_t maximumInlineBodySize { 16 * 1024 };
+
+static inline size_t maximumInlineBodySize()
+{
+    return WTF::pageSize();
+}
 
 static double computeRecordWorth(FileTimes);
 
@@ -143,6 +148,16 @@ public:
     unsigned activeCount { 0 };
 };
 
+static String makeCachePath(const String& baseCachePath)
+{
+#if PLATFORM(MAC)
+    // Put development cache to a different directory to avoid affecting the system cache.
+    if (!AuxiliaryProcess::isSystemWebKit())
+        return FileSystem::pathByAppendingComponent(baseCachePath, "Development"_s);
+#endif
+    return baseCachePath;
+}
+
 static String makeVersionedDirectoryPath(const String& baseDirectoryPath)
 {
     String versionSubdirectory = makeString(versionDirectoryPrefix, Storage::version);
@@ -164,16 +179,21 @@ static String makeSaltFilePath(const String& baseDirectoryPath)
     return FileSystem::pathByAppendingComponent(makeVersionedDirectoryPath(baseDirectoryPath), saltFileName);
 }
 
-RefPtr<Storage> Storage::open(const String& cachePath, Mode mode)
+RefPtr<Storage> Storage::open(const String& baseCachePath, Mode mode, size_t capacity)
 {
     ASSERT(RunLoop::isMain());
+    ASSERT(!baseCachePath.isNull());
+
+    auto cachePath = makeCachePath(baseCachePath);
 
     if (!FileSystem::makeAllDirectories(makeVersionedDirectoryPath(cachePath)))
         return nullptr;
+
     auto salt = readOrMakeSalt(makeSaltFilePath(cachePath));
     if (!salt)
         return nullptr;
-    return adoptRef(new Storage(cachePath, mode, *salt));
+
+    return adoptRef(new Storage(cachePath, mode, *salt, capacity));
 }
 
 using RecordFileTraverseFunction = Function<void (const String& fileName, const String& hashString, const String& type, bool isBlob, const String& recordDirectoryPath)>;
@@ -223,11 +243,12 @@ static void deleteEmptyRecordsDirectories(const String& recordsPath)
     });
 }
 
-Storage::Storage(const String& baseDirectoryPath, Mode mode, Salt salt)
+Storage::Storage(const String& baseDirectoryPath, Mode mode, Salt salt, size_t capacity)
     : m_basePath(baseDirectoryPath)
     , m_recordsPath(makeRecordsDirectoryPath(baseDirectoryPath))
     , m_mode(mode)
     , m_salt(salt)
+    , m_capacity(capacity)
     , m_readOperationTimeoutTimer(*this, &Storage::cancelAllReadOperations)
     , m_writeOperationDispatchTimer(*this, &Storage::dispatchPendingWriteOperations)
     , m_ioQueue(WorkQueue::create("com.apple.WebKit.Cache.Storage", WorkQueue::Type::Concurrent))
@@ -275,7 +296,7 @@ static size_t estimateRecordsSize(unsigned recordCount, unsigned blobCount)
 {
     auto inlineBodyCount = recordCount - std::min(blobCount, recordCount);
     auto headerSizes = recordCount * 4096;
-    auto inlineBodySizes = (maximumInlineBodySize / 2) * inlineBodyCount;
+    auto inlineBodySizes = (maximumInlineBodySize() / 2) * inlineBodyCount;
     return headerSizes + inlineBodySizes;
 }
 
@@ -412,29 +433,63 @@ struct RecordMetaData {
     uint64_t headerOffset { 0 };
 };
 
-static bool decodeRecordMetaData(RecordMetaData& metaData, const Data& fileData)
+static WARN_UNUSED_RETURN bool decodeRecordMetaData(RecordMetaData& metaData, const Data& fileData)
 {
     bool success = false;
     fileData.apply([&metaData, &success](const uint8_t* data, size_t size) {
         WTF::Persistence::Decoder decoder(data, size);
-        if (!decoder.decode(metaData.cacheStorageVersion))
+        
+        Optional<unsigned> cacheStorageVersion;
+        decoder >> cacheStorageVersion;
+        if (!cacheStorageVersion)
             return false;
-        if (!decoder.decode(metaData.key))
+        metaData.cacheStorageVersion = WTFMove(*cacheStorageVersion);
+
+        Optional<Key> key;
+        decoder >> key;
+        if (!key)
             return false;
-        if (!decoder.decode(metaData.timeStamp))
+        metaData.key = WTFMove(*key);
+
+        Optional<WallTime> timeStamp;
+        decoder >> timeStamp;
+        if (!timeStamp)
             return false;
-        if (!decoder.decode(metaData.headerHash))
+        metaData.timeStamp = WTFMove(*timeStamp);
+
+        Optional<SHA1::Digest> headerHash;
+        decoder >> headerHash;
+        if (!headerHash)
             return false;
-        if (!decoder.decode(metaData.headerSize))
+        metaData.headerHash = WTFMove(*headerHash);
+
+        Optional<uint64_t> headerSize;
+        decoder >> headerSize;
+        if (!headerSize)
             return false;
-        if (!decoder.decode(metaData.bodyHash))
+        metaData.headerSize = WTFMove(*headerSize);
+
+        Optional<SHA1::Digest> bodyHash;
+        decoder >> bodyHash;
+        if (!bodyHash)
             return false;
-        if (!decoder.decode(metaData.bodySize))
+        metaData.bodyHash = WTFMove(*bodyHash);
+
+        Optional<uint64_t> bodySize;
+        decoder >> bodySize;
+        if (!bodySize)
             return false;
-        if (!decoder.decode(metaData.isBodyInline))
+        metaData.bodySize = WTFMove(*bodySize);
+
+        Optional<bool> isBodyInline;
+        decoder >> isBodyInline;
+        if (!isBodyInline)
             return false;
+        metaData.isBodyInline = WTFMove(*isBodyInline);
+
         if (!decoder.verifyChecksum())
             return false;
+
         metaData.headerOffset = decoder.currentOffset();
         success = true;
         return false;
@@ -442,7 +497,7 @@ static bool decodeRecordMetaData(RecordMetaData& metaData, const Data& fileData)
     return success;
 }
 
-static bool decodeRecordHeader(const Data& fileData, RecordMetaData& metaData, Data& headerData, const Salt& salt)
+static WARN_UNUSED_RETURN bool decodeRecordHeader(const Data& fileData, RecordMetaData& metaData, Data& headerData, const Salt& salt)
 {
     if (!decodeRecordMetaData(metaData, fileData)) {
         LOG(NetworkCacheStorage, "(NetworkProcess) meta data decode failure");
@@ -783,7 +838,7 @@ void Storage::dispatchPendingWriteOperations()
 
 bool Storage::shouldStoreBodyAsBlob(const Data& bodyData)
 {
-    return bodyData.size() > maximumInlineBodySize;
+    return bodyData.size() > maximumInlineBodySize();
 }
 
 void Storage::dispatchWriteOperation(std::unique_ptr<WriteOperation> writeOperationPtr)
@@ -941,7 +996,7 @@ void Storage::traverse(const String& type, OptionSet<TraverseFlag> flags, Traver
                     traverseOperation.handler(&record, info);
                 }
 
-                std::lock_guard<Lock> lock(traverseOperation.activeMutex);
+                auto locker = holdLock(traverseOperation.activeMutex);
                 --traverseOperation.activeCount;
                 traverseOperation.activeCondition.notifyOne();
             });
@@ -971,8 +1026,10 @@ void Storage::traverse(const String& type, OptionSet<TraverseFlag> flags, Traver
 void Storage::setCapacity(size_t capacity)
 {
     ASSERT(RunLoop::isMain());
+    if (m_capacity == capacity)
+        return;
 
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
     const size_t assumedAverageRecordSize = 50 << 10;
     size_t maximumRecordCount = capacity / assumedAverageRecordSize;
     // ~10 bits per element are required for <1% false positive rate.
@@ -1122,10 +1179,6 @@ void Storage::deleteOldVersions()
                 return;
             if (directoryVersion >= version)
                 return;
-#if PLATFORM(MAC)
-            if (!AuxiliaryProcess::isSystemWebKit() && directoryVersion == lastStableVersion)
-                return;
-#endif
 
             auto oldVersionPath = FileSystem::pathByAppendingComponent(cachePath, subdirName);
             LOG(NetworkCacheStorage, "(NetworkProcess) deleting old cache version, path %s", oldVersionPath.utf8().data());

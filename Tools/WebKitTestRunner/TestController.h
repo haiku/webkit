@@ -88,7 +88,8 @@ private:
 class TestController {
 public:
     static TestController& singleton();
-    static WKWebsiteDataStoreRef websiteDataStore();
+    static void configureWebsiteDataStoreTemporaryDirectories(WKWebsiteDataStoreConfigurationRef);
+    static WKWebsiteDataStoreRef defaultWebsiteDataStore();
 
     static const unsigned viewWidth;
     static const unsigned viewHeight;
@@ -111,6 +112,8 @@ public:
     WKContextRef context() { return m_context.get(); }
     WKUserContentControllerRef userContentController() { return m_userContentController.get(); }
 
+    WKWebsiteDataStoreRef websiteDataStore();
+
     EventSenderProxy* eventSenderProxy() { return m_eventSenderProxy.get(); }
 
     bool shouldUseRemoteLayerTree() const { return m_shouldUseRemoteLayerTree; }
@@ -131,9 +134,13 @@ public:
 
     void simulateWebNotificationClick(uint64_t notificationID);
 
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+    bool accessibilityIsolatedTreeMode() const { return m_accessibilityIsolatedTreeMode; }
+#endif
+    
     // Geolocation.
     void setGeolocationPermission(bool);
-    void setMockGeolocationPosition(double latitude, double longitude, double accuracy, bool providesAltitude, double altitude, bool providesAltitudeAccuracy, double altitudeAccuracy, bool providesHeading, double heading, bool providesSpeed, double speed, bool providesFloorLevel, double floorLevel);
+    void setMockGeolocationPosition(double latitude, double longitude, double accuracy, Optional<double> altitude, Optional<double> altitudeAccuracy, Optional<double> heading, Optional<double> speed, Optional<double> floorLevel);
     void setMockGeolocationPositionUnavailableError(WKStringRef errorMessage);
     void handleGeolocationPermissionRequest(WKGeolocationPermissionRequestRef);
     bool isGeolocationProviderActive() const;
@@ -207,10 +214,15 @@ public:
     void setShouldDownloadUndisplayableMIMETypes(bool value) { m_shouldDownloadUndisplayableMIMETypes = value; }
     void setShouldAllowDeviceOrientationAndMotionAccess(bool value) { m_shouldAllowDeviceOrientationAndMotionAccess = value; }
 
+    void clearStatisticsDataForDomain(WKStringRef domain);
+    bool doesStatisticsDomainIDExistInDatabase(unsigned domainID);
+    void setStatisticsEnabled(bool value);
+    bool isStatisticsEphemeral();
     void setStatisticsDebugMode(bool value);
     void setStatisticsPrevalentResourceForDebugMode(WKStringRef hostName);
     void setStatisticsLastSeen(WKStringRef hostName, double seconds);
     void setStatisticsMergeStatistic(WKStringRef host, WKStringRef topFrameDomain1, WKStringRef topFrameDomain2, double lastSeen, bool hadUserInteraction, double mostRecentUserInteraction, bool isGrandfathered, bool isPrevalent, bool isVeryPrevalent, int dataRecordsRemoved);
+    void setStatisticsExpiredStatistic(WKStringRef host, bool hadUserInteraction, bool isScheduledForAllButCookieDataRemoval, bool isPrevalent);
     void setStatisticsPrevalentResource(WKStringRef hostName, bool value);
     void setStatisticsVeryPrevalentResource(WKStringRef hostName, bool value);
     String dumpResourceLoadStatistics();
@@ -224,7 +236,6 @@ public:
     bool isStatisticsOnlyInDatabaseOnce(WKStringRef subHost, WKStringRef topHost);
     void setStatisticsGrandfathered(WKStringRef hostName, bool value);
     bool isStatisticsGrandfathered(WKStringRef hostName);
-    void setUseITPDatabase(bool value);
     void setStatisticsSubframeUnderTopFrameOrigin(WKStringRef hostName, WKStringRef topFrameHostName);
     void setStatisticsSubresourceUnderTopFrameOrigin(WKStringRef hostName, WKStringRef topFrameHostName);
     void setStatisticsSubresourceUniqueRedirectTo(WKStringRef hostName, WKStringRef hostNameRedirectedTo);
@@ -239,7 +250,6 @@ public:
     void setStatisticsNotifyPagesWhenDataRecordsWereScanned(bool);
     void setStatisticsIsRunningTest(bool);
     void setStatisticsShouldClassifyResourcesBeforeDataRecordsRemoval(bool);
-    void setStatisticsNotifyPagesWhenTelemetryWasCaptured(bool value);
     void setStatisticsMinimumTimeBetweenDataRecordsRemoval(double);
     void setStatisticsGrandfatheringTime(double seconds);
     void setStatisticsMaxStatisticsEntries(unsigned);
@@ -252,10 +262,21 @@ public:
     void setStatisticsCacheMaxAgeCap(double seconds);
     bool hasStatisticsIsolatedSession(WKStringRef hostName);
     void setStatisticsShouldDowngradeReferrer(bool value);
-    void setStatisticsShouldBlockThirdPartyCookies(bool value);
+    void setStatisticsShouldBlockThirdPartyCookies(bool value, bool onlyOnSitesWithoutUserInteraction);
+    void setStatisticsFirstPartyWebsiteDataRemovalMode(bool value);
+    void setStatisticsToSameSiteStrictCookies(WKStringRef hostName);
+    void setStatisticsFirstPartyHostCNAMEDomain(WKStringRef firstPartyURLString, WKStringRef cnameURLString);
+    void setStatisticsThirdPartyCNAMEDomain(WKStringRef cnameURLString);
+    void setAppBoundDomains(WKArrayRef originURLs);
     void statisticsResetToConsistentState();
 
     void getAllStorageAccessEntries();
+    void loadedSubresourceDomains();
+    void clearLoadedSubresourceDomains();
+    void clearAppBoundSession();
+    void reinitializeAppBoundDomains();
+    void updateBundleIdentifierInNetworkProcess(const String& bundleIdentifier);
+    void clearBundleIdentifierInNetworkProcess();
 
     WKArrayRef openPanelFileURLs() const { return m_openPanelFileURLs.get(); }
     void setOpenPanelFileURLs(WKArrayRef fileURLs) { m_openPanelFileURLs = fileURLs; }
@@ -266,7 +287,9 @@ public:
 #endif
 
     void terminateNetworkProcess();
-    void terminateServiceWorkerProcess();
+    void terminateServiceWorkers();
+
+    void resetQuota();
 
     void removeAllSessionCredentials();
 
@@ -290,6 +313,9 @@ public:
     void clearMockMediaDevices();
     void removeMockMediaDevice(WKStringRef persistentID);
     void resetMockMediaDevices();
+    void setMockCameraOrientation(uint64_t);
+    bool isMockRealtimeMediaSourceCenterEnabled() const;
+    bool hasAppBoundSession();
 
     void injectUserScript(WKStringRef);
     
@@ -298,12 +324,13 @@ public:
     void setServiceWorkerFetchTimeoutForTesting(double seconds);
 
     void addTestKeyToKeychain(const String& privateKeyBase64, const String& attrLabel, const String& applicationTagBase64);
-    void cleanUpKeychain(const String& attrLabel, const String& applicationTagBase64);
-    bool keyExistsInKeychain(const String& attrLabel, const String& applicationTagBase64);
+    void cleanUpKeychain(const String& attrLabel, const String& applicationLabelBase64);
+    bool keyExistsInKeychain(const String& attrLabel, const String& applicationLabelBase64);
 
 #if PLATFORM(COCOA)
-    RetainPtr<NSString> getOverriddenCalendarIdentifier() const;
-    void setDefaultCalendarType(NSString *identifier);
+    NSString *overriddenCalendarIdentifier() const;
+    NSString *overriddenCalendarLocaleIdentifier() const;
+    void setDefaultCalendarType(NSString *identifier, NSString *localeIdentifier);
 #endif // PLATFORM(COCOA)
 
 #if PLATFORM(IOS_FAMILY)
@@ -329,6 +356,10 @@ public:
     void setAdClickAttributionConversionURLForTesting(WKURLRef);
     void markAdClickAttributionsAsExpiredForTesting();
 
+    void didSetAppBoundDomains() const;
+
+    WKURLRef currentTestURL() const;
+
 private:
     WKRetainPtr<WKPageConfigurationRef> generatePageConfiguration(const TestOptions&);
     WKRetainPtr<WKContextConfigurationRef> generateContextConfiguration(const TestOptions::ContextOptions&) const;
@@ -345,6 +376,7 @@ private:
     bool handleControlCommand(const char* command);
 
     void platformInitialize();
+    void platformInitializeDataStore(WKPageConfigurationRef, const TestOptions&);
     void platformDestroy();
     WKContextRef platformAdjustContext(WKContextRef, WKContextConfigurationRef);
     void platformInitializeContext();
@@ -352,10 +384,13 @@ private:
     void platformCreateWebView(WKPageConfigurationRef, const TestOptions&);
     static PlatformWebView* platformCreateOtherPage(PlatformWebView* parentView, WKPageConfigurationRef, const TestOptions&);
     void platformResetPreferencesToConsistentValues();
-    void platformResetStateToConsistentValues(const TestOptions&);
+    // Returns false if the reset timed out.
+    bool platformResetStateToConsistentValues(const TestOptions&);
 #if PLATFORM(COCOA)
     void cocoaPlatformInitialize();
     void cocoaResetStateToConsistentValues(const TestOptions&);
+    void setApplicationBundleIdentifier(const String&);
+    void clearApplicationBundleIdentifierTestingOverride();
 #endif
     void platformConfigureViewForTest(const TestInvocation&);
     void platformWillRunTest(const TestInvocation&);
@@ -401,6 +436,10 @@ private:
     // WKContextClient
     static void networkProcessDidCrash(WKContextRef, const void*);
     void networkProcessDidCrash();
+    static void serviceWorkerProcessDidCrash(WKContextRef, WKProcessID, const void*);
+    void serviceWorkerProcessDidCrash(WKProcessID);
+    static void gpuProcessDidCrash(WKContextRef, WKProcessID, const void*);
+    void gpuProcessDidCrash(WKProcessID);
 
     // WKPageNavigationClient
     static void didCommitNavigation(WKPageRef, WKNavigationRef, WKTypeRef userData, const void*);
@@ -489,15 +528,19 @@ private:
     std::unique_ptr<TestInvocation> m_currentInvocation;
 #if PLATFORM(COCOA)
     std::unique_ptr<ClassMethodSwizzler> m_calendarSwizzler;
-    RetainPtr<NSString> m_overriddenCalendarIdentifier;
+    std::pair<RetainPtr<NSString>, RetainPtr<NSString>> m_overriddenCalendarAndLocaleIdentifiers;
 #endif // PLATFORM(COCOA)
     bool m_verbose { false };
     bool m_printSeparators { false };
     bool m_usingServerMode { false };
     bool m_gcBetweenTests { false };
     bool m_shouldDumpPixelsForAllTests { false };
+    bool m_createdOtherPage { false };
     std::vector<std::string> m_paths;
     std::set<std::string> m_allowedHosts;
+    HashMap<String, bool> m_internalFeatures;
+    HashMap<String, bool> m_experimentalFeatures;
+
     WKRetainPtr<WKStringRef> m_injectedBundlePath;
     WKRetainPtr<WKStringRef> m_testPluginDirectory;
 
@@ -513,6 +556,9 @@ private:
     Vector<std::unique_ptr<InstanceMethodSwizzler>> m_inputModeSwizzlers;
     RetainPtr<UIKeyboardInputMode> m_overriddenKeyboardInputMode;
     Vector<std::unique_ptr<InstanceMethodSwizzler>> m_presentPopoverSwizzlers;
+#if !HAVE(NONDESTRUCTIVE_IMAGE_PASTE_SUPPORT_QUERY)
+    std::unique_ptr<InstanceMethodSwizzler> m_keyboardDelegateSupportsImagePasteSwizzler;
+#endif
 #endif
 
     enum State {
@@ -570,6 +616,10 @@ private:
     bool m_checkForWorldLeaks { false };
 
     bool m_allowAnyHTTPSCertificateForAllowedHosts { false };
+
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+    bool m_accessibilityIsolatedTreeMode { false };
+#endif
     
     bool m_shouldDecideNavigationPolicyAfterDelay { false };
     bool m_shouldDecideResponsePolicyAfterDelay { false };
@@ -582,6 +632,7 @@ private:
 #endif
 
     std::unique_ptr<EventSenderProxy> m_eventSenderProxy;
+    WKRetainPtr<WKWebsiteDataStoreRef> m_websiteDataStore;
 
     WorkQueueManager m_workQueueManager;
 
@@ -602,6 +653,10 @@ private:
     bool m_allowsAnySSLCertificate { true };
     bool m_shouldSwapToEphemeralSessionOnNextNavigation { false };
     bool m_shouldSwapToDefaultSessionOnNextNavigation { false };
+    
+#if PLATFORM(COCOA)
+    bool m_hasSetApplicationBundleIdentifier { false };
+#endif
 };
 
 struct TestCommand {

@@ -30,8 +30,8 @@
 #include "Authenticator.h"
 #include "AuthenticatorTransportService.h"
 #include "WebAuthenticationRequestData.h"
+#include <WebCore/AuthenticatorResponse.h>
 #include <WebCore/ExceptionData.h>
-#include <WebCore/PublicKeyCredentialData.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/HashSet.h>
 #include <wtf/Noncopyable.h>
@@ -48,7 +48,7 @@ class AuthenticatorManager : public AuthenticatorTransportService::Observer, pub
     WTF_MAKE_FAST_ALLOCATED;
     WTF_MAKE_NONCOPYABLE(AuthenticatorManager);
 public:
-    using Respond = Variant<WebCore::PublicKeyCredentialData, WebCore::ExceptionData>;
+    using Respond = Variant<Ref<WebCore::AuthenticatorResponse>, WebCore::ExceptionData>;
     using Callback = CompletionHandler<void(Respond&&)>;
     using TransportSet = HashSet<WebCore::AuthenticatorTransport, WTF::IntHash<WebCore::AuthenticatorTransport>, WTF::StrongEnumHashTraits<WebCore::AuthenticatorTransport>>;
 
@@ -81,6 +81,10 @@ private:
     void respondReceived(Respond&&) final;
     void downgrade(Authenticator* id, Ref<Authenticator>&& downgradedAuthenticator) final;
     void authenticatorStatusUpdated(WebAuthenticationStatus) final;
+    void requestPin(uint64_t retries, CompletionHandler<void(const WTF::String&)>&&) final;
+    void selectAssertionResponse(Vector<Ref<WebCore::AuthenticatorAssertionResponse>>&&, WebAuthenticationSource, CompletionHandler<void(WebCore::AuthenticatorAssertionResponse*)>&&) final;
+    void decidePolicyForLocalAuthenticator(CompletionHandler<void(LocalAuthenticatorPolicy)>&&) final;
+    void cancelRequest() final;
 
     // Overriden by MockAuthenticatorManager.
     virtual UniqueRef<AuthenticatorTransportService> createService(WebCore::AuthenticatorTransport, AuthenticatorTransportService::Observer&) const;
@@ -92,9 +96,9 @@ private:
     void initTimeOutTimer();
     void timeOutTimerFired();
     void runPanel();
-    void resetState();
     void restartDiscovery();
     TransportSet getTransports() const;
+    void dispatchPanelClientCall(Function<void(const API::WebAuthenticationPanel&)>&&) const;
 
     // Request: We only allow one request per time. A new request will cancel any pending ones.
     WebAuthenticationRequestData m_pendingRequestData;

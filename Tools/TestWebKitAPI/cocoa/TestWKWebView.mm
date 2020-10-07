@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Apple Inc. All rights reserved.
+ * Copyright (C) 2016-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,11 @@
 #import "TestWKWebView.h"
 
 #import "ClassMethodSwizzler.h"
+#import "InstanceMethodSwizzler.h"
 #import "TestNavigationDelegate.h"
 #import "Utilities.h"
 
+#import <WebKit/WKContentWorld.h>
 #import <WebKit/WKWebViewConfigurationPrivate.h>
 #import <WebKit/WebKitPrivate.h>
 #import <WebKit/_WKActivatedElementInfo.h>
@@ -48,6 +50,11 @@
 #import <wtf/SoftLinking.h>
 SOFT_LINK_FRAMEWORK(UIKit)
 SOFT_LINK_CLASS(UIKit, UIWindow)
+
+static NSString *overrideBundleIdentifier(id, SEL)
+{
+    return @"com.apple.TestWebKitAPI";
+}
 
 @implementation WKWebView (WKWebViewTestingQuirks)
 
@@ -99,6 +106,12 @@ SOFT_LINK_CLASS(UIKit, UIWindow)
     [self synchronouslyLoadHTMLString:html baseURL:[[[NSBundle mainBundle] bundleURL] URLByAppendingPathComponent:@"TestWebKitAPI.resources"]];
 }
 
+- (void)synchronouslyLoadHTMLString:(NSString *)html preferences:(WKWebpagePreferences *)preferences
+{
+    [self loadHTMLString:html baseURL:[[[NSBundle mainBundle] bundleURL] URLByAppendingPathComponent:@"TestWebKitAPI.resources"]];
+    [self _test_waitForDidFinishNavigationWithPreferences:preferences];
+}
+
 - (void)synchronouslyLoadTestPageNamed:(NSString *)pageName
 {
     [self loadTestPageNamed:pageName];
@@ -148,6 +161,11 @@ SOFT_LINK_CLASS(UIKit, UIWindow)
     [self expectElementTagsInOrder:@[tagName, otherTagName]];
 }
 
+- (BOOL)evaluateMediaQuery:(NSString *)query
+{
+    return [[self objectByEvaluatingJavaScript:[NSString stringWithFormat:@"window.matchMedia(\"(%@)\").matches", query]] boolValue];
+}
+
 - (id)objectByEvaluatingJavaScript:(NSString *)script
 {
     bool isWaitingForJavaScript = false;
@@ -178,9 +196,47 @@ SOFT_LINK_CLASS(UIKit, UIWindow)
     return evalResult.autorelease();
 }
 
+- (id)objectByCallingAsyncFunction:(NSString *)script withArguments:(NSDictionary *)arguments error:(NSError **)errorOut
+{
+    bool isWaitingForJavaScript = false;
+    if (errorOut)
+        *errorOut = nil;
+
+    RetainPtr<id> evalResult;
+    [self callAsyncJavaScript:script arguments:arguments inFrame:nil inContentWorld:WKContentWorld.pageWorld completionHandler:[&] (id result, NSError *error) {
+        evalResult = result;
+        if (errorOut)
+            *errorOut = [error retain];
+        isWaitingForJavaScript = true;
+    }];
+    TestWebKitAPI::Util::run(&isWaitingForJavaScript);
+
+    if (errorOut)
+        [*errorOut autorelease];
+
+    return evalResult.autorelease();
+}
+
 - (NSString *)stringByEvaluatingJavaScript:(NSString *)script
 {
     return [NSString stringWithFormat:@"%@", [self objectByEvaluatingJavaScript:script]];
+}
+
+- (unsigned)waitUntilClientWidthIs:(unsigned)expectedClientWidth
+{
+    int timeout = 10;
+    unsigned clientWidth = 0;
+    do {
+        if (timeout != 10)
+            TestWebKitAPI::Util::sleep(0.1);
+
+        id result = [self objectByEvaluatingJavaScript:@"function ___forceLayoutAndGetClientWidth___() { document.body.offsetTop; return document.body.clientWidth; }; ___forceLayoutAndGetClientWidth___();"];
+        clientWidth = [result integerValue];
+
+        --timeout;
+    } while (clientWidth != expectedClientWidth && timeout >= 0);
+
+    return clientWidth;
 }
 
 @end
@@ -220,9 +276,11 @@ SOFT_LINK_CLASS(UIKit, UIWindow)
 
 @implementation TestWKWebViewHostWindow {
     BOOL _forceKeyWindow;
+    __weak TestWKWebView *_webView;
 }
 
 #if PLATFORM(MAC)
+
 static int gEventNumber = 1;
 
 NSEventMask __simulated_forceClickAssociatedEventsMask(id self, SEL _cmd)
@@ -230,15 +288,19 @@ NSEventMask __simulated_forceClickAssociatedEventsMask(id self, SEL _cmd)
     return NSEventMaskPressure | NSEventMaskLeftMouseDown | NSEventMaskLeftMouseUp | NSEventMaskLeftMouseDragged;
 }
 
-- (void)_mouseDownAtPoint:(NSPoint)point simulatePressure:(BOOL)simulatePressure clickCount:(NSUInteger)clickCount
+- (instancetype)initWithWebView:(TestWKWebView *)webView contentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)style backing:(NSBackingStoreType)backingStoreType defer:(BOOL)flag
 {
-    NSEventType mouseEventType = NSEventTypeLeftMouseDown;
+    if (self = [super initWithContentRect:contentRect styleMask:style backing:backingStoreType defer:flag])
+        _webView = webView;
+    return self;
+}
 
-    NSEventMask modifierFlags = 0;
+- (void)_mouseDownAtPoint:(NSPoint)point simulatePressure:(BOOL)simulatePressure clickCount:(NSUInteger)clickCount modifierFlags:(NSEventModifierFlags)modifierFlags mouseEventType:(NSEventType)mouseEventType
+{
     if (simulatePressure)
         modifierFlags |= NSEventMaskPressure;
 
-    NSEvent *event = [NSEvent mouseEventWithType:mouseEventType location:point modifierFlags:modifierFlags timestamp:GetCurrentEventTime() windowNumber:self.windowNumber context:[NSGraphicsContext currentContext] eventNumber:++gEventNumber clickCount:clickCount pressure:simulatePressure];
+    NSEvent *event = [NSEvent mouseEventWithType:mouseEventType location:point modifierFlags:modifierFlags timestamp:_webView.eventTimestamp windowNumber:self.windowNumber context:[NSGraphicsContext currentContext] eventNumber:++gEventNumber clickCount:clickCount pressure:simulatePressure];
     if (!simulatePressure) {
         [self sendEvent:event];
         return;
@@ -256,16 +318,55 @@ NSEventMask __simulated_forceClickAssociatedEventsMask(id self, SEL _cmd)
     }
 }
 
-- (void)_mouseUpAtPoint:(NSPoint)point clickCount:(NSUInteger)clickCount
+- (void)_mouseUpAtPoint:(NSPoint)point clickCount:(NSUInteger)clickCount modifierFlags:(NSEventModifierFlags)modifierFlags eventType:(NSEventType)eventType
 {
-    [self sendEvent:[NSEvent mouseEventWithType:NSEventTypeLeftMouseUp location:point modifierFlags:0 timestamp:GetCurrentEventTime() windowNumber:self.windowNumber context:[NSGraphicsContext currentContext] eventNumber:++gEventNumber clickCount:clickCount pressure:0]];
+    [self sendEvent:[NSEvent mouseEventWithType:eventType location:point modifierFlags:modifierFlags timestamp:_webView.eventTimestamp windowNumber:self.windowNumber context:[NSGraphicsContext currentContext] eventNumber:++gEventNumber clickCount:clickCount pressure:0]];
 }
-#endif // PLATFORM(MAC)
+
+#endif
 
 - (BOOL)isKeyWindow
 {
     return _forceKeyWindow || [super isKeyWindow];
 }
+
+#if PLATFORM(IOS_FAMILY)
+
+static NeverDestroyed<RetainPtr<UIWindow>> gOverriddenApplicationKeyWindow;
+static NeverDestroyed<std::unique_ptr<InstanceMethodSwizzler>> gApplicationKeyWindowSwizzler;
+static NeverDestroyed<std::unique_ptr<InstanceMethodSwizzler>> gSharedApplicationSwizzler;
+
+static void setOverriddenApplicationKeyWindow(UIWindow *window)
+{
+    if (gOverriddenApplicationKeyWindow.get() == window)
+        return;
+
+    if (!UIApplication.sharedApplication) {
+        InstanceMethodSwizzler bundleIdentifierSwizzler(NSBundle.class, @selector(bundleIdentifier), reinterpret_cast<IMP>(overrideBundleIdentifier));
+        UIApplicationInitialize();
+        UIApplicationInstantiateSingleton(UIApplication.class);
+    }
+
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        gApplicationKeyWindowSwizzler.get() = makeUnique<InstanceMethodSwizzler>(UIApplication.class, @selector(keyWindow), reinterpret_cast<IMP>(applicationKeyWindowOverride));
+    });
+    gOverriddenApplicationKeyWindow.get() = window;
+}
+
+static UIWindow *applicationKeyWindowOverride(id, SEL)
+{
+    return gOverriddenApplicationKeyWindow.get().get();
+}
+
+- (instancetype)initWithWebView:(TestWKWebView *)webView frame:(CGRect)frame
+{
+    if (self = [super initWithFrame:frame])
+        _webView = webView;
+    return self;
+}
+
+#endif
 
 - (void)makeKeyWindow
 {
@@ -276,6 +377,7 @@ NSEventMask __simulated_forceClickAssociatedEventsMask(id self, SEL _cmd)
 #if PLATFORM(MAC)
     [[NSNotificationCenter defaultCenter] postNotificationName:NSWindowDidBecomeKeyNotification object:self];
 #else
+    setOverriddenApplicationKeyWindow(self);
     [[NSNotificationCenter defaultCenter] postNotificationName:UIWindowDidBecomeKeyNotification object:self];
 #endif
 }
@@ -302,9 +404,13 @@ static InputSessionChangeCount nextInputSessionChangeCount()
 @implementation TestWKWebView {
     RetainPtr<TestWKWebViewHostWindow> _hostWindow;
     RetainPtr<TestMessageHandler> _testHandler;
+    RetainPtr<WKUserScript> _onloadScript;
 #if PLATFORM(IOS_FAMILY)
     std::unique_ptr<ClassMethodSwizzler> _sharedCalloutBarSwizzler;
     InputSessionChangeCount _inputSessionChangeCount;
+#endif
+#if PLATFORM(MAC)
+    NSTimeInterval _eventTimestampOffset;
 #endif
 }
 
@@ -355,14 +461,14 @@ static UICalloutBar *suppressUICalloutBar()
 - (void)_setUpTestWindow:(NSRect)frame
 {
 #if PLATFORM(MAC)
-    _hostWindow = adoptNS([[TestWKWebViewHostWindow alloc] initWithContentRect:frame styleMask:NSWindowStyleMaskBorderless backing:NSBackingStoreBuffered defer:NO]);
+    _hostWindow = adoptNS([[TestWKWebViewHostWindow alloc] initWithWebView:self contentRect:frame styleMask:(NSWindowStyleMaskBorderless | NSWindowStyleMaskMiniaturizable) backing:NSBackingStoreBuffered defer:NO]);
     [_hostWindow setFrameOrigin:NSMakePoint(0, 0)];
     [_hostWindow setIsVisible:YES];
     [_hostWindow contentView].wantsLayer = YES;
     [[_hostWindow contentView] addSubview:self];
     [_hostWindow makeKeyAndOrderFront:self];
 #else
-    _hostWindow = adoptNS([[TestWKWebViewHostWindow alloc] initWithFrame:frame]);
+    _hostWindow = adoptNS([[TestWKWebViewHostWindow alloc] initWithWebView:self frame:frame]);
     [_hostWindow setHidden:NO];
     [_hostWindow addSubview:self];
 #endif
@@ -393,6 +499,15 @@ static UICalloutBar *suppressUICalloutBar()
     [_testHandler addMessage:message withHandler:action];
 }
 
+- (void)synchronouslyLoadHTMLStringAndWaitUntilAllImmediateChildFramesPaint:(NSString *)html
+{
+    bool didFireDOMLoadEvent = false;
+    [self performAfterLoading:[&] { didFireDOMLoadEvent = true; }];
+    [self loadHTMLString:html baseURL:[NSBundle.mainBundle.bundleURL URLByAppendingPathComponent:@"TestWebKitAPI.resources"]];
+    TestWebKitAPI::Util::run(&didFireDOMLoadEvent);
+    [self waitForNextPresentationUpdate];
+}
+
 - (void)waitForMessage:(NSString *)message
 {
     __block bool isDoneWaiting = false;
@@ -405,21 +520,29 @@ static UICalloutBar *suppressUICalloutBar()
 
 - (void)performAfterLoading:(dispatch_block_t)actions
 {
-    TestMessageHandler *handler = [[TestMessageHandler alloc] init];
-    [handler addMessage:@"loaded" withHandler:actions];
-
-    NSString *onloadScript = @"window.onload = () => window.webkit.messageHandlers.onloadHandler.postMessage('loaded')";
-    WKUserScript *script = [[WKUserScript alloc] initWithSource:onloadScript injectionTime:WKUserScriptInjectionTimeAtDocumentStart forMainFrameOnly:NO];
-
-    WKUserContentController* contentController = [[self configuration] userContentController];
-    [contentController addUserScript:script];
-    [contentController addScriptMessageHandler:handler name:@"onloadHandler"];
+    NSString *const viewDidLoadMessage = @"TestWKWebViewDidLoad";
+    if (!_onloadScript) {
+        NSString *onloadScript = [NSString stringWithFormat:@"window.addEventListener('load', () => window.webkit.messageHandlers.testHandler.postMessage('%@'), true /* useCapture */)", viewDidLoadMessage];
+        _onloadScript = adoptNS([[WKUserScript alloc] initWithSource:onloadScript injectionTime:WKUserScriptInjectionTimeAtDocumentStart forMainFrameOnly:YES]);
+        [self.configuration.userContentController addUserScript:_onloadScript.get()];
+    }
+    [self performAfterReceivingMessage:viewDidLoadMessage action:actions];
 }
 
 - (void)waitForNextPresentationUpdate
 {
     __block bool done = false;
     [self _doAfterNextPresentationUpdate:^() {
+        done = true;
+    }];
+
+    TestWebKitAPI::Util::run(&done);
+}
+
+- (void)waitUntilActivityStateUpdateDone
+{
+    __block bool done = false;
+    [self _doAfterActivityStateUpdate:^() {
         done = true;
     }];
 
@@ -457,6 +580,29 @@ static UICalloutBar *suppressUICalloutBar()
 - (void)collapseToEnd
 {
     [self evaluateJavaScript:@"getSelection().collapseToEnd()" completionHandler:nil];
+}
+
+- (BOOL)selectionRangeHasStartOffset:(int)start endOffset:(int)end
+{
+    __block bool isDone = false;
+    __block bool matches = true;
+    [self evaluateJavaScript:@"window.getSelection().getRangeAt(0).startOffset" completionHandler:^(id result, NSError *error) {
+        if ([(NSNumber *)result intValue] != start)
+            matches = false;
+    }];
+    [self evaluateJavaScript:@"window.getSelection().getRangeAt(0).endOffset" completionHandler:^(id result, NSError *error) {
+        if ([(NSNumber *)result intValue] != end)
+            matches = false;
+        isDone = true;
+    }];
+    TestWebKitAPI::Util::run(&isDone);
+
+    return matches;
+}
+
+- (void)clickOnElementID:(NSString *)elementID
+{
+    [self evaluateJavaScript:[NSString stringWithFormat:@"document.getElementById('%@').click();", elementID] completionHandler:nil];
 }
 
 #if PLATFORM(IOS_FAMILY)
@@ -572,27 +718,49 @@ static WKContentView *recursiveFindWKContentView(UIView *view)
 #endif
 
 #if PLATFORM(MAC)
+
 @implementation TestWKWebView (MacOnly)
+
+- (void)setEventTimestampOffset:(NSTimeInterval)offset
+{
+    _eventTimestampOffset += offset;
+}
+
+- (NSTimeInterval)eventTimestamp
+{
+    return GetCurrentEventTime() + _eventTimestampOffset;
+}
+
 - (void)mouseDownAtPoint:(NSPoint)pointInWindow simulatePressure:(BOOL)simulatePressure
 {
-    [_hostWindow _mouseDownAtPoint:pointInWindow simulatePressure:simulatePressure clickCount:1];
+    [self mouseDownAtPoint:pointInWindow simulatePressure:simulatePressure withFlags:0 eventType:NSEventTypeLeftMouseDown];
+}
+
+- (void)mouseDownAtPoint:(NSPoint)pointInWindow simulatePressure:(BOOL)simulatePressure withFlags:(NSEventModifierFlags)flags eventType:(NSEventType)eventType
+{
+    [_hostWindow _mouseDownAtPoint:pointInWindow simulatePressure:simulatePressure clickCount:1 modifierFlags:flags mouseEventType:eventType];
 }
 
 - (void)mouseUpAtPoint:(NSPoint)pointInWindow
 {
-    [_hostWindow _mouseUpAtPoint:pointInWindow clickCount:1];
+    [self mouseUpAtPoint:pointInWindow withFlags:0 eventType:NSEventTypeLeftMouseUp];
+}
+
+- (void)mouseUpAtPoint:(NSPoint)pointInWindow withFlags:(NSEventModifierFlags)flags eventType:(NSEventType)eventType
+{
+    [_hostWindow _mouseUpAtPoint:pointInWindow clickCount:1 modifierFlags:flags eventType:eventType];
 }
 
 - (void)mouseMoveToPoint:(NSPoint)pointInWindow withFlags:(NSEventModifierFlags)flags
 {
-    [self mouseMoved:[self _mouseEventWithType:NSEventTypeMouseMoved atLocation:pointInWindow flags:flags timestamp:GetCurrentEventTime() clickCount:0]];
+    [self mouseMoved:[self _mouseEventWithType:NSEventTypeMouseMoved atLocation:pointInWindow flags:flags timestamp:self.eventTimestamp clickCount:0]];
 }
 
 - (void)sendClicksAtPoint:(NSPoint)pointInWindow numberOfClicks:(NSUInteger)numberOfClicks
 {
     for (NSUInteger clickCount = 1; clickCount <= numberOfClicks; ++clickCount) {
-        [_hostWindow _mouseDownAtPoint:pointInWindow simulatePressure:NO clickCount:clickCount];
-        [_hostWindow _mouseUpAtPoint:pointInWindow clickCount:clickCount];
+        [_hostWindow _mouseDownAtPoint:pointInWindow simulatePressure:NO clickCount:clickCount modifierFlags:0 mouseEventType:NSEventTypeLeftMouseDown];
+        [_hostWindow _mouseUpAtPoint:pointInWindow clickCount:clickCount modifierFlags:0 eventType:NSEventTypeLeftMouseUp];
     }
 }
 
@@ -613,7 +781,7 @@ static WKContentView *recursiveFindWKContentView(UIView *view)
 
 - (NSEvent *)_mouseEventWithType:(NSEventType)type atLocation:(NSPoint)pointInWindow
 {
-    return [self _mouseEventWithType:type atLocation:pointInWindow flags:0 timestamp:GetCurrentEventTime() clickCount:0];
+    return [self _mouseEventWithType:type atLocation:pointInWindow flags:0 timestamp:self.eventTimestamp clickCount:0];
 }
 
 - (NSEvent *)_mouseEventWithType:(NSEventType)type atLocation:(NSPoint)locationInWindow flags:(NSEventModifierFlags)flags timestamp:(NSTimeInterval)timestamp clickCount:(NSUInteger)clickCount
@@ -637,11 +805,21 @@ static WKContentView *recursiveFindWKContentView(UIView *view)
     NSString *characterAsString = [NSString stringWithFormat:@"%c" , character];
     NSEventType keyDownEventType = NSEventTypeKeyDown;
     NSEventType keyUpEventType = NSEventTypeKeyUp;
-    [self keyDown:[NSEvent keyEventWithType:keyDownEventType location:NSZeroPoint modifierFlags:0 timestamp:GetCurrentEventTime() windowNumber:[_hostWindow windowNumber] context:nil characters:characterAsString charactersIgnoringModifiers:characterAsString isARepeat:NO keyCode:character]];
-    [self keyUp:[NSEvent keyEventWithType:keyUpEventType location:NSZeroPoint modifierFlags:0 timestamp:GetCurrentEventTime() windowNumber:[_hostWindow windowNumber] context:nil characters:characterAsString charactersIgnoringModifiers:characterAsString isARepeat:NO keyCode:character]];
+    [self keyDown:[NSEvent keyEventWithType:keyDownEventType location:NSZeroPoint modifierFlags:0 timestamp:self.eventTimestamp windowNumber:[_hostWindow windowNumber] context:nil characters:characterAsString charactersIgnoringModifiers:characterAsString isARepeat:NO keyCode:character]];
+    [self keyUp:[NSEvent keyEventWithType:keyUpEventType location:NSZeroPoint modifierFlags:0 timestamp:self.eventTimestamp windowNumber:[_hostWindow windowNumber] context:nil characters:characterAsString charactersIgnoringModifiers:characterAsString isARepeat:NO keyCode:character]];
+}
+
+- (void)waitForPendingMouseEvents
+{
+    __block bool doneProcessingMouseEvents = false;
+    [self _doAfterProcessingAllPendingMouseEvents:^{
+        doneProcessingMouseEvents = true;
+    }];
+    TestWebKitAPI::Util::run(&doneProcessingMouseEvents);
 }
 
 @end
+
 #endif // PLATFORM(MAC)
 
 #if PLATFORM(IOS_FAMILY)

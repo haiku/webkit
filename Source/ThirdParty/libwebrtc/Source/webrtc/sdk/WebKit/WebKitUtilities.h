@@ -26,11 +26,13 @@
 #pragma once
 
 #include "api/video/video_frame_buffer.h"
-#include "rtc_base/scoped_ref_ptr.h"
-#include "webrtc/media/engine/webrtcvideodecoderfactory.h"
-#include "webrtc/media/engine/webrtcvideoencoderfactory.h"
+#include "api/scoped_refptr.h"
+#include "api/video_codecs/video_decoder_factory.h"
+#include "api/video_codecs/video_encoder_factory.h"
+#include "media/engine/encoder_simulcast_proxy.h"
 
-typedef struct __CVBuffer* CVPixelBufferRef;
+using CVPixelBufferRef = struct __CVBuffer*;
+using CVPixelBufferPoolRef = struct __CVPixelBufferPool*;
 
 namespace webrtc {
 
@@ -38,17 +40,24 @@ class VideoDecoderFactory;
 class VideoEncoderFactory;
 class VideoFrame;
 
-enum class WebKitCodecSupport { H264, H264AndVP8 };
+enum class WebKitH265 { Off, On };
+enum class WebKitVP9 { Off, On };
 
-std::unique_ptr<webrtc::VideoEncoderFactory> createWebKitEncoderFactory(WebKitCodecSupport);
-std::unique_ptr<webrtc::VideoDecoderFactory> createWebKitDecoderFactory(WebKitCodecSupport);
+std::unique_ptr<webrtc::VideoEncoderFactory> createWebKitEncoderFactory(WebKitH265, WebKitVP9);
+std::unique_ptr<webrtc::VideoDecoderFactory> createWebKitDecoderFactory(WebKitH265, WebKitVP9);
 
 void setApplicationStatus(bool isActive);
 
 void setH264HardwareEncoderAllowed(bool);
 bool isH264HardwareEncoderAllowed();
 
+void setH264LowLatencyEncoderEnabled(bool);
+bool isH264LowLatencyEncoderEnabled();
+
 CVPixelBufferRef pixelBufferFromFrame(const VideoFrame&, const std::function<CVPixelBufferRef(size_t, size_t)>&);
 rtc::scoped_refptr<webrtc::VideoFrameBuffer> pixelBufferToFrame(CVPixelBufferRef);
 
+CVPixelBufferPoolRef createPixelBufferPool(size_t width, size_t height);
+
+bool isMatchingBundleVersion(const char*);
 }

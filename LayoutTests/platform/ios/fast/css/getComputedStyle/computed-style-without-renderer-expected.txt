@@ -54,7 +54,7 @@ column-rule-style: none
 column-rule-width: 0px
 column-span: none
 column-width: auto
-content: 
+content:
 counter-increment: none
 counter-reset: none
 cursor: auto
@@ -233,10 +233,6 @@ zoom: 1
 -webkit-locale: auto
 -webkit-margin-after-collapse: collapse
 -webkit-margin-before-collapse: collapse
--webkit-marquee-direction: auto
--webkit-marquee-increment: 6px
--webkit-marquee-repetition: infinite
--webkit-marquee-style: scroll
 -webkit-mask-box-image: none
 -webkit-mask-box-image-outset: 0px
 -webkit-mask-box-image-repeat: stretch

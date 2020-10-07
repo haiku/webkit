@@ -45,6 +45,7 @@
 #import <WebKit/WebView.h>
 #import <WebKit/WebViewPrivate.h>
 #import <wtf/Assertions.h>
+#import <wtf/cocoa/VectorCocoa.h>
 
 #if !PLATFORM(IOS_FAMILY)
 DumpRenderTreeDraggingInfo *draggingInfo = nil;
@@ -75,23 +76,30 @@ DumpRenderTreeDraggingInfo *draggingInfo = nil;
     return NSMakeRect(windowOrigin.x, windowOrigin.y, size.width, size.height);
 }
 
+static NSString *stripTrailingSpaces(NSString *string)
+{
+    auto result = [string stringByReplacingOccurrencesOfString:@" +\n" withString:@"\n" options:NSRegularExpressionSearch range:NSMakeRange(0, string.length)];
+    return [result stringByReplacingOccurrencesOfString:@" +$" withString:@"" options:NSRegularExpressionSearch range:NSMakeRange(0, result.length)];
+}
+
+static NSString *addLeadingSpaceStripTrailingSpaces(NSString *string)
+{
+    auto result = stripTrailingSpaces(string);
+    return (result.length && ![result hasPrefix:@"\n"]) ? [@" " stringByAppendingString:result] : result;
+}
+
 - (void)webView:(WebView *)sender addMessageToConsole:(NSDictionary *)dictionary withSource:(NSString *)source
 {
     if (done)
         return;
 
     NSString *message = [dictionary objectForKey:@"message"];
-    NSNumber *lineNumber = [dictionary objectForKey:@"lineNumber"];
 
     NSRange range = [message rangeOfString:@"file://"];
     if (range.location != NSNotFound)
         message = [[message substringToIndex:range.location] stringByAppendingString:[[message substringFromIndex:NSMaxRange(range)] lastPathComponent]];
 
-    auto out = gTestRunner->dumpJSConsoleLogInStdErr() ? stderr : stdout;
-    fprintf(out, "CONSOLE MESSAGE: ");
-    if ([lineNumber intValue])
-        fprintf(out, "line %d: ", [lineNumber intValue]);
-    fprintf(out, "%s\n", [message UTF8String]);
+    fprintf(gTestRunner->dumpJSConsoleLogInStdErr() ? stderr : stdout, "CONSOLE MESSAGE:%s\n", addLeadingSpaceStripTrailingSpaces(message).UTF8String ?: " (null)");
 }
 
 - (void)modalWindowWillClose:(NSNotification *)notification
@@ -115,7 +123,7 @@ DumpRenderTreeDraggingInfo *draggingInfo = nil;
 - (void)webView:(WebView *)sender runJavaScriptAlertPanelWithMessage:(NSString *)message initiatedByFrame:(WebFrame *)frame
 {
     if (!done) {
-        printf("ALERT: %s\n", [message UTF8String]);
+        printf("ALERT:%s\n", addLeadingSpaceStripTrailingSpaces(message).UTF8String ?: " (null)");
         fflush(stdout);
     }
 }
@@ -123,22 +131,21 @@ DumpRenderTreeDraggingInfo *draggingInfo = nil;
 - (BOOL)webView:(WebView *)sender runJavaScriptConfirmPanelWithMessage:(NSString *)message initiatedByFrame:(WebFrame *)frame
 {
     if (!done)
-        printf("CONFIRM: %s\n", [message UTF8String]);
+        printf("CONFIRM:%s\n", addLeadingSpaceStripTrailingSpaces(message).UTF8String ?: " (null)");
     return YES;
 }
 
 - (NSString *)webView:(WebView *)sender runJavaScriptTextInputPanelWithPrompt:(NSString *)prompt defaultText:(NSString *)defaultText initiatedByFrame:(WebFrame *)frame
 {
     if (!done)
-        printf("PROMPT: %s, default text: %s\n", [prompt UTF8String], [defaultText UTF8String]);
+        printf("PROMPT: %s, default text:%s\n", prompt.UTF8String, addLeadingSpaceStripTrailingSpaces(defaultText).UTF8String ?: " (null)");
     return defaultText;
 }
 
 - (BOOL)webView:(WebView *)c runBeforeUnloadConfirmPanelWithMessage:(NSString *)message initiatedByFrame:(WebFrame *)frame
 {
     if (!done)
-        printf("CONFIRM NAVIGATION: %s\n", [message UTF8String]);
-    
+        printf("CONFIRM NAVIGATION:%s\n", addLeadingSpaceStripTrailingSpaces(message).UTF8String ?: " (null)");
     return !gTestRunner->shouldStayOnPageAfterHandlingBeforeUnload();
 }
 
@@ -237,7 +244,7 @@ DumpRenderTreeDraggingInfo *draggingInfo = nil;
 - (void)webView:(WebView *)sender setStatusText:(NSString *)text
 {
     if (!done && gTestRunner->dumpStatusCallbacks())
-        printf("UI DELEGATE STATUS CALLBACK: setStatusText:%s\n", [text UTF8String]);
+        printf("UI DELEGATE STATUS CALLBACK: setStatusText:%s\n", stripTrailingSpaces(text).UTF8String);
 }
 
 - (void)webView:(WebView *)webView decidePolicyForGeolocationRequestFromOrigin:(WebSecurityOrigin *)origin frame:(WebFrame *)frame listener:(id<WebAllowDenyPolicyListener>)listener
@@ -379,20 +386,18 @@ DumpRenderTreeDraggingInfo *draggingInfo = nil;
     }
 
     NSURL *baseURL = [NSURL URLWithString:[NSString stringWithUTF8String:gTestRunner->testURL().c_str()]];
-    auto filePaths = adoptNS([[NSMutableArray alloc] initWithCapacity:openPanelFiles.size()]);
-    for (auto& filePath : openPanelFiles) {
-        NSURL *fileURL = [NSURL fileURLWithPath:[NSString stringWithUTF8String:filePath.c_str()] relativeToURL:baseURL];
-        [filePaths addObject:fileURL.path];
-    }
+    auto filePaths = createNSArray(openPanelFiles, [&] (const std::string& filePath) {
+        return [NSURL fileURLWithPath:[NSString stringWithUTF8String:filePath.c_str()] relativeToURL:baseURL].path;
+    });
 
 #if PLATFORM(IOS_FAMILY)
     NSURL *firstURL = [NSURL fileURLWithPath:[NSString stringWithUTF8String:openPanelFiles[0].c_str()] relativeToURL:baseURL];
     NSString *displayString = firstURL.lastPathComponent;
-    const std::vector<char>& iconData = gTestRunner->openPanelFilesMediaIcon();
-    CGImageRef imageRef;
+    auto& iconData = gTestRunner->openPanelFilesMediaIcon();
+    CGImageRef imageRef = nullptr;
     if (!iconData.empty()) {
-        RetainPtr<CFDataRef> dataRef = adoptCF(CFDataCreate(nullptr, (unsigned char *)iconData.data(), iconData.size()));
-        RetainPtr<CGDataProviderRef> imageProviderRef = adoptCF(CGDataProviderCreateWithCFData(dataRef.get()));
+        auto dataRef = adoptCF(CFDataCreate(nullptr, reinterpret_cast<const UInt8*>(iconData.data()), iconData.size()));
+        auto imageProviderRef = adoptCF(CGDataProviderCreateWithCFData(dataRef.get()));
         imageRef = CGImageCreateWithJPEGDataProvider(imageProviderRef.get(), nullptr, true, kCGRenderingIntentDefault);
     }
 #endif

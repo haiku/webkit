@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,9 +26,13 @@
 #pragma once
 
 #include "APIObject.h"
-#include "WebPreferencesStore.h"
+#include "WebViewCategory.h"
+#include <WebCore/ShouldRelaxThirdPartyCookieBlocking.h>
 #include <wtf/Forward.h>
 #include <wtf/GetPtr.h>
+#include <wtf/HashMap.h>
+#include <wtf/HashSet.h>
+#include <wtf/text/WTFString.h>
 
 #if PLATFORM(IOS_FAMILY)
 OBJC_PROTOCOL(_UIClickInteractionDriving);
@@ -75,8 +79,6 @@ public:
     WebKit::WebPreferences* preferences();
     void setPreferences(WebKit::WebPreferences*);
 
-    WebKit::WebPreferencesStore::ValueMap& preferenceValues() { return m_preferenceValues; }
-
     WebKit::WebPageProxy* relatedPage() const;
     void setRelatedPage(WebKit::WebPageProxy*);
 
@@ -89,13 +91,10 @@ public:
     WebsitePolicies* defaultWebsitePolicies() const;
     void setDefaultWebsitePolicies(WebsitePolicies*);
 
-    bool treatsSHA1SignedCertificatesAsInsecure() { return m_treatsSHA1SignedCertificatesAsInsecure; }
-    void setTreatsSHA1SignedCertificatesAsInsecure(bool treatsSHA1SignedCertificatesAsInsecure) { m_treatsSHA1SignedCertificatesAsInsecure = treatsSHA1SignedCertificatesAsInsecure; } 
-
 #if PLATFORM(IOS_FAMILY)
-    bool alwaysRunsAtForegroundPriority() { return m_alwaysRunsAtForegroundPriority; }
-    void setAlwaysRunsAtForegroundPriority(bool alwaysRunsAtForegroundPriority) { m_alwaysRunsAtForegroundPriority = alwaysRunsAtForegroundPriority; }
-    
+    bool clientNavigationsRunAtForegroundPriority() const { return m_clientNavigationsRunAtForegroundPriority; }
+    void setClientNavigationsRunAtForegroundPriority(bool value) { m_clientNavigationsRunAtForegroundPriority = value; }
+
     bool canShowWhileLocked() const { return m_canShowWhileLocked; }
     void setCanShowWhileLocked(bool canShowWhileLocked) { m_canShowWhileLocked = canShowWhileLocked; }
 
@@ -134,22 +133,55 @@ public:
     void setURLSchemeHandlerForURLScheme(Ref<WebKit::WebURLSchemeHandler>&&, const WTF::String&);
     const HashMap<WTF::String, Ref<WebKit::WebURLSchemeHandler>>& urlSchemeHandlers() { return m_urlSchemeHandlers; }
 
+    const Vector<WTF::String>& corsDisablingPatterns() const { return m_corsDisablingPatterns; }
+    void setCORSDisablingPatterns(Vector<WTF::String>&& patterns) { m_corsDisablingPatterns = WTFMove(patterns); }
+    
+    bool userScriptsShouldWaitUntilNotification() const { return m_userScriptsShouldWaitUntilNotification; }
+    void setUserScriptsShouldWaitUntilNotification(bool value) { m_userScriptsShouldWaitUntilNotification = value; }
+
+    bool crossOriginAccessControlCheckEnabled() const { return m_crossOriginAccessControlCheckEnabled; }
+    void setCrossOriginAccessControlCheckEnabled(bool enabled) { m_crossOriginAccessControlCheckEnabled = enabled; }
+
+    const WTF::String& processDisplayName() const { return m_processDisplayName; }
+    void setProcessDisplayName(const WTF::String& name) { m_processDisplayName = name; }
+
+    WebKit::WebViewCategory webViewCategory() const { return m_webViewCategory; }
+    void setWebViewCategory(WebKit::WebViewCategory category) { m_webViewCategory = category; }
+
+    bool loadsSubresources() const { return m_loadsSubresources; }
+    void setLoadsSubresources(bool loads) { m_loadsSubresources = loads; }
+
+    bool loadsFromNetwork() const { return m_loadsFromNetwork; }
+    void setLoadsFromNetwork(bool loads) { m_loadsFromNetwork = loads; }
+
+#if ENABLE(APP_BOUND_DOMAINS)
+    bool ignoresAppBoundDomains() const { return m_ignoresAppBoundDomains; }
+    void setIgnoresAppBoundDomains(bool shouldIgnore) { m_ignoresAppBoundDomains = shouldIgnore; }
+    
+    bool limitsNavigationsToAppBoundDomains() const { return m_limitsNavigationsToAppBoundDomains; }
+    void setLimitsNavigationsToAppBoundDomains(bool limits) { m_limitsNavigationsToAppBoundDomains = limits; }
+#endif
+
+    void setMediaCaptureEnabled(bool value) { m_mediaCaptureEnabled = value; }
+    bool mediaCaptureEnabled() const { return m_mediaCaptureEnabled; }
+
+    void setShouldRelaxThirdPartyCookieBlocking(WebCore::ShouldRelaxThirdPartyCookieBlocking value) { m_shouldRelaxThirdPartyCookieBlocking = value; }
+    WebCore::ShouldRelaxThirdPartyCookieBlocking shouldRelaxThirdPartyCookieBlocking() const { return m_shouldRelaxThirdPartyCookieBlocking; }
+    
 private:
 
     RefPtr<WebKit::WebProcessPool> m_processPool;
     RefPtr<WebKit::WebUserContentControllerProxy> m_userContentController;
     RefPtr<WebKit::WebPageGroup> m_pageGroup;
     RefPtr<WebKit::WebPreferences> m_preferences;
-    WebKit::WebPreferencesStore::ValueMap m_preferenceValues;
     RefPtr<WebKit::WebPageProxy> m_relatedPage;
     RefPtr<WebKit::VisitedLinkStore> m_visitedLinkStore;
 
     RefPtr<WebKit::WebsiteDataStore> m_websiteDataStore;
     RefPtr<WebsitePolicies> m_defaultWebsitePolicies;
 
-    bool m_treatsSHA1SignedCertificatesAsInsecure { true };
 #if PLATFORM(IOS_FAMILY)
-    bool m_alwaysRunsAtForegroundPriority { false };
+    bool m_clientNavigationsRunAtForegroundPriority { true };
     bool m_canShowWhileLocked { false };
     RetainPtr<_UIClickInteractionDriving> m_clickInteractionDriverForTesting;
 #endif
@@ -170,6 +202,22 @@ private:
 #endif
 
     HashMap<WTF::String, Ref<WebKit::WebURLSchemeHandler>> m_urlSchemeHandlers;
+    Vector<WTF::String> m_corsDisablingPatterns;
+    bool m_userScriptsShouldWaitUntilNotification { true };
+    bool m_crossOriginAccessControlCheckEnabled { true };
+    WTF::String m_processDisplayName;
+    WebKit::WebViewCategory m_webViewCategory { WebKit::WebViewCategory::AppBoundDomain };
+    bool m_loadsSubresources { true };
+    bool m_loadsFromNetwork { true };
+    
+#if ENABLE(APP_BOUND_DOMAINS)
+    bool m_ignoresAppBoundDomains { false };
+    bool m_limitsNavigationsToAppBoundDomains { false };
+#endif
+
+    bool m_mediaCaptureEnabled { false };
+
+    WebCore::ShouldRelaxThirdPartyCookieBlocking m_shouldRelaxThirdPartyCookieBlocking { WebCore::ShouldRelaxThirdPartyCookieBlocking::No };
 };
 
 } // namespace API

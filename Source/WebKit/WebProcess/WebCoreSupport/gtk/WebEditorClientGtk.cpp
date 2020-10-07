@@ -27,6 +27,7 @@
 #include <WebCore/KeyboardEvent.h>
 #include <WebCore/Pasteboard.h>
 #include <WebCore/PlatformKeyboardEvent.h>
+#include <WebCore/TextIterator.h>
 #include <WebCore/markup.h>
 #include <WebPage.h>
 #include <wtf/Variant.h>
@@ -132,24 +133,17 @@ void WebEditorClient::handleKeyboardEvent(KeyboardEvent& event)
         event.setDefaultHandled();
 }
 
-void WebEditorClient::handleInputMethodKeydown(KeyboardEvent& event)
-{
-    auto* platformEvent = event.underlyingPlatformEvent();
-    if (platformEvent && platformEvent->handledByInputMethod())
-        event.setDefaultHandled();
-}
-
 void WebEditorClient::updateGlobalSelection(Frame* frame)
 {
     if (!frame->selection().isRange())
         return;
-    RefPtr<Range> range = frame->selection().toNormalizedRange();
+    auto range = frame->selection().selection().toNormalizedRange();
     if (!range)
         return;
 
     PasteboardWebContent pasteboardContent;
     pasteboardContent.canSmartCopyOrDelete = false;
-    pasteboardContent.text = range->text();
+    pasteboardContent.text = plainText(*range);
     pasteboardContent.markup = serializePreservingVisualAppearance(frame->selection().selection(), ResolveURLs::YesExcludingLocalFileURLsForPrivacy);
     Pasteboard::createForGlobalSelection()->write(pasteboardContent);
 }

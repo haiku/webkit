@@ -230,13 +230,13 @@ void BUrlProtocolHandler::AuthenticationNeeded(BHttpRequest* request, ResourceRe
         return;
     }
 
-    Credential proposedCredential(d->m_user, d->m_pass, CredentialPersistenceForSession);
+    Credential proposedCredential(d->m_user, d->m_password, CredentialPersistenceForSession);
 
     AuthenticationChallenge authenticationChallenge(protectionSpace,
         proposedCredential, failureCount++, response, resourceError);
     authenticationChallenge.m_authenticationClient = m_resourceHandle;
     m_resourceHandle->didReceiveAuthenticationChallenge(authenticationChallenge);
-            // will set m_user and m_pass in ResourceHandleInternal
+            // will set m_user and m_password in ResourceHandleInternal
 
     if (d->m_user != "") {
         // Handle this just like redirects.
@@ -244,7 +244,7 @@ void BUrlProtocolHandler::AuthenticationNeeded(BHttpRequest* request, ResourceRe
 
         ResourceRequest request = m_resourceHandle->firstRequest();
 		ResourceResponse responseCopy = response;
-        request.setCredentials(d->m_user.utf8().data(), d->m_pass.utf8().data());
+        request.setCredentials(d->m_user.utf8().data(), d->m_password.utf8().data());
 		client->willSendRequestAsync(m_resourceHandle, WTFMove(request), WTFMove(responseCopy),
     	[handle = makeRef(*m_resourceHandle)] (ResourceRequest&& request) {
         	//continueAfterWillSendRequest(handle.ptr(), WTFMove(request));

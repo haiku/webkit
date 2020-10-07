@@ -244,6 +244,9 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
     {
         let node = this.representedObject;
 
+        if (node.destroyed)
+            return false;
+
         if (node.isShadowRoot())
             return false;
 
@@ -341,12 +344,18 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
             return;
 
         function inspectedPage_node_injectStyleAndToggleClass(hiddenClassName, force) {
-            let styleElement = document.getElementById(hiddenClassName);
+            let root = this.getRootNode() || document;
+
+            let styleElement = root.getElementById(hiddenClassName);
             if (!styleElement) {
                 styleElement = document.createElement("style");
                 styleElement.id = hiddenClassName;
                 styleElement.textContent = `.${hiddenClassName} { visibility: hidden !important; }`;
-                document.head.appendChild(styleElement);
+
+                if (root instanceof HTMLDocument)
+                    root.head.appendChild(styleElement);
+                else // Inside Shadow DOM.
+                    root.insertBefore(styleElement, root.firstChild);
             }
 
             this.classList.toggle(hiddenClassName, force);
@@ -713,9 +722,8 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
         if (tag.getElementsByClassName("html-attribute").length > 0)
             tag.insertBefore(node, tag.lastChild);
         else {
-            var nodeName = tag.textContent.match(/^<(.*?)>$/)[1];
-            tag.textContent = "";
-            tag.append("<" + nodeName, node, ">");
+            let tagNameElement = tag.querySelector(".html-tag-name");
+            tagNameElement.parentNode.insertBefore(node, tagNameElement.nextSibling);
         }
 
         this.updateSelectionArea();
@@ -809,7 +817,7 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
                 }, WI.isBeingEdited(attributeNode));
             }
 
-            if (!DOMTreeElement.EditTagBlacklist.has(this.representedObject.nodeNameInCorrectCase())) {
+            if (InspectorBackend.hasCommand("DOM.setNodeName") && !DOMTreeElement.EditTagBlacklist.has(this.representedObject.nodeNameInCorrectCase())) {
                 let tagNameNode = event.target.closest(".html-tag-name");
 
                 subMenus.edit.appendItem(WI.UIString("Tag", "A submenu item of 'Edit' to change DOM element's tag name"), () => {
@@ -824,9 +832,12 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
             }, WI.isBeingEdited(textNode));
         }
 
-        if (!this.representedObject.isPseudoElement()) {
+        if (!this.representedObject.destroyed && !this.representedObject.isPseudoElement()) {
             subMenus.copy.appendItem(WI.UIString("HTML"), () => {
-                this._copyHTML();
+                this.representedObject.getOuterHTML()
+                .then((outerHTML) => {
+                    InspectorFrontendHost.copyText(outerHTML);
+                });
             });
         }
 
@@ -985,6 +996,9 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
 
     _startEditingTagName(tagNameElement)
     {
+        if (!InspectorBackend.hasCommand("DOM.setNodeName"))
+            return false;
+
         if (!tagNameElement) {
             tagNameElement = this.listItemElement.getElementsByClassName("html-tag-name")[0];
             if (!tagNameElement)
@@ -1408,7 +1422,9 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
             let goToArrowElement = parentElement.appendChild(WI.createGoToArrowButton());
             goToArrowElement.title = WI.UIString("Reveal in Elements Tab");
             goToArrowElement.addEventListener("click", (event) => {
-                WI.domManager.inspectElement(this.representedObject.id);
+                WI.domManager.inspectElement(this.representedObject.id, {
+                    initiatorHint: WI.TabBrowser.TabNavigationInitiator.LinkClick,
+                });
             });
         }
     }
@@ -1786,11 +1802,6 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
         });
     }
 
-    _copyHTML()
-    {
-        this.representedObject.copyNode();
-    }
-
     _highlightSearchResults()
     {
         if (!this.title || !this._searchQuery || !this._searchHighlightsVisible)
@@ -1801,9 +1812,14 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
             return;
         }
 
-        var text = this.title.textContent;
-        let searchRegex = WI.SearchUtilities.regExpForString(this._searchQuery, WI.SearchUtilities.defaultSettings);
+        let searchRegex = WI.SearchUtilities.searchRegExpForString(this._searchQuery, WI.SearchUtilities.defaultSettings);
+        if (!searchRegex) {
+            this.hideSearchHighlights();
+            this.dispatchEventToListeners(WI.TextEditor.Event.NumberOfSearchResultsDidChange);
+            return;
+        }
 
+        var text = this.title.textContent;
         var match = searchRegex.exec(text);
         var matchRanges = [];
         while (match) {

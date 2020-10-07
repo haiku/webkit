@@ -37,10 +37,13 @@
 #include "Document.h"
 #include "Event.h"
 #include "EventNames.h"
+#include "Frame.h"
 #include "JSDOMPromiseDeferred.h"
 #include "JSMediaDeviceInfo.h"
 #include "MediaTrackSupportedConstraints.h"
 #include "RealtimeMediaSourceSettings.h"
+#include "Settings.h"
+#include "UserGestureIndicator.h"
 #include "UserMediaController.h"
 #include "UserMediaRequest.h"
 #include <wtf/IsoMallocInlines.h>
@@ -54,6 +57,7 @@ inline MediaDevices::MediaDevices(Document& document)
     : ActiveDOMObject(document)
     , m_scheduledEventTimer(*this, &MediaDevices::scheduledEventTimerFired)
     , m_eventNames(eventNames())
+    , m_groupIdHashSalt(createCanonicalUUIDString())
 {
     suspendIfNeeded();
 
@@ -61,11 +65,6 @@ inline MediaDevices::MediaDevices(Document& document)
     static_assert(static_cast<size_t>(MediaDevices::DisplayCaptureSurfaceType::Window) == static_cast<size_t>(RealtimeMediaSourceSettings::DisplaySurfaceType::Window), "MediaDevices::DisplayCaptureSurfaceType::Window is not RealtimeMediaSourceSettings::DisplaySurfaceType::Window as expected");
     static_assert(static_cast<size_t>(MediaDevices::DisplayCaptureSurfaceType::Application) == static_cast<size_t>(RealtimeMediaSourceSettings::DisplaySurfaceType::Application), "MediaDevices::DisplayCaptureSurfaceType::Application is not RealtimeMediaSourceSettings::DisplaySurfaceType::Application as expected");
     static_assert(static_cast<size_t>(MediaDevices::DisplayCaptureSurfaceType::Browser) == static_cast<size_t>(RealtimeMediaSourceSettings::DisplaySurfaceType::Browser), "MediaDevices::DisplayCaptureSurfaceType::Browser is not RealtimeMediaSourceSettings::DisplaySurfaceType::Browser as expected");
-
-    if (auto* controller = UserMediaController::from(document.page())) {
-        m_canAccessCamera = controller->canCallGetUserMedia(document, { UserMediaController::CaptureType::Camera }) == UserMediaController::GetUserMediaAccess::CanCall;
-        m_canAccessMicrophone = controller->canCallGetUserMedia(document, { UserMediaController::CaptureType::Microphone }) == UserMediaController::GetUserMediaAccess::CanCall;
-    }
 }
 
 MediaDevices::~MediaDevices() = default;
@@ -74,9 +73,9 @@ void MediaDevices::stop()
 {
     if (m_deviceChangeToken) {
         auto* controller = UserMediaController::from(document()->page());
-        controller->removeDeviceChangeObserver(m_deviceChangeToken);
+        if (controller)
+            controller->removeDeviceChangeObserver(m_deviceChangeToken);
     }
-    m_devices.clear();
     m_scheduledEventTimer.stop();
 }
 
@@ -104,7 +103,20 @@ static MediaConstraints createMediaConstraints(const Variant<bool, MediaTrackCon
     );
 }
 
-void MediaDevices::getUserMedia(const StreamConstraints& constraints, Promise&& promise) const
+bool MediaDevices::computeUserGesturePriviledge(GestureAllowedRequest requestType)
+{
+    auto* currentGestureToken = UserGestureIndicator::currentUserGesture().get();
+    if (m_currentGestureToken.get() != currentGestureToken) {
+        m_currentGestureToken = makeWeakPtr(currentGestureToken);
+        m_requestTypesForCurrentGesture = { };
+    }
+
+    bool isUserGesturePriviledged = m_currentGestureToken && !m_requestTypesForCurrentGesture.contains(requestType);
+    m_requestTypesForCurrentGesture.add(requestType);
+    return isUserGesturePriviledged;
+}
+
+void MediaDevices::getUserMedia(const StreamConstraints& constraints, Promise&& promise)
 {
     auto* document = this->document();
     if (!document || !document->isFullyActive()) {
@@ -114,49 +126,102 @@ void MediaDevices::getUserMedia(const StreamConstraints& constraints, Promise&& 
 
     auto audioConstraints = createMediaConstraints(constraints.audio);
     auto videoConstraints = createMediaConstraints(constraints.video);
-    if (videoConstraints.isValid)
-        videoConstraints.setDefaultVideoConstraints();
 
-    auto request = UserMediaRequest::create(*document, { MediaStreamRequest::Type::UserMedia, WTFMove(audioConstraints), WTFMove(videoConstraints) }, WTFMove(promise));
+    bool isUserGesturePriviledged = false;
+
+    if (audioConstraints.isValid)
+        isUserGesturePriviledged |= computeUserGesturePriviledge(GestureAllowedRequest::Microphone);
+
+    if (videoConstraints.isValid) {
+        isUserGesturePriviledged |= computeUserGesturePriviledge(GestureAllowedRequest::Camera);
+        videoConstraints.setDefaultVideoConstraints();
+    }
+
+    auto request = UserMediaRequest::create(*document, { MediaStreamRequest::Type::UserMedia, WTFMove(audioConstraints), WTFMove(videoConstraints), isUserGesturePriviledged }, WTFMove(promise));
     request->start();
 }
 
-void MediaDevices::getDisplayMedia(const StreamConstraints& constraints, Promise&& promise) const
+void MediaDevices::getDisplayMedia(const DisplayMediaStreamConstraints& constraints, Promise&& promise)
 {
     auto* document = this->document();
     if (!document)
         return;
 
-    if (!m_disableGetDisplayMediaUserGestureConstraint && !UserGestureIndicator::processingUserGesture()) {
+    bool isUserGesturePriviledged = computeUserGesturePriviledge(GestureAllowedRequest::Display);
+    if (!isUserGesturePriviledged) {
         promise.reject(Exception { InvalidAccessError, "getDisplayMedia must be called from a user gesture handler."_s });
         return;
     }
 
-    auto request = UserMediaRequest::create(*document, { MediaStreamRequest::Type::DisplayMedia, { }, createMediaConstraints(constraints.video) }, WTFMove(promise));
+    auto request = UserMediaRequest::create(*document, { MediaStreamRequest::Type::DisplayMedia, { }, createMediaConstraints(constraints.video), isUserGesturePriviledged }, WTFMove(promise));
     request->start();
 }
 
-void MediaDevices::refreshDevices(const Vector<CaptureDevice>& newDevices)
+static inline bool checkCameraAccess(const Document& document)
 {
+    return isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::Camera, document, LogFeaturePolicyFailure::No);
+}
+
+static inline bool checkMicrophoneAccess(const Document& document)
+{
+    return isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::Microphone, document, LogFeaturePolicyFailure::No);
+}
+
+static inline bool checkSpeakerAccess(const Document& document)
+{
+    return document.frame()
+        && document.frame()->settings().exposeSpeakersEnabled()
+        && isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::SpeakerSelection, document, LogFeaturePolicyFailure::No);
+}
+
+static inline MediaDeviceInfo::Kind toMediaDeviceInfoKind(CaptureDevice::DeviceType type)
+{
+    switch (type) {
+    case CaptureDevice::DeviceType::Microphone:
+        return MediaDeviceInfo::Kind::Audioinput;
+    case CaptureDevice::DeviceType::Speaker:
+        return MediaDeviceInfo::Kind::Audiooutput;
+    case CaptureDevice::DeviceType::Camera:
+    case CaptureDevice::DeviceType::Screen:
+    case CaptureDevice::DeviceType::Window:
+        return MediaDeviceInfo::Kind::Videoinput;
+    case CaptureDevice::DeviceType::Unknown:
+        ASSERT_NOT_REACHED();
+    }
+    return MediaDeviceInfo::Kind::Audioinput;
+}
+
+void MediaDevices::exposeDevices(const Vector<CaptureDevice>& newDevices, const String& deviceIDHashSalt, EnumerateDevicesPromise&& promise)
+{
+    if (isContextStopped())
+        return;
+
+    auto& document = *this->document();
+
+    bool canAccessCamera = checkCameraAccess(document);
+    bool canAccessMicrophone = checkMicrophoneAccess(document);
+    bool canAccessSpeaker = checkSpeakerAccess(document);
+
+    m_audioOutputDeviceIdToPersistentId.clear();
+
     Vector<Ref<MediaDeviceInfo>> devices;
     for (auto& newDevice : newDevices) {
-        if (!m_canAccessMicrophone && newDevice.type() == CaptureDevice::DeviceType::Microphone)
+        if (!canAccessMicrophone && newDevice.type() == CaptureDevice::DeviceType::Microphone)
             continue;
-        if (!m_canAccessCamera && newDevice.type() == CaptureDevice::DeviceType::Camera)
+        if (!canAccessCamera && newDevice.type() == CaptureDevice::DeviceType::Camera)
+            continue;
+        if (!canAccessSpeaker && newDevice.type() == CaptureDevice::DeviceType::Speaker)
             continue;
 
-        auto index = m_devices.findMatching([&newDevice](auto& oldDevice) {
-            return oldDevice->deviceId() == newDevice.persistentId();
-        });
-        if (index != notFound) {
-            devices.append(m_devices[index].copyRef());
-            continue;
-        }
+        auto deviceId = RealtimeMediaSourceCenter::singleton().hashStringWithSalt(newDevice.persistentId(), deviceIDHashSalt);
+        auto groupId = RealtimeMediaSourceCenter::singleton().hashStringWithSalt(newDevice.groupId(), m_groupIdHashSalt);
 
-        auto deviceType = newDevice.type() == CaptureDevice::DeviceType::Microphone ? MediaDeviceInfo::Kind::Audioinput : MediaDeviceInfo::Kind::Videoinput;
-        devices.append(MediaDeviceInfo::create(newDevice.label(), newDevice.persistentId(), newDevice.groupId(), deviceType));
+        if (newDevice.type() == CaptureDevice::DeviceType::Speaker)
+            m_audioOutputDeviceIdToPersistentId.add(deviceId, newDevice.persistentId());
+
+        devices.append(MediaDeviceInfo::create(newDevice.label(), WTFMove(deviceId), WTFMove(groupId), toMediaDeviceInfoKind(newDevice.type())));
     }
-    m_devices = WTFMove(devices);
+    promise.resolve(devices);
 }
 
 void MediaDevices::enumerateDevices(EnumerateDevicesPromise&& promise)
@@ -170,19 +235,17 @@ void MediaDevices::enumerateDevices(EnumerateDevicesPromise&& promise)
         promise.resolve({ });
         return;
     }
-    if (!m_canAccessCamera && !m_canAccessMicrophone) {
-        controller->logGetUserMediaDenial(*document, UserMediaController::GetUserMediaAccess::BlockedByFeaturePolicy, UserMediaController::BlockedCaller::EnumerateDevices);
+
+    if (!checkCameraAccess(*document) && !checkMicrophoneAccess(*document)) {
+        controller->logEnumerateDevicesDenial(*document);
         promise.resolve({ });
         return;
     }
 
     controller->enumerateMediaDevices(*document, [this, weakThis = makeWeakPtr(this), promise = WTFMove(promise)](const auto& newDevices, const auto& deviceIDHashSalt) mutable {
-        if (!weakThis || isContextStopped())
+        if (!weakThis)
             return;
-
-        this->document()->setDeviceIDHashSalt(deviceIDHashSalt);
-        refreshDevices(newDevices);
-        promise.resolve(m_devices);
+        exposeDevices(newDevices, deviceIDHashSalt, WTFMove(promise));
     });
 }
 
@@ -211,9 +274,9 @@ void MediaDevices::scheduledEventTimerFired()
     dispatchEvent(Event::create(eventNames().devicechangeEvent, Event::CanBubble::No, Event::IsCancelable::No));
 }
 
-bool MediaDevices::hasPendingActivity() const
+bool MediaDevices::virtualHasPendingActivity() const
 {
-    return !isContextStopped() && hasEventListeners(m_eventNames.devicechangeEvent);
+    return hasEventListeners(m_eventNames.devicechangeEvent);
 }
 
 const char* MediaDevices::activeDOMObjectName() const
@@ -223,15 +286,18 @@ const char* MediaDevices::activeDOMObjectName() const
 
 void MediaDevices::listenForDeviceChanges()
 {
-    if (m_listeningForDeviceChanges || (!m_canAccessCamera && !m_canAccessMicrophone))
-        return;
-
-    m_listeningForDeviceChanges = true;
-
     auto* document = this->document();
     auto* controller = document ? UserMediaController::from(document->page()) : nullptr;
     if (!controller)
         return;
+
+    bool canAccessCamera = isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::Camera, *document, LogFeaturePolicyFailure::No);
+    bool canAccessMicrophone = isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::Microphone, *document, LogFeaturePolicyFailure::No);
+
+    if (m_listeningForDeviceChanges || (!canAccessCamera && !canAccessMicrophone))
+        return;
+
+    m_listeningForDeviceChanges = true;
 
     m_deviceChangeToken = controller->addDeviceChangeObserver([weakThis = makeWeakPtr(*this), this]() {
         if (!weakThis || isContextStopped() || m_scheduledEventTimer.isActive())

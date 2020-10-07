@@ -21,12 +21,24 @@ namespace rx
 namespace vk
 {
 class ImageHelper;
+enum class ImageLayout;
 
 using RenderPassAndSerial = ObjectAndSerial<RenderPass>;
 using PipelineAndSerial   = ObjectAndSerial<Pipeline>;
 
-using RefCountedDescriptorSetLayout = RefCounted<DescriptorSetLayout>;
-using RefCountedPipelineLayout      = RefCounted<PipelineLayout>;
+using RefCountedDescriptorSetLayout    = RefCounted<DescriptorSetLayout>;
+using RefCountedPipelineLayout         = RefCounted<PipelineLayout>;
+using RefCountedSampler                = RefCounted<Sampler>;
+using RefCountedSamplerYcbcrConversion = RefCounted<SamplerYcbcrConversion>;
+
+// Helper macro that casts to a bitfield type then verifies no bits were dropped.
+#define SetBitField(lhs, rhs)                                                         \
+    do                                                                                \
+    {                                                                                 \
+        auto ANGLE_LOCAL_VAR = rhs;                                                   \
+        lhs = static_cast<typename std::decay<decltype(lhs)>::type>(ANGLE_LOCAL_VAR); \
+        ASSERT(static_cast<decltype(ANGLE_LOCAL_VAR)>(lhs) == ANGLE_LOCAL_VAR);       \
+    } while (0)
 
 // Packed Vk resource descriptions.
 // Most Vk types use many more bits than required to represent the underlying data.
@@ -79,7 +91,7 @@ class alignas(4) RenderPassDesc final
 
     void setSamples(GLint samples);
 
-    uint8_t samples() const { return mSamples; }
+    uint8_t samples() const { return 1u << mLogSamples; }
 
     angle::FormatID operator[](size_t index) const
     {
@@ -88,9 +100,12 @@ class alignas(4) RenderPassDesc final
     }
 
   private:
-    uint8_t mSamples;
-    uint8_t mColorAttachmentRange : 7;
+    // Store log(samples), to be able to store it in 3 bits.
+    uint8_t mLogSamples : 3;
+    uint8_t mColorAttachmentRange : 4;
     uint8_t mHasDepthStencilAttachment : 1;
+    // Temporary padding for upcoming support for resolve attachments.
+    ANGLE_MAYBE_UNUSED uint8_t pad;
     // Color attachment formats are stored with their GL attachment indices.  The depth/stencil
     // attachment formats follow the last enabled color attachment.  When creating a render pass,
     // the disabled attachments are removed and the resulting attachments are packed.
@@ -146,10 +161,12 @@ class AttachmentOpsArray final
     const PackedAttachmentOpsDesc &operator[](size_t index) const;
     PackedAttachmentOpsDesc &operator[](size_t index);
 
-    // Initializes an attachment op with whatever values. Used for compatible RenderPass checks.
-    void initDummyOp(size_t index, VkImageLayout initialLayout, VkImageLayout finalLayout);
     // Initialize an attachment op with all load and store operations.
-    void initWithLoadStore(size_t index, VkImageLayout initialLayout, VkImageLayout finalLayout);
+    void initWithLoadStore(size_t index, ImageLayout initialLayout, ImageLayout finalLayout);
+
+    void setLayouts(size_t index, ImageLayout initialLayout, ImageLayout finalLayout);
+    void setOps(size_t index, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp);
+    void setStencilOps(size_t index, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp);
 
     size_t hash() const;
 
@@ -363,6 +380,7 @@ class GraphicsPipelineDesc final
                                      const ShaderModule *vertexModule,
                                      const ShaderModule *fragmentModule,
                                      const ShaderModule *geometryModule,
+                                     vk::SpecializationConstantBitSet specConsts,
                                      Pipeline *pipelineOut) const;
 
     // Vertex input state. For ES 3.1 this should be separated into binding and attribute.
@@ -390,6 +408,7 @@ class GraphicsPipelineDesc final
                                         bool rasterizerDiscardEnabled);
 
     // Multisample states
+    uint32_t getRasterizationSamples() const;
     void setRasterizationSamples(uint32_t rasterizationSamples);
     void updateRasterizationSamples(GraphicsPipelineTransitionBits *transition,
                                     uint32_t rasterizationSamples);
@@ -514,19 +533,27 @@ class DescriptorSetLayoutDesc final
     void update(uint32_t bindingIndex,
                 VkDescriptorType type,
                 uint32_t count,
-                VkShaderStageFlags stages);
+                VkShaderStageFlags stages,
+                const vk::Sampler *immutableSampler);
 
-    void unpackBindings(DescriptorSetLayoutBindingVector *bindings) const;
+    void unpackBindings(DescriptorSetLayoutBindingVector *bindings,
+                        std::vector<VkSampler> *immutableSamplers) const;
 
   private:
+    // There is a small risk of an issue if the sampler cache is evicted but not the descriptor
+    // cache we would have an invalid handle here. Thus propose follow-up work:
+    // TODO: https://issuetracker.google.com/issues/159156775: Have immutable sampler use serial
     struct PackedDescriptorSetBinding
     {
         uint8_t type;    // Stores a packed VkDescriptorType descriptorType.
         uint8_t stages;  // Stores a packed VkShaderStageFlags.
         uint16_t count;  // Stores a packed uint32_t descriptorCount.
+        uint32_t pad;
+        VkSampler immutableSampler;
     };
 
-    static_assert(sizeof(PackedDescriptorSetBinding) == sizeof(uint32_t), "Unexpected size");
+    // 4x 32bit
+    static_assert(sizeof(PackedDescriptorSetBinding) == 16, "Unexpected size");
 
     // This is a compact representation of a descriptor set layout.
     std::array<PackedDescriptorSetBinding, kMaxDescriptorSetLayoutBindings>
@@ -584,6 +611,65 @@ static_assert(sizeof(PipelineLayoutDesc) ==
                   (sizeof(DescriptorSetLayoutArray<DescriptorSetLayoutDesc>) +
                    sizeof(gl::ShaderMap<PackedPushConstantRange>)),
               "Unexpected Size");
+
+// Packed sampler description for the sampler cache.
+class SamplerDesc final
+{
+  public:
+    SamplerDesc();
+    SamplerDesc(const gl::SamplerState &samplerState, bool stencilMode, uint64_t externalFormat);
+    ~SamplerDesc();
+
+    SamplerDesc(const SamplerDesc &other);
+    SamplerDesc &operator=(const SamplerDesc &rhs);
+
+    void update(const gl::SamplerState &samplerState, bool stencilMode, uint64_t externalFormat);
+    void reset();
+    angle::Result init(ContextVk *contextVk, vk::Sampler *sampler) const;
+
+    size_t hash() const;
+    bool operator==(const SamplerDesc &other) const;
+
+  private:
+    // 32*4 bits for floating point data.
+    // Note: anisotropy enabled is implicitly determined by maxAnisotropy and caps.
+    float mMipLodBias;
+    float mMaxAnisotropy;
+    float mMinLod;
+    float mMaxLod;
+
+    // If the sampler needs to convert the image content (e.g. from YUV to RGB) then mExternalFormat
+    // will be non-zero and match the external format as returned from
+    // vkGetAndroidHardwareBufferPropertiesANDROID.
+    // The externalFormat is guaranteed to be unique and any image with the same externalFormat can
+    // use the same conversion sampler. Thus externalFormat works as a Serial() used elsewhere in
+    // ANGLE.
+    uint64_t mExternalFormat;
+
+    // 16 bits for modes + states.
+    // 1 bit per filter (only 2 possible values in GL: linear/nearest)
+    uint16_t mMagFilter : 1;
+    uint16_t mMinFilter : 1;
+    uint16_t mMipmapMode : 1;
+
+    // 3 bits per address mode (5 possible values)
+    uint16_t mAddressModeU : 3;
+    uint16_t mAddressModeV : 3;
+    uint16_t mAddressModeW : 3;
+
+    // 1 bit for compare enabled (2 possible values)
+    uint16_t mCompareEnabled : 1;
+
+    // 3 bits for compare op. (8 possible values)
+    uint16_t mCompareOp : 3;
+
+    // Border color and unnormalized coordinates implicitly set to contants.
+
+    // 48 extra bits reserved for future use.
+    uint16_t mReserved[3];
+};
+
+static_assert(sizeof(SamplerDesc) == 32, "Unexpected SamplerDesc size");
 
 // Disable warnings about struct padding.
 ANGLE_DISABLE_STRUCT_PADDING_WARNINGS
@@ -695,7 +781,7 @@ class TextureDescriptorDesc
     TextureDescriptorDesc(const TextureDescriptorDesc &other);
     TextureDescriptorDesc &operator=(const TextureDescriptorDesc &other);
 
-    void update(size_t index, Serial textureSerial, Serial samplerSerial);
+    void update(size_t index, TextureSerial textureSerial, SamplerSerial samplerSerial);
     size_t hash() const;
     void reset();
 
@@ -713,10 +799,87 @@ class TextureDescriptorDesc
     };
     gl::ActiveTextureArray<TexUnitSerials> mSerials;
 };
+
+class UniformsAndXfbDesc
+{
+  public:
+    UniformsAndXfbDesc();
+    ~UniformsAndXfbDesc();
+
+    UniformsAndXfbDesc(const UniformsAndXfbDesc &other);
+    UniformsAndXfbDesc &operator=(const UniformsAndXfbDesc &other);
+
+    BufferSerial getDefaultUniformBufferSerial() const
+    {
+        return mBufferSerials[kDefaultUniformBufferIndex];
+    }
+    void updateDefaultUniformBuffer(BufferSerial bufferSerial)
+    {
+        mBufferSerials[kDefaultUniformBufferIndex] = bufferSerial;
+        mBufferCount = std::max(mBufferCount, static_cast<uint32_t>(1));
+    }
+    void updateTransformFeedbackBuffer(size_t xfbIndex, BufferSerial bufferSerial)
+    {
+        uint32_t bufferIndex        = static_cast<uint32_t>(xfbIndex) + 1;
+        mBufferSerials[bufferIndex] = bufferSerial;
+        mBufferCount                = std::max(mBufferCount, (bufferIndex + 1));
+    }
+    size_t hash() const;
+    void reset();
+
+    bool operator==(const UniformsAndXfbDesc &other) const;
+
+  private:
+    uint32_t mBufferCount;
+    // The array index 0 is used for default uniform buffer
+    static constexpr size_t kDefaultUniformBufferIndex = 0;
+    static constexpr size_t kMaxBufferCount = 1 + gl::IMPLEMENTATION_MAX_TRANSFORM_FEEDBACK_BUFFERS;
+    std::array<BufferSerial, kMaxBufferCount> mBufferSerials;
+};
+
+// This is IMPLEMENTATION_MAX_DRAW_BUFFERS + 1 for DS attachment
+constexpr size_t kMaxFramebufferAttachments = gl::IMPLEMENTATION_MAX_FRAMEBUFFER_ATTACHMENTS;
+
+class FramebufferDesc
+{
+  public:
+    FramebufferDesc();
+    ~FramebufferDesc();
+
+    FramebufferDesc(const FramebufferDesc &other);
+    FramebufferDesc &operator=(const FramebufferDesc &other);
+
+    void updateColor(uint32_t index, ImageViewSerial serial);
+    void updateDepthStencil(ImageViewSerial serial);
+    size_t hash() const;
+    void reset();
+
+    bool operator==(const FramebufferDesc &other) const;
+
+    uint32_t attachmentCount() const;
+
+  private:
+    void update(uint32_t index, ImageViewSerial serial);
+
+    gl::AttachmentArray<ImageViewSerial> mSerials;
+    uint32_t mMaxValidSerialIndex;
+};
+
+// Layer/level pair type used to index into Serial Cache in ImageViewHelper
+struct LayerLevel
+{
+    uint32_t layer;
+    uint32_t level;
+
+    bool operator==(const LayerLevel &other) const
+    {
+        return layer == other.layer && level == other.level;
+    }
+};
 }  // namespace vk
 }  // namespace rx
 
-// Introduce a std::hash for a RenderPassDesc
+// Introduce std::hash for the above classes.
 namespace std
 {
 template <>
@@ -753,6 +916,44 @@ template <>
 struct hash<rx::vk::TextureDescriptorDesc>
 {
     size_t operator()(const rx::vk::TextureDescriptorDesc &key) const { return key.hash(); }
+};
+
+template <>
+struct hash<rx::vk::UniformsAndXfbDesc>
+{
+    size_t operator()(const rx::vk::UniformsAndXfbDesc &key) const { return key.hash(); }
+};
+
+template <>
+struct hash<rx::vk::FramebufferDesc>
+{
+    size_t operator()(const rx::vk::FramebufferDesc &key) const { return key.hash(); }
+};
+
+template <>
+struct hash<rx::vk::SamplerDesc>
+{
+    size_t operator()(const rx::vk::SamplerDesc &key) const { return key.hash(); }
+};
+
+template <>
+struct hash<rx::vk::LayerLevel>
+{
+    size_t operator()(const rx::vk::LayerLevel &layerLevel) const
+    {
+        // The left-shift by 11 was found to produce unique hash values
+        // in a [0..1000][0..2048] space for layer/level
+        // Make sure that layer/level hash bits don't overlap or overflow
+        ASSERT((layerLevel.layer & 0x000007FF) == layerLevel.layer);
+        ASSERT((layerLevel.level & 0xFFE00000) == 0);
+        return layerLevel.layer | (layerLevel.level << 11);
+    }
+};
+
+template <>
+struct hash<rx::BufferSerial>
+{
+    size_t operator()(const rx::BufferSerial &key) const { return key.getValue(); }
 };
 }  // namespace std
 
@@ -828,6 +1029,7 @@ class GraphicsPipelineCache final : angle::NonCopyable
                                            const vk::ShaderModule *vertexModule,
                                            const vk::ShaderModule *fragmentModule,
                                            const vk::ShaderModule *geometryModule,
+                                           vk::SpecializationConstantBitSet specConsts,
                                            const vk::GraphicsPipelineDesc &desc,
                                            const vk::GraphicsPipelineDesc **descPtrOut,
                                            vk::PipelineHelper **pipelineOut)
@@ -842,7 +1044,8 @@ class GraphicsPipelineCache final : angle::NonCopyable
 
         return insertPipeline(contextVk, pipelineCacheVk, compatibleRenderPass, pipelineLayout,
                               activeAttribLocationsMask, programAttribsTypeMask, vertexModule,
-                              fragmentModule, geometryModule, desc, descPtrOut, pipelineOut);
+                              fragmentModule, geometryModule, specConsts, desc, descPtrOut,
+                              pipelineOut);
     }
 
   private:
@@ -855,6 +1058,7 @@ class GraphicsPipelineCache final : angle::NonCopyable
                                  const vk::ShaderModule *vertexModule,
                                  const vk::ShaderModule *fragmentModule,
                                  const vk::ShaderModule *geometryModule,
+                                 vk::SpecializationConstantBitSet specConsts,
                                  const vk::GraphicsPipelineDesc &desc,
                                  const vk::GraphicsPipelineDesc **descPtrOut,
                                  vk::PipelineHelper **pipelineOut);
@@ -896,27 +1100,67 @@ class PipelineLayoutCache final : angle::NonCopyable
     std::unordered_map<vk::PipelineLayoutDesc, vk::RefCountedPipelineLayout> mPayload;
 };
 
+class SamplerCache final : angle::NonCopyable
+{
+  public:
+    SamplerCache();
+    ~SamplerCache();
+
+    void destroy(RendererVk *renderer);
+
+    angle::Result getSampler(ContextVk *contextVk,
+                             const vk::SamplerDesc &desc,
+                             vk::BindingPointer<vk::Sampler> *samplerOut);
+
+  private:
+    std::unordered_map<vk::SamplerDesc, vk::RefCountedSampler> mPayload;
+};
+
+// YuvConversion Cache
+class SamplerYcbcrConversionCache final : angle::NonCopyable
+{
+  public:
+    SamplerYcbcrConversionCache();
+    ~SamplerYcbcrConversionCache();
+
+    void destroy(RendererVk *render);
+
+    angle::Result getYuvConversion(
+        vk::Context *context,
+        uint64_t externalFormat,
+        const VkSamplerYcbcrConversionCreateInfo &yuvConversionCreateInfo,
+        vk::BindingPointer<vk::SamplerYcbcrConversion> *yuvConversionOut);
+    VkSamplerYcbcrConversion getYuvConversionFromExternalFormat(uint64_t externalFormat) const;
+
+  private:
+    std::unordered_map<uint64_t, vk::RefCountedSamplerYcbcrConversion> mPayload;
+};
+
 // Some descriptor set and pipeline layout constants.
 //
 // The set/binding assignment is done as following:
 //
-// - Set 0 contains uniform blocks created to encompass default uniforms.  1 binding is used per
-//   pipeline stage.  Additionally, transform feedback buffers are bound from binding 2 and up.
-// - Set 1 contains all textures.
-// - Set 2 contains all other shader resources, such as uniform and storage blocks, atomic counter
-//   buffers and images.
-// - Set 3 contains the ANGLE driver uniforms at binding 0.  Note that driver uniforms are updated
+// - Set 0 contains the ANGLE driver uniforms at binding 0.  Note that driver uniforms are updated
 //   only under rare circumstances, such as viewport or depth range change.  However, there is only
-//   one binding in this set.
+//   one binding in this set.  This set is placed before Set 1 containing transform feedback
+//   buffers, so that switching between xfb and non-xfb programs doesn't require rebinding this set.
+//   Otherwise, as the layout of Set 1 changes (due to addition and removal of xfb buffers), and all
+//   subsequent sets need to be rebound (due to Vulkan pipeline layout validation rules), we would
+//   have needed to invalidateGraphicsDriverUniforms().
+// - Set 1 contains uniform blocks created to encompass default uniforms.  1 binding is used per
+//   pipeline stage.  Additionally, transform feedback buffers are bound from binding 2 and up.
+// - Set 2 contains all textures.
+// - Set 3 contains all other shader resources, such as uniform and storage blocks, atomic counter
+//   buffers and images.
 
+// ANGLE driver uniforms set index (binding is always 0):
+constexpr uint32_t kDriverUniformsDescriptorSetIndex = 0;
 // Uniforms set index:
-constexpr uint32_t kUniformsAndXfbDescriptorSetIndex = 0;
+constexpr uint32_t kUniformsAndXfbDescriptorSetIndex = 1;
 // Textures set index:
-constexpr uint32_t kTextureDescriptorSetIndex = 1;
+constexpr uint32_t kTextureDescriptorSetIndex = 2;
 // Other shader resources set index:
-constexpr uint32_t kShaderResourceDescriptorSetIndex = 2;
-// ANGLE driver uniforms set index (binding is always 3):
-constexpr uint32_t kDriverUniformsDescriptorSetIndex = 3;
+constexpr uint32_t kShaderResourceDescriptorSetIndex = 3;
 
 // Only 1 driver uniform binding is used.
 constexpr uint32_t kReservedDriverUniformBindingCount = 1;
@@ -924,8 +1168,6 @@ constexpr uint32_t kReservedDriverUniformBindingCount = 1;
 // supported.
 constexpr uint32_t kReservedPerStageDefaultUniformBindingCount = 1;
 constexpr uint32_t kReservedDefaultUniformBindingCount         = 3;
-// Binding index start for transform feedback buffers:
-constexpr uint32_t kXfbBindingIndexStart = kReservedDefaultUniformBindingCount;
 }  // namespace rx
 
 #endif  // LIBANGLE_RENDERER_VULKAN_VK_CACHE_UTILS_H_

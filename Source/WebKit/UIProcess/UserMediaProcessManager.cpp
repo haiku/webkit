@@ -29,12 +29,18 @@
 #include <WebCore/RealtimeMediaSourceCenter.h>
 #include <wtf/HashMap.h>
 #include <wtf/NeverDestroyed.h>
+#include <wtf/TranslatedProcess.h>
+
+#if ENABLE(SANDBOX_EXTENSIONS) && USE(APPLE_INTERNAL_SDK)
+#include <WebKitAdditions/UserMediaProcessManagerAdditions.cpp>
+#endif
 
 namespace WebKit {
 
 #if ENABLE(SANDBOX_EXTENSIONS)
 static const ASCIILiteral audioExtensionPath { "com.apple.webkit.microphone"_s };
 static const ASCIILiteral videoExtensionPath { "com.apple.webkit.camera"_s };
+static const ASCIILiteral appleCameraServicePath { "com.apple.applecamerad"_s };
 #endif
 
 static const Seconds deviceChangeDebounceTimerInterval { 200_ms };
@@ -62,6 +68,19 @@ void UserMediaProcessManager::muteCaptureMediaStreamsExceptIn(WebPageProxy& page
 #endif
 }
 
+#if ENABLE(SANDBOX_EXTENSIONS)
+static bool needsAppleCameraService()
+{
+#if !PLATFORM(MAC) && !PLATFORM(MACCATALYST)
+    return false;
+#elif CPU(ARM64)
+    return true;
+#else
+    return WTF::isX86BinaryRunningOnARM();
+#endif
+}
+#endif
+
 bool UserMediaProcessManager::willCreateMediaStream(UserMediaPermissionRequestManagerProxy& proxy, bool withAudio, bool withVideo)
 {
     ASSERT(withAudio || withVideo);
@@ -75,15 +94,21 @@ bool UserMediaProcessManager::willCreateMediaStream(UserMediaPermissionRequestMa
     auto& process = proxy.page().process();
     size_t extensionCount = 0;
 
-    if (withAudio && !process.hasAudioCaptureExtension())
+    bool needsAudioSandboxExtension = withAudio && !process.hasAudioCaptureExtension() && !proxy.page().preferences().captureAudioInUIProcessEnabled();
+    if (needsAudioSandboxExtension)
         extensionCount++;
-    else
-        withAudio = false;
 
-    if (withVideo && !process.hasVideoCaptureExtension())
+    bool needsVideoSandboxExtension = withVideo && !process.hasVideoCaptureExtension() && !proxy.page().preferences().captureVideoInUIProcessEnabled();
+    if (needsVideoSandboxExtension)
         extensionCount++;
-    else
-        withVideo = false;
+
+    bool needsAppleCameraSandboxExtension = needsVideoSandboxExtension && needsAppleCameraService();
+    if (needsAppleCameraSandboxExtension) {
+        extensionCount++;
+#if HAVE(ADDITIONAL_APPLE_CAMERA_SERVICE)
+        extensionCount++;
+#endif
+    }
 
     if (extensionCount) {
         SandboxExtension::HandleArray handles;
@@ -93,11 +118,20 @@ bool UserMediaProcessManager::willCreateMediaStream(UserMediaPermissionRequestMa
             handles.allocate(extensionCount);
             ids.reserveInitialCapacity(extensionCount);
 
-            if (withAudio && SandboxExtension::createHandleForGenericExtension(audioExtensionPath, handles[--extensionCount]))
-                ids.append(audioExtensionPath);
+            if (needsAudioSandboxExtension && SandboxExtension::createHandleForGenericExtension(audioExtensionPath, handles[--extensionCount]))
+                ids.uncheckedAppend(audioExtensionPath);
 
-            if (withVideo && SandboxExtension::createHandleForGenericExtension(videoExtensionPath, handles[--extensionCount]))
-                ids.append(videoExtensionPath);
+            if (needsVideoSandboxExtension && SandboxExtension::createHandleForGenericExtension(videoExtensionPath, handles[--extensionCount]))
+                ids.uncheckedAppend(videoExtensionPath);
+
+            if (needsAppleCameraSandboxExtension) {
+                if (SandboxExtension::createHandleForMachLookup(appleCameraServicePath, WTF::nullopt, handles[--extensionCount]))
+                    ids.uncheckedAppend(appleCameraServicePath);
+#if HAVE(ADDITIONAL_APPLE_CAMERA_SERVICE)
+                if (SandboxExtension::createHandleForMachLookup(additionalAppleCameraServicePath, WTF::nullopt, handles[--extensionCount]))
+                    ids.uncheckedAppend(additionalAppleCameraServicePath);
+#endif
+            }
 
             if (ids.size() != handles.size()) {
                 WTFLogAlways("Could not create a required sandbox extension, capture will fail!");
@@ -108,9 +142,9 @@ bool UserMediaProcessManager::willCreateMediaStream(UserMediaPermissionRequestMa
         for (const auto& id : ids)
             RELEASE_LOG(WebRTC, "UserMediaProcessManager::willCreateMediaStream - granting extension %s", id.utf8().data());
 
-        if (withAudio)
+        if (needsAudioSandboxExtension)
             process.grantAudioCaptureExtension();
-        if (withVideo)
+        if (needsVideoSandboxExtension)
             process.grantVideoCaptureExtension();
         process.send(Messages::WebProcess::GrantUserMediaDeviceSandboxExtensions(MediaDeviceSandboxExtensions(ids, WTFMove(handles))), 0);
     }
@@ -153,6 +187,12 @@ void UserMediaProcessManager::revokeSandboxExtensionsIfNeeded(WebProcessProxy& p
     }
     if (!hasVideoCapture && process.hasVideoCaptureExtension()) {
         params.append(videoExtensionPath);
+        if (needsAppleCameraService()) {
+            params.append(appleCameraServicePath);
+#if USE(APPLE_INTERNAL_SDK) && HAVE(ADDITIONAL_APPLE_CAMERA_SERVICE)
+            params.append(additionalAppleCameraServicePath);
+#endif
+        }
         process.revokeVideoCaptureExtension();
     }
 

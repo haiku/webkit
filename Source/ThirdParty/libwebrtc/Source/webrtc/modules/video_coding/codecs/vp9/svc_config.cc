@@ -23,8 +23,11 @@ namespace {
 const size_t kMinVp9SvcBitrateKbps = 30;
 
 const size_t kMaxNumLayersForScreenSharing = 3;
-const float kMaxScreenSharingLayerFramerateFps[] = {5.0, 5.0, 30.0};
-const size_t kMaxScreenSharingLayerBitrateKbps[] = {200, 500, 1250};
+const float kMaxScreenSharingLayerFramerateFps[] = {5.0, 10.0, 30.0};
+const size_t kMinScreenSharingLayerBitrateKbps[] = {30, 200, 500};
+const size_t kTargetScreenSharingLayerBitrateKbps[] = {150, 350, 950};
+const size_t kMaxScreenSharingLayerBitrateKbps[] = {250, 500, 950};
+
 }  // namespace
 
 std::vector<SpatialLayer> ConfigureSvcScreenSharing(size_t input_width,
@@ -42,10 +45,12 @@ std::vector<SpatialLayer> ConfigureSvcScreenSharing(size_t input_width,
     spatial_layer.maxFramerate =
         std::min(kMaxScreenSharingLayerFramerateFps[sl_idx], max_framerate_fps);
     spatial_layer.numberOfTemporalLayers = 1;
-    spatial_layer.minBitrate = static_cast<int>(kMinVp9SvcBitrateKbps);
+    spatial_layer.minBitrate =
+        static_cast<int>(kMinScreenSharingLayerBitrateKbps[sl_idx]);
     spatial_layer.maxBitrate =
         static_cast<int>(kMaxScreenSharingLayerBitrateKbps[sl_idx]);
-    spatial_layer.targetBitrate = spatial_layer.maxBitrate;
+    spatial_layer.targetBitrate =
+        static_cast<int>(kTargetScreenSharingLayerBitrateKbps[sl_idx]);
     spatial_layer.active = true;
     spatial_layers.push_back(spatial_layer);
   }
@@ -56,8 +61,10 @@ std::vector<SpatialLayer> ConfigureSvcScreenSharing(size_t input_width,
 std::vector<SpatialLayer> ConfigureSvcNormalVideo(size_t input_width,
                                                   size_t input_height,
                                                   float max_framerate_fps,
+                                                  size_t min_spatial_layers,
                                                   size_t num_spatial_layers,
                                                   size_t num_temporal_layers) {
+  RTC_DCHECK_LE(min_spatial_layers, num_spatial_layers);
   std::vector<SpatialLayer> spatial_layers;
 
   // Limit number of layers for given resolution.
@@ -69,6 +76,7 @@ std::vector<SpatialLayer> ConfigureSvcNormalVideo(size_t input_width,
                                               kMinVp9SpatialLayerHeight))));
   num_spatial_layers =
       std::min({num_spatial_layers, num_layers_fit_horz, num_layers_fit_vert});
+  num_spatial_layers = std::max(num_spatial_layers, min_spatial_layers);
 
   for (size_t sl_idx = 0; sl_idx < num_spatial_layers; ++sl_idx) {
     SpatialLayer spatial_layer = {0};
@@ -104,6 +112,7 @@ std::vector<SpatialLayer> ConfigureSvcNormalVideo(size_t input_width,
 std::vector<SpatialLayer> GetSvcConfig(size_t input_width,
                                        size_t input_height,
                                        float max_framerate_fps,
+                                       size_t min_spatial_layers,
                                        size_t num_spatial_layers,
                                        size_t num_temporal_layers,
                                        bool is_screen_sharing) {
@@ -117,7 +126,8 @@ std::vector<SpatialLayer> GetSvcConfig(size_t input_width,
                                      max_framerate_fps, num_spatial_layers);
   } else {
     return ConfigureSvcNormalVideo(input_width, input_height, max_framerate_fps,
-                                   num_spatial_layers, num_temporal_layers);
+                                   min_spatial_layers, num_spatial_layers,
+                                   num_temporal_layers);
   }
 }
 

@@ -52,10 +52,10 @@ namespace JSC {
             , m_target(0)
         { }
 
-        explicit GenericBoundLabel(int target)
+        explicit GenericBoundLabel(int offset)
             : m_type(Offset)
             , m_generator(nullptr)
-            , m_target(target)
+            , m_target(offset)
         { }
 
         GenericBoundLabel(BytecodeGenerator* generator, Label* label)
@@ -128,6 +128,7 @@ namespace JSC {
         WTF_MAKE_NONCOPYABLE(GenericLabel);
         using BytecodeGenerator = BytecodeGeneratorBase<Traits>;
         using BoundLabel = GenericBoundLabel<Traits>;
+        using JumpVector = Vector<int, 8>;
 
     public:
         GenericLabel() = default;
@@ -170,10 +171,17 @@ namespace JSC {
         
         bool isBound() const { return m_bound; }
 
+        unsigned location() const
+        {
+            ASSERT(!isForward());
+            m_bound = true;
+            return m_location;
+        };
+
+        const JumpVector& unresolvedJumps() const { return  m_unresolvedJumps; }
+
     private:
         friend BoundLabel;
-
-        typedef Vector<int, 8> JumpVector;
 
         static constexpr unsigned invalidLocation = UINT_MAX;
 

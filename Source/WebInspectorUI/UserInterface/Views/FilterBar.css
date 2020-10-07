@@ -25,13 +25,9 @@
 
 .filter-bar {
     display: flex;
-
     height: var(--navigation-bar-height);
-
     white-space: nowrap;
     overflow: hidden;
-
-    background-color: var(--panel-background-color);
 }
 
 .filter-bar > .navigation-bar {
@@ -115,4 +111,8 @@
 
 :matches(.filter-bar, .search-bar) > input[type="search"] + .navigation-bar > .item.scope-bar:last-child {
     -webkit-margin-end: 4px;
+}
+
+:matches(.filter-bar, .search-bar).invalid > input[type="search"] {
+    border-color: var(--error-text-color);
 }

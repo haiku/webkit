@@ -26,10 +26,11 @@
 #pragma once
 
 #include "MacroAssemblerCodeRef.h"
+#include "VM.h"
+#include <wtf/Scope.h>
 
 namespace JSC {
 
-class VM;
 struct ProtoCallFrame;
 typedef int64_t EncodedJSValue;
 
@@ -40,19 +41,27 @@ extern "C" {
 
 inline EncodedJSValue vmEntryToWasm(void* code, VM* vm, ProtoCallFrame* frame)
 {
+    auto clobberizeValidator = makeScopeExit([&] {
+        vm->didEnterVM = true;
+    });
     code = retagCodePtr<WasmEntryPtrTag, JSEntryPtrTag>(code);
     return vmEntryToJavaScript(code, vm, frame);
 }
 
 namespace LLInt {
 
-MacroAssemblerCodeRef<JITThunkPtrTag> functionForCallEntryThunk();
-MacroAssemblerCodeRef<JITThunkPtrTag> functionForConstructEntryThunk();
-MacroAssemblerCodeRef<JITThunkPtrTag> functionForCallArityCheckThunk();
-MacroAssemblerCodeRef<JITThunkPtrTag> functionForConstructArityCheckThunk();
-MacroAssemblerCodeRef<JITThunkPtrTag> evalEntryThunk();
-MacroAssemblerCodeRef<JITThunkPtrTag> programEntryThunk();
-MacroAssemblerCodeRef<JITThunkPtrTag> moduleProgramEntryThunk();
+MacroAssemblerCodeRef<JSEntryPtrTag> functionForCallEntryThunk();
+MacroAssemblerCodeRef<JSEntryPtrTag> functionForConstructEntryThunk();
+MacroAssemblerCodeRef<JSEntryPtrTag> functionForCallArityCheckThunk();
+MacroAssemblerCodeRef<JSEntryPtrTag> functionForConstructArityCheckThunk();
+MacroAssemblerCodeRef<JSEntryPtrTag> evalEntryThunk();
+MacroAssemblerCodeRef<JSEntryPtrTag> programEntryThunk();
+MacroAssemblerCodeRef<JSEntryPtrTag> moduleProgramEntryThunk();
+MacroAssemblerCodeRef<JSEntryPtrTag> getHostCallReturnValueThunk();
+
+MacroAssemblerCodeRef<ExceptionHandlerPtrTag> callToThrowThunk();
+MacroAssemblerCodeRef<ExceptionHandlerPtrTag> handleUncaughtExceptionThunk();
+MacroAssemblerCodeRef<ExceptionHandlerPtrTag> handleCatchThunk(OpcodeSize);
 
 #if ENABLE(WEBASSEMBLY)
 MacroAssemblerCodeRef<JITThunkPtrTag> wasmFunctionEntryThunk();

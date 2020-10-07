@@ -31,6 +31,7 @@
 #include "AudioContext.h"
 #include "AudioNodeOutput.h"
 #include "Logging.h"
+#include "MediaStreamAudioSourceOptions.h"
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/Locker.h>
 
@@ -38,25 +39,44 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(MediaStreamAudioSourceNode);
 
-Ref<MediaStreamAudioSourceNode> MediaStreamAudioSourceNode::create(AudioContext& context, MediaStream& mediaStream, MediaStreamTrack& audioTrack)
+ExceptionOr<Ref<MediaStreamAudioSourceNode>> MediaStreamAudioSourceNode::create(BaseAudioContext& context, MediaStreamAudioSourceOptions&& options)
 {
-    return adoptRef(*new MediaStreamAudioSourceNode(context, mediaStream, audioTrack));
+    RELEASE_ASSERT(options.mediaStream);
+
+    auto audioTracks = options.mediaStream->getAudioTracks();
+    if (audioTracks.isEmpty())
+        return Exception { InvalidStateError, "Media stream has no audio tracks"_s };
+
+    MediaStreamTrack* providerTrack = nullptr;
+    for (auto& track : audioTracks) {
+        if (track->audioSourceProvider()) {
+            providerTrack = track.get();
+            break;
+        }
+    }
+    if (!providerTrack)
+        return Exception { InvalidStateError, "Could not find an audio track with an audio source provider"_s };
+
+    auto node = adoptRef(*new MediaStreamAudioSourceNode(context, *options.mediaStream, *providerTrack));
+    node->setFormat(2, context.sampleRate());
+
+    context.refNode(node); // context keeps reference until node is disconnected
+
+    return node;
 }
 
-MediaStreamAudioSourceNode::MediaStreamAudioSourceNode(AudioContext& context, MediaStream& mediaStream, MediaStreamTrack& audioTrack)
-    : AudioNode(context, context.sampleRate())
+MediaStreamAudioSourceNode::MediaStreamAudioSourceNode(BaseAudioContext& context, MediaStream& mediaStream, MediaStreamTrack& audioTrack)
+    : AudioNode(context, NodeTypeMediaStreamAudioSource)
     , m_mediaStream(mediaStream)
     , m_audioTrack(audioTrack)
 {
-    setNodeType(NodeTypeMediaStreamAudioSource);
-    
     AudioSourceProvider* audioSourceProvider = m_audioTrack->audioSourceProvider();
     ASSERT(audioSourceProvider);
 
     audioSourceProvider->setClient(this);
     
     // Default to stereo. This could change depending on the format of the MediaStream's audio track.
-    addOutput(makeUnique<AudioNodeOutput>(this, 2));
+    addOutput(2);
 
     initialize();
 }
@@ -84,7 +104,7 @@ void MediaStreamAudioSourceNode::setFormat(size_t numberOfChannels, float source
     }
 
     // Synchronize with process().
-    std::lock_guard<Lock> lock(m_processMutex);
+    auto locker = holdLock(m_processLock);
 
     m_sourceNumberOfChannels = numberOfChannels;
     m_sourceSampleRate = sourceSampleRate;
@@ -117,11 +137,11 @@ void MediaStreamAudioSourceNode::process(size_t numberOfFrames)
         return;
     }
 
-    // Use std::try_to_lock to avoid contention in the real-time audio thread.
+    // Use tryHoldLock() to avoid contention in the real-time audio thread.
     // If we fail to acquire the lock then the MediaStream must be in the middle of
     // a format change, so we output silence in this case.
-    std::unique_lock<Lock> lock(m_processMutex, std::try_to_lock);
-    if (!lock.owns_lock()) {
+    auto locker = tryHoldLock(m_processLock);
+    if (!locker) {
         // We failed to acquire the lock.
         outputBus->zero();
         return;

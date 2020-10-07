@@ -31,7 +31,7 @@
 
 ALLOW_UNUSED_PARAMETERS_BEGIN
 
-#include <webrtc/api/datachannelinterface.h>
+#include <webrtc/api/data_channel_interface.h>
 
 ALLOW_UNUSED_PARAMETERS_END
 
@@ -60,10 +60,9 @@ private:
     // RTCDataChannelHandler API
     void setClient(RTCDataChannelHandlerClient&) final;
     void checkState();
-    bool sendStringData(const String&) final;
+    bool sendStringData(const CString&) final;
     bool sendRawData(const char*, size_t) final;
     void close() final;
-    size_t bufferedAmount() const final { return static_cast<size_t>(m_channel->buffered_amount()); }
 
     // webrtc::DataChannelObserver API
     void OnStateChange();

@@ -34,7 +34,8 @@
 #import <wtf/RetainPtr.h>
 #import <wtf/SoftLinking.h>
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < 110000 || PLATFORM(WATCHOS) || PLATFORM(APPLETV)
+#if PLATFORM(WATCHOS) || PLATFORM(APPLETV)
+#import "UserInterfaceIdiom.h"
 #import "WKContentView.h"
 #import "WKContentViewInteraction.h"
 #import "WebPageProxy.h"
@@ -153,7 +154,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
     [_routingController setDiscoveryMode:MPRouteDiscoveryModeDetailed];
 
     MPAVItemType itemType = hasVideo ? MPAVItemTypeVideo : MPAVItemTypeAudio;
-    if (currentUserInterfaceIdiomIsPad())
+    if (currentUserInterfaceIdiomIsPadOrMac())
         [self showAirPlayPickerIPad:itemType fromRect:elementRect];
     else
         [self showAirPlayPickerIPhone:itemType];

@@ -23,13 +23,15 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "MemoryRelease.h"
+#import "config.h"
+#import "MemoryRelease.h"
 
 #import "FontFamilySpecificationCoreText.h"
 #import "GCController.h"
 #import "IOSurfacePool.h"
 #import "LayerPool.h"
+#import "LocaleCocoa.h"
+#import "SubimageCacheWithTimer.h"
 #import "SystemFontDatabaseCoreText.h"
 #import <notify.h>
 #import <pal/spi/ios/GraphicsServicesSPI.h>
@@ -44,9 +46,7 @@ namespace WebCore {
 
 void platformReleaseMemory(Critical)
 {
-#if USE(PLATFORM_SYSTEM_FALLBACK_LIST)
     SystemFontDatabaseCoreText::singleton().clear();
-#endif
     clearFontFamilySpecificationCoreTextCache();
 
 #if PLATFORM(IOS_FAMILY) && !PLATFORM(IOS_FAMILY_SIMULATOR) && !PLATFORM(MACCATALYST)
@@ -54,6 +54,8 @@ void platformReleaseMemory(Critical)
     GSFontInitialize();
     GSFontPurgeFontCache();
 #endif
+
+    LocaleCocoa::releaseMemory();
 
     for (auto& pool : LayerPool::allLayerPools())
         pool->drain();
@@ -63,8 +65,10 @@ void platformReleaseMemory(Critical)
     tileControllerMemoryHandler().trimUnparentedTilesToTarget(0);
 #endif
 
-#if HAVE(IOSURFACE)
     IOSurfacePool::sharedPool().discardAllSurfaces();
+
+#if CACHE_SUBIMAGES
+    SubimageCacheWithTimer::clear();
 #endif
 }
 

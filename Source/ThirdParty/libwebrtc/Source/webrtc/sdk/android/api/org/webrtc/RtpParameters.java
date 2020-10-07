@@ -10,8 +10,9 @@
 
 package org.webrtc;
 
-import javax.annotation.Nullable;
-import java.util.ArrayList;
+import android.support.annotation.Nullable;
+import java.lang.Double;
+import java.lang.String;
 import java.util.List;
 import java.util.Map;
 import org.webrtc.MediaStreamTrack;
@@ -26,7 +27,26 @@ import org.webrtc.MediaStreamTrack;
  * default value".
  */
 public class RtpParameters {
+  public enum DegradationPreference {
+    /** Does not degrade resolution or framerate. */
+    DISABLED,
+    /** Degrade resolution in order to maintain framerate. */
+    MAINTAIN_FRAMERATE,
+    /** Degrade framerate in order to maintain resolution. */
+    MAINTAIN_RESOLUTION,
+    /** Degrade a balance of framerate and resolution. */
+    BALANCED;
+
+    @CalledByNative("DegradationPreference")
+    static DegradationPreference fromNativeIndex(int nativeIndex) {
+      return values()[nativeIndex];
+    }
+  }
+
   public static class Encoding {
+    // If non-null, this represents the RID that identifies this encoding layer.
+    // RIDs are used to identify layers in simulcast.
+    @Nullable public String rid;
     // Set to true to cause this encoding to be sent, and false for it not to
     // be sent.
     public boolean active = true;
@@ -40,19 +60,37 @@ public class RtpParameters {
     @Nullable public Integer maxFramerate;
     // The number of temporal layers for video.
     @Nullable public Integer numTemporalLayers;
+    // If non-null, scale the width and height down by this factor for video. If null,
+    // implementation default scaling factor will be used.
+    @Nullable public Double scaleResolutionDownBy;
     // SSRC to be used by this encoding.
     // Can't be changed between getParameters/setParameters.
     public Long ssrc;
 
+    // This constructor is useful for creating simulcast layers.
+    public Encoding(String rid, boolean active, Double scaleResolutionDownBy) {
+      this.rid = rid;
+      this.active = active;
+      this.scaleResolutionDownBy = scaleResolutionDownBy;
+    }
+
     @CalledByNative("Encoding")
-    Encoding(boolean active, Integer maxBitrateBps, Integer minBitrateBps, Integer maxFramerate,
-        Integer numTemporalLayers, Long ssrc) {
+    Encoding(String rid, boolean active, Integer maxBitrateBps, Integer minBitrateBps,
+        Integer maxFramerate, Integer numTemporalLayers, Double scaleResolutionDownBy, Long ssrc) {
+      this.rid = rid;
       this.active = active;
       this.maxBitrateBps = maxBitrateBps;
       this.minBitrateBps = minBitrateBps;
       this.maxFramerate = maxFramerate;
       this.numTemporalLayers = numTemporalLayers;
+      this.scaleResolutionDownBy = scaleResolutionDownBy;
       this.ssrc = ssrc;
+    }
+
+    @Nullable
+    @CalledByNative("Encoding")
+    String getRid() {
+      return rid;
     }
 
     @CalledByNative("Encoding")
@@ -82,6 +120,12 @@ public class RtpParameters {
     @CalledByNative("Encoding")
     Integer getNumTemporalLayers() {
       return numTemporalLayers;
+    }
+
+    @Nullable
+    @CalledByNative("Encoding")
+    Double getScaleResolutionDownBy() {
+      return scaleResolutionDownBy;
     }
 
     @CalledByNative("Encoding")
@@ -202,20 +246,25 @@ public class RtpParameters {
 
   public final String transactionId;
 
+  /**
+   * When bandwidth is constrained and the RtpSender needs to choose between degrading resolution or
+   * degrading framerate, degradationPreference indicates which is preferred.
+   */
+  @Nullable public DegradationPreference degradationPreference;
+
   private final Rtcp rtcp;
 
   private final List<HeaderExtension> headerExtensions;
 
   public final List<Encoding> encodings;
-  // Codec parameters can't currently be changed between getParameters and
-  // setParameters. Though in the future it will be possible to reorder them or
-  // remove them.
+
   public final List<Codec> codecs;
 
   @CalledByNative
-  RtpParameters(String transactionId, Rtcp rtcp, List<HeaderExtension> headerExtensions,
-      List<Encoding> encodings, List<Codec> codecs) {
+  RtpParameters(String transactionId, DegradationPreference degradationPreference, Rtcp rtcp,
+      List<HeaderExtension> headerExtensions, List<Encoding> encodings, List<Codec> codecs) {
     this.transactionId = transactionId;
+    this.degradationPreference = degradationPreference;
     this.rtcp = rtcp;
     this.headerExtensions = headerExtensions;
     this.encodings = encodings;
@@ -225,6 +274,11 @@ public class RtpParameters {
   @CalledByNative
   String getTransactionId() {
     return transactionId;
+  }
+
+  @CalledByNative
+  DegradationPreference getDegradationPreference() {
+    return degradationPreference;
   }
 
   @CalledByNative

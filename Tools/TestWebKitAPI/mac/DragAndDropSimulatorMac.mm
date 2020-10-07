@@ -31,6 +31,7 @@
 #import "PlatformUtilities.h"
 #import "TestDraggingInfo.h"
 #import "TestWKWebView.h"
+#import <WebKit/WKWebViewPrivateForTesting.h>
 #import <cmath>
 #import <wtf/WeakObjCPtr.h>
 
@@ -67,15 +68,6 @@ IGNORE_WARNINGS_END
 {
     [_dragAndDropSimulator beginDraggingSessionInWebView:self withItems:items source:source];
     return [_dragAndDropSimulator draggingSession];
-}
-
-- (void)waitForPendingMouseEvents
-{
-    __block bool doneProcessMouseEvents = false;
-    [self _doAfterProcessingAllPendingMouseEvents:^{
-        doneProcessMouseEvents = true;
-    }];
-    TestWebKitAPI::Util::run(&doneProcessMouseEvents);
 }
 
 @end
@@ -150,7 +142,7 @@ static NSImage *defaultExternalDragImage()
 
 - (double)initialProgressForMouseDrag
 {
-    double totalDistance = std::sqrt(std::pow(_startLocationInWindow.x - _endLocationInWindow.x, 2) + std::pow(_startLocationInWindow.y - _endLocationInWindow.y, 2));
+    double totalDistance = std::hypot(_startLocationInWindow.x - _endLocationInWindow.x, _startLocationInWindow.y - _endLocationInWindow.y);
     return !totalDistance ? 1 : std::min<double>(1, initialMouseDragDistance / totalDistance);
 }
 
@@ -185,6 +177,8 @@ static NSImage *defaultExternalDragImage()
     [_webView mouseEnterAtPoint:_startLocationInWindow];
     [_webView mouseMoveToPoint:_startLocationInWindow withFlags:0];
     [_webView mouseDownAtPoint:_startLocationInWindow simulatePressure:NO];
+    // Make sure that we exceed the minimum 150ms delay between handling mousedown and drag when dragging a text selection.
+    [_webView setEventTimestampOffset:0.25];
     [_webView mouseDragToPoint:[self locationInViewForCurrentProgress]];
     [_webView waitForPendingMouseEvents];
 
@@ -194,6 +188,7 @@ static NSImage *defaultExternalDragImage()
     [_webView waitForPendingMouseEvents];
 
     TestWebKitAPI::Util::run(&_doneWaitingForDrop);
+    [_webView setEventTimestampOffset:0];
 }
 
 - (void)beginDraggingSessionInWebView:(DragAndDropTestWKWebView *)webView withItems:(NSArray<NSDraggingItem *> *)items source:(id<NSDraggingSource>)source

@@ -65,7 +65,7 @@ namespace WebCore {
         void focusedElementChanged(Element*) override;
         void focusedFrameChanged(Frame*) override;
 
-        Page* createWindow(Frame&, const FrameLoadRequest&, const WindowFeatures&, const NavigationAction&) override;
+        Page* createWindow(Frame&, const WindowFeatures&, const NavigationAction&) override;
 
         void show() override;
 
@@ -127,9 +127,7 @@ namespace WebCore {
         void scheduleAnimation() override;
 #endif
 
-        void mouseDidMoveOverElement(const HitTestResult&, unsigned modifierFlags) override;
-
-        void setToolTip(const String&, TextDirection) override;
+        void mouseDidMoveOverElement(const WebCore::HitTestResult&, unsigned int, const WTF::String&, WebCore::TextDirection) override;
 
         void print(Frame&) override;
 
@@ -139,7 +137,7 @@ namespace WebCore {
 
         void attachRootGraphicsLayer(Frame&, GraphicsLayer*) override;
         void setNeedsOneShotDrawingSynchronization() override;
-        void scheduleCompositingLayerFlush() override;
+        void scheduleRenderingUpdate() override;
 
         CompositingTriggerFlags allowedCompositingTriggers() const override
         {
@@ -169,8 +167,10 @@ namespace WebCore {
 #if USE(TILED_BACKING_STORE)
         void delegatedScrollRequested(const WebCore::IntPoint& pos) override;
 #endif
-		WebCore::IntPoint accessibilityScreenToRootView(const WebCore::IntPoint&) const override;
-		WebCore::IntRect rootViewToAccessibilityScreen(const WebCore::IntRect&) const override;
+        WebCore::IntPoint accessibilityScreenToRootView(const WebCore::IntPoint&) const override;
+        WebCore::IntRect rootViewToAccessibilityScreen(const WebCore::IntRect&) const override;
+
+        std::unique_ptr<WebCore::DateTimeChooser> createDateTimeChooser(WebCore::DateTimeChooserClient&) override;
     private:
         BWebPage* m_webPage;
         BWebView* m_webView;

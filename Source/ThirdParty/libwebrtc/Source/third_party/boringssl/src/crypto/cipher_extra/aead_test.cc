@@ -42,58 +42,60 @@ struct KnownAEAD {
   // truncated_tags is true if the AEAD supports truncating tags to arbitrary
   // lengths.
   bool truncated_tags;
+  // variable_nonce is true if the AEAD supports a variable nonce length.
+  bool variable_nonce;
   // ad_len, if non-zero, is the required length of the AD.
   size_t ad_len;
 };
 
 static const struct KnownAEAD kAEADs[] = {
     {"AES_128_GCM", EVP_aead_aes_128_gcm, "aes_128_gcm_tests.txt", false, true,
-     0},
+     true, 0},
     {"AES_128_GCM_NIST", EVP_aead_aes_128_gcm, "nist_cavp/aes_128_gcm.txt",
-     false, true, 0},
+     false, true, true, 0},
+    {"AES_192_GCM", EVP_aead_aes_192_gcm, "aes_192_gcm_tests.txt", false, true,
+     true, 0},
     {"AES_256_GCM", EVP_aead_aes_256_gcm, "aes_256_gcm_tests.txt", false, true,
-     0},
+     true, 0},
     {"AES_256_GCM_NIST", EVP_aead_aes_256_gcm, "nist_cavp/aes_256_gcm.txt",
-     false, true, 0},
-#if !defined(OPENSSL_SMALL)
+     false, true, true, 0},
     {"AES_128_GCM_SIV", EVP_aead_aes_128_gcm_siv, "aes_128_gcm_siv_tests.txt",
-     false, false, 0},
+     false, false, false, 0},
     {"AES_256_GCM_SIV", EVP_aead_aes_256_gcm_siv, "aes_256_gcm_siv_tests.txt",
-     false, false, 0},
-#endif
+     false, false, false, 0},
     {"ChaCha20Poly1305", EVP_aead_chacha20_poly1305,
-     "chacha20_poly1305_tests.txt", false, true, 0},
+     "chacha20_poly1305_tests.txt", false, true, false, 0},
     {"XChaCha20Poly1305", EVP_aead_xchacha20_poly1305,
-     "xchacha20_poly1305_tests.txt", false, true, 0},
+     "xchacha20_poly1305_tests.txt", false, true, false, 0},
     {"AES_128_CBC_SHA1_TLS", EVP_aead_aes_128_cbc_sha1_tls,
-     "aes_128_cbc_sha1_tls_tests.txt", true, false, 11},
+     "aes_128_cbc_sha1_tls_tests.txt", true, false, false, 11},
     {"AES_128_CBC_SHA1_TLSImplicitIV",
      EVP_aead_aes_128_cbc_sha1_tls_implicit_iv,
-     "aes_128_cbc_sha1_tls_implicit_iv_tests.txt", true, false, 11},
+     "aes_128_cbc_sha1_tls_implicit_iv_tests.txt", true, false, false, 11},
     {"AES_128_CBC_SHA256_TLS", EVP_aead_aes_128_cbc_sha256_tls,
-     "aes_128_cbc_sha256_tls_tests.txt", true, false, 11},
+     "aes_128_cbc_sha256_tls_tests.txt", true, false, false, 11},
     {"AES_256_CBC_SHA1_TLS", EVP_aead_aes_256_cbc_sha1_tls,
-     "aes_256_cbc_sha1_tls_tests.txt", true, false, 11},
+     "aes_256_cbc_sha1_tls_tests.txt", true, false, false, 11},
     {"AES_256_CBC_SHA1_TLSImplicitIV",
      EVP_aead_aes_256_cbc_sha1_tls_implicit_iv,
-     "aes_256_cbc_sha1_tls_implicit_iv_tests.txt", true, false, 11},
+     "aes_256_cbc_sha1_tls_implicit_iv_tests.txt", true, false, false, 11},
     {"AES_256_CBC_SHA256_TLS", EVP_aead_aes_256_cbc_sha256_tls,
-     "aes_256_cbc_sha256_tls_tests.txt", true, false, 11},
+     "aes_256_cbc_sha256_tls_tests.txt", true, false, false, 11},
     {"AES_256_CBC_SHA384_TLS", EVP_aead_aes_256_cbc_sha384_tls,
-     "aes_256_cbc_sha384_tls_tests.txt", true, false, 11},
+     "aes_256_cbc_sha384_tls_tests.txt", true, false, false, 11},
     {"DES_EDE3_CBC_SHA1_TLS", EVP_aead_des_ede3_cbc_sha1_tls,
-     "des_ede3_cbc_sha1_tls_tests.txt", true, false, 11},
+     "des_ede3_cbc_sha1_tls_tests.txt", true, false, false, 11},
     {"DES_EDE3_CBC_SHA1_TLSImplicitIV",
      EVP_aead_des_ede3_cbc_sha1_tls_implicit_iv,
-     "des_ede3_cbc_sha1_tls_implicit_iv_tests.txt", true, false, 11},
+     "des_ede3_cbc_sha1_tls_implicit_iv_tests.txt", true, false, false, 11},
     {"AES_128_CTR_HMAC_SHA256", EVP_aead_aes_128_ctr_hmac_sha256,
-     "aes_128_ctr_hmac_sha256.txt", false, true, 0},
+     "aes_128_ctr_hmac_sha256.txt", false, true, false, 0},
     {"AES_256_CTR_HMAC_SHA256", EVP_aead_aes_256_ctr_hmac_sha256,
-     "aes_256_ctr_hmac_sha256.txt", false, true, 0},
+     "aes_256_ctr_hmac_sha256.txt", false, true, false, 0},
     {"AES_128_CCM_BLUETOOTH", EVP_aead_aes_128_ccm_bluetooth,
-     "aes_128_ccm_bluetooth_tests.txt", false, false, 0},
+     "aes_128_ccm_bluetooth_tests.txt", false, false, false, 0},
     {"AES_128_CCM_BLUETOOTH_8", EVP_aead_aes_128_ccm_bluetooth_8,
-     "aes_128_ccm_bluetooth_8_tests.txt", false, false, 0},
+     "aes_128_ccm_bluetooth_8_tests.txt", false, false, false, 0},
 };
 
 class PerAEADTest : public testing::TestWithParam<KnownAEAD> {
@@ -101,9 +103,9 @@ class PerAEADTest : public testing::TestWithParam<KnownAEAD> {
   const EVP_AEAD *aead() { return GetParam().func(); }
 };
 
-INSTANTIATE_TEST_CASE_P(, PerAEADTest, testing::ValuesIn(kAEADs),
-                        [](const testing::TestParamInfo<KnownAEAD> &params)
-                            -> std::string { return params.param.name; });
+INSTANTIATE_TEST_SUITE_P(All, PerAEADTest, testing::ValuesIn(kAEADs),
+                         [](const testing::TestParamInfo<KnownAEAD> &params)
+                             -> std::string { return params.param.name; });
 
 // Tests an AEAD against a series of test vectors from a file, using the
 // FileTest format. As an example, here's a valid test case:
@@ -540,10 +542,10 @@ TEST_P(PerAEADTest, AliasedBuffers) {
 }
 
 TEST_P(PerAEADTest, UnalignedInput) {
-  alignas(64) uint8_t key[EVP_AEAD_MAX_KEY_LENGTH + 1];
-  alignas(64) uint8_t nonce[EVP_AEAD_MAX_NONCE_LENGTH + 1];
-  alignas(64) uint8_t plaintext[32 + 1];
-  alignas(64) uint8_t ad[32 + 1];
+  alignas(16) uint8_t key[EVP_AEAD_MAX_KEY_LENGTH + 1];
+  alignas(16) uint8_t nonce[EVP_AEAD_MAX_NONCE_LENGTH + 1];
+  alignas(16) uint8_t plaintext[32 + 1];
+  alignas(16) uint8_t ad[32 + 1];
   OPENSSL_memset(key, 'K', sizeof(key));
   OPENSSL_memset(nonce, 'N', sizeof(nonce));
   OPENSSL_memset(plaintext, 'P', sizeof(plaintext));
@@ -561,7 +563,7 @@ TEST_P(PerAEADTest, UnalignedInput) {
   ASSERT_TRUE(EVP_AEAD_CTX_init_with_direction(
       ctx.get(), aead(), key + 1, key_len, EVP_AEAD_DEFAULT_TAG_LENGTH,
       evp_aead_seal));
-  alignas(64) uint8_t ciphertext[sizeof(plaintext) + EVP_AEAD_MAX_OVERHEAD];
+  alignas(16) uint8_t ciphertext[sizeof(plaintext) + EVP_AEAD_MAX_OVERHEAD];
   size_t ciphertext_len;
   ASSERT_TRUE(EVP_AEAD_CTX_seal(ctx.get(), ciphertext + 1, &ciphertext_len,
                                 sizeof(ciphertext) - 1, nonce + 1, nonce_len,
@@ -569,7 +571,7 @@ TEST_P(PerAEADTest, UnalignedInput) {
                                 ad_len));
 
   // It must successfully decrypt.
-  alignas(64) uint8_t out[sizeof(ciphertext)];
+  alignas(16) uint8_t out[sizeof(ciphertext)];
   ctx.Reset();
   ASSERT_TRUE(EVP_AEAD_CTX_init_with_direction(
       ctx.get(), aead(), key + 1, key_len, EVP_AEAD_DEFAULT_TAG_LENGTH,
@@ -583,7 +585,7 @@ TEST_P(PerAEADTest, UnalignedInput) {
 }
 
 TEST_P(PerAEADTest, Overflow) {
-  alignas(64) uint8_t key[EVP_AEAD_MAX_KEY_LENGTH];
+  uint8_t key[EVP_AEAD_MAX_KEY_LENGTH];
   OPENSSL_memset(key, 'K', sizeof(key));
 
   bssl::ScopedEVP_AEAD_CTX ctx;
@@ -607,50 +609,59 @@ TEST_P(PerAEADTest, Overflow) {
   // as the input.)
 }
 
-// Test that EVP_aead_aes_128_gcm and EVP_aead_aes_256_gcm reject empty nonces.
-// AES-GCM is not defined for those.
-TEST(AEADTest, AESGCMEmptyNonce) {
-  static const uint8_t kZeros[32] = {0};
+TEST_P(PerAEADTest, InvalidNonceLength) {
+  size_t valid_nonce_len = EVP_AEAD_nonce_length(aead());
+  std::vector<size_t> nonce_lens;
+  if (valid_nonce_len != 0) {
+    // Other than the implicit IV TLS "AEAD"s, none of our AEADs allow empty
+    // nonces. In particular, although AES-GCM was incorrectly specified with
+    // variable-length nonces, it does not allow the empty nonce.
+    nonce_lens.push_back(0);
+  }
+  if (!GetParam().variable_nonce) {
+    nonce_lens.push_back(valid_nonce_len + 1);
+    if (valid_nonce_len != 0) {
+      nonce_lens.push_back(valid_nonce_len - 1);
+    }
+  }
 
-  // Test AES-128-GCM.
-  uint8_t buf[16];
-  size_t len;
-  bssl::ScopedEVP_AEAD_CTX ctx;
-  ASSERT_TRUE(EVP_AEAD_CTX_init(ctx.get(), EVP_aead_aes_128_gcm(), kZeros, 16,
-                                EVP_AEAD_DEFAULT_TAG_LENGTH, nullptr));
+  static const uint8_t kZeros[EVP_AEAD_MAX_KEY_LENGTH] = {0};
+  const size_t ad_len = GetParam().ad_len != 0 ? GetParam().ad_len : 16;
+  ASSERT_LE(ad_len, sizeof(kZeros));
 
-  EXPECT_FALSE(EVP_AEAD_CTX_seal(ctx.get(), buf, &len, sizeof(buf),
-                                 nullptr /* nonce */, 0, nullptr /* in */, 0,
-                                 nullptr /* ad */, 0));
-  uint32_t err = ERR_get_error();
-  EXPECT_EQ(ERR_LIB_CIPHER, ERR_GET_LIB(err));
-  EXPECT_EQ(CIPHER_R_INVALID_NONCE_SIZE, ERR_GET_REASON(err));
+  for (size_t nonce_len : nonce_lens) {
+    SCOPED_TRACE(nonce_len);
+    uint8_t buf[256];
+    size_t len;
+    std::vector<uint8_t> nonce(nonce_len);
+    bssl::ScopedEVP_AEAD_CTX ctx;
+    ASSERT_TRUE(EVP_AEAD_CTX_init_with_direction(
+        ctx.get(), aead(), kZeros, EVP_AEAD_key_length(aead()),
+        EVP_AEAD_DEFAULT_TAG_LENGTH, evp_aead_seal));
 
-  EXPECT_FALSE(EVP_AEAD_CTX_open(ctx.get(), buf, &len, sizeof(buf),
-                                 nullptr /* nonce */, 0, kZeros /* in */,
-                                 sizeof(kZeros), nullptr /* ad */, 0));
-  err = ERR_get_error();
-  EXPECT_EQ(ERR_LIB_CIPHER, ERR_GET_LIB(err));
-  EXPECT_EQ(CIPHER_R_INVALID_NONCE_SIZE, ERR_GET_REASON(err));
+    EXPECT_FALSE(EVP_AEAD_CTX_seal(ctx.get(), buf, &len, sizeof(buf),
+                                   nonce.data(), nonce.size(), nullptr /* in */,
+                                   0, kZeros /* ad */, ad_len));
+    uint32_t err = ERR_get_error();
+    EXPECT_EQ(ERR_LIB_CIPHER, ERR_GET_LIB(err));
+    // TODO(davidben): Merge these errors. https://crbug.com/boringssl/129.
+    if (ERR_GET_REASON(err) != CIPHER_R_UNSUPPORTED_NONCE_SIZE) {
+      EXPECT_EQ(CIPHER_R_INVALID_NONCE_SIZE, ERR_GET_REASON(err));
+    }
 
-  // Test AES-256-GCM.
-  ctx.Reset();
-  ASSERT_TRUE(EVP_AEAD_CTX_init(ctx.get(), EVP_aead_aes_256_gcm(), kZeros, 32,
-                                EVP_AEAD_DEFAULT_TAG_LENGTH, nullptr));
-
-  EXPECT_FALSE(EVP_AEAD_CTX_seal(ctx.get(), buf, &len, sizeof(buf),
-                                 nullptr /* nonce */, 0, nullptr /* in */, 0,
-                                 nullptr /* ad */, 0));
-  err = ERR_get_error();
-  EXPECT_EQ(ERR_LIB_CIPHER, ERR_GET_LIB(err));
-  EXPECT_EQ(CIPHER_R_INVALID_NONCE_SIZE, ERR_GET_REASON(err));
-
-  EXPECT_FALSE(EVP_AEAD_CTX_open(ctx.get(), buf, &len, sizeof(buf),
-                                 nullptr /* nonce */, 0, kZeros /* in */,
-                                 sizeof(kZeros), nullptr /* ad */, 0));
-  err = ERR_get_error();
-  EXPECT_EQ(ERR_LIB_CIPHER, ERR_GET_LIB(err));
-  EXPECT_EQ(CIPHER_R_INVALID_NONCE_SIZE, ERR_GET_REASON(err));
+    ctx.Reset();
+    ASSERT_TRUE(EVP_AEAD_CTX_init_with_direction(
+        ctx.get(), aead(), kZeros, EVP_AEAD_key_length(aead()),
+        EVP_AEAD_DEFAULT_TAG_LENGTH, evp_aead_open));
+    EXPECT_FALSE(EVP_AEAD_CTX_open(ctx.get(), buf, &len, sizeof(buf),
+                                   nonce.data(), nonce.size(), kZeros /* in */,
+                                   sizeof(kZeros), kZeros /* ad */, ad_len));
+    err = ERR_get_error();
+    EXPECT_EQ(ERR_LIB_CIPHER, ERR_GET_LIB(err));
+    if (ERR_GET_REASON(err) != CIPHER_R_UNSUPPORTED_NONCE_SIZE) {
+      EXPECT_EQ(CIPHER_R_INVALID_NONCE_SIZE, ERR_GET_REASON(err));
+    }
+  }
 }
 
 TEST(AEADTest, AESCCMLargeAD) {
@@ -717,8 +728,8 @@ static void RunWycheproofTestCase(FileTest *t, const EVP_AEAD *aead) {
   size_t out_len;
   // Wycheproof tags small AES-GCM IVs as "acceptable" and otherwise does not
   // use it in AEADs. Any AES-GCM IV that isn't 96 bits is absurd, but our API
-  // supports those, so we treat "acceptable" as "valid" here.
-  if (result != WycheproofResult::kInvalid) {
+  // supports those, so we treat SmallIv tests as valid.
+  if (result.IsValid({"SmallIv"})) {
     // Decryption should succeed.
     ASSERT_TRUE(EVP_AEAD_CTX_open(ctx.get(), out.data(), &out_len, out.size(),
                                   iv.data(), iv.size(), ct_and_tag.data(),
@@ -792,9 +803,8 @@ TEST(AEADTest, WycheproofAESGCM) {
         aead = EVP_aead_aes_128_gcm();
         break;
       case 192:
-        // Skip AES-192-GCM tests.
-        t->SkipCurrent();
-        return;
+        aead = EVP_aead_aes_192_gcm();
+        break;
       case 256:
         aead = EVP_aead_aes_256_gcm();
         break;
@@ -812,4 +822,13 @@ TEST(AEADTest, WycheproofChaCha20Poly1305) {
     t->IgnoreInstruction("keySize");
     RunWycheproofTestCase(t, EVP_aead_chacha20_poly1305());
   });
+}
+
+TEST(AEADTest, WycheproofXChaCha20Poly1305) {
+  FileTestGTest(
+      "third_party/wycheproof_testvectors/xchacha20_poly1305_test.txt",
+      [](FileTest *t) {
+        t->IgnoreInstruction("keySize");
+        RunWycheproofTestCase(t, EVP_aead_xchacha20_poly1305());
+      });
 }

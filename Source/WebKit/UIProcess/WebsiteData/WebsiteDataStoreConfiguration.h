@@ -33,13 +33,14 @@
 namespace WebKit {
 
 enum class IsPersistent : bool { No, Yes };
+enum class WillCopyPathsFromExistingConfiguration : bool { No, Yes };
 
 class WebsiteDataStoreConfiguration : public API::ObjectImpl<API::Object::Type::WebsiteDataStoreConfiguration> {
 public:
-    static Ref<WebsiteDataStoreConfiguration> create(IsPersistent isPersistent) { return adoptRef(*new WebsiteDataStoreConfiguration(isPersistent)); }
-    WebsiteDataStoreConfiguration(IsPersistent);
+    static Ref<WebsiteDataStoreConfiguration> create(IsPersistent isPersistent, WillCopyPathsFromExistingConfiguration willCopyPaths = WillCopyPathsFromExistingConfiguration::No) { return adoptRef(*new WebsiteDataStoreConfiguration(isPersistent, willCopyPaths)); }
+    WebsiteDataStoreConfiguration(IsPersistent, WillCopyPathsFromExistingConfiguration = WillCopyPathsFromExistingConfiguration::No);
 
-    Ref<WebsiteDataStoreConfiguration> copy();
+    Ref<WebsiteDataStoreConfiguration> copy() const;
 
     bool isPersistent() const { return m_isPersistent == IsPersistent::Yes; }
 
@@ -55,6 +56,9 @@ public:
     const String& mediaKeysStorageDirectory() const { return m_mediaKeysStorageDirectory; }
     void setMediaKeysStorageDirectory(String&& directory) { m_mediaKeysStorageDirectory = WTFMove(directory); }
     
+    const String& alternativeServicesDirectory() const { return m_alternativeServicesDirectory; }
+    void setAlternativeServicesDirectory(String&& directory) { m_alternativeServicesDirectory = WTFMove(directory); }
+
     const String& javaScriptConfigurationDirectory() const { return m_javaScriptConfigurationDirectory; }
     void setJavaScriptConfigurationDirectory(String&& directory) { m_javaScriptConfigurationDirectory = WTFMove(directory); }
     
@@ -63,10 +67,10 @@ public:
 
     const String& webSQLDatabaseDirectory() const { return m_webSQLDatabaseDirectory; }
     void setWebSQLDatabaseDirectory(String&& directory) { m_webSQLDatabaseDirectory = WTFMove(directory); }
-#if USE(GLIB) // According to r245075 this will eventually move here.
+
     const String& hstsStorageDirectory() const { return m_hstsStorageDirectory; }
     void setHSTSStorageDirectory(String&& directory) { m_hstsStorageDirectory = WTFMove(directory); }
-#endif
+
     const String& localStorageDirectory() const { return m_localStorageDirectory; }
     void setLocalStorageDirectory(String&& directory) { m_localStorageDirectory = WTFMove(directory); }
 
@@ -76,6 +80,9 @@ public:
     bool allowsCellularAccess() const { return m_allowsCellularAccess; }
     void setAllowsCellularAccess(bool allows) { m_allowsCellularAccess = allows; }
 
+    bool legacyTLSEnabled() const { return m_legacyTLSEnabled; }
+    void setLegacyTLSEnabled(bool enabled) { m_legacyTLSEnabled = enabled; }
+
     bool fastServerTrustEvaluationEnabled() const { return m_fastServerTrustEvaluationEnabled; }
     void setFastServerTrustEvaluationEnabled(bool enabled) { m_fastServerTrustEvaluationEnabled = enabled; }
 
@@ -84,10 +91,13 @@ public:
 
     bool testingSessionEnabled() const { return m_testingSessionEnabled; }
     void setTestingSessionEnabled(bool enabled) { m_testingSessionEnabled = enabled; }
-    
+
+    bool staleWhileRevalidateEnabled() const { return m_staleWhileRevalidateEnabled; }
+    void setStaleWhileRevalidateEnabled(bool enabled) { m_staleWhileRevalidateEnabled = enabled; }
+
     unsigned testSpeedMultiplier() const { return m_testSpeedMultiplier; }
     void setTestSpeedMultiplier(unsigned multiplier) { m_testSpeedMultiplier = multiplier; }
-    
+
 #if PLATFORM(COCOA)
     CFDictionaryRef proxyConfiguration() const { return m_proxyConfiguration.get(); }
     void setProxyConfiguration(CFDictionaryRef configuration) { m_proxyConfiguration = configuration; }
@@ -141,6 +151,18 @@ public:
     bool suppressesConnectionTerminationOnSystemChange() const { return m_suppressesConnectionTerminationOnSystemChange; }
     void setSuppressesConnectionTerminationOnSystemChange(bool suppresses) { m_suppressesConnectionTerminationOnSystemChange = suppresses; }
 
+    bool allowsServerPreconnect() const { return m_allowsServerPreconnect; }
+    void setAllowsServerPreconnect(bool allows) { m_allowsServerPreconnect = allows; }
+
+    bool preventsSystemHTTPProxyAuthentication() const { return m_preventsSystemHTTPProxyAuthentication; }
+    void setPreventsSystemHTTPProxyAuthentication(bool prevents) { m_preventsSystemHTTPProxyAuthentication = prevents; }
+
+    bool requiresSecureHTTPSProxyConnection() const { return m_requiresSecureHTTPSProxyConnection; };
+    void setRequiresSecureHTTPSProxyConnection(bool requires) { m_requiresSecureHTTPSProxyConnection = requires; }
+
+    const URL& standaloneApplicationURL() const { return m_standaloneApplicationURL; }
+    void setStandaloneApplicationURL(URL&& url) { m_standaloneApplicationURL = WTFMove(url); }
+
 private:
     IsPersistent m_isPersistent { IsPersistent::No };
 
@@ -153,14 +175,16 @@ private:
     String m_indexedDBDatabaseDirectory;
     String m_serviceWorkerRegistrationDirectory;
     String m_webSQLDatabaseDirectory;
-#if USE(GLIB)
     String m_hstsStorageDirectory;
+#if USE(GLIB)
     bool m_networkCacheSpeculativeValidationEnabled { true };
 #else
     bool m_networkCacheSpeculativeValidationEnabled { false };
 #endif
+    bool m_staleWhileRevalidateEnabled { true };
     String m_localStorageDirectory;
     String m_mediaKeysStorageDirectory;
+    String m_alternativeServicesDirectory;
     String m_deviceIdHashSaltsStorageDirectory;
     String m_resourceLoadStatisticsDirectory;
     String m_javaScriptConfigurationDirectory;
@@ -174,11 +198,16 @@ private:
     bool m_deviceManagementRestrictionsEnabled { false };
     bool m_allLoadsBlockedByDeviceManagementRestrictionsForTesting { false };
     bool m_allowsCellularAccess { true };
+    bool m_legacyTLSEnabled { true };
     bool m_fastServerTrustEvaluationEnabled { false };
     bool m_serviceWorkerProcessTerminationDelayEnabled { true };
     bool m_testingSessionEnabled { false };
     bool m_suppressesConnectionTerminationOnSystemChange { false };
+    bool m_allowsServerPreconnect { true };
+    bool m_preventsSystemHTTPProxyAuthentication { false };
+    bool m_requiresSecureHTTPSProxyConnection { false };
     unsigned m_testSpeedMultiplier { 1 };
+    URL m_standaloneApplicationURL;
 #if PLATFORM(COCOA)
     RetainPtr<CFDictionaryRef> m_proxyConfiguration;
 #endif

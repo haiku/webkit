@@ -34,11 +34,12 @@ public:
     AudioDestinationGStreamer(AudioIOCallback&, float sampleRate);
     virtual ~AudioDestinationGStreamer();
 
-    void start() override;
+    void start(Function<void(Function<void()>&&)>&& dispatchToRenderThread) override;
     void stop() override;
 
     bool isPlaying() override { return m_isPlaying; }
     float sampleRate() const override { return m_sampleRate; }
+    unsigned framesPerBuffer() const final;
     AudioIOCallback& callback() const { return m_callback; }
 
     gboolean handleMessage(GstMessage*);

@@ -24,6 +24,10 @@
 #include <glib/gstdio.h>
 #include <wtf/glib/GRefPtr.h>
 
+#if PLATFORM(WPE) && USE(WPEBACKEND_FDO_AUDIO_EXTENSION)
+#include <wpe/extensions/audio.h>
+#endif
+
 class IsPlayingAudioWebViewTest : public WebViewTest {
 public:
     MAKE_GLIB_TEST_FIXTURE(IsPlayingAudioWebViewTest);
@@ -444,9 +448,10 @@ public:
 
     static gboolean leaveFullScreenIdle(FullScreenClientTest* test)
     {
-        // FIXME: Implement key strokes in WPE
 #if PLATFORM(GTK)
         test->keyStroke(GDK_KEY_Escape);
+#else
+        test->keyStroke(WPE_KEY_Escape);
 #endif
         return FALSE;
     }
@@ -464,9 +469,7 @@ public:
 #if ENABLE(FULLSCREEN_API)
 static void testWebViewFullScreen(FullScreenClientTest* test, gconstpointer)
 {
-#if PLATFORM(GTK)
-    test->showInWindowAndWaitUntilMapped();
-#endif
+    test->showInWindow();
     test->loadHtml("<html><body>FullScreen test</body></html>", 0);
     test->waitUntilLoadFinished();
     test->requestFullScreenAndWaitUntilEnteredFullScreen();
@@ -570,7 +573,7 @@ public:
 
 static void testWebViewSubmitForm(FormClientTest* test, gconstpointer)
 {
-    test->showInWindowAndWaitUntilMapped();
+    test->showInWindow();
 
     const char* formHTML =
         "<html><body>"
@@ -821,7 +824,7 @@ static void testWebViewSnapshot(SnapshotWebViewTest* test, gconstpointer)
     g_assert_cmpint(cairo_image_surface_get_height(surface1), ==, 100);
 
     // Show the WebView in a popup widow of 50x50 and try again with WEBKIT_SNAPSHOT_REGION_VISIBLE.
-    test->showInWindowAndWaitUntilMapped(GTK_WINDOW_POPUP, 50, 50);
+    test->showInWindow(50, 50);
     surface1 = cairo_surface_reference(test->getSnapshotAndWaitUntilReady(WEBKIT_SNAPSHOT_REGION_VISIBLE, WEBKIT_SNAPSHOT_OPTIONS_NONE));
     g_assert_nonnull(surface1);
     g_assert_cmpuint(cairo_surface_get_type(surface1), ==, CAIRO_SURFACE_TYPE_IMAGE);
@@ -1106,11 +1109,9 @@ static void testWebViewNotificationInitialPermissionDisallowed(NotificationWebVi
 
 static void testWebViewIsPlayingAudio(IsPlayingAudioWebViewTest* test, gconstpointer)
 {
-#if PLATFORM(GTK)
     // The web view must be realized for the video to start playback and
     // trigger changes in WebKitWebView::is-playing-audio.
-    test->showInWindowAndWaitUntilMapped(GTK_WINDOW_TOPLEVEL);
-#endif
+    test->showInWindow();
 
     // Initially, web views should always report no audio being played.
     g_assert_false(webkit_web_view_is_playing_audio(test->m_webView));
@@ -1131,6 +1132,21 @@ static void testWebViewIsPlayingAudio(IsPlayingAudioWebViewTest* test, gconstpoi
     if (webkit_web_view_is_playing_audio(test->m_webView))
         test->waitUntilIsPlayingAudioChanged();
     g_assert_false(webkit_web_view_is_playing_audio(test->m_webView));
+}
+
+static void testWebViewIsAudioMuted(WebViewTest* test, gconstpointer)
+{
+    g_assert_false(webkit_web_view_get_is_muted(test->m_webView));
+    webkit_web_view_set_is_muted(test->m_webView, TRUE);
+    g_assert_true(webkit_web_view_get_is_muted(test->m_webView));
+    webkit_web_view_set_is_muted(test->m_webView, FALSE);
+    g_assert_false(webkit_web_view_get_is_muted(test->m_webView));
+}
+
+static void testWebViewAutoplayPolicy(WebViewTest* test, gconstpointer)
+{
+    WebKitWebsitePolicies* policies = webkit_web_view_get_website_policies(test->m_webView);
+    g_assert_cmpint(webkit_website_policies_get_autoplay_policy(policies), ==, WEBKIT_AUTOPLAY_ALLOW_WITHOUT_SOUND);
 }
 
 static void testWebViewBackgroundColor(WebViewTest* test, gconstpointer)
@@ -1181,7 +1197,7 @@ static void testWebViewPreferredSize(WebViewTest* test, gconstpointer)
 {
     test->loadHtml("<html style='width: 325px; height: 615px'></html>", nullptr);
     test->waitUntilLoadFinished();
-    test->showInWindowAndWaitUntilMapped();
+    test->showInWindow();
     GtkRequisition minimunSize, naturalSize;
     gtk_widget_get_preferred_size(GTK_WIDGET(test->m_webView), &minimunSize, &naturalSize);
     g_assert_cmpint(minimunSize.width, ==, 0);
@@ -1331,6 +1347,128 @@ static void testWebViewFrameDisplayed(FrameDisplayedTest* test, gconstpointer)
 }
 #endif
 
+#if PLATFORM(WPE) && USE(WPEBACKEND_FDO_AUDIO_EXTENSION)
+enum class RenderingState {
+    Unknown,
+    Started,
+    Paused,
+    Stopped
+};
+
+class AudioRenderingWebViewTest : public WebViewTest {
+public:
+    MAKE_GLIB_TEST_FIXTURE_WITH_SETUP_TEARDOWN(AudioRenderingWebViewTest, setup, teardown);
+
+    static void setup()
+    {
+    }
+
+    static void teardown()
+    {
+        wpe_audio_register_receiver(nullptr, nullptr);
+    }
+
+    AudioRenderingWebViewTest()
+    {
+        wpe_audio_register_receiver(&m_audioReceiver, this);
+    }
+
+    void handleStart(uint32_t id, int32_t channels, const char* layout, int32_t sampleRate)
+    {
+        g_assert(m_state == RenderingState::Unknown);
+        g_assert_false(m_streamId.hasValue());
+        g_assert_cmpuint(id, ==, 0);
+        m_streamId = id;
+        m_state = RenderingState::Started;
+        g_assert_cmpint(channels, ==, 2);
+        g_assert_cmpstr(layout, ==, "S16LE");
+        g_assert_cmpint(sampleRate, ==, 44100);
+    }
+
+    void handleStop(uint32_t id)
+    {
+        g_assert_cmpuint(*m_streamId, ==, id);
+        g_assert(m_state != RenderingState::Unknown);
+        m_state = RenderingState::Stopped;
+        g_main_loop_quit(m_mainLoop);
+        m_streamId.reset();
+    }
+
+    void handlePause(uint32_t id)
+    {
+        g_assert_cmpuint(*m_streamId, ==, id);
+        g_assert(m_state != RenderingState::Unknown);
+        m_state = RenderingState::Paused;
+    }
+
+    void handleResume(uint32_t id)
+    {
+        g_assert_cmpuint(*m_streamId, ==, id);
+        g_assert(m_state == RenderingState::Paused);
+        m_state = RenderingState::Started;
+    }
+
+    void handlePacket(struct wpe_audio_packet_export* packet_export, uint32_t id, int32_t fd, uint32_t size)
+    {
+        g_assert_cmpuint(*m_streamId, ==, id);
+        g_assert(m_state == RenderingState::Started || m_state == RenderingState::Paused);
+        g_assert_cmpuint(size, >, 0);
+        wpe_audio_packet_export_release(packet_export);
+    }
+
+    void waitUntilPaused()
+    {
+        g_timeout_add(200, [](gpointer userData) -> gboolean {
+            auto* test = static_cast<AudioRenderingWebViewTest*>(userData);
+            if (test->state() == RenderingState::Paused) {
+                test->quitMainLoop();
+                return G_SOURCE_REMOVE;
+            }
+            return G_SOURCE_CONTINUE;
+        }, this);
+        g_main_loop_run(m_mainLoop);
+    }
+
+    void waitUntilEOS()
+    {
+        g_main_loop_run(m_mainLoop);
+    }
+
+    RenderingState state() const { return m_state; }
+
+private:
+    static const struct wpe_audio_receiver m_audioReceiver;
+    RenderingState m_state { RenderingState::Unknown };
+    Optional<uint32_t> m_streamId;
+};
+
+const struct wpe_audio_receiver AudioRenderingWebViewTest::m_audioReceiver = {
+    [](void* data, uint32_t id, int32_t channels, const char* layout, int32_t sampleRate) { static_cast<AudioRenderingWebViewTest*>(data)->handleStart(id, channels, layout, sampleRate); },
+    [](void* data, struct wpe_audio_packet_export* packet_export, uint32_t id, int32_t fd, uint32_t size) { static_cast<AudioRenderingWebViewTest*>(data)->handlePacket(packet_export, id, fd, size); },
+    [](void* data, uint32_t id) { static_cast<AudioRenderingWebViewTest*>(data)->handleStop(id); },
+    [](void* data, uint32_t id) { static_cast<AudioRenderingWebViewTest*>(data)->handlePause(id); },
+    [](void* data, uint32_t id) { static_cast<AudioRenderingWebViewTest*>(data)->handleResume(id); }
+};
+
+static void testWebViewExternalAudioRendering(AudioRenderingWebViewTest* test, gconstpointer)
+{
+    GUniquePtr<char> resourcePath(g_build_filename(Test::getResourcesDir(Test::WebKit2Resources).data(), "file-with-video.html", nullptr));
+    GUniquePtr<char> resourceURL(g_filename_to_uri(resourcePath.get(), nullptr, nullptr));
+    webkit_web_view_load_uri(test->m_webView, resourceURL.get());
+    test->waitUntilLoadFinished();
+
+    test->runJavaScriptAndWaitUntilFinished("playVideo();", nullptr);
+    g_assert(test->state() == RenderingState::Started);
+    test->runJavaScriptAndWaitUntilFinished("pauseVideo();", nullptr);
+    test->waitUntilPaused();
+    g_assert(test->state() == RenderingState::Paused);
+
+    test->runJavaScriptAndWaitUntilFinished("playVideo(); seekNearTheEnd();", nullptr);
+    test->waitUntilEOS();
+    g_assert(test->state() == RenderingState::Stopped);
+}
+#endif
+
 static void serverCallback(SoupServer* server, SoupMessage* message, const char* path, GHashTable*, SoupClientContext*, gpointer)
 {
     if (message->method != SOUP_METHOD_GET) {
@@ -1388,6 +1526,11 @@ void beforeAll()
     WebViewTitleTest::add("WebKitWebView", "title-change", testWebViewTitleChange);
 #if PLATFORM(WPE)
     FrameDisplayedTest::add("WebKitWebView", "frame-displayed", testWebViewFrameDisplayed);
+#endif
+    WebViewTest::add("WebKitWebView", "is-audio-muted", testWebViewIsAudioMuted);
+    WebViewTest::add("WebKitWebView", "autoplay-policy", testWebViewAutoplayPolicy);
+#if PLATFORM(WPE) && USE(WPEBACKEND_FDO_AUDIO_EXTENSION)
+    AudioRenderingWebViewTest::add("WebKitWebView", "external-audio-rendering", testWebViewExternalAudioRendering);
 #endif
 }
 

@@ -45,7 +45,6 @@ RemoteLayerTreeTransaction& RemoteLayerTreeTransaction::operator=(RemoteLayerTre
 RemoteLayerTreeTransaction::LayerCreationProperties::LayerCreationProperties()
     : layerID(0)
     , type(WebCore::PlatformCALayer::LayerTypeLayer)
-    , embeddedViewID(0)
     , hostingContextID(0)
     , hostingDeviceScaleFactor(1)
 {
@@ -54,8 +53,7 @@ RemoteLayerTreeTransaction::LayerCreationProperties::LayerCreationProperties()
 void RemoteLayerTreeTransaction::LayerCreationProperties::encode(IPC::Encoder& encoder) const
 {
     encoder << layerID;
-    encoder.encodeEnum(type);
-    encoder << embeddedViewID;
+    encoder << type;
     encoder << hostingContextID;
     encoder << hostingDeviceScaleFactor;
 }
@@ -66,10 +64,7 @@ auto RemoteLayerTreeTransaction::LayerCreationProperties::decode(IPC::Decoder& d
     if (!decoder.decode(result.layerID))
         return WTF::nullopt;
 
-    if (!decoder.decodeEnum(result.type))
-        return WTF::nullopt;
-
-    if (!decoder.decode(result.embeddedViewID))
+    if (!decoder.decode(result.type))
         return WTF::nullopt;
 
     if (!decoder.decode(result.hostingContextID))
@@ -92,7 +87,7 @@ RemoteLayerTreeTransaction::LayerProperties::LayerProperties()
     , cornerRadius(0)
     , borderWidth(0)
     , opacity(1)
-    , backgroundColor(WebCore::Color::transparent)
+    , backgroundColor(WebCore::Color::transparentBlack)
     , borderColor(WebCore::Color::black)
     , edgeAntialiasingMask(kCALayerLeftEdge | kCALayerRightEdge | kCALayerBottomEdge | kCALayerTopEdge)
     , customAppearance(WebCore::GraphicsLayer::CustomAppearance::None)
@@ -243,16 +238,16 @@ void RemoteLayerTreeTransaction::LayerProperties::encode(IPC::Encoder& encoder) 
         encoder << shapePath;
 
     if (changedProperties & MinificationFilterChanged)
-        encoder.encodeEnum(minificationFilter);
+        encoder << minificationFilter;
 
     if (changedProperties & MagnificationFilterChanged)
-        encoder.encodeEnum(magnificationFilter);
+        encoder << magnificationFilter;
 
     if (changedProperties & BlendModeChanged)
-        encoder.encodeEnum(blendMode);
+        encoder << blendMode;
 
     if (changedProperties & WindRuleChanged)
-        encoder.encodeEnum(windRule);
+        encoder << windRule;
 
     if (changedProperties & SpeedChanged)
         encoder << speed;
@@ -277,7 +272,7 @@ void RemoteLayerTreeTransaction::LayerProperties::encode(IPC::Encoder& encoder) 
         encoder << edgeAntialiasingMask;
 
     if (changedProperties & CustomAppearanceChanged)
-        encoder.encodeEnum(customAppearance);
+        encoder << customAppearance;
 
     if (changedProperties & UserInteractionEnabledChanged)
         encoder << userInteractionEnabled;
@@ -437,22 +432,22 @@ bool RemoteLayerTreeTransaction::LayerProperties::decode(IPC::Decoder& decoder, 
     }
 
     if (result.changedProperties & MinificationFilterChanged) {
-        if (!decoder.decodeEnum(result.minificationFilter))
+        if (!decoder.decode(result.minificationFilter))
             return false;
     }
 
     if (result.changedProperties & MagnificationFilterChanged) {
-        if (!decoder.decodeEnum(result.magnificationFilter))
+        if (!decoder.decode(result.magnificationFilter))
             return false;
     }
 
     if (result.changedProperties & BlendModeChanged) {
-        if (!decoder.decodeEnum(result.blendMode))
+        if (!decoder.decode(result.blendMode))
             return false;
     }
 
     if (result.changedProperties & WindRuleChanged) {
-        if (!decoder.decodeEnum(result.windRule))
+        if (!decoder.decode(result.windRule))
             return false;
     }
 
@@ -498,7 +493,7 @@ bool RemoteLayerTreeTransaction::LayerProperties::decode(IPC::Decoder& decoder, 
     }
 
     if (result.changedProperties & CustomAppearanceChanged) {
-        if (!decoder.decodeEnum(result.customAppearance))
+        if (!decoder.decode(result.customAppearance))
             return false;
     }
 
@@ -893,10 +888,10 @@ static void dumpChangedLayers(TextStream& ts, const RemoteLayerTreeTransaction::
 
 void RemoteLayerTreeTransaction::dump() const
 {
-    fprintf(stderr, "%s", description().data());
+    fprintf(stderr, "%s", description().utf8().data());
 }
 
-CString RemoteLayerTreeTransaction::description() const
+String RemoteLayerTreeTransaction::description() const
 {
     TextStream ts;
 
@@ -964,7 +959,7 @@ CString RemoteLayerTreeTransaction::description() const
 
     ts.endGroup();
 
-    return ts.release().utf8();
+    return ts.release();
 }
 
 #endif // !defined(NDEBUG) || !LOG_DISABLED

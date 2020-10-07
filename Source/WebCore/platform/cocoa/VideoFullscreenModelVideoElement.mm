@@ -24,9 +24,9 @@
  */
 
 #import "config.h"
-
-#if PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
 #import "VideoFullscreenModelVideoElement.h"
+
+#if ENABLE(VIDEO_PRESENTATION_MODE)
 
 #import "DOMWindow.h"
 #import "Event.h"
@@ -110,6 +110,13 @@ void VideoFullscreenModelVideoElement::willExitFullscreen()
         m_videoElement->willExitFullscreen();
 }
 
+RetainPtr<PlatformLayer> VideoFullscreenModelVideoElement::createVideoFullscreenLayer()
+{
+    if (m_videoElement)
+        return m_videoElement->createVideoFullscreenLayer();
+    return nullptr;
+}
+
 void VideoFullscreenModelVideoElement::setVideoFullscreenLayer(PlatformLayer* videoLayer, WTF::Function<void()>&& completionHandler)
 {
     if (m_videoFullscreenLayer == videoLayer) {
@@ -145,10 +152,10 @@ void VideoFullscreenModelVideoElement::waitForPreparedForInlineThen(WTF::Functio
 
 void VideoFullscreenModelVideoElement::requestFullscreenMode(HTMLMediaElementEnums::VideoFullscreenMode mode, bool finishedWithMedia)
 {
-    if (m_videoElement && m_videoElement->fullscreenMode() != mode)
-        m_videoElement->setFullscreenMode(mode);
+    if (m_videoElement)
+        m_videoElement->setPresentationMode(HTMLVideoElement::toPresentationMode(mode));
 
-    if (m_videoElement && finishedWithMedia && mode == MediaPlayerEnums::VideoFullscreenModeNone) {
+    if (m_videoElement && finishedWithMedia && mode == MediaPlayer::VideoFullscreenModeNone) {
         if (m_videoElement->document().isMediaDocument()) {
             if (auto* window = m_videoElement->document().domWindow())
                 window->history().back();
@@ -164,7 +171,7 @@ void VideoFullscreenModelVideoElement::setVideoLayerFrame(FloatRect rect)
         m_videoElement->setVideoFullscreenFrame(rect);
 }
 
-void VideoFullscreenModelVideoElement::setVideoLayerGravity(MediaPlayerEnums::VideoGravity gravity)
+void VideoFullscreenModelVideoElement::setVideoLayerGravity(MediaPlayer::VideoGravity gravity)
 {
     m_videoElement->setVideoFullscreenGravity(gravity);
 }
@@ -177,14 +184,14 @@ const Vector<AtomString>& VideoFullscreenModelVideoElement::observedEventNames()
 
 const AtomString& VideoFullscreenModelVideoElement::eventNameAll()
 {
-    static NeverDestroyed<AtomString> sEventNameAll = "allEvents";
+    static MainThreadNeverDestroyed<const AtomString> sEventNameAll = "allEvents";
     return sEventNameAll;
 }
 
 void VideoFullscreenModelVideoElement::fullscreenModeChanged(HTMLMediaElementEnums::VideoFullscreenMode videoFullscreenMode)
 {
     if (m_videoElement)
-        m_videoElement->fullscreenModeChanged(videoFullscreenMode);
+        m_videoElement->setPresentationMode(HTMLVideoElement::toPresentationMode(videoFullscreenMode));
 }
 
 void VideoFullscreenModelVideoElement::requestRouteSharingPolicyAndContextUID(CompletionHandler<void(RouteSharingPolicy, String)>&& completionHandler)
@@ -212,7 +219,7 @@ void VideoFullscreenModelVideoElement::setHasVideo(bool hasVideo)
 
     m_hasVideo = hasVideo;
 
-    for (auto& client : m_clients)
+    for (auto& client : copyToVector(m_clients))
         client->hasVideoChanged(m_hasVideo);
 }
 
@@ -223,37 +230,37 @@ void VideoFullscreenModelVideoElement::setVideoDimensions(const FloatSize& video
 
     m_videoDimensions = videoDimensions;
 
-    for (auto& client : m_clients)
+    for (auto& client : copyToVector(m_clients))
         client->videoDimensionsChanged(m_videoDimensions);
 }
 
 void VideoFullscreenModelVideoElement::willEnterPictureInPicture()
 {
-    for (auto& client : m_clients)
+    for (auto& client : copyToVector(m_clients))
         client->willEnterPictureInPicture();
 }
 
 void VideoFullscreenModelVideoElement::didEnterPictureInPicture()
 {
-    for (auto& client : m_clients)
+    for (auto& client : copyToVector(m_clients))
         client->didEnterPictureInPicture();
 }
 
 void VideoFullscreenModelVideoElement::failedToEnterPictureInPicture()
 {
-    for (auto& client : m_clients)
+    for (auto& client : copyToVector(m_clients))
         client->failedToEnterPictureInPicture();
 }
 
 void VideoFullscreenModelVideoElement::willExitPictureInPicture()
 {
-    for (auto& client : m_clients)
+    for (auto& client : copyToVector(m_clients))
         client->willExitPictureInPicture();
 }
 
 void VideoFullscreenModelVideoElement::didExitPictureInPicture()
 {
-    for (auto& client : m_clients)
+    for (auto& client : copyToVector(m_clients))
         client->didExitPictureInPicture();
 }
 

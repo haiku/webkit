@@ -28,7 +28,9 @@
 
 #if ENABLE(APPLE_PAY)
 
+#include "ApplePayPaymentSetupFeaturesWebKit.h"
 #include "DataReference.h"
+#include "PaymentSetupConfigurationWebKit.h"
 #include "WebCoreArgumentCoders.h"
 #include "WebPage.h"
 #include "WebPaymentCoordinatorMessages.h"
@@ -157,6 +159,11 @@ bool WebPaymentCoordinator::supportsUnrestrictedApplePay() const
 #endif
 }
 
+String WebPaymentCoordinator::userAgentScriptsBlockedErrorMessage() const
+{
+    return "Unable to run user agent scripts because this document has previously accessed Apple Pay. Documents can be prevented from accessing Apple Pay by adding a WKUserScript to the WKWebView's WKUserContentController."_s;
+}
+
 IPC::Connection* WebPaymentCoordinator::messageSenderConnection() const
 {
 #if ENABLE(APPLE_PAY_REMOTE_UI)
@@ -214,6 +221,21 @@ bool WebPaymentCoordinator::remoteUIEnabled() const
     return false;
 }
 #endif
+
+void WebPaymentCoordinator::getSetupFeatures(const WebCore::ApplePaySetupConfiguration& configuration, const URL& url, CompletionHandler<void(Vector<Ref<WebCore::ApplePaySetupFeature>>&&)>&& completionHandler)
+{
+    m_webPage.sendWithAsyncReply(Messages::WebPaymentCoordinatorProxy::GetSetupFeatures(PaymentSetupConfiguration { configuration, url }), WTFMove(completionHandler));
+}
+
+void WebPaymentCoordinator::beginApplePaySetup(const WebCore::ApplePaySetupConfiguration& configuration, const URL& url, Vector<RefPtr<WebCore::ApplePaySetupFeature>>&& features, CompletionHandler<void(bool)>&& completionHandler)
+{
+    m_webPage.sendWithAsyncReply(Messages::WebPaymentCoordinatorProxy::BeginApplePaySetup(PaymentSetupConfiguration { configuration, url }, PaymentSetupFeatures { WTFMove(features) }), WTFMove(completionHandler));
+}
+
+void WebPaymentCoordinator::endApplePaySetup()
+{
+    m_webPage.send(Messages::WebPaymentCoordinatorProxy::EndApplePaySetup());
+}
 
 }
 

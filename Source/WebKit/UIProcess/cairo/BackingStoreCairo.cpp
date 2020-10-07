@@ -37,7 +37,7 @@
 #include <WebCore/RefPtrCairo.h>
 #include <cairo.h>
 
-#if PLATFORM(GTK) && PLATFORM(X11) && defined(GDK_WINDOWING_X11)
+#if PLATFORM(GTK) && PLATFORM(X11) && defined(GDK_WINDOWING_X11) && !USE(GTK4)
 #include <WebCore/BackingStoreBackendCairoX11.h>
 #include <WebCore/PlatformDisplayX11.h>
 #include <gdk/gdkx.h>
@@ -48,7 +48,7 @@ using namespace WebCore;
 
 std::unique_ptr<BackingStoreBackendCairo> BackingStore::createBackend()
 {
-#if PLATFORM(GTK) && PLATFORM(X11) && defined(GDK_WINDOWING_X11)
+#if PLATFORM(GTK) && PLATFORM(X11) && defined(GDK_WINDOWING_X11) && !USE(GTK4)
     const auto& sharedDisplay = PlatformDisplay::sharedDisplay();
     if (is<PlatformDisplayX11>(sharedDisplay)) {
         GdkVisual* visual = gtk_widget_get_visual(m_webPageProxy.viewWidget());
@@ -87,8 +87,8 @@ void BackingStore::incorporateUpdate(ShareableBitmap* bitmap, const UpdateInfo& 
     GraphicsContext graphicsContext(GraphicsContextImplCairo::createFactory(cairoContext.get()));
 
     // When m_webPageProxy.drawsBackground() is false, bitmap contains transparent parts as a background of the webpage.
-    // For such case, bitmap must be drawn using CompositeCopy to overwrite the existing surface.
-    graphicsContext.setCompositeOperation(WebCore::CompositeCopy);
+    // For such case, bitmap must be drawn using CompositeOperator::Copy to overwrite the existing surface.
+    graphicsContext.setCompositeOperation(WebCore::CompositeOperator::Copy);
 
     for (const auto& updateRect : updateInfo.updateRects) {
         IntRect srcRect = updateRect;

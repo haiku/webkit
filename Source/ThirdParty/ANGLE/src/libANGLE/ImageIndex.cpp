@@ -40,6 +40,8 @@ GLint TextureTargetToLayer(TextureTarget target)
             return ImageIndex::kEntireLevel;
         case TextureTarget::_2D:
             return ImageIndex::kEntireLevel;
+        case TextureTarget::VideoImage:
+            return ImageIndex::kEntireLevel;
         case TextureTarget::_2DArray:
             return ImageIndex::kEntireLevel;
         case TextureTarget::_2DMultisample:
@@ -47,6 +49,8 @@ GLint TextureTargetToLayer(TextureTarget target)
         case TextureTarget::_2DMultisampleArray:
             return ImageIndex::kEntireLevel;
         case TextureTarget::_3D:
+            return ImageIndex::kEntireLevel;
+        case TextureTarget::CubeMapArray:
             return ImageIndex::kEntireLevel;
         default:
             UNREACHABLE();
@@ -103,6 +107,7 @@ bool ImageIndex::isLayered() const
         case TextureType::_2DMultisampleArray:
         case TextureType::CubeMap:
         case TextureType::_3D:
+        case TextureType::CubeMapArray:
             return mLayerIndex == kEntireLevel;
         default:
             return false;
@@ -120,7 +125,7 @@ bool ImageIndex::has3DLayer() const
 bool ImageIndex::usesTex3D() const
 {
     return mType == TextureType::_3D || mType == TextureType::_2DArray ||
-           mType == TextureType::_2DMultisampleArray;
+           mType == TextureType::_2DMultisampleArray || mType == TextureType::CubeMapArray;
 }
 
 TextureTarget ImageIndex::getTarget() const

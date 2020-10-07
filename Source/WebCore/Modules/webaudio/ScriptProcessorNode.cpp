@@ -34,48 +34,49 @@
 #include "AudioNodeInput.h"
 #include "AudioNodeOutput.h"
 #include "AudioProcessingEvent.h"
+#include "AudioUtilities.h"
 #include "Document.h"
 #include "EventNames.h"
 #include <JavaScriptCore/Float32Array.h>
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/MainThread.h>
+#include <wtf/threads/BinarySemaphore.h>
 
 namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(ScriptProcessorNode);
 
-Ref<ScriptProcessorNode> ScriptProcessorNode::create(AudioContext& context, float sampleRate, size_t bufferSize, unsigned numberOfInputChannels, unsigned numberOfOutputChannels)
+Ref<ScriptProcessorNode> ScriptProcessorNode::create(BaseAudioContext& context, size_t bufferSize, unsigned numberOfInputChannels, unsigned numberOfOutputChannels)
 {
-    return adoptRef(*new ScriptProcessorNode(context, sampleRate, bufferSize, numberOfInputChannels, numberOfOutputChannels));
+    return adoptRef(*new ScriptProcessorNode(context, bufferSize, numberOfInputChannels, numberOfOutputChannels));
 }
 
-ScriptProcessorNode::ScriptProcessorNode(AudioContext& context, float sampleRate, size_t bufferSize, unsigned numberOfInputChannels, unsigned numberOfOutputChannels)
-    : AudioNode(context, sampleRate)
-    , m_doubleBufferIndex(0)
-    , m_doubleBufferIndexForEvent(0)
+ScriptProcessorNode::ScriptProcessorNode(BaseAudioContext& context, size_t bufferSize, unsigned numberOfInputChannels, unsigned numberOfOutputChannels)
+    : AudioNode(context, NodeTypeJavaScript)
+    , ActiveDOMObject(context.scriptExecutionContext())
     , m_bufferSize(bufferSize)
-    , m_bufferReadWriteIndex(0)
-    , m_isRequestOutstanding(false)
     , m_numberOfInputChannels(numberOfInputChannels)
     , m_numberOfOutputChannels(numberOfOutputChannels)
-    , m_internalInputBus(AudioBus::create(numberOfInputChannels, AudioNode::ProcessingSizeInFrames, false))
-    , m_hasAudioProcessListener(false)
+    , m_internalInputBus(AudioBus::create(numberOfInputChannels, AudioUtilities::renderQuantumSize, false))
 {
     // Regardless of the allowed buffer sizes, we still need to process at the granularity of the AudioNode.
-    if (m_bufferSize < AudioNode::ProcessingSizeInFrames)
-        m_bufferSize = AudioNode::ProcessingSizeInFrames;
+    if (m_bufferSize < AudioUtilities::renderQuantumSize)
+        m_bufferSize = AudioUtilities::renderQuantumSize;
 
     ASSERT(numberOfInputChannels <= AudioContext::maxNumberOfChannels());
 
-    setNodeType(NodeTypeJavaScript);
-    addInput(makeUnique<AudioNodeInput>(this));
-    addOutput(makeUnique<AudioNodeOutput>(this, numberOfOutputChannels));
+    initializeDefaultNodeOptions(numberOfInputChannels, ChannelCountMode::Explicit, ChannelInterpretation::Speakers);
+    addInput();
+    addOutput(numberOfOutputChannels);
 
     initialize();
+    suspendIfNeeded();
+    m_pendingActivity = makePendingActivity(*this);
 }
 
 ScriptProcessorNode::~ScriptProcessorNode()
 {
+    ASSERT(!hasPendingActivity());
     uninitialize();
 }
 
@@ -110,6 +111,13 @@ void ScriptProcessorNode::uninitialize()
     AudioNode::uninitialize();
 }
 
+void ScriptProcessorNode::didBecomeMarkedForDeletion()
+{
+    ASSERT(context().isGraphOwner());
+    m_pendingActivity = nullptr;
+    ASSERT(!hasPendingActivity());
+}
+
 void ScriptProcessorNode::process(size_t framesToProcess)
 {
     // Discussion about inputs and outputs:
@@ -117,10 +125,6 @@ void ScriptProcessorNode::process(size_t framesToProcess)
     // Additionally, there is a double-buffering for input and output which is exposed directly to JavaScript (see inputBuffer and outputBuffer below).
     // This node is the producer for inputBuffer and the consumer for outputBuffer.
     // The JavaScript code is the consumer of inputBuffer and the producer for outputBuffer.
-
-    // Check if audioprocess listener is set.
-    if (!m_hasAudioProcessListener)
-        return;
 
     // Get input and output busses.
     AudioBus* inputBus = this->input(0)->bus();
@@ -177,28 +181,27 @@ void ScriptProcessorNode::process(size_t framesToProcess)
     // m_bufferReadWriteIndex will wrap back around to 0 when the current input and output buffers are full.
     // When this happens, fire an event and swap buffers.
     if (!m_bufferReadWriteIndex) {
-        // Avoid building up requests on the main thread to fire process events when they're not being handled.
-        // This could be a problem if the main thread is very busy doing other things and is being held up handling previous requests.
-        if (m_isRequestOutstanding) {
-            // We're late in handling the previous request. The main thread must be very busy.
-            // The best we can do is clear out the buffer ourself here.
-            outputBuffer->zero();            
+        // Reference ourself so we don't accidentally get deleted before fireProcessEvent() gets called.
+        // We only wait for script code execution when the context is an offline one for performance reasons.
+        if (context().isOfflineContext()) {
+            BinarySemaphore semaphore;
+            callOnMainThread([this, &semaphore, doubleBufferIndex = m_doubleBufferIndex, protector = makeRef(*this)] {
+                fireProcessEvent(doubleBufferIndex);
+                semaphore.signal();
+            });
+            semaphore.wait();
         } else {
-            // Reference ourself so we don't accidentally get deleted before fireProcessEvent() gets called.
-            ref();
-            
-            // Fire the event on the main thread, not this one (which is the realtime audio thread).
-            m_doubleBufferIndexForEvent = m_doubleBufferIndex;
-            m_isRequestOutstanding = true;
+            auto locker = tryHoldLock(m_processLock);
+            if (!locker) {
+                // We're late in handling the previous request. The main thread must be
+                // very busy. The best we can do is clear out the buffer ourself here.
+                outputBuffer->zero();
+                return;
+            }
 
-            callOnMainThread([this] {
-                if (!m_hasAudioProcessListener)
-                    return;
-
-                fireProcessEvent();
-
-                // De-reference to match the ref() call in process().
-                deref();
+            callOnMainThread([this, doubleBufferIndex = m_doubleBufferIndex, protector = makeRef(*this)] {
+                auto locker = holdLock(m_processLock);
+                fireProcessEvent(doubleBufferIndex);
             });
         }
 
@@ -206,26 +209,23 @@ void ScriptProcessorNode::process(size_t framesToProcess)
     }
 }
 
-void ScriptProcessorNode::fireProcessEvent()
+void ScriptProcessorNode::fireProcessEvent(unsigned doubleBufferIndex)
 {
-    ASSERT(isMainThread() && m_isRequestOutstanding);
+    ASSERT(isMainThread());
     
-    bool isIndexGood = m_doubleBufferIndexForEvent < 2;
+    bool isIndexGood = doubleBufferIndex < 2;
     ASSERT(isIndexGood);
     if (!isIndexGood)
         return;
         
-    AudioBuffer* inputBuffer = m_inputBuffers[m_doubleBufferIndexForEvent].get();
-    AudioBuffer* outputBuffer = m_outputBuffers[m_doubleBufferIndexForEvent].get();
+    AudioBuffer* inputBuffer = m_inputBuffers[doubleBufferIndex].get();
+    AudioBuffer* outputBuffer = m_outputBuffers[doubleBufferIndex].get();
     ASSERT(outputBuffer);
     if (!outputBuffer)
         return;
 
     // Avoid firing the event if the document has already gone away.
     if (!context().isStopped()) {
-        // Let the audio thread know we've gotten to the point where it's OK for it to make another request.
-        m_isRequestOutstanding = false;
-
         // Calculate playbackTime with the buffersize which needs to be processed each time when onaudioprocess is called.
         // The outputBuffer being passed to JS will be played after exhausting previous outputBuffer by double-buffering.
         double playbackTime = (context().currentSampleFrame() + m_bufferSize) / static_cast<double>(context().sampleRate());
@@ -235,15 +235,23 @@ void ScriptProcessorNode::fireProcessEvent()
     }
 }
 
-void ScriptProcessorNode::reset()
+ExceptionOr<void> ScriptProcessorNode::setChannelCount(unsigned channelCount)
 {
-    m_bufferReadWriteIndex = 0;
-    m_doubleBufferIndex = 0;
+    ASSERT(isMainThread());
 
-    for (unsigned i = 0; i < 2; ++i) {
-        m_inputBuffers[i]->zero();
-        m_outputBuffers[i]->zero();
-    }
+    if (channelCount != this->channelCount())
+        return Exception { NotSupportedError, "ScriptProcessorNode's channelCount cannot be changed"_s };
+    return { };
+}
+
+ExceptionOr<void> ScriptProcessorNode::setChannelCountMode(ChannelCountMode mode)
+{
+    ASSERT(isMainThread());
+
+    if (mode != this->channelCountMode())
+        return Exception { NotSupportedError, "ScriptProcessorNode's channelCountMode cannot be changed from 'explicit'"_s };
+
+    return { };
 }
 
 double ScriptProcessorNode::tailTime() const
@@ -256,26 +264,10 @@ double ScriptProcessorNode::latencyTime() const
     return std::numeric_limits<double>::infinity();
 }
 
-bool ScriptProcessorNode::addEventListener(const AtomString& eventType, Ref<EventListener>&& listener, const AddEventListenerOptions& options)
+bool ScriptProcessorNode::requiresTailProcessing() const
 {
-    bool success = AudioNode::addEventListener(eventType, WTFMove(listener), options);
-    if (success && eventType == eventNames().audioprocessEvent)
-        m_hasAudioProcessListener = hasEventListeners(eventNames().audioprocessEvent);
-    return success;
-}
-
-bool ScriptProcessorNode::removeEventListener(const AtomString& eventType, EventListener& listener, const ListenerOptions& options)
-{
-    bool success = AudioNode::removeEventListener(eventType, listener, options);
-    if (success && eventType == eventNames().audioprocessEvent)
-        m_hasAudioProcessListener = hasEventListeners(eventNames().audioprocessEvent);
-    return success;
-}
-
-void ScriptProcessorNode::removeAllEventListeners()
-{
-    m_hasAudioProcessListener = false;
-    AudioNode::removeAllEventListeners();
+    // Always return true since the tail and latency are never zero.
+    return true;
 }
 
 } // namespace WebCore

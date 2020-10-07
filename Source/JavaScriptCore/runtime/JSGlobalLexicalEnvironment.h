@@ -30,11 +30,16 @@
 namespace JSC {
 
 class JSGlobalLexicalEnvironment final : public JSSegmentedVariableObject {
-
 public:
     using Base = JSSegmentedVariableObject;
 
     static constexpr unsigned StructureFlags = Base::StructureFlags | OverridesGetOwnPropertySlot;
+
+    template<typename CellType, SubspaceAccess mode>
+    static IsoSubspace* subspaceFor(VM& vm)
+    {
+        return &vm.globalLexicalEnvironmentSpace;
+    }
 
     static JSGlobalLexicalEnvironment* create(VM& vm, Structure* structure, JSScope* parentScope)
     {
@@ -49,8 +54,7 @@ public:
     static bool put(JSCell*, JSGlobalObject*, PropertyName, JSValue, PutPropertySlot&);
 
     static void destroy(JSCell*);
-    // We don't need a destructor because we use a finalizer instead.
-    static constexpr bool needsDestruction = false;
+    static constexpr bool needsDestruction = true;
 
     bool isEmpty() const { return !symbolTable()->size(); }
     bool isConstVariable(UniquedStringImpl*);
@@ -62,7 +66,7 @@ public:
         return Structure::create(vm, globalObject, jsNull(), TypeInfo(GlobalLexicalEnvironmentType, StructureFlags), info());
     }
 
-protected:
+private:
     JSGlobalLexicalEnvironment(VM& vm, Structure* structure, JSScope* scope)
         : Base(vm, structure, scope)
     {

@@ -39,7 +39,7 @@ namespace WebKit {
 // A JSObject that wraps an NPMethod.
 class JSNPMethod final : public JSC::InternalFunction {
 public:
-    typedef JSC::InternalFunction Base;
+    using Base = JSC::InternalFunction;
 
     template<typename CellType, JSC::SubspaceAccess>
     static JSC::IsoSubspace* subspaceFor(JSC::VM& vm)
@@ -60,13 +60,11 @@ public:
 
     NPIdentifier npIdentifier() const { return m_npIdentifier; }
 
-protected:
-    void finishCreation(JSC::VM&, const String& name);
-
 private:
     static JSC::IsoSubspace* subspaceForImpl(JSC::VM&);
     
     JSNPMethod(JSC::JSGlobalObject*, JSC::Structure*, NPIdentifier);
+    void finishCreation(JSC::VM&, const String& name);
 
     static JSC::Structure* createStructure(JSC::VM& vm, JSC::JSGlobalObject* globalObject, JSC::JSValue prototype)
     {

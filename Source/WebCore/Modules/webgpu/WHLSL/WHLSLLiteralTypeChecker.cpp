@@ -26,7 +26,7 @@
 #include "config.h"
 #include "WHLSLLiteralTypeChecker.h"
 
-#if ENABLE(WEBGPU)
+#if ENABLE(WHLSL_COMPILER)
 
 #include "WHLSLIntegerLiteralType.h"
 #include "WHLSLNativeTypeDeclaration.h"
@@ -38,7 +38,7 @@ namespace WebCore {
 
 namespace WHLSL {
 
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
 static AST::NativeTypeDeclaration* getNativeTypeDeclaration(AST::ResolvableType& resolvableType)
 {
     if (!is<AST::TypeReference>(resolvableType.resolvedType()))
@@ -73,14 +73,14 @@ private:
         ASSERT(nativeTypeDeclaration->canRepresentUnsignedInteger()(unsignedIntegerLiteralType.value()));
     }
 };
-#endif
+#endif // ASSERT_ENABLED
 
 void checkLiteralTypes(Program& program)
 {
-#if ASSERT_DISABLED
-    UNUSED_PARAM(program);
-#else
+#if ASSERT_ENABLED
     LiteralTypeChecker().Visitor::visit(program);
+#else
+    UNUSED_PARAM(program);
 #endif
 }
 
@@ -88,4 +88,4 @@ void checkLiteralTypes(Program& program)
 
 } // namespace WebCore
 
-#endif // ENABLE(WEBGPU)
+#endif // ENABLE(WHLSL_COMPILER)

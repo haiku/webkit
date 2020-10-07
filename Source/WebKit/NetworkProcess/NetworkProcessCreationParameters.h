@@ -27,15 +27,13 @@
 
 #include "CacheModel.h"
 #include "SandboxExtension.h"
-#include "WebsiteDataStoreParameters.h"
 #include <WebCore/Cookie.h>
 #include <wtf/ProcessID.h>
 #include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
 
 #if USE(SOUP)
-#include "HTTPCookieAcceptPolicy.h"
-#include <WebCore/SoupNetworkProxySettings.h>
+#include <WebCore/HTTPCookieAcceptPolicy.h>
 #endif
 
 namespace IPC {
@@ -49,11 +47,11 @@ struct NetworkProcessCreationParameters {
     NetworkProcessCreationParameters();
 
     void encode(IPC::Encoder&) const;
-    static bool decode(IPC::Decoder&, NetworkProcessCreationParameters&);
+    static WARN_UNUSED_RETURN bool decode(IPC::Decoder&, NetworkProcessCreationParameters&);
 
     CacheModel cacheModel { CacheModel::DocumentViewer };
 
-#if PLATFORM(MAC)
+#if PLATFORM(MAC) || PLATFORM(MACCATALYST)
     Vector<uint8_t> uiProcessCookieStorageIdentifier;
 #endif
 #if PLATFORM(IOS_FAMILY)
@@ -69,16 +67,11 @@ struct NetworkProcessCreationParameters {
     String uiProcessBundleIdentifier;
     uint32_t uiProcessSDKVersion { 0 };
     RetainPtr<CFDataRef> networkATSContext;
-    bool storageAccessAPIEnabled;
 #endif
 
-    WebsiteDataStoreParameters defaultDataStoreParameters;
-    
 #if USE(SOUP)
-    HTTPCookieAcceptPolicy cookieAcceptPolicy { HTTPCookieAcceptPolicy::AlwaysAccept };
-    bool ignoreTLSErrors { false };
+    WebCore::HTTPCookieAcceptPolicy cookieAcceptPolicy { WebCore::HTTPCookieAcceptPolicy::AlwaysAccept };
     Vector<String> languages;
-    WebCore::SoupNetworkProxySettings proxySettings;
 #endif
 
     Vector<String> urlSchemesRegisteredAsSecure;
@@ -86,17 +79,7 @@ struct NetworkProcessCreationParameters {
     Vector<String> urlSchemesRegisteredAsLocal;
     Vector<String> urlSchemesRegisteredAsNoAccess;
 
-#if ENABLE(SERVICE_WORKER)
-    String serviceWorkerRegistrationDirectory;
-    SandboxExtension::Handle serviceWorkerRegistrationDirectoryExtensionHandle;
-    Vector<String> urlSchemesServiceWorkersCanHandle;
-    bool shouldDisableServiceWorkerProcessTerminationDelay { false };
-#endif
-    bool shouldEnableITPDatabase { false };
     bool enableAdClickAttributionDebugMode { false };
-    String hstsStorageDirectory;
-    SandboxExtension::Handle hstsStorageDirectoryExtensionHandle;
-    bool enableLegacyTLS { false };
 };
 
 } // namespace WebKit

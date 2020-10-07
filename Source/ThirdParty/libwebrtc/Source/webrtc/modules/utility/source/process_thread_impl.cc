@@ -14,8 +14,8 @@
 
 #include "modules/include/module.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/task_queue.h"
-#include "rtc_base/timeutils.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
 
 namespace webrtc {
@@ -47,9 +47,14 @@ ProcessThreadImpl::ProcessThreadImpl(const char* thread_name)
     : stop_(false), thread_name_(thread_name) {}
 
 ProcessThreadImpl::~ProcessThreadImpl() {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
+  RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(!thread_.get());
   RTC_DCHECK(!stop_);
+
+  while (!delayed_tasks_.empty()) {
+    delete delayed_tasks_.top().task;
+    delayed_tasks_.pop();
+  }
 
   while (!queue_.empty()) {
     delete queue_.front();
@@ -57,8 +62,15 @@ ProcessThreadImpl::~ProcessThreadImpl() {
   }
 }
 
+void ProcessThreadImpl::Delete() {
+  RTC_LOG(LS_WARNING) << "Process thread " << thread_name_
+                      << " is destroyed as a TaskQueue.";
+  Stop();
+  delete this;
+}
+
 void ProcessThreadImpl::Start() {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
+  RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(!thread_.get());
   if (thread_.get())
     return;
@@ -74,7 +86,7 @@ void ProcessThreadImpl::Start() {
 }
 
 void ProcessThreadImpl::Stop() {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
+  RTC_DCHECK(thread_checker_.IsCurrent());
   if (!thread_.get())
     return;
 
@@ -105,7 +117,7 @@ void ProcessThreadImpl::WakeUp(Module* module) {
   wake_up_.Set();
 }
 
-void ProcessThreadImpl::PostTask(std::unique_ptr<rtc::QueuedTask> task) {
+void ProcessThreadImpl::PostTask(std::unique_ptr<QueuedTask> task) {
   // Allowed to be called on any thread.
   {
     rtc::CritScope lock(&lock_);
@@ -114,9 +126,24 @@ void ProcessThreadImpl::PostTask(std::unique_ptr<rtc::QueuedTask> task) {
   wake_up_.Set();
 }
 
+void ProcessThreadImpl::PostDelayedTask(std::unique_ptr<QueuedTask> task,
+                                        uint32_t milliseconds) {
+  int64_t run_at_ms = rtc::TimeMillis() + milliseconds;
+  bool recalculate_wakeup_time;
+  {
+    rtc::CritScope lock(&lock_);
+    recalculate_wakeup_time =
+        delayed_tasks_.empty() || run_at_ms < delayed_tasks_.top().run_at_ms;
+    delayed_tasks_.emplace(run_at_ms, std::move(task));
+  }
+  if (recalculate_wakeup_time) {
+    wake_up_.Set();
+  }
+}
+
 void ProcessThreadImpl::RegisterModule(Module* module,
                                        const rtc::Location& from) {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
+  RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(module) << from.ToString();
 
 #if RTC_DCHECK_IS_ON
@@ -125,8 +152,10 @@ void ProcessThreadImpl::RegisterModule(Module* module,
     rtc::CritScope lock(&lock_);
     for (const ModuleCallback& mc : modules_) {
       RTC_DCHECK(mc.module != module)
-          << "Already registered here: " << mc.location.ToString() << "\n"
-          << "Now attempting from here: " << from.ToString();
+          << "Already registered here: " << mc.location.ToString()
+          << "\n"
+             "Now attempting from here: "
+          << from.ToString();
     }
   }
 #endif
@@ -149,7 +178,7 @@ void ProcessThreadImpl::RegisterModule(Module* module,
 }
 
 void ProcessThreadImpl::DeRegisterModule(Module* module) {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
+  RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(module);
 
   {
@@ -163,8 +192,11 @@ void ProcessThreadImpl::DeRegisterModule(Module* module) {
 }
 
 // static
-bool ProcessThreadImpl::Run(void* obj) {
-  return static_cast<ProcessThreadImpl*>(obj)->Process();
+void ProcessThreadImpl::Run(void* obj) {
+  ProcessThreadImpl* impl = static_cast<ProcessThreadImpl*>(obj);
+  CurrentTaskQueueSetter set_current(impl);
+  while (impl->Process()) {
+  }
 }
 
 bool ProcessThreadImpl::Process() {
@@ -189,7 +221,7 @@ bool ProcessThreadImpl::Process() {
         {
           TRACE_EVENT2("webrtc", "ModuleProcess", "function",
                        m.location.function_name(), "file",
-                       m.location.file_and_line());
+                       m.location.file_name());
           m.module->Process();
         }
         // Use a new 'now' reference to calculate when the next callback
@@ -203,12 +235,23 @@ bool ProcessThreadImpl::Process() {
         next_checkpoint = m.next_callback;
     }
 
+    while (!delayed_tasks_.empty() && delayed_tasks_.top().run_at_ms <= now) {
+      queue_.push(delayed_tasks_.top().task);
+      delayed_tasks_.pop();
+    }
+
+    if (!delayed_tasks_.empty()) {
+      next_checkpoint =
+          std::min(next_checkpoint, delayed_tasks_.top().run_at_ms);
+    }
+
     while (!queue_.empty()) {
-      rtc::QueuedTask* task = queue_.front();
+      QueuedTask* task = queue_.front();
       queue_.pop();
       lock_.Leave();
-      task->Run();
-      delete task;
+      if (task->Run()) {
+        delete task;
+      }
       lock_.Enter();
     }
   }

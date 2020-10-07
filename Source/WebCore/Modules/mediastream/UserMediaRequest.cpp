@@ -67,7 +67,11 @@ UserMediaRequest::UserMediaRequest(Document& document, MediaStreamRequest&& requ
 {
 }
 
-UserMediaRequest::~UserMediaRequest() = default;
+UserMediaRequest::~UserMediaRequest()
+{
+    if (m_allowCompletionHandler)
+        m_allowCompletionHandler();
+}
 
 SecurityOrigin* UserMediaRequest::userMediaDocumentOrigin() const
 {
@@ -194,23 +198,26 @@ void UserMediaRequest::start()
     // 6.10 Permission Failure: Reject p with a new DOMException object whose name attribute has
     //      the value NotAllowedError.
 
-    OptionSet<UserMediaController::CaptureType> types;
-    UserMediaController::BlockedCaller caller;
-    if (m_request.type == MediaStreamRequest::Type::DisplayMedia) {
-        types.add(UserMediaController::CaptureType::Display);
-        caller = UserMediaController::BlockedCaller::GetDisplayMedia;
-    } else {
-        if (m_request.audioConstraints.isValid)
-            types.add(UserMediaController::CaptureType::Microphone);
-        if (m_request.videoConstraints.isValid)
-            types.add(UserMediaController::CaptureType::Camera);
-        caller = UserMediaController::BlockedCaller::GetUserMedia;
-    }
-    auto access = controller->canCallGetUserMedia(document, types);
-    if (access != UserMediaController::GetUserMediaAccess::CanCall) {
-        deny(MediaAccessDenialReason::PermissionDenied);
-        controller->logGetUserMediaDenial(document, access, caller);
-        return;
+    switch (m_request.type) {
+    case MediaStreamRequest::Type::DisplayMedia:
+        if (!isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::DisplayCapture, document)) {
+            deny(MediaAccessDenialReason::PermissionDenied);
+            controller->logGetDisplayMediaDenial(document);
+            return;
+        }
+        break;
+    case MediaStreamRequest::Type::UserMedia:
+        if (m_request.audioConstraints.isValid && !isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::Microphone, document)) {
+            deny(MediaAccessDenialReason::PermissionDenied);
+            controller->logGetUserMediaDenial(document);
+            return;
+        }
+        if (m_request.videoConstraints.isValid && !isFeaturePolicyAllowedByDocumentAndAllOwners(FeaturePolicy::Type::Camera, document)) {
+            deny(MediaAccessDenialReason::PermissionDenied);
+            controller->logGetUserMediaDenial(document);
+            return;
+        }
+        break;
     }
 
     PlatformMediaSessionManager::sharedManager().prepareToSendUserMediaPermissionRequest();
@@ -230,28 +237,27 @@ static inline bool isMediaStreamCorrectlyStarted(const MediaStream& stream)
 void UserMediaRequest::allow(CaptureDevice&& audioDevice, CaptureDevice&& videoDevice, String&& deviceIdentifierHashSalt, CompletionHandler<void()>&& completionHandler)
 {
     RELEASE_LOG(MediaStream, "UserMediaRequest::allow %s %s", audioDevice ? audioDevice.persistentId().utf8().data() : "", videoDevice ? videoDevice.persistentId().utf8().data() : "");
-    auto* document = this->document();
-    if (!document)
-        return completionHandler();
-
-    document->eventLoop().queueTask(TaskSource::UserInteraction, *document, [this, protectedThis = makeRef(*this), audioDevice = WTFMove(audioDevice), videoDevice = WTFMove(videoDevice), deviceIdentifierHashSalt = WTFMove(deviceIdentifierHashSalt), completionHandler = WTFMove(completionHandler)]() mutable {
-        auto callback = [this, protector = makePendingActivity(*this), completionHandler = WTFMove(completionHandler)](RefPtr<MediaStreamPrivate>&& privateStream) mutable {
-            auto scopeExit = makeScopeExit([completionHandler = WTFMove(completionHandler)]() mutable {
+    m_allowCompletionHandler = WTFMove(completionHandler);
+    queueTaskKeepingObjectAlive(*this, TaskSource::UserInteraction, [this, audioDevice = WTFMove(audioDevice), videoDevice = WTFMove(videoDevice), deviceIdentifierHashSalt = WTFMove(deviceIdentifierHashSalt)]() mutable {
+        auto callback = [this, protector = makePendingActivity(*this)](auto privateStreamOrError) mutable {
+            auto scopeExit = makeScopeExit([completionHandler = WTFMove(m_allowCompletionHandler)]() mutable {
                 completionHandler();
             });
             if (isContextStopped())
                 return;
 
-            if (!privateStream) {
+            if (!privateStreamOrError.has_value()) {
                 RELEASE_LOG(MediaStream, "UserMediaRequest::allow failed to create media stream!");
+                scriptExecutionContext()->addConsoleMessage(MessageSource::JS, MessageLevel::Error, privateStreamOrError.error());
                 deny(MediaAccessDenialReason::HardwareError);
                 return;
             }
+            auto privateStream = WTFMove(privateStreamOrError).value();
 
             auto& document = downcast<Document>(*m_scriptExecutionContext);
             privateStream->monitorOrientation(document.orientationNotifier());
 
-            auto stream = MediaStream::create(document, privateStream.releaseNonNull());
+            auto stream = MediaStream::create(document, WTFMove(privateStream));
             stream->startProducingData();
 
             if (!isMediaStreamCorrectlyStarted(stream)) {
@@ -324,12 +330,10 @@ void UserMediaRequest::deny(MediaAccessDenialReason reason, const String& messag
         break;
     }
 
-    document()->eventLoop().queueTask(TaskSource::UserInteraction, *document(), [this, protectedThis = makeRef(*this), code, message]() mutable {
-        if (!message.isEmpty())
-            m_promise->reject(code, message);
-        else
-            m_promise->reject(code);
-    });
+    if (!message.isEmpty())
+        m_promise->reject(code, message);
+    else
+        m_promise->reject(code);
 }
 
 void UserMediaRequest::stop()

@@ -423,7 +423,7 @@ auto MemoryCache::lruListFor(CachedResource& resource) -> LRUList&
 {
     unsigned accessCount = std::max(resource.accessCount(), 1U);
     unsigned queueIndex = WTF::fastLog2(resource.size() / accessCount);
-#ifndef NDEBUG
+#if ASSERT_ENABLED
     resource.m_lruIndex = queueIndex;
 #endif
 
@@ -439,7 +439,7 @@ void MemoryCache::removeFromLRUList(CachedResource& resource)
     if (!resource.accessCount())
         return;
 
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
     unsigned oldListIndex = resource.m_lruIndex;
 #endif
 
@@ -643,9 +643,7 @@ MemoryCache::Statistics MemoryCache::getStatistics()
                 stats.xslStyleSheets.addResource(*resource);
                 break;
 #endif
-#if ENABLE(SVG_FONTS)
             case CachedResource::Type::SVGFontResource:
-#endif
             case CachedResource::Type::FontResource:
                 stats.fonts.addResource(*resource);
                 break;

@@ -3,7 +3,7 @@
 import logging
 import os
 
-from osx_browser_driver import OSXBrowserDriver
+from webkitpy.benchmark_runner.browser_driver.osx_browser_driver import OSXBrowserDriver
 
 
 _log = logging.getLogger(__name__)
@@ -21,7 +21,6 @@ class OSXChromeDriver(OSXBrowserDriver):
         self._launch_process(build_dir=browser_build_path, app_name=self.app_name, url=url, args=args_with_url)
 
     def launch_driver(self, url, options, browser_build_path):
-        import webkitpy.thirdparty.autoinstalled.selenium
         from selenium import webdriver
         chrome_options = create_chrome_options()
         if browser_build_path:
@@ -46,7 +45,6 @@ class OSXChromeCanaryDriver(OSXBrowserDriver):
         self._launch_process(build_dir=browser_build_path, app_name=self.app_name, url=url, args=args_with_url)
 
     def launch_driver(self, url, options, browser_build_path):
-        import webkitpy.thirdparty.autoinstalled.selenium
         from selenium import webdriver
         chrome_options = create_chrome_options()
         if not browser_build_path:

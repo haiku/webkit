@@ -36,8 +36,6 @@ public:
     static constexpr unsigned numGPRs = 8;
     static constexpr unsigned numFPRs = 8;
     
-    static constexpr Scale ScalePtr = TimesFour;
-
     using MacroAssemblerX86Common::add32;
     using MacroAssemblerX86Common::and32;
     using MacroAssemblerX86Common::branchAdd32;
@@ -98,6 +96,11 @@ public:
     void or32(RegisterID reg, AbsoluteAddress address)
     {
         m_assembler.orl_rm(reg, address.m_ptr);
+    }
+
+    void or16(TrustedImm32 imm, AbsoluteAddress address)
+    {
+        m_assembler.orw_im(imm.m_value, address.m_ptr);
     }
     
     void sub32(TrustedImm32 imm, AbsoluteAddress address)

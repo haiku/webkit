@@ -23,27 +23,24 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "DragAndDropSimulator.h"
+#import "config.h"
+#import "DragAndDropSimulator.h"
 
 #if ENABLE(DRAG_SUPPORT) && PLATFORM(IOS_FAMILY) && !PLATFORM(MACCATALYST)
 
 #import "InstanceMethodSwizzler.h"
 #import "PlatformUtilities.h"
+#import "Test.h"
 #import "UIKitSPI.h"
-
 #import <UIKit/UIDragInteraction.h>
 #import <UIKit/UIDragItem.h>
 #import <UIKit/UIDropInteraction.h>
 #import <UIKit/UIInteraction.h>
-#import <WebKit/WKWebViewPrivate.h>
+#import <WebKit/WKWebViewPrivateForTesting.h>
 #import <WebKit/_WKFocusedElementInfo.h>
 #import <WebKit/_WKFormInputSession.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/SoftLinking.h>
-
-SOFT_LINK_FRAMEWORK(UIKit)
-SOFT_LINK(UIKit, UIApplicationInstantiateSingleton, void, (Class singletonClass), (singletonClass))
 
 using namespace TestWebKitAPI;
 
@@ -496,7 +493,7 @@ IGNORE_WARNINGS_END
                 defaultPreview = adoptNS([[UITargetedDragPreview alloc] initWithView:_webView.get()]);
             }
 
-            id <UIDropInteractionDelegate_Staging_31075005> delegate = (id <UIDropInteractionDelegate_Staging_31075005>)[_webView dropInteractionDelegate];
+            id <UIDropInteractionDelegate_Private> delegate = (id <UIDropInteractionDelegate_Private>)[_webView dropInteractionDelegate];
             UIDropInteraction *interaction = [_webView dropInteraction];
             [_dropPreviews addObject:[delegate dropInteraction:interaction previewForDroppingItem:item withDefault:defaultPreview.get()] ?: NSNull.null];
             [_delayedDropPreviews addObject:NSNull.null];
@@ -504,11 +501,16 @@ IGNORE_WARNINGS_END
                 if (preview)
                     [_delayedDropPreviews setObject:preview atIndexedSubscript:dropPreviewIndex];
 
-                if (!--numberOfPendingPreviews)
+                if (!--numberOfPendingPreviews) {
                     _isDoneWaitingForDelayedDropPreviews = true;
+                    [self _expectNoDropPreviewsWithUnparentedContainerViews];
+                }
             }];
             ++dropPreviewIndex;
         }
+
+        [self _expectNoDropPreviewsWithUnparentedContainerViews];
+
         [[_webView dropInteractionDelegate] dropInteraction:[_webView dropInteraction] performDrop:_dropSession.get()];
         _phase = DragAndDropPhasePerformingDrop;
 
@@ -830,8 +832,32 @@ IGNORE_WARNINGS_END
     _dropAnimationCompletionBlocks.append(makeBlockPtr(completion));
 }
 
+- (void)_expectNoDropPreviewsWithUnparentedContainerViews
+{
+    auto checkDropPreview = [&](id dropPreviewOrNull) {
+        if (![dropPreviewOrNull isKindOfClass:UITargetedPreview.class])
+            return;
+
+        auto *previewContainer = [(UITargetedDragPreview *)dropPreviewOrNull target].container;
+        if (!previewContainer)
+            return;
+
+        if ([previewContainer isKindOfClass:UIWindow.class])
+            return;
+
+        EXPECT_NOT_NULL(previewContainer.window);
+    };
+
+    for (id dropPreviewOrNull in _dropPreviews.get())
+        checkDropPreview(dropPreviewOrNull);
+
+    for (id dropPreviewOrNull in _delayedDropPreviews.get())
+        checkDropPreview(dropPreviewOrNull);
+}
+
 - (void)_invokeDropAnimationCompletionBlocksAndConcludeDrop
 {
+    [self _expectNoDropPreviewsWithUnparentedContainerViews];
     for (auto block : std::exchange(_dropAnimationCompletionBlocks, { }))
         block(UIViewAnimatingPositionEnd);
     [[_webView dropInteractionDelegate] dropInteraction:[_webView dropInteraction] concludeDrop:_dropSession.get()];

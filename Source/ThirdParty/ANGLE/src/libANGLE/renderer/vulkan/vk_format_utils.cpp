@@ -32,6 +32,8 @@ void FillTextureFormatCaps(RendererVk *renderer, VkFormat format, gl::TextureCap
         renderer->hasImageFormatFeatureBits(format, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT);
     outTextureCaps->filterable = renderer->hasImageFormatFeatureBits(
         format, VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT);
+    outTextureCaps->blendable =
+        renderer->hasImageFormatFeatureBits(format, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT);
 
     // For renderbuffer and texture attachments we require transfer and sampling for
     // GLES 2.0 CopyTexImage support. Sampling is also required for other features like
@@ -50,9 +52,11 @@ void FillTextureFormatCaps(RendererVk *renderer, VkFormat format, gl::TextureCap
         }
         if (hasDepthAttachmentFeatureBit)
         {
-            vk_gl::AddSampleCounts(physicalDeviceLimits.framebufferDepthSampleCounts,
-                                   &outTextureCaps->sampleCounts);
-            vk_gl::AddSampleCounts(physicalDeviceLimits.framebufferStencilSampleCounts,
+            // Some drivers report different depth and stencil sample counts.  We'll AND those
+            // counts together, limiting all depth and/or stencil formats to the lower number of
+            // sample counts.
+            vk_gl::AddSampleCounts((physicalDeviceLimits.framebufferDepthSampleCounts &
+                                    physicalDeviceLimits.framebufferStencilSampleCounts),
                                    &outTextureCaps->sampleCounts);
         }
     }
@@ -68,20 +72,26 @@ using SupportTest = bool (*)(RendererVk *renderer, VkFormat vkFormat);
 template <class FormatInitInfo>
 int FindSupportedFormat(RendererVk *renderer,
                         const FormatInitInfo *info,
+                        size_t skip,
                         int numInfo,
                         SupportTest hasSupport)
 {
     ASSERT(numInfo > 0);
     const int last = numInfo - 1;
 
-    for (int i = 0; i < last; ++i)
+    for (int i = static_cast<int>(skip); i < last; ++i)
     {
         ASSERT(info[i].format != angle::FormatID::NONE);
         if (hasSupport(renderer, info[i].vkFormat))
             return i;
     }
 
-    // List must contain a supported item.  We failed on all the others so the last one must be it.
+    if (skip > 0 && !hasSupport(renderer, info[last].vkFormat))
+    {
+        // We couldn't find a valid fallback, try again without skip
+        return FindSupportedFormat(renderer, info, 0, numInfo, hasSupport);
+    }
+
     ASSERT(info[last].format != angle::FormatID::NONE);
     ASSERT(hasSupport(renderer, info[last].vkFormat));
     return last;
@@ -94,11 +104,11 @@ namespace vk
 
 // Format implementation.
 Format::Format()
-    : angleFormatID(angle::FormatID::NONE),
+    : intendedFormatID(angle::FormatID::NONE),
       internalFormat(GL_NONE),
-      imageFormatID(angle::FormatID::NONE),
+      actualImageFormatID(angle::FormatID::NONE),
       vkImageFormat(VK_FORMAT_UNDEFINED),
-      bufferFormatID(angle::FormatID::NONE),
+      actualBufferFormatID(angle::FormatID::NONE),
       vkBufferFormat(VK_FORMAT_UNDEFINED),
       imageInitializerFunction(nullptr),
       textureLoadFunctions(),
@@ -128,11 +138,9 @@ void Format::initImageFallback(RendererVk *renderer, const ImageFormatInitInfo *
         // Compressed textures also need to perform this check.
         testFunction = HasNonRenderableTextureFormatSupport;
     }
-    int i = FindSupportedFormat(renderer, info + skip, static_cast<uint32_t>(numInfo - skip),
-                                testFunction);
-    i += skip;
+    int i = FindSupportedFormat(renderer, info, skip, static_cast<uint32_t>(numInfo), testFunction);
 
-    imageFormatID            = info[i].format;
+    actualImageFormatID      = info[i].format;
     vkImageFormat            = info[i].vkFormat;
     imageInitializerFunction = info[i].initializer;
 }
@@ -140,11 +148,10 @@ void Format::initImageFallback(RendererVk *renderer, const ImageFormatInitInfo *
 void Format::initBufferFallback(RendererVk *renderer, const BufferFormatInitInfo *info, int numInfo)
 {
     size_t skip = renderer->getFeatures().forceFallbackFormat.enabled ? 1 : 0;
-    int i       = FindSupportedFormat(renderer, info + skip, static_cast<uint32_t>(numInfo - skip),
+    int i       = FindSupportedFormat(renderer, info, skip, static_cast<uint32_t>(numInfo),
                                 HasFullBufferFormatSupport);
-    i += skip;
 
-    bufferFormatID               = info[i].format;
+    actualBufferFormatID         = info[i].format;
     vkBufferFormat               = info[i].vkFormat;
     vkBufferFormatIsPacked       = info[i].vkFormatIsPacked;
     vertexLoadFunction           = info[i].vertexLoadFunction;
@@ -172,7 +179,7 @@ size_t Format::getImageCopyBufferAlignment() const
     // - else texelSize % 4 != 0 gives a 2x multiplier
     // - else there's no multiplier.
     //
-    const angle::Format &format = imageFormat();
+    const angle::Format &format = actualImageFormat();
 
     ASSERT(format.pixelBytes != 0);
     const size_t texelSize  = format.pixelBytes;
@@ -182,10 +189,17 @@ size_t Format::getImageCopyBufferAlignment() const
     return alignment;
 }
 
+size_t Format::getValidImageCopyBufferAlignment() const
+{
+    constexpr size_t kMinimumAlignment = 16;
+    return (intendedFormatID == angle::FormatID::NONE) ? kMinimumAlignment
+                                                       : getImageCopyBufferAlignment();
+}
+
 bool Format::hasEmulatedImageChannels() const
 {
-    const angle::Format &angleFmt   = angleFormat();
-    const angle::Format &textureFmt = imageFormat();
+    const angle::Format &angleFmt   = intendedFormat();
+    const angle::Format &textureFmt = actualImageFormat();
 
     return (angleFmt.alphaBits == 0 && textureFmt.alphaBits > 0) ||
            (angleFmt.blueBits == 0 && textureFmt.blueBits > 0) ||
@@ -221,7 +235,7 @@ void FormatTable::initialize(RendererVk *renderer,
 
         format.initialize(renderer, angleFormat);
         const GLenum internalFormat = format.internalFormat;
-        format.angleFormatID        = formatID;
+        format.intendedFormatID     = formatID;
 
         if (!format.valid())
         {
@@ -234,7 +248,8 @@ void FormatTable::initialize(RendererVk *renderer,
 
         if (textureCaps.texturable)
         {
-            format.textureLoadFunctions = GetLoadFunctionsMap(internalFormat, format.imageFormatID);
+            format.textureLoadFunctions =
+                GetLoadFunctionsMap(internalFormat, format.actualImageFormatID);
         }
 
         if (angleFormat.isBlock)
@@ -304,7 +319,7 @@ bool HasNonRenderableTextureFormatSupport(RendererVk *renderer, VkFormat vkForma
 
 size_t GetVertexInputAlignment(const vk::Format &format)
 {
-    const angle::Format &bufferFormat = format.bufferFormat();
+    const angle::Format &bufferFormat = format.actualBufferFormat();
     size_t pixelBytes                 = bufferFormat.pixelBytes;
     return format.vkBufferFormatIsPacked ? pixelBytes : (pixelBytes / bufferFormat.channelCount);
 }
@@ -326,24 +341,24 @@ GLenum GetSwizzleStateComponent(const gl::SwizzleState &swizzleState, GLenum com
     }
 }
 
-// Places the swizzle obtained by applying second after first into out.
-void ComposeSwizzleState(const gl::SwizzleState &first,
-                         const gl::SwizzleState &second,
-                         gl::SwizzleState *out)
+gl::SwizzleState ApplySwizzle(const gl::SwizzleState &formatSwizzle,
+                              const gl::SwizzleState &toApply)
 {
-    out->swizzleRed   = GetSwizzleStateComponent(first, second.swizzleRed);
-    out->swizzleGreen = GetSwizzleStateComponent(first, second.swizzleGreen);
-    out->swizzleBlue  = GetSwizzleStateComponent(first, second.swizzleBlue);
-    out->swizzleAlpha = GetSwizzleStateComponent(first, second.swizzleAlpha);
+    gl::SwizzleState result;
+
+    result.swizzleRed   = GetSwizzleStateComponent(formatSwizzle, toApply.swizzleRed);
+    result.swizzleGreen = GetSwizzleStateComponent(formatSwizzle, toApply.swizzleGreen);
+    result.swizzleBlue  = GetSwizzleStateComponent(formatSwizzle, toApply.swizzleBlue);
+    result.swizzleAlpha = GetSwizzleStateComponent(formatSwizzle, toApply.swizzleAlpha);
+
+    return result;
 }
 
-void MapSwizzleState(const ContextVk *contextVk,
-                     const vk::Format &format,
-                     const bool sized,
-                     const gl::SwizzleState &swizzleState,
-                     gl::SwizzleState *swizzleStateOut)
+gl::SwizzleState GetFormatSwizzle(const ContextVk *contextVk,
+                                  const vk::Format &format,
+                                  const bool sized)
 {
-    const angle::Format &angleFormat = format.angleFormat();
+    const angle::Format &angleFormat = format.intendedFormat();
 
     gl::SwizzleState internalSwizzle;
 
@@ -393,6 +408,7 @@ void MapSwizzleState(const ContextVk *contextVk,
             }
         }
     }
-    ComposeSwizzleState(internalSwizzle, swizzleState, swizzleStateOut);
+
+    return internalSwizzle;
 }
 }  // namespace rx

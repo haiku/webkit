@@ -34,6 +34,13 @@
             <param>const <ptype>EGLAttrib</ptype> *<name>attrib_list</name></param>
         </command>
         <command>
+            <proto><ptype>EGLBoolean</ptype> <name>eglGetMscRateANGLE</name></proto>
+            <param><ptype>EGLDisplay</ptype> <name>dpy</name></param>
+            <param><ptype>EGLSurface</ptype> <name>surface</name></param>
+            <param><ptype>EGLint</ptype> *<name>numerator</name></param>
+            <param><ptype>EGLint</ptype> *<name>denominator</name></param>
+        </command>
+        <command>
             <proto><ptype>EGLBoolean</ptype> <name>eglGetSyncValuesCHROMIUM</name></proto>
             <param><ptype>EGLDisplay</ptype> <name>dpy</name></param>
             <param><ptype>EGLSurface</ptype> <name>surface</name></param>
@@ -81,6 +88,26 @@
             <param><ptype>EGLint</ptype> <name>attribute</name></param>
             <param><ptype>EGLAttrib *</ptype> <name>value</name></param>
         </command>
+        <command>
+            <proto><pytpe>EGLBoolean</pytpe> <name>eglSwapBuffersWithFrameTokenANGLE</name></proto>
+            <param><ptype>EGLDisplay</ptype> <name>dpy</name></param>
+            <param><ptype>EGLSurface</ptype> <name>surface</name></param>
+            <param><ptype>EGLFrameTokenANGLE</ptype> <name>frametoken</name></param>
+        </command>
+        <command>
+            <proto><pytpe>void</pytpe> <name>eglReleaseHighPowerGPUANGLE</name></proto>
+            <param><ptype>EGLDisplay</ptype> <name>dpy</name></param>
+            <param><ptype>EGLContext</ptype> <name>ctx</name></param>
+        </command>
+        <command>
+            <proto><pytpe>void</pytpe> <name>eglReacquireHighPowerGPUANGLE</name></proto>
+            <param><ptype>EGLDisplay</ptype> <name>dpy</name></param>
+            <param><ptype>EGLContext</ptype> <name>ctx</name></param>
+        </command>
+        <command>
+            <proto><pytpe>void</pytpe> <name>eglHandleGPUSwitchANGLE</name></proto>
+            <param><ptype>EGLDisplay</ptype> <name>dpy</name></param>
+        </command>
     </commands>
     <!-- SECTION: ANGLE extension interface definitions -->
     <extensions>
@@ -102,9 +129,14 @@
                 <command name="eglStreamPostD3DTextureANGLE"/>
             </require>
         </extension>
-        <extension name="EGL_CHROMIUM_get_sync_values" supported="egl">
+        <extension name="EGL_CHROMIUM_sync_control" supported="egl">
             <require>
                 <command name="eglGetSyncValuesCHROMIUM"/>
+            </require>
+        </extension>
+        <extension name="EGL_ANGLE_sync_control_rate" supported="egl">
+            <require>
+                <command name="eglGetMscRateANGLE"/>
             </require>
         </extension>
         <extension name="EGL_ANGLE_program_cache_control" supported="egl">
@@ -113,6 +145,18 @@
                 <command name="eglProgramCacheQueryANGLE"/>
                 <command name="eglProgramCachePopulateANGLE"/>
                 <command name="eglProgramCacheResizeANGLE"/>
+            </require>
+        </extension>
+        <extension name="EGL_ANGLE_swap_with_frame_token" supported="egl">
+            <require>
+                <command name="eglSwapBuffersWithFrameTokenANGLE"/>
+            </require>
+        </extension>
+        <extension name="EGL_ANGLE_power_preference" supported="egl">
+            <require>
+                <command name="eglReleaseHighPowerGPUANGLE"/>
+                <command name="eglReacquireHighPowerGPUANGLE"/>
+                <command name="eglHandleGPUSwitchANGLE"/>
             </require>
         </extension>
     </extensions>

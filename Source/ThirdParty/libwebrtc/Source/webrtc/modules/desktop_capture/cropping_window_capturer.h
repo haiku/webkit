@@ -14,7 +14,11 @@
 #include <memory>
 
 #include "modules/desktop_capture/desktop_capture_options.h"
+#include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/desktop_frame.h"
+#include "modules/desktop_capture/desktop_geometry.h"
+#include "modules/desktop_capture/shared_memory.h"
 #include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
@@ -64,6 +68,7 @@ class RTC_EXPORT CroppingWindowCapturer : public DesktopCapturer,
 
   WindowId selected_window() const { return selected_window_; }
   WindowId excluded_window() const { return excluded_window_; }
+  DesktopCapturer* window_capturer() const { return window_capturer_.get(); }
 
  private:
   DesktopCaptureOptions options_;

@@ -17,7 +17,7 @@
 namespace rx
 {
 
-class RenderbufferVk : public RenderbufferImpl
+class RenderbufferVk : public RenderbufferImpl, public angle::ObserverInterface
 {
   public:
     RenderbufferVk(const gl::RenderbufferState &state);
@@ -48,6 +48,16 @@ class RenderbufferVk : public RenderbufferImpl
     vk::ImageHelper *getImage() const { return mImage; }
     void releaseOwnershipOfImage(const gl::Context *context);
 
+    GLenum getColorReadFormat(const gl::Context *context) override;
+    GLenum getColorReadType(const gl::Context *context) override;
+
+    angle::Result getRenderbufferImage(const gl::Context *context,
+                                       const gl::PixelPackState &packState,
+                                       gl::Buffer *packBuffer,
+                                       GLenum format,
+                                       GLenum type,
+                                       void *pixels) override;
+
   private:
     void releaseAndDeleteImage(ContextVk *contextVk);
     void releaseImage(ContextVk *contextVk);
@@ -58,10 +68,17 @@ class RenderbufferVk : public RenderbufferImpl
                                  size_t width,
                                  size_t height);
 
+    const gl::InternalFormat &getImplementationSizedFormat() const;
+
+    // We monitor the staging buffer for changes. This handles staged data from outside this class.
+    void onSubjectStateChange(angle::SubjectIndex index, angle::SubjectMessage message) override;
+
     bool mOwnsImage;
     vk::ImageHelper *mImage;
-    vk::ImageView mImageView;
+    vk::ImageViewHelper mImageViews;
     RenderTargetVk mRenderTarget;
+
+    angle::ObserverBinding mImageObserverBinding;
 };
 
 }  // namespace rx

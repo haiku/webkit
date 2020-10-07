@@ -20,8 +20,9 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import webkitpy.thirdparty.autoinstalled.requests
+from webkitpy.port.config import apple_additions
 
+import math
 import os
 import json
 import requests
@@ -175,6 +176,14 @@ class Upload(object):
         result.update({key: value for key, value in optional_data.items() if value is not None})
         return result
 
+    @staticmethod
+    def certificate_chain():
+        if apple_additions() and getattr(apple_additions(), 'certificate_chain', False):
+            return apple_additions().certificate_chain()
+
+        import certifi
+        return certifi.where()
+
     def upload(self, hostname, log_line_func=lambda val: sys.stdout.write(val + '\n')):
         try:
             data = Upload.Encoder().default(self)
@@ -184,7 +193,7 @@ class Upload(object):
                 '{}{}'.format(hostname, self.UPLOAD_ENDPOINT),
                 headers={'Content-type': 'application/json'},
                 data=json.dumps(data),
-                verify=False,
+                verify=Upload.certificate_chain(),
             )
         except requests.exceptions.ConnectionError:
             log_line_func(' ' * 4 + 'Failed to upload to {}, results server not online'.format(hostname))
@@ -222,18 +231,23 @@ class Upload(object):
                 '{}{}'.format(hostname, self.ARCHIVE_UPLOAD_ENDPOINT),
                 data=meta_data,
                 files=dict(file=archive),
-                verify=False,
+                verify=Upload.certificate_chain(),
             )
 
         except requests.exceptions.ConnectionError:
-            log_line_func(' ' * 4 + 'Failed to upload test archive to {}, results server not online'.format(hostname))
-            return False
+            archive.seek(0, os.SEEK_END)
+            log_line_func(' ' * 4 + 'Failed to upload test archive to {}, results server dropped connection, likely due to archive size ({} MB).'.format(
+                hostname,
+                math.floor(float(archive.tell()) / 1024) / 1024,
+            ))
+            log_line_func(' ' * 4 + 'This error is not fatal, continuing')
+            return True
         except ValueError as e:
             log_line_func(' ' * 4 + 'Failed to encode archive reference data: {}'.format(e))
             return False
 
         # FIXME: <rdar://problem/56154412> do not fail test runs because of 403 errors
-        if response.status_code not in [200, 403]:
+        if response.status_code not in [200, 403, 413]:
             log_line_func(' ' * 4 + 'Error uploading archive to {}'.format(hostname))
             try:
                 log_line_func(' ' * 8 + response.json().get('description'))
@@ -242,5 +256,14 @@ class Upload(object):
                     log_line_func(' ' * 8 + line)
             return False
 
-        log_line_func(' ' * 4 + 'Uploaded test archive to {}'.format(hostname))
+        if response.status_code == 200:
+            log_line_func(' ' * 4 + 'Uploaded test archive to {}'.format(hostname))
+        else:
+            log_line_func(' ' * 4 + 'Upload to {} failed:'.format(hostname))
+            try:
+                log_line_func(' ' * 8 + response.json().get('description'))
+            except ValueError:
+                for line in response.text.splitlines():
+                    log_line_func(' ' * 8 + line)
+            log_line_func(' ' * 4 + 'This error is not fatal, continuing')
         return True

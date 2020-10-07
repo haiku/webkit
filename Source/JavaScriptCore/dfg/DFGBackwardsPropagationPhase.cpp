@@ -28,10 +28,9 @@
 
 #if ENABLE(DFG_JIT)
 
-#include "DFGBasicBlockInlines.h"
 #include "DFGGraph.h"
 #include "DFGPhase.h"
-#include "JSCInlines.h"
+#include "JSCJSValueInlines.h"
 
 namespace JSC { namespace DFG {
 
@@ -335,7 +334,20 @@ private:
             node->child1()->mergeFlags(flags);
             break;
         }
-            
+
+        case Inc:
+        case Dec: {
+            flags &= ~NodeBytecodeNeedsNegZero;
+            flags &= ~NodeBytecodeUsesAsOther;
+            if (!isWithinPowerOfTwo<32>(node->child1()))
+                flags |= NodeBytecodeUsesAsNumber;
+            if (!m_allowNestedOverflowingAdditions)
+                flags |= NodeBytecodeUsesAsNumber;
+
+            node->child1()->mergeFlags(flags);
+            break;
+        }
+
         case ValueMul:
         case ArithMul: {
             // As soon as a multiply happens, we can easily end up in the part
@@ -401,7 +413,9 @@ private:
         }
             
         case ToPrimitive:
-        case ToNumber: {
+        case ToNumber:
+        case ToNumeric:
+        case CallNumberConstructor: {
             node->child1()->mergeFlags(flags);
             break;
         }

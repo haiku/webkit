@@ -10,20 +10,30 @@
 #ifndef LIBANGLE_RENDERER_VULKAN_RENDERERVK_H_
 #define LIBANGLE_RENDERER_VULKAN_RENDERERVK_H_
 
-#include <vulkan/vulkan.h>
+#include <condition_variable>
+#include <deque>
 #include <memory>
 #include <mutex>
+#include <queue>
+#include <thread>
 
+#include "common/vulkan/vk_ext_provoking_vertex.h"
+
+#include "common/PackedEnums.h"
 #include "common/PoolAlloc.h"
 #include "common/angleutils.h"
+#include "common/vulkan/vk_headers.h"
+#include "common/vulkan/vulkan_icd.h"
 #include "libANGLE/BlobCache.h"
 #include "libANGLE/Caps.h"
-#include "libANGLE/renderer/vulkan/CommandGraph.h"
+#include "libANGLE/renderer/vulkan/CommandProcessor.h"
 #include "libANGLE/renderer/vulkan/QueryVk.h"
+#include "libANGLE/renderer/vulkan/ResourceVk.h"
 #include "libANGLE/renderer/vulkan/UtilsVk.h"
 #include "libANGLE/renderer/vulkan/vk_format_utils.h"
 #include "libANGLE/renderer/vulkan/vk_helpers.h"
 #include "libANGLE/renderer/vulkan/vk_internal_shaders_autogen.h"
+#include "libANGLE/renderer/vulkan/vk_mem_alloc_wrapper.h"
 
 namespace egl
 {
@@ -67,7 +77,9 @@ class RendererVk : angle::NonCopyable
                              egl::Display *display,
                              const char *wsiExtension,
                              const char *wsiLayer);
-    void onDestroy(vk::Context *context);
+    // Reload volk vk* function ptrs if needed for an already initialized RendererVk
+    void reloadVolkIfNeeded() const;
+    void onDestroy();
 
     void notifyDeviceLost();
     bool isDeviceLost() const;
@@ -86,13 +98,15 @@ class RendererVk : angle::NonCopyable
     }
     const VkPhysicalDeviceSubgroupProperties &getPhysicalDeviceSubgroupProperties() const
     {
-        return mPhysicalDeviceSubgroupProperties;
+        return mSubgroupProperties;
     }
     const VkPhysicalDeviceFeatures &getPhysicalDeviceFeatures() const
     {
         return mPhysicalDeviceFeatures;
     }
     VkDevice getDevice() const { return mDevice; }
+
+    const vk::Allocator &getAllocator() const { return mAllocator; }
 
     angle::Result selectPresentQueueForSurface(DisplayVk *displayVk,
                                                VkSurfaceKHR surface,
@@ -104,10 +118,13 @@ class RendererVk : angle::NonCopyable
     const gl::Limitations &getNativeLimitations() const;
 
     uint32_t getQueueFamilyIndex() const { return mCurrentQueueFamilyIndex; }
+    const VkQueueFamilyProperties &getQueueFamilyProperties() const
+    {
+        return mQueueFamilyProperties[mCurrentQueueFamilyIndex];
+    }
 
     const vk::MemoryProperties &getMemoryProperties() const { return mMemoryProperties; }
 
-    // TODO(jmadill): We could pass angle::FormatID here.
     const vk::Format &getFormat(GLenum internalFormat) const
     {
         return mFormatTable[internalFormat];
@@ -127,19 +144,23 @@ class RendererVk : angle::NonCopyable
                                     const vk::DescriptorSetLayoutPointerArray &descriptorSetLayouts,
                                     vk::BindingPointer<vk::PipelineLayout> *pipelineLayoutOut);
 
+    angle::Result getPipelineCacheSize(DisplayVk *displayVk, size_t *pipelineCacheSizeOut);
     angle::Result syncPipelineCacheVk(DisplayVk *displayVk);
 
     // Issues a new serial for linked shader modules. Used in the pipeline cache.
     Serial issueShaderSerial();
 
-    const angle::FeaturesVk &getFeatures() const
-    {
-        ASSERT(mFeaturesInitialized);
-        return mFeatures;
-    }
+    const angle::FeaturesVk &getFeatures() const { return mFeatures; }
     uint32_t getMaxVertexAttribDivisor() const { return mMaxVertexAttribDivisor; }
+    VkDeviceSize getMaxVertexAttribStride() const { return mMaxVertexAttribStride; }
 
-    bool isMockICDEnabled() const { return mEnabledICD == vk::ICD::Mock; }
+    VkDeviceSize getMinImportedHostPointerAlignment() const
+    {
+        return mMinImportedHostPointerAlignment;
+    }
+    uint32_t getDefaultUniformBufferSize() const { return mDefaultUniformBufferSize; }
+
+    bool isMockICDEnabled() const { return mEnabledICD == angle::vk::ICD::Mock; }
 
     // Query the format properties for select bits (linearTilingFeatures, optimalTilingFeatures and
     // bufferFeatures).  Looks through mandatory features first, and falls back to querying the
@@ -150,12 +171,31 @@ class RendererVk : angle::NonCopyable
     bool hasImageFormatFeatureBits(VkFormat format, const VkFormatFeatureFlags featureBits);
     bool hasBufferFormatFeatureBits(VkFormat format, const VkFormatFeatureFlags featureBits);
 
+    ANGLE_INLINE egl::ContextPriority getDriverPriority(egl::ContextPriority priority)
+    {
+        return mPriorities[priority];
+    }
+
     angle::Result queueSubmit(vk::Context *context,
+                              egl::ContextPriority priority,
                               const VkSubmitInfo &submitInfo,
-                              const vk::Fence &fence,
+                              const vk::Fence *fence,
                               Serial *serialOut);
-    angle::Result queueWaitIdle(vk::Context *context);
-    VkResult queuePresent(const VkPresentInfoKHR &presentInfo);
+    angle::Result queueWaitIdle(vk::Context *context, egl::ContextPriority priority);
+    angle::Result deviceWaitIdle(vk::Context *context);
+    VkResult queuePresent(egl::ContextPriority priority, const VkPresentInfoKHR &presentInfo);
+
+    // This command buffer should be submitted immediately via queueSubmitOneOff.
+    angle::Result getCommandBufferOneOff(vk::Context *context,
+                                         vk::PrimaryCommandBuffer *commandBufferOut);
+
+    // Fire off a single command buffer immediately with default priority.
+    // Command buffer must be allocated with getCommandBufferOneOff and is reclaimed.
+    angle::Result queueSubmitOneOff(vk::Context *context,
+                                    vk::PrimaryCommandBuffer &&primary,
+                                    egl::ContextPriority priority,
+                                    const vk::Fence *fence,
+                                    Serial *serialOut);
 
     angle::Result newSharedFence(vk::Context *context, vk::Shared<vk::Fence> *sharedFenceOut);
     inline void resetSharedFence(vk::Shared<vk::Fence> *sharedFenceIn)
@@ -170,7 +210,7 @@ class RendererVk : angle::NonCopyable
         CollectGarbage(&sharedGarbage, garbageIn...);
         if (!sharedGarbage.empty())
         {
-            mSharedGarbage.emplace_back(std::move(*use), std::move(sharedGarbage));
+            collectGarbage(std::move(*use), std::move(sharedGarbage));
         }
         else
         {
@@ -179,6 +219,14 @@ class RendererVk : angle::NonCopyable
         }
         // Keep "use" valid.
         use->init();
+    }
+
+    void collectGarbage(vk::SharedResourceUse &&use, std::vector<vk::GarbageObject> &&sharedGarbage)
+    {
+        if (!sharedGarbage.empty())
+        {
+            mSharedGarbage.emplace_back(std::move(use), std::move(sharedGarbage));
+        }
     }
 
     static constexpr size_t kMaxExtensionNames = 200;
@@ -197,16 +245,28 @@ class RendererVk : angle::NonCopyable
 
     void onCompletedSerial(Serial serial);
 
-    bool shouldCleanupGarbage()
+    bool enableDebugUtils() const { return mEnableDebugUtils; }
+
+    SamplerCache &getSamplerCache() { return mSamplerCache; }
+    SamplerYcbcrConversionCache &getYuvConversionCache() { return mYuvConversionCache; }
+    vk::ActiveHandleCounter &getActiveHandleCounts() { return mActiveHandleCounts; }
+
+    // Queue commands to worker thread for processing
+    void queueCommands(const vk::CommandProcessorTask &commands)
     {
-        return (mSharedGarbage.size() > mGarbageCollectionFlushThreshold);
+        mCommandProcessor.queueCommands(commands);
     }
+    void waitForWorkerThreadIdle() { mCommandProcessor.waitForWorkComplete(); }
+
+    bool getEnableValidationLayers() const { return mEnableValidationLayers; }
 
   private:
     angle::Result initializeDevice(DisplayVk *displayVk, uint32_t queueFamilyIndex);
     void ensureCapsInitialized() const;
 
-    void initFeatures(const ExtensionNameList &extensions);
+    void queryDeviceExtensionFeatures(const ExtensionNameList &deviceExtensionNames);
+
+    void initFeatures(DisplayVk *display, const ExtensionNameList &extensions);
     void initPipelineCacheVkKey();
     angle::Result initPipelineCache(DisplayVk *display,
                                     vk::PipelineCache *pipelineCache,
@@ -219,7 +279,7 @@ class RendererVk : angle::NonCopyable
     template <VkFormatFeatureFlags VkFormatProperties::*features>
     bool hasFormatFeatureBits(VkFormat format, const VkFormatFeatureFlags featureBits);
 
-    angle::Result cleanupGarbage(vk::Context *context, bool block);
+    angle::Result cleanupGarbage(bool block);
 
     egl::Display *mDisplay;
 
@@ -228,23 +288,38 @@ class RendererVk : angle::NonCopyable
     mutable gl::TextureCapsMap mNativeTextureCaps;
     mutable gl::Extensions mNativeExtensions;
     mutable gl::Limitations mNativeLimitations;
-    mutable bool mFeaturesInitialized;
     mutable angle::FeaturesVk mFeatures;
 
     VkInstance mInstance;
     bool mEnableValidationLayers;
-    vk::ICD mEnabledICD;
+    bool mEnableDebugUtils;
+    angle::vk::ICD mEnabledICD;
     VkDebugUtilsMessengerEXT mDebugUtilsMessenger;
     VkDebugReportCallbackEXT mDebugReportCallback;
     VkPhysicalDevice mPhysicalDevice;
     VkPhysicalDeviceProperties mPhysicalDeviceProperties;
-    VkPhysicalDeviceSubgroupProperties mPhysicalDeviceSubgroupProperties;
     VkPhysicalDeviceFeatures mPhysicalDeviceFeatures;
+    VkPhysicalDeviceLineRasterizationFeaturesEXT mLineRasterizationFeatures;
+    VkPhysicalDeviceProvokingVertexFeaturesEXT mProvokingVertexFeatures;
+    VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT mVertexAttributeDivisorFeatures;
+    VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT mVertexAttributeDivisorProperties;
+    VkPhysicalDeviceTransformFeedbackFeaturesEXT mTransformFeedbackFeatures;
+    VkPhysicalDeviceIndexTypeUint8FeaturesEXT mIndexTypeUint8Features;
+    VkPhysicalDeviceSubgroupProperties mSubgroupProperties;
+    VkPhysicalDeviceExternalMemoryHostPropertiesEXT mExternalMemoryHostProperties;
+    VkPhysicalDeviceShaderFloat16Int8FeaturesKHR mShaderFloat16Int8Features;
+    VkExternalFenceProperties mExternalFenceProperties;
+    VkExternalSemaphoreProperties mExternalSemaphoreProperties;
+    VkPhysicalDeviceSamplerYcbcrConversionFeatures mSamplerYcbcrConversionFeatures;
     std::vector<VkQueueFamilyProperties> mQueueFamilyProperties;
     std::mutex mQueueMutex;
-    VkQueue mQueue;
+    angle::PackedEnumMap<egl::ContextPriority, VkQueue> mQueues;
+    angle::PackedEnumMap<egl::ContextPriority, egl::ContextPriority> mPriorities;
     uint32_t mCurrentQueueFamilyIndex;
     uint32_t mMaxVertexAttribDivisor;
+    VkDeviceSize mMaxVertexAttribStride;
+    VkDeviceSize mMinImportedHostPointerAlignment;
+    uint32_t mDefaultUniformBufferSize;
     VkDevice mDevice;
     AtomicSerialFactory mQueueSerialFactory;
     AtomicSerialFactory mShaderSerialFactory;
@@ -290,6 +365,28 @@ class RendererVk : angle::NonCopyable
     static constexpr double kPercentMaxMemoryAllocationCount = 0.3;
     // How many objects to garbage collect before issuing a flush()
     uint32_t mGarbageCollectionFlushThreshold;
+
+    // Only used for "one off" command buffers.
+    vk::CommandPool mOneOffCommandPool;
+
+    struct PendingOneOffCommands
+    {
+        Serial serial;
+        vk::PrimaryCommandBuffer commandBuffer;
+    };
+    std::deque<PendingOneOffCommands> mPendingOneOffCommands;
+
+    // Worker Thread
+    CommandProcessor mCommandProcessor;
+    std::thread mCommandProcessorThread;
+
+    // track whether we initialized (or released) glslang
+    bool mGlslangInitialized;
+
+    vk::Allocator mAllocator;
+    SamplerCache mSamplerCache;
+    SamplerYcbcrConversionCache mYuvConversionCache;
+    vk::ActiveHandleCounter mActiveHandleCounts;
 };
 
 }  // namespace rx

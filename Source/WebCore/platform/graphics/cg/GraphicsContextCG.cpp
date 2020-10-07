@@ -32,6 +32,7 @@
 #include "AffineTransform.h"
 #include "DisplayListRecorder.h"
 #include "FloatConversion.h"
+#include "Gradient.h"
 #include "GraphicsContextPlatformPrivateCG.h"
 #include "ImageBuffer.h"
 #include "ImageOrientation.h"
@@ -47,7 +48,8 @@
 #include <wtf/URL.h>
 #include <wtf/text/TextStream.h>
 
-#define USE_DRAW_PATH_DIRECT (PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400))
+// FIXME: This should probably be HAVE(CG_CONTEXT_DRAW_PATH_DIRECT) and be in PlatformHave.h.
+#define USE_DRAW_PATH_DIRECT PLATFORM(COCOA)
 
 // FIXME: The following using declaration should be in <wtf/HashFunctions.h>.
 using WTF::pairIntHash;
@@ -143,17 +145,17 @@ static InterpolationQuality convertInterpolationQuality(CGInterpolationQuality q
 {
     switch (quality) {
     case kCGInterpolationDefault:
-        return InterpolationDefault;
+        return InterpolationQuality::Default;
     case kCGInterpolationNone:
-        return InterpolationNone;
+        return InterpolationQuality::DoNotInterpolate;
     case kCGInterpolationLow:
-        return InterpolationLow;
+        return InterpolationQuality::Low;
     case kCGInterpolationMedium:
-        return InterpolationMedium;
+        return InterpolationQuality::Medium;
     case kCGInterpolationHigh:
-        return InterpolationHigh;
+        return InterpolationQuality::High;
     }
-    return InterpolationDefault;
+    return InterpolationQuality::Default;
 }
 
 static CGBlendMode selectCGBlendMode(CompositeOperator compositeOperator, BlendMode blendMode)
@@ -161,33 +163,33 @@ static CGBlendMode selectCGBlendMode(CompositeOperator compositeOperator, BlendM
     switch (blendMode) {
     case BlendMode::Normal:
         switch (compositeOperator) {
-        case CompositeClear:
+        case CompositeOperator::Clear:
             return kCGBlendModeClear;
-        case CompositeCopy:
+        case CompositeOperator::Copy:
             return kCGBlendModeCopy;
-        case CompositeSourceOver:
+        case CompositeOperator::SourceOver:
             return kCGBlendModeNormal;
-        case CompositeSourceIn:
+        case CompositeOperator::SourceIn:
             return kCGBlendModeSourceIn;
-        case CompositeSourceOut:
+        case CompositeOperator::SourceOut:
             return kCGBlendModeSourceOut;
-        case CompositeSourceAtop:
+        case CompositeOperator::SourceAtop:
             return kCGBlendModeSourceAtop;
-        case CompositeDestinationOver:
+        case CompositeOperator::DestinationOver:
             return kCGBlendModeDestinationOver;
-        case CompositeDestinationIn:
+        case CompositeOperator::DestinationIn:
             return kCGBlendModeDestinationIn;
-        case CompositeDestinationOut:
+        case CompositeOperator::DestinationOut:
             return kCGBlendModeDestinationOut;
-        case CompositeDestinationAtop:
+        case CompositeOperator::DestinationAtop:
             return kCGBlendModeDestinationAtop;
-        case CompositeXOR:
+        case CompositeOperator::XOR:
             return kCGBlendModeXOR;
-        case CompositePlusDarker:
+        case CompositeOperator::PlusDarker:
             return kCGBlendModePlusDarker;
-        case CompositePlusLighter:
+        case CompositeOperator::PlusLighter:
             return kCGBlendModePlusLighter;
-        case CompositeDifference:
+        case CompositeOperator::Difference:
             return kCGBlendModeDifference;
         }
         break;
@@ -313,9 +315,10 @@ void GraphicsContext::drawNativeImage(const RetainPtr<CGImageRef>& image, const 
         // containing only the portion we want to display. We need to do this because high-quality
         // interpolation smoothes sharp edges, causing pixels from outside the source rect to bleed
         // into the destination rect. See <rdar://problem/6112909>.
-        shouldUseSubimage = (interpolationQuality != kCGInterpolationNone) && (srcRect.size() != destRect.size() || !getCTM().isIdentityOrTranslationOrFlipped());
+        const float minimumAreaForInterpolation = 40 * 40;
         float xScale = srcRect.width() / destRect.width();
         float yScale = srcRect.height() / destRect.height();
+        shouldUseSubimage = (interpolationQuality != kCGInterpolationNone) && (xScale < 0 || yScale < 0 || destRect.area() >= minimumAreaForInterpolation) && (srcRect.size() != destRect.size() || !getCTM().isIdentityOrTranslationOrFlipped());
         if (shouldUseSubimage) {
             FloatRect subimageRect = srcRect;
             float leftPadding = srcRect.x() - floorf(srcRect.x());
@@ -329,6 +332,13 @@ void GraphicsContext::drawNativeImage(const RetainPtr<CGImageRef>& image, const 
 
             subimageRect.setHeight(ceilf(subimageRect.height() + topPadding));
             adjustedDestRect.setHeight(subimageRect.height() / yScale);
+
+            // subimageRect is in logical coordinates. getSubimage() deals with none-oriented
+            // image. We need to convert subimageRect to physical image coordinates.
+            if (options.orientation() != ImageOrientation::None) {
+                if (auto transform = options.orientation().transformFromDefault(imageSize).inverse())
+                    subimageRect = transform.value().mapRect(subimageRect);
+            }
 
 #if CACHE_SUBIMAGES
             subImage = SubimageCacheWithTimer::getSubimage(subImage.get(), subimageRect);
@@ -440,7 +450,12 @@ void GraphicsContext::drawPattern(Image& image, const FloatRect& destRect, const
     float adjustedX = phase.x() - destRect.x() + tileRect.x() * narrowPrecisionToFloat(patternTransform.a()); // We translated the context so that destRect.x() is the origin, so subtract it out.
     float adjustedY = destRect.height() - (phase.y() - destRect.y() + tileRect.y() * narrowPrecisionToFloat(patternTransform.d()) + scaledTileHeight);
 
-    auto tileImage = image.nativeImageForCurrentFrame();
+    NativeImagePtr tileImage;
+    if (options.orientation() == ImageOrientation::FromImage)
+        tileImage = image.nativeImageForCurrentFrameRespectingOrientation();
+    else
+        tileImage = image.nativeImageForCurrentFrame();
+
     float h = CGImageGetHeight(tileImage.get());
 
     RetainPtr<CGImageRef> subImage;
@@ -495,22 +510,27 @@ void GraphicsContext::drawPattern(Image& image, const FloatRect& destRect, const
     }
 }
 
-void GraphicsContext::clipToImageBuffer(ImageBuffer& buffer, const FloatRect& destRect)
+void GraphicsContext::clipToImageBuffer(ImageBuffer& buffer, const FloatRect& destinationRect)
 {
     if (paintingDisabled())
         return;
 
-    FloatSize bufferDestinationSize = buffer.sizeForDestinationSize(destRect.size());
+    if (m_impl) {
+        m_impl->clipToImageBuffer(buffer, destinationRect);
+        return;
+    }
+
+    FloatSize bufferDestinationSize = destinationRect.size();
     RetainPtr<CGImageRef> image = buffer.copyNativeImage(DontCopyBackingStore);
 
     CGContextRef context = platformContext();
     // FIXME: This image needs to be grayscale to be used as an alpha mask here.
-    CGContextTranslateCTM(context, destRect.x(), destRect.y() + bufferDestinationSize.height());
+    CGContextTranslateCTM(context, destinationRect.x(), destinationRect.y() + bufferDestinationSize.height());
     CGContextScaleCTM(context, 1, -1);
-    CGContextClipToRect(context, FloatRect(FloatPoint(0, bufferDestinationSize.height() - destRect.height()), destRect.size()));
+    CGContextClipToRect(context, FloatRect(FloatPoint(0, bufferDestinationSize.height() - destinationRect.height()), destinationRect.size()));
     CGContextClipToMask(context, FloatRect(FloatPoint(), bufferDestinationSize), image.get());
     CGContextScaleCTM(context, 1, -1);
-    CGContextTranslateCTM(context, -destRect.x(), -destRect.y() - destRect.height());
+    CGContextTranslateCTM(context, -destinationRect.x(), -destinationRect.y() - destinationRect.height());
 }
 
 // Draws a filled rectangle with a stroked border.
@@ -1539,8 +1559,8 @@ FloatRect GraphicsContext::roundToDevicePixels(const FloatRect& rect, RoundingMo
         return roundedIntRect(rect);
     }
 
-    float deviceScaleX = sqrtf(deviceMatrix.a * deviceMatrix.a + deviceMatrix.b * deviceMatrix.b);
-    float deviceScaleY = sqrtf(deviceMatrix.c * deviceMatrix.c + deviceMatrix.d * deviceMatrix.d);
+    float deviceScaleX = std::hypot(deviceMatrix.a, deviceMatrix.b);
+    float deviceScaleY = std::hypot(deviceMatrix.c, deviceMatrix.d);
 
     CGPoint deviceOrigin = CGPointMake(rect.x() * deviceScaleX, rect.y() * deviceScaleY);
     CGPoint deviceLowerRight = CGPointMake((rect.x() + rect.width()) * deviceScaleX,
@@ -1591,6 +1611,9 @@ void GraphicsContext::drawLinesForText(const FloatPoint& point, float thickness,
     Color localStrokeColor(strokeColor());
 
     FloatRect bounds = computeLineBoundsAndAntialiasingModeForText(FloatRect(point, FloatSize(widths.last(), thickness)), printing, localStrokeColor);
+    if (bounds.isEmpty())
+        return;
+
     bool fillColorIsNotEqualToStrokeColor = fillColor() != localStrokeColor;
     
     Vector<CGRect, 4> dashBounds;
@@ -1616,9 +1639,9 @@ void GraphicsContext::drawLinesForText(const FloatPoint& point, float thickness,
         if (!dashWidth)
             dashBounds.append(CGRectMake(bounds.x() + left, bounds.y(), width, bounds.height()));
         else {
-            auto startParticle = static_cast<unsigned>(std::ceil(left / (2 * dashWidth)));
-            auto endParticle = static_cast<unsigned>((left + width) / (2 * dashWidth));
-            for (unsigned j = startParticle; j < endParticle; ++j)
+            auto startParticle = static_cast<int>(std::ceil(left / (2 * dashWidth)));
+            auto endParticle = static_cast<int>((left + width) / (2 * dashWidth));
+            for (auto j = startParticle; j < endParticle; ++j)
                 dashBounds.append(CGRectMake(bounds.x() + j * 2 * dashWidth, bounds.y(), dashWidth, bounds.height()));
         }
     }
@@ -1667,19 +1690,19 @@ void GraphicsContext::setPlatformImageInterpolationQuality(InterpolationQuality 
 
     CGInterpolationQuality quality = kCGInterpolationDefault;
     switch (mode) {
-    case InterpolationDefault:
+    case InterpolationQuality::Default:
         quality = kCGInterpolationDefault;
         break;
-    case InterpolationNone:
+    case InterpolationQuality::DoNotInterpolate:
         quality = kCGInterpolationNone;
         break;
-    case InterpolationLow:
+    case InterpolationQuality::Low:
         quality = kCGInterpolationLow;
         break;
-    case InterpolationMedium:
+    case InterpolationQuality::Medium:
         quality = kCGInterpolationMedium;
         break;
-    case InterpolationHigh:
+    case InterpolationQuality::High:
         quality = kCGInterpolationHigh;
         break;
     }
@@ -1748,19 +1771,15 @@ void GraphicsContext::setPlatformTextDrawingMode(TextDrawingModeFlags mode)
     ASSERT(hasPlatformContext());
 
     CGContextRef context = platformContext();
-    switch (mode) {
-    case TextModeFill:
-        CGContextSetTextDrawingMode(context, kCGTextFill);
-        break;
-    case TextModeStroke:
-        CGContextSetTextDrawingMode(context, kCGTextStroke);
-        break;
-    case TextModeFill | TextModeStroke:
+    
+    bool fill = mode.contains(TextDrawingMode::Fill);
+    bool stroke = mode.contains(TextDrawingMode::Stroke);
+    if (fill && stroke)
         CGContextSetTextDrawingMode(context, kCGTextFillStroke);
-        break;
-    default:
-        break;
-    }
+    else if (fill)
+        CGContextSetTextDrawingMode(context, kCGTextFill);
+    else if (stroke)
+        CGContextSetTextDrawingMode(context, kCGTextStroke);
 }
 
 void GraphicsContext::setPlatformStrokeColor(const Color& color)

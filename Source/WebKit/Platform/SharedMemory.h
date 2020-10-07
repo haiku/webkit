@@ -79,10 +79,11 @@ public:
 
         bool isNull() const;
 
-        void clear();
+#if OS(DARWIN) || OS(WINDOWS)
+        size_t size() const { return m_size; }
+#endif
 
-        void encode(IPC::Encoder&) const;
-        static bool decode(IPC::Decoder&, Handle&);
+        void clear();
 
 #if USE(UNIX_DOMAIN_SOCKETS)
         IPC::Attachment releaseAttachment() const;
@@ -109,8 +110,22 @@ public:
 #endif
     };
 
+    struct IPCHandle {
+        IPCHandle() = default;
+        IPCHandle(Handle&& handle, uint64_t dataSize)
+            : handle(WTFMove(handle))
+            , dataSize(dataSize)
+        {
+        }
+        void encode(IPC::Encoder&) const;
+        static WARN_UNUSED_RETURN bool decode(IPC::Decoder&, IPCHandle&);
+
+        Handle handle;
+        uint64_t dataSize { 0 };
+    };
+
+    // FIXME: Change these factory functions to return Ref<SharedMemory> and crash on failure.
     static RefPtr<SharedMemory> allocate(size_t);
-    static RefPtr<SharedMemory> create(void*, size_t, Protection);
     static RefPtr<SharedMemory> copyBuffer(const WebCore::SharedBuffer&);
     static RefPtr<SharedMemory> map(const Handle&, Protection);
 #if USE(UNIX_DOMAIN_SOCKETS)

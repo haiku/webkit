@@ -33,13 +33,6 @@
 #include <pal/ExportMacros.h>
 #include <wtf/DisallowCType.h>
 
-#if PLATFORM(WIN)
-#undef WEBCORE_EXPORT
-#define WEBCORE_EXPORT WTF_EXPORT_DECLARATION
-#undef WEBCORE_TESTSUPPORT_EXPORT
-#define WEBCORE_TESTSUPPORT_EXPORT WTF_EXPORT_DECLARATION
-#endif // PLATFORM(WIN)
-
 #ifdef __cplusplus
 
 // These undefs match up with defines in WebKit2Prefix.h for Mac OS X.

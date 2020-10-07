@@ -107,7 +107,7 @@ WI.CSSStyleDeclaration = class CSSStyleDeclaration extends WI.Object
 
     get selectorEditable()
     {
-        return this._ownerRule && this._ownerRule.editable;
+        return this._ownerRule && this._ownerRule.editable && InspectorBackend.hasCommand("CSS.setRuleSelector");
     }
 
     get locked() { return this._locked; }
@@ -124,7 +124,7 @@ WI.CSSStyleDeclaration = class CSSStyleDeclaration extends WI.Object
         //                                  ^
         //                                  update only happens here
         if (this._updatesInProgressCount > 0 && !options.forceUpdate) {
-            if (WI.isDebugUIEnabled() && WI.settings.debugEnableStyleEditingDebugMode.value && text !== this._text)
+            if (WI.settings.debugEnableStyleEditingDebugMode.value && text !== this._text)
                 console.warn("Style modified while editing:", text);
 
             return;

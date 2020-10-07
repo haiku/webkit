@@ -28,6 +28,7 @@
 #if ENABLE(VIDEO)
 
 #include "MediaPlayer.h"
+#include "MediaPlayerIdentifier.h"
 #include "PlatformTimeRanges.h"
 
 namespace WebCore {
@@ -38,7 +39,9 @@ public:
     MediaPlayerPrivateInterface() = default;
     virtual ~MediaPlayerPrivateInterface() = default;
 
-    virtual void load(const String& url) = 0;
+    virtual void load(const String&) { }
+    virtual void load(const URL& url, const ContentType&, const String&) { load(url.string()); }
+
 #if ENABLE(MEDIA_SOURCE)
     virtual void load(const String& url, MediaSourcePrivateClient*) = 0;
 #endif
@@ -46,11 +49,21 @@ public:
     virtual void load(MediaStreamPrivate&) = 0;
 #endif
     virtual void cancelLoad() = 0;
+
+    virtual void prepareForPlayback(bool privateMode, MediaPlayer::Preload preload, bool preservesPitch, bool prepare)
+    {
+        setPrivateBrowsingMode(privateMode);
+        setPreload(preload);
+        setPreservesPitch(preservesPitch);
+        if (prepare)
+            prepareForRendering();
+    }
     
     virtual void prepareToPlay() { }
-    virtual PlatformLayer* platformLayer() const { return 0; }
+    virtual PlatformLayer* platformLayer() const { return nullptr; }
 
-#if PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
+#if ENABLE(VIDEO_PRESENTATION_MODE)
+    virtual RetainPtr<PlatformLayer> createVideoFullscreenLayer() { return nullptr; }
     virtual void setVideoFullscreenLayer(PlatformLayer*, WTF::Function<void()>&& completionHandler) { completionHandler(); }
     virtual void updateVideoFullscreenInlineImage() { }
     virtual void setVideoFullscreenFrame(FloatRect) { }
@@ -60,7 +73,7 @@ public:
 #endif
 
 #if PLATFORM(IOS_FAMILY)
-    virtual NSArray *timedMetadata() const { return 0; }
+    virtual NSArray *timedMetadata() const { return nil; }
     virtual String accessLog() const { return emptyString(); }
     virtual String errorLog() const { return emptyString(); }
 #endif
@@ -141,30 +154,22 @@ public:
     virtual unsigned long long totalBytes() const { return 0; }
     virtual bool didLoadingProgress() const = 0;
 
-    virtual void setSize(const IntSize&) = 0;
+    virtual void setSize(const IntSize&) { }
 
     virtual void paint(GraphicsContext&, const FloatRect&) = 0;
 
     virtual void paintCurrentFrameInContext(GraphicsContext& c, const FloatRect& r) { paint(c, r); }
-    virtual bool copyVideoTextureToPlatformTexture(GraphicsContext3D*, Platform3DObject, GC3Denum, GC3Dint, GC3Denum, GC3Denum, GC3Denum, bool, bool) { return false; }
+    virtual bool copyVideoTextureToPlatformTexture(GraphicsContextGLOpenGL*, PlatformGLObject, GCGLenum, GCGLint, GCGLenum, GCGLenum, GCGLenum, bool, bool) { return false; }
     virtual NativeImagePtr nativeImageForCurrentTime() { return nullptr; }
 
     virtual void setPreload(MediaPlayer::Preload) { }
 
-    virtual bool hasAvailableVideoFrame() const { return readyState() >= MediaPlayer::HaveCurrentData; }
-
-    virtual bool canLoadPoster() const { return false; }
-    virtual void setPoster(const String&) { }
-
-#if USE(NATIVE_FULLSCREEN_VIDEO)
-    virtual void enterFullscreen() { }
-    virtual void exitFullscreen() { }
-#endif
+    virtual bool hasAvailableVideoFrame() const { return readyState() >= MediaPlayer::ReadyState::HaveCurrentData; }
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
 
     virtual String wirelessPlaybackTargetName() const { return emptyString(); }
-    virtual MediaPlayer::WirelessPlaybackTargetType wirelessPlaybackTargetType() const { return MediaPlayer::TargetTypeNone; }
+    virtual MediaPlayer::WirelessPlaybackTargetType wirelessPlaybackTargetType() const { return MediaPlayer::WirelessPlaybackTargetType::TargetTypeNone; }
 
     virtual bool wirelessVideoPlaybackDisabled() const { return true; }
     virtual void setWirelessVideoPlaybackDisabled(bool) { }
@@ -176,23 +181,18 @@ public:
     virtual void setShouldPlayToPlaybackTarget(bool) { }
 #endif
 
-#if USE(NATIVE_FULLSCREEN_VIDEO)
-    virtual bool canEnterFullscreen() const { return false; }
-#endif
-
     // whether accelerated rendering is supported by the media engine for the current media.
     virtual bool supportsAcceleratedRendering() const { return false; }
     // called when the rendering system flips the into or out of accelerated rendering mode.
     virtual void acceleratedRenderingStateChanged() { }
 
-    virtual bool shouldMaintainAspectRatio() const { return true; }
     virtual void setShouldMaintainAspectRatio(bool) { }
 
     virtual bool hasSingleSecurityOrigin() const { return false; }
     virtual bool didPassCORSAccessCheck() const { return false; }
     virtual Optional<bool> wouldTaintOrigin(const SecurityOrigin&) const { return WTF::nullopt; }
 
-    virtual MediaPlayer::MovieLoadType movieLoadType() const { return MediaPlayer::Unknown; }
+    virtual MediaPlayer::MovieLoadType movieLoadType() const { return MediaPlayer::MovieLoadType::Unknown; }
 
     virtual void prepareForRendering() { }
 
@@ -224,6 +224,7 @@ public:
 
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA)
     virtual std::unique_ptr<LegacyCDMSession> createSession(const String&, LegacyCDMSessionClient*) { return nullptr; }
+    virtual void setCDM(LegacyCDM*) { }
     virtual void setCDMSession(LegacyCDMSession*) { }
     virtual void keyAdded() { }
 #endif
@@ -235,12 +236,14 @@ public:
     virtual bool waitingForKey() const { return false; }
 #endif
 
-#if ENABLE(VIDEO_TRACK)
+#if ENABLE(LEGACY_ENCRYPTED_MEDIA) && ENABLE(ENCRYPTED_MEDIA)
+    virtual void setShouldContinueAfterKeyNeeded(bool) { }
+#endif
+
     virtual bool requiresTextTrackRepresentation() const { return false; }
     virtual void setTextTrackRepresentation(TextTrackRepresentation*) { }
     virtual void syncTextTrackBounds() { };
     virtual void tracksChanged() { };
-#endif
 
 #if USE(GSTREAMER)
     virtual void simulateAudioInterruption() { }
@@ -282,9 +285,15 @@ public:
     virtual AVPlayer *objCAVFoundationAVPlayer() const { return nullptr; }
 #endif
 
-    virtual bool performTaskAtMediaTime(WTF::Function<void()>&&, MediaTime) { return false; }
+    virtual bool performTaskAtMediaTime(Function<void()>&&, const MediaTime&) { return false; }
 
     virtual bool shouldIgnoreIntrinsicSize() { return false; }
+
+    virtual void setPreferredDynamicRangeMode(DynamicRangeMode) { }
+
+    virtual void audioOutputDeviceChanged() { }
+
+    virtual MediaPlayerIdentifier identifier() const { return { }; }
 };
 
 }

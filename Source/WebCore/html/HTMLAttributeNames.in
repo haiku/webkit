@@ -121,6 +121,7 @@ disableremoteplayback
 disposition
 download
 draggable
+dropzone
 webkitdropzone
 enctype
 end
@@ -293,6 +294,7 @@ onseeking
 onselect
 onselectstart
 onselectionchange
+onslotchange
 onwebkitspeechchange
 onwheel
 onstalled
@@ -435,5 +437,3 @@ x-apple-data-detectors-type
 x-apple-data-detectors-result
 
 x-apple-pdf-annotation
-
-x-apple-editable-image

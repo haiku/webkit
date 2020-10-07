@@ -3,7 +3,7 @@
 import logging
 import os
 
-from osx_browser_driver import OSXBrowserDriver
+from webkitpy.benchmark_runner.browser_driver.osx_browser_driver import OSXBrowserDriver
 
 
 _log = logging.getLogger(__name__)
@@ -21,7 +21,6 @@ class OSXFirefoxDriver(OSXBrowserDriver):
         self._launch_process(build_dir=browser_build_path, app_name=self.app_name, url=url, args=args_with_url)
 
     def launch_driver(self, url, options, browser_build_path):
-        import webkitpy.thirdparty.autoinstalled.selenium
         from selenium import webdriver
         from selenium.webdriver.firefox.options import Options
         firefox_options = Options()
@@ -48,7 +47,6 @@ class OSXFirefoxNightlyDriver(OSXBrowserDriver):
         self._launch_process(build_dir=browser_build_path, app_name=self.app_name, url=url, args=args_with_url)
 
     def launch_driver(self, url, options, browser_build_path):
-        import webkitpy.thirdparty.autoinstalled.selenium
         from selenium import webdriver
         from selenium.webdriver.firefox.options import Options
         firefox_options = Options()

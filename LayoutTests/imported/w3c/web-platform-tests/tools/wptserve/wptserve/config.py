@@ -69,13 +69,40 @@ class Config(Mapping):
     def as_dict(self):
         return json_types(self.__dict__)
 
+    # Environment variables are limited in size so we need to prune the most egregious contributors
+    # to size, the origin policy subdomains.
+    def as_dict_for_wd_env_variable(self):
+        result = self.as_dict()
+
+        for key in [
+            ("subdomains",),
+            ("domains", "alt"),
+            ("domains", ""),
+            ("all_domains", "alt"),
+            ("all_domains", ""),
+            ("domains_set",),
+            ("all_domains_set",)
+        ]:
+            target = result
+            for part in key[:-1]:
+                target = target[part]
+            value = target[key[-1]]
+            if isinstance(value, dict):
+                target[key[-1]] = {k:v for (k,v) in iteritems(value) if not k.startswith("op")}
+            else:
+                target[key[-1]] = [x for x in value if not x.startswith("op")]
+
+        return result
+
 
 def json_types(obj):
     if isinstance(obj, dict):
         return {key: json_types(value) for key, value in iteritems(obj)}
     if (isinstance(obj, string_types) or
         isinstance(obj, integer_types) or
-        isinstance(obj, float)):
+        isinstance(obj, float) or
+        isinstance(obj, bool) or
+        obj is None):
         return obj
     if isinstance(obj, list) or hasattr(obj, "__iter__"):
         return [json_types(value) for value in obj]
@@ -101,7 +128,7 @@ class ConfigBuilder(object):
 
     The properties on the final configuration include those explicitly
     supplied and computed properties. The computed properties are
-    defined byt the computed_properites attribute on the class. This
+    defined by the computed_properties attribute on the class. This
     is a list of property names, each corresponding to a _get_<name>
     method on the class. These methods are called in the order defined
     in computed_properties and are passed a single argument, a
@@ -126,7 +153,9 @@ class ConfigBuilder(object):
             "openssl": {
                 "openssl_binary": "openssl",
                 "base_path": "_certs",
+                "password": "web-platform-tests",
                 "force_regenerate": False,
+                "duration": 30,
                 "base_conf_path": None
             },
             "pregenerated": {
@@ -316,7 +345,7 @@ class ConfigBuilder(object):
         self._ssl_env.__enter__()
         if self._ssl_env.ssl_enabled:
             key_path, cert_path = self._ssl_env.host_cert_path(data["domains_set"])
-            ca_cert_path = self._ssl_env.ca_cert_path()
+            ca_cert_path = self._ssl_env.ca_cert_path(data["domains_set"])
             return {"key_path": key_path,
                     "ca_cert_path": ca_cert_path,
                     "cert_path": cert_path,

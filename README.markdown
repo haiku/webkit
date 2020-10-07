@@ -16,41 +16,46 @@ can also use github for that, or download parts of the history later.
 
 ### Requirements ###
 
-- You need a recent version of Haiku with the GCC 4 development tools
-- The following dependencies: `CMake, GPerf, ICU, libxml, sqlite3, libxslt, Perl, Python, Ruby`
-- And a fast computer!
+- A recent version of Haiku (beta2 is too old, it lacks at least madvise() and support for compositing draw operations)
+- The GCC8 development tools
+- The dependencies as listed below
+- At least about 2G of RAM
+- Preferably a fast computer!
 
 Dependencies can be installed (for a gcc2hybrid version) via:
 
-    $ pkgman install cmake_x86 gcc_x86 gperf haiku_x86_devel jpeg_x86_devel \
-        sqlite_x86_devel libpng16_x86_devel libxml2_x86_devel \
-        libxslt_x86_devel icu_x86_devel icu_devel perl python ruby_x86 \
-        libexecinfo_x86_devel libwebp_x86_devel lighttpd_x86 php \
-        pkgconfig_x86 pywebsocket gnutls36_x86 gnutls36_x86_devel
-        
+    $ pkgman install cmake_x86 gcc_x86 gperf haiku_x86_devel \
+	libjpeg_turbo_x86_devel sqlite_x86_devel libpng16_x86_devel \
+	libxml2_x86_devel libxslt_x86_devel icu66_x86_devel perl python \
+	ruby_x86 libexecinfo_x86_devel libwebp_x86_devel ninja_x86 \
+	pkgconfig_x86 pywebsocket gnutls_x86 gnutls_x86_devel
+
+Additionally if you want to run the tests:
+
+    $ pkgman install php_x86 lighttpd_x86
+
 ##### NOTE :
-If you get an _Ruby missng error_ even after you have installed ruby, similar to <br>`Could NOT find Ruby  (missing: RUBY_INCLUDE_DIR RUBY_LIBRARY RUBY_CONFIG_INCLUDE_DIR)  (found suitable version "2.2.0", minimum required is "1.9")`, you can skip that.
-
-
-Or, if you build Haiku from source you can add the packages to your UserBuildConfig:
-
-    AddHaikuImagePackages cmake_x86 gcc_x86 gperf haiku_x86_devel jpeg_x86_devel sqlite_x86_devel libpng16_x86_devel libxml2_x86_devel libxslt_devel icu_x86_devel icu_devel perl python ruby_x86 libexecinfo_x86_devel libwebp_x86_devel lighttpd_x86 php pkgconfig_x86 pywebsocket gnutls36_x86 gnutls36_x86_devel ;
+If you get an _Ruby missng error_ even after you have installed ruby, similar to <br>
+`Could NOT find Ruby  (missing: RUBY_INCLUDE_DIR RUBY_LIBRARY RUBY_CONFIG_INCLUDE_DIR)  (found suitable version "2.2.0", minimum required is "1.9")`, you can skip that.
 
 Packages for other flavors of Haiku may or may not be available. Use [haikuporter](http://haikuports.org) to build them if needed.
 
 ### Building WebKit ###
 
 #### Configuring your build for the first time ####
-On a gcc2hybrid Haiku:
-    $ PKG_CONFIG_LIBDIR=/boot/system/develop/lib/x86/pkgconfig \
-        CC=gcc-x86 CXX=g++-x86 Tools/Scripts/build-webkit --cmakeargs="-DCMAKE_AR=/bin/ar-x86 -DCMAKE_RANLIB=/bin/ranlib-x86" --haiku
+Commands to run from the webkit checkout directory:
+
+On a gcc2hybrid (32bit) Haiku:
+	$ PKG_CONFIG_LIBDIR=/boot/system/develop/lib/x86/pkgconfig \
+        CC=gcc-x86 CXX=g++-x86 Tools/Scripts/build-webkit \
+		--cmakeargs="-DCMAKE_AR=/bin/ar-x86 -DCMAKE_RANLIB=/bin/ranlib-x86" --haiku
 
 On other versions:
-    $ Tools/Scripts/build-webkit
+    $ Tools/Scripts/build-webkit --haiku
 
 #### Regular build, once configured ####
-    $ cd WebKitBuild/Release
-    $ make -j4
+	$ cd WebKitBuild/Release
+	$ ninja
 
 This will build a release version of WebKit libraries on a quad core cpu.
 
@@ -61,17 +66,17 @@ On a successful build, executables and libraries are generated in the WebKitBuil
 
 The following make targets are available:
 
-- libwtf.so - The Web Template Library
-- libjavascriptcore.so -  The JavaScriptCore library
-- jsc	 - The JavaScriptCore executable shell
-- libwebcore.so - The WebCore library
-- libwebkit.so - The WebKit library
+- libwtf.so - WebKit Template Framework (a complement of the STL used in WebKit)
+- libjavascriptcore.so - The JavaScript interpreter
+- jsc - The JavaScript executable shell
+- libwebcore.so - The WebCore library (cross-platform WebKit code)
+- libwebkitlegacy.so - The Haiku specific parts of WebKit
 - HaikuLauncher - A simple browsing test app
 - DumpRenderTree - The tree parsing test tool
 
-Example given, this will build the JavaScriptCore library in debug mode:
+Example given, this will build the JavaScriptCore library:
 
-    $ make libjavascriptcore.so
+    $ ninja libjavascriptcore.so
 
 In some rare cases the build system can be confused, to be sure that everything gets rebuilt from scratch,
 you can remove the WebKitBuild/ directory and start over.
@@ -79,22 +84,6 @@ you can remove the WebKitBuild/ directory and start over.
 There are several cmake variables available to configure the build in various ways.
 These can be given to build-webkit using the --cmakeargs option, or changed later on
 using "cmake -Dvar=value WebKitBuild/Release".
-
-### Speeding up the build with Ninja ###
-
-Ninja is a replacement for Make. It is designed for use only with generated
-build files (from CMake, in this case), rather than manually written ones. This
-allows Ninja to remove many of Make features such as pattern-rules, complex
-variable substitution, etc. As a result, Ninja is able to start building
-files almost immediately, whereas Make spends several minutes scanning the
-project and building the dependency tree.
-
-To use Ninja, perform the following steps:
-
-* First install Ninja:
-    $ pkgman install ninja_x86
-
-The build-webkit script then detects and uses Ninja automatically.
 
 ### Speeding up the build with distcc ###
 
@@ -106,7 +95,7 @@ It is a good idea to set the NUMBER\_OF\_PROCESSORS environment variable as well
 the local CPUs will be counted, leading to a sub-optimal distcc distribution.
 
 distcc will look for a compiler named gcc-x86 and g++-x86. You'll need to adjust
-the path on the slaves to get that pointing to the gcc4 version (the gcc4 compiler
+the path on the slaves to get that pointing to the gcc8 version (the gcc8 compiler
 is already visible under this name on the local machine and haiku slaves).
 CMake usually tries to resolve the compiler to an absolute path on the first
 time it is called, but this doesn't work when the compiler is called through
@@ -216,6 +205,20 @@ Note that this is currently not working.
 
 There are more tests, but the build-\* scripts must be working before we can run them.
 
+## Status of WebKit2 port ##
+
+The Haiku port currently uses the WebKitLegacy API. Eventually we should move to
+WebKit2 (simply called WebKit in the sources). WebKit2 splits the web engine into
+multiple processes: an user interface, a web process, a network process, etc. This
+allows for better sandboxing, and better stability (the user interface will not
+crash or freeze when it hits a problematic website).
+
+The work on WebKit2 is found in the GSoC2019 tag. It has not been updated since
+and the internals of WebKit have changed a bit. An attempt to rebase it is found
+in the webkit2 branch, but it's completely broken. The best thing to do is
+probably to enable webkit2 in the current rebased branch, see what breaks, and
+cherry-pick the relevant changes from the GSoC2019 tag (and the commit history leading to it).
+
 ## Notes ##
 
 cmake is smart enough to detect when a variable has changed and will rebuild everything.
@@ -229,6 +232,6 @@ WebKitBuild/Release folder. Launching it will then use the freshly built
 libraries instead of the system ones. It is a good idea to test this because
 HaikuLauncher doesn't use tabs, which sometimes expose different bugs.
 
-This document was last updated November 23, 2017.
+This document was last updated August 13, 2020.
 
 Authors: Maxime Simon, Alexandre Deckner, Adrien Destugues

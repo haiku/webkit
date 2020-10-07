@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Apple Inc. All rights reserved.
+# Copyright (C) 2019-2020 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -95,19 +95,19 @@ end
 
 macro wasmNextInstruction()
     loadb [PB, PC, 1], t0
-    leap _g_opcodeMap, t1
+    leap JSCConfig + constexpr JSC::offsetOfJSCConfigOpcodeMap, t1
     jmp NumberOfJSOpcodeIDs * PtrSize[t1, t0, PtrSize], BytecodePtrTag
 end
 
 macro wasmNextInstructionWide16()
-    loadh 1[PB, PC, 1], t0
-    leap _g_opcodeMapWide16, t1
+    loadb OpcodeIDNarrowSize[PB, PC, 1], t0
+    leap JSCConfig + constexpr JSC::offsetOfJSCConfigOpcodeMapWide16, t1
     jmp NumberOfJSOpcodeIDs * PtrSize[t1, t0, PtrSize], BytecodePtrTag
 end
 
 macro wasmNextInstructionWide32()
-    loadi 1[PB, PC, 1], t0
-    leap _g_opcodeMapWide32, t1
+    loadb OpcodeIDNarrowSize[PB, PC, 1], t0
+    leap JSCConfig + constexpr JSC::offsetOfJSCConfigOpcodeMapWide32, t1
     jmp NumberOfJSOpcodeIDs * PtrSize[t1, t0, PtrSize], BytecodePtrTag
 end
 
@@ -150,7 +150,7 @@ macro checkSwitchToJITForLoop()
     checkSwitchToJIT(
         1,
         macro()
-            storei PC, ArgumentCount + TagOffset[cfr]
+            storei PC, ArgumentCountIncludingThis + TagOffset[cfr]
             prepareStateForCCall()
             move cfr, a0
             move PC, a1
@@ -163,7 +163,7 @@ macro checkSwitchToJITForLoop()
             move r0, a0
             jmp r1, WasmEntryPtrTag
         .recover:
-            loadi ArgumentCount + TagOffset[cfr], PC
+            loadi ArgumentCountIncludingThis + TagOffset[cfr], PC
         end)
 end
 
@@ -178,29 +178,28 @@ end
 # Wasm specific helpers
 
 macro preserveCalleeSavesUsedByWasm()
+    # NOTE: We intentionally don't save memoryBase and memorySize here. See the comment
+    # in restoreCalleeSavesUsedByWasm() below for why.
     subp CalleeSaveSpaceStackAligned, sp
     if ARM64 or ARM64E
-        emit "stp x23, x26, [x29, #-16]"
-        emit "stp x19, x22, [x29, #-32]"
+        emit "stp x19, x26, [x29, #-16]"
     elsif X86_64
-        storep memorySize, -0x08[cfr]
-        storep memoryBase, -0x10[cfr]
-        storep PB, -0x18[cfr]
-        storep wasmInstance, -0x20[cfr]
+        storep PB, -0x8[cfr]
+        storep wasmInstance, -0x10[cfr]
     else
         error
     end
 end
 
 macro restoreCalleeSavesUsedByWasm()
+    # NOTE: We intentionally don't restore memoryBase and memorySize here. These are saved
+    # and restored when entering Wasm by the JSToWasm wrapper and changes to them are meant
+    # to be observable within the same Wasm module.
     if ARM64 or ARM64E
-        emit "ldp x23, x26, [x29, #-16]"
-        emit "ldp x19, x22, [x29, #-32]"
+        emit "ldp x19, x26, [x29, #-16]"
     elsif X86_64
-        loadp -0x08[cfr], memorySize
-        loadp -0x10[cfr], memoryBase
-        loadp -0x18[cfr], PB
-        loadp -0x20[cfr], wasmInstance
+        loadp -0x8[cfr], PB
+        loadp -0x10[cfr], wasmInstance
     else
         error
     end
@@ -229,7 +228,7 @@ macro reloadMemoryRegistersFromInstance(instance, scratch1, scratch2)
 end
 
 macro throwException(exception)
-    storei constexpr Wasm::ExceptionType::%exception%, ArgumentCount + PayloadOffset[cfr]
+    storei constexpr Wasm::ExceptionType::%exception%, ArgumentCountIncludingThis + PayloadOffset[cfr]
     jmp _wasm_throw_from_slow_path_trampoline
 end
 
@@ -243,7 +242,7 @@ macro callWasmSlowPath(slowPath)
 end
 
 macro callWasmCallSlowPath(slowPath, action)
-    storei PC, ArgumentCount + TagOffset[cfr]
+    storei PC, ArgumentCountIncludingThis + TagOffset[cfr]
     prepareStateForCCall()
     move cfr, a0
     move PC, a1
@@ -297,7 +296,7 @@ macro wasmPrologue(codeBlockGetter, codeBlockSetter, loadWasmInstance)
     btiz ws1, .zeroInitializeLocalsDone
     negi ws1
     sxi2q ws1, ws1
-    leap (NumberOfWasmArguments + CalleeSaveSpaceAsVirtualRegisters) * -8[cfr], ws0
+    leap (NumberOfWasmArguments + CalleeSaveSpaceAsVirtualRegisters + 1) * -8[cfr], ws0
 .zeroInitializeLocalsLoop:
     addq 1, ws1
     storeq 0, [ws0, ws1, 8]
@@ -494,8 +493,8 @@ op(wasm_throw_from_slow_path_trampoline, macro ()
     move cfr, a0
     addp PB, PC, a1
     move wasmInstance, a2
-    # Slow paths and the throwException macro store the exception code in the ArgumentCount slot
-    loadi ArgumentCount + PayloadOffset[cfr], a3
+    # Slow paths and the throwException macro store the exception code in the ArgumentCountIncludingThis slot
+    loadi ArgumentCountIncludingThis + PayloadOffset[cfr], a3
     cCall4(_slow_path_wasm_throw_exception)
 
     jmp r0, ExceptionHandlerPtrTag
@@ -515,6 +514,7 @@ slowWasmOp(table_size)
 slowWasmOp(table_fill)
 slowWasmOp(table_grow)
 slowWasmOp(set_global_ref)
+slowWasmOp(set_global_ref_portable_binding)
 
 wasmOp(grow_memory, WasmGrowMemory, macro(ctx)
     callWasmSlowPath(_slow_path_wasm_grow_memory)
@@ -588,14 +588,23 @@ wasmOp(switch, WasmSwitch, macro(ctx)
     addp t1, t2
 
     loadi VectorSizeOffset[t2], t3
-    biaeq t0, t3, .default
+    bib t0, t3, .inBounds
+
+.outOfBounds:
+    subi t3, 1, t0
+
+.inBounds:
     loadp VectorBufferOffset[t2], t2
-    loadi [t2, t0, 4], t3
+    muli sizeof Wasm::FunctionCodeBlock::JumpTableEntry, t0
+
+    loadi Wasm::FunctionCodeBlock::JumpTableEntry::startOffset[t2, t0], t1
+    loadi Wasm::FunctionCodeBlock::JumpTableEntry::dropCount[t2, t0], t3
+    loadi Wasm::FunctionCodeBlock::JumpTableEntry::keepCount[t2, t0], t5
+    dropKeep(t1, t3, t5)
+
+    loadis Wasm::FunctionCodeBlock::JumpTableEntry::target[t2, t0], t3
     assert(macro(ok) btinz t3, .ok end)
     wasmDispatchIndirect(t3)
-
-.default:
-    jump(ctx, m_defaultTarget)
 end)
 
 unprefixedWasmOp(wasm_jmp, WasmJmp, macro(ctx)
@@ -604,16 +613,11 @@ end)
 
 unprefixedWasmOp(wasm_ret, WasmRet, macro(ctx)
     checkSwitchToJITForEpilogue()
-    wgetu(ctx, m_stackOffset, ws1)
-    lshifti 3, ws1
-    negi ws1
-    sxi2q ws1, ws1
-    addp cfr, ws1
     forEachArgumentGPR(macro (offset, gpr)
-        loadq offset[ws1], gpr
+        loadq -offset - 8 - CalleeSaveSpaceAsVirtualRegisters * 8[cfr], gpr
     end)
     forEachArgumentFPR(macro (offset, fpr)
-        loadd offset[ws1], fpr
+        loadd -offset - 8 - CalleeSaveSpaceAsVirtualRegisters * 8[cfr], fpr
     end)
     doReturn()
 end)
@@ -650,6 +654,23 @@ wasmOp(set_global, WasmSetGlobal, macro(ctx)
     dispatch(ctx)
 end)
 
+wasmOp(get_global_portable_binding, WasmGetGlobalPortableBinding, macro(ctx)
+    loadp Wasm::Instance::m_globals[wasmInstance], t0
+    wgetu(ctx, m_globalIndex, t1)
+    loadq [t0, t1, 8], t0
+    loadq [t0], t0
+    returnq(ctx, t0)
+end)
+
+wasmOp(set_global_portable_binding, WasmSetGlobalPortableBinding, macro(ctx)
+    loadp Wasm::Instance::m_globals[wasmInstance], t0
+    wgetu(ctx, m_globalIndex, t1)
+    mloadq(ctx, m_value, t2)
+    loadq [t0, t1, 8], t0
+    storeq t2, [t0]
+    dispatch(ctx)
+end)
+
 macro slowPathForWasmCall(ctx, slowPath, storeWasmInstance)
     callWasmCallSlowPath(
         slowPath,
@@ -657,7 +678,7 @@ macro slowPathForWasmCall(ctx, slowPath, storeWasmInstance)
         macro (callee, targetWasmInstance)
             move callee, ws0
 
-            loadi ArgumentCount + TagOffset[cfr], PC
+            loadi ArgumentCountIncludingThis + TagOffset[cfr], PC
 
             # the call might throw (e.g. indirect call with bad signature)
             btpz targetWasmInstance, .throw
@@ -696,7 +717,7 @@ macro slowPathForWasmCall(ctx, slowPath, storeWasmInstance)
             # need to preserve its current value since it might contain a return value
             move PC, memoryBase
             move PB, wasmInstance
-            loadi ArgumentCount + TagOffset[cfr], PC
+            loadi ArgumentCountIncludingThis + TagOffset[cfr], PC
             loadp CodeBlock[cfr], PB
             loadp Wasm::FunctionCodeBlock::m_instructionsRawPointer[PB], PB
 
@@ -718,7 +739,7 @@ macro slowPathForWasmCall(ctx, slowPath, storeWasmInstance)
                 stored fpr, CallFrameHeaderSize + offset[ws1, ws0, 8]
             end)
 
-            loadi ArgumentCount + TagOffset[cfr], PC
+            loadi ArgumentCountIncludingThis + TagOffset[cfr], PC
 
             storeWasmInstance(wasmInstance)
             reloadMemoryRegistersFromInstance(wasmInstance, ws0, ws1)
@@ -1081,7 +1102,7 @@ end)
 wasmOp(i32_trunc_s_f32, WasmI32TruncSF32, macro (ctx)
     mloadf(ctx, m_operand, ft0)
 
-    move 0xcf000000, t0 # INT32_MIN
+    move 0xcf000000, t0 # INT32_MIN (Note that INT32_MIN - 1.0 in float is the same as INT32_MIN in float).
     fi2f t0, ft1
     bfltun ft0, ft1, .outOfBoundsTrunc
 
@@ -1099,9 +1120,9 @@ end)
 wasmOp(i32_trunc_s_f64, WasmI32TruncSF64, macro (ctx)
     mloadd(ctx, m_operand, ft0)
 
-    move 0xc1e0000000000000, t0 # INT32_MIN
+    move 0xc1e0000000200000, t0 # INT32_MIN - 1.0
     fq2d t0, ft1
-    bdltun ft0, ft1, .outOfBoundsTrunc
+    bdltequn ft0, ft1, .outOfBoundsTrunc
 
     move 0x41e0000000000000, t0 # -INT32_MIN
     fq2d t0, ft1
@@ -1997,4 +2018,31 @@ wasmOp(i64_reinterpret_f64, WasmI64ReinterpretF64, macro(ctx)
     mloadd(ctx, m_operand, ft0)
     fd2q ft0, t0
     returnq(ctx, t0)
+end)
+
+macro dropKeep(startOffset, drop, keep)
+    lshifti 3, startOffset
+    subp cfr, startOffset, startOffset
+    negi drop
+    sxi2q drop, drop
+
+.copyLoop:
+    btiz keep, .done
+    loadq [startOffset, drop, 8], t6
+    storeq t6, [startOffset]
+    subi 1, keep
+    subp 8, startOffset
+    jmp .copyLoop
+
+.done:
+end
+
+wasmOp(drop_keep, WasmDropKeep, macro(ctx)
+    wgetu(ctx, m_startOffset, t0)
+    wgetu(ctx, m_dropCount, t1)
+    wgetu(ctx, m_keepCount, t2)
+
+    dropKeep(t0, t1, t2)
+
+    dispatch(ctx)
 end)

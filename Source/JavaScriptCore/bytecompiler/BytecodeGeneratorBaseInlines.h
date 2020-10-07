@@ -23,6 +23,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#pragma once
+
 #include "BytecodeGeneratorBase.h"
 
 #include "RegisterID.h"
@@ -100,7 +102,9 @@ template<typename Traits>
 void BytecodeGeneratorBase<Traits>::alignWideOpcode16()
 {
 #if CPU(NEEDS_ALIGNED_ACCESS)
-    while ((m_writer.position() + 1) % OpcodeSize::Wide16)
+    size_t opcodeSize = 1;
+    size_t prefixAndOpcodeSize = opcodeSize + PaddingBySize<OpcodeSize::Wide16>::value;
+    while ((m_writer.position() + prefixAndOpcodeSize) % OpcodeSize::Wide16)
         Traits::OpNop::template emit<OpcodeSize::Narrow>(this);
 #endif
 }
@@ -109,7 +113,9 @@ template<typename Traits>
 void BytecodeGeneratorBase<Traits>::alignWideOpcode32()
 {
 #if CPU(NEEDS_ALIGNED_ACCESS)
-    while ((m_writer.position() + 1) % OpcodeSize::Wide32)
+    size_t opcodeSize = 1;
+    size_t prefixAndOpcodeSize = opcodeSize + PaddingBySize<OpcodeSize::Wide16>::value;
+    while ((m_writer.position() + prefixAndOpcodeSize) % OpcodeSize::Wide32)
         Traits::OpNop::template emit<OpcodeSize::Narrow>(this);
 #endif
 }
@@ -155,9 +161,9 @@ template<typename Traits>
 RegisterID* BytecodeGeneratorBase<Traits>::newRegister()
 {
     m_calleeLocals.append(virtualRegisterForLocal(m_calleeLocals.size()));
-    int numCalleeLocals = std::max<int>(m_codeBlock->m_numCalleeLocals, m_calleeLocals.size());
+    int numCalleeLocals = std::max<int>(m_codeBlock->numCalleeLocals(), m_calleeLocals.size());
     numCalleeLocals = WTF::roundUpToMultipleOf(stackAlignmentRegisters(), numCalleeLocals);
-    m_codeBlock->m_numCalleeLocals = numCalleeLocals;
+    m_codeBlock->setNumCalleeLocals(numCalleeLocals);
     return &m_calleeLocals.last();
 }
 
@@ -175,9 +181,10 @@ RegisterID* BytecodeGeneratorBase<Traits>::newTemporary()
 template<typename Traits>
 RegisterID* BytecodeGeneratorBase<Traits>::addVar()
 {
-    ++m_codeBlock->m_numVars;
+    int numVars = m_codeBlock->numVars();
+    m_codeBlock->setNumVars(numVars + 1);
     RegisterID* result = newRegister();
-    ASSERT(VirtualRegister(result->index()).toLocal() == m_codeBlock->m_numVars - 1);
+    ASSERT(VirtualRegister(result->index()).toLocal() == numVars);
     result->ref(); // We should never free this slot.
     return result;
 }

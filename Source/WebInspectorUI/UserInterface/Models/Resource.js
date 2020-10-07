@@ -26,17 +26,19 @@
 
 WI.Resource = class Resource extends WI.SourceCode
 {
-    constructor(url, {mimeType, type, loaderIdentifier, targetId, requestIdentifier, requestMethod, requestHeaders, requestData, requestSentTimestamp, requestSentWalltime, initiatorCallFrames, initiatorSourceCodeLocation, initiatorNode, originalRequestWillBeSentTimestamp} = {})
+    constructor(url, {mimeType, type, loaderIdentifier, targetId, requestIdentifier, requestMethod, requestHeaders, requestData, requestSentTimestamp, requestSentWalltime, initiatorCallFrames, initiatorSourceCodeLocation, initiatorNode} = {})
     {
-        super();
-
         console.assert(url);
+
+        super(url);
 
         if (type in WI.Resource.Type)
             type = WI.Resource.Type[type];
+        else if (type === "Stylesheet") {
+            // COMPATIBILITY (iOS 13): Page.ResourceType.Stylesheet was renamed to Page.ResourceType.StyleSheet.
+            type = WI.Resource.Type.StyleSheet;
+        }
 
-        this._url = url;
-        this._urlComponents = null;
         this._mimeType = mimeType;
         this._mimeTypeComponents = null;
         this._type = Resource.resolvedType(type, mimeType);
@@ -56,7 +58,6 @@ WI.Resource = class Resource extends WI.SourceCode
         this._initiatorSourceCodeLocation = initiatorSourceCodeLocation || null;
         this._initiatorNode = initiatorNode || null;
         this._initiatedResources = [];
-        this._originalRequestWillBeSentTimestamp = originalRequestWillBeSentTimestamp || null;
         this._requestSentTimestamp = requestSentTimestamp || NaN;
         this._requestSentWalltime = requestSentWalltime || NaN;
         this._responseReceivedTimestamp = NaN;
@@ -238,11 +239,11 @@ WI.Resource = class Resource extends WI.SourceCode
     {
         switch (priority) {
         case WI.Resource.NetworkPriority.Low:
-            return WI.UIString("Low");
+            return WI.UIString("Low", "Low @ Network Priority", "Low network request priority");
         case WI.Resource.NetworkPriority.Medium:
-            return WI.UIString("Medium");
+            return WI.UIString("Medium", "Medium @ Network Priority", "Medium network request priority");
         case WI.Resource.NetworkPriority.High:
-            return WI.UIString("High");
+            return WI.UIString("High", "High @ Network Priority", "High network request priority");
         default:
             return null;
         }
@@ -306,7 +307,6 @@ WI.Resource = class Resource extends WI.SourceCode
 
     // Public
 
-    get url() { return this._url; }
     get mimeType() { return this._mimeType; }
     get target() { return this._target; }
     get type() { return this._type; }
@@ -318,7 +318,6 @@ WI.Resource = class Resource extends WI.SourceCode
     get initiatorSourceCodeLocation() { return this._initiatorSourceCodeLocation; }
     get initiatorNode() { return this._initiatorNode; }
     get initiatedResources() { return this._initiatedResources; }
-    get originalRequestWillBeSentTimestamp() { return this._originalRequestWillBeSentTimestamp; }
     get statusCode() { return this._statusCode; }
     get statusText() { return this._statusText; }
     get responseSource() { return this._responseSource; }
@@ -347,13 +346,6 @@ WI.Resource = class Resource extends WI.SourceCode
     get responseBodyTransferSize() { return this._responseBodyTransferSize; }
     get cachedResponseBodySize() { return this._cachedResponseBodySize; }
     get redirects() { return this._redirects; }
-
-    get urlComponents()
-    {
-        if (!this._urlComponents)
-            this._urlComponents = parseURL(this._url);
-        return this._urlComponents;
-    }
 
     get loadedSecurely()
     {
@@ -725,6 +717,10 @@ WI.Resource = class Resource extends WI.SourceCode
 
         if (type in WI.Resource.Type)
             type = WI.Resource.Type[type];
+        else if (type === "Stylesheet") {
+            // COMPATIBILITY (iOS 13): Page.ResourceType.Stylesheet was renamed to Page.ResourceType.StyleSheet.
+            type = WI.Resource.Type.StyleSheet;
+        }
 
         if (url)
             this._url = url;
@@ -847,14 +843,22 @@ WI.Resource = class Resource extends WI.SourceCode
         if (specialContentPromise)
             return specialContentPromise;
 
-        // If we have the requestIdentifier we can get the actual response for this specific resource.
-        // Otherwise the content will be cached resource data, which might not exist anymore.
-        if (this._requestIdentifier)
-            return this._target.NetworkAgent.getResponseBody(this._requestIdentifier);
+        if (this._target.type === WI.TargetType.Worker) {
+            console.assert(this.isScript);
+            let scriptForTarget = this.scripts.find((script) => script.target === this._target);
+            console.assert(scriptForTarget);
+            if (scriptForTarget)
+                return scriptForTarget.requestContentFromBackend();
+        } else {
+            // If we have the requestIdentifier we can get the actual response for this specific resource.
+            // Otherwise the content will be cached resource data, which might not exist anymore.
+            if (this._requestIdentifier)
+                return this._target.NetworkAgent.getResponseBody(this._requestIdentifier);
 
-        // There is no request identifier or frame to request content from.
-        if (this._parentFrame)
-            return this._target.PageAgent.getResourceContent(this._parentFrame.id, this._url);
+            // There is no request identifier or frame to request content from.
+            if (this._parentFrame)
+                return this._target.PageAgent.getResourceContent(this._parentFrame.id, this._url);
+        }
 
         return Promise.reject(new Error("Content request failed."));
     }
@@ -1023,16 +1027,16 @@ WI.Resource = class Resource extends WI.SourceCode
     requestContent()
     {
         if (this._finished)
-            return super.requestContent();
+            return super.requestContent().catch(this._requestContentFailure.bind(this));
 
         if (this._failed)
-            return Promise.resolve({error: WI.UIString("An error occurred trying to load the resource.")});
+            return this._requestContentFailure();
 
         if (!this._finishThenRequestContentPromise) {
             this._finishThenRequestContentPromise = new Promise((resolve, reject) => {
                 this.addEventListener(WI.Resource.Event.LoadingDidFinish, resolve);
                 this.addEventListener(WI.Resource.Event.LoadingDidFail, reject);
-            }).then(WI.SourceCode.prototype.requestContent.bind(this));
+            }).then(this.requestContent.bind(this));
         }
 
         return this._finishThenRequestContentPromise;
@@ -1058,19 +1062,29 @@ WI.Resource = class Resource extends WI.SourceCode
         cookie[WI.Resource.MainResourceCookieKey] = this.isMainResource();
     }
 
-    async createLocalResourceOverride({initialContent} = {})
+    async createLocalResourceOverride({mimeType, base64Encoded, content} = {})
     {
         console.assert(!this.isLocalResourceOverride);
-        console.assert(WI.NetworkManager.supportsLocalResourceOverrides());
+        console.assert(WI.NetworkManager.supportsOverridingResponses());
 
-        let {rawContent, rawBase64Encoded} = await this.requestContent();
-        let content = initialContent !== undefined ? initialContent : rawContent;
+        mimeType ??= this.mimeType ?? WI.mimeTypeForFileExtension(WI.fileExtensionForFilename(this.urlComponents.lastPathComponent));
 
-        return WI.LocalResourceOverride.create({
+        if (base64Encoded === undefined || content === undefined) {
+            try {
+                let {rawContent, rawBase64Encoded} = await this.requestContent();
+                content ??= rawContent;
+                base64Encoded ??= rawBase64Encoded;
+            } catch {
+                content ??= "";
+                base64Encoded ??= !WI.shouldTreatMIMETypeAsText(mimeType);
+            }
+        }
+
+        return WI.LocalResourceOverride.create(WI.LocalResourceOverride.InterceptType.Response, {
             url: this.url,
-            mimeType: this.mimeType,
+            mimeType,
             content,
-            base64Encoded: rawBase64Encoded,
+            base64Encoded,
             statusCode: this.statusCode,
             statusText: this.statusText,
             headers: this.responseHeaders,
@@ -1096,14 +1110,14 @@ WI.Resource = class Resource extends WI.SourceCode
                                  .replace(/\r/g, "\\r")
                                  .replace(/!/g, "\\041")
                                  .replace(/[^\x20-\x7E]/g, escapeCharacter) + "'";
-            } else {
-                // Use single quote syntax.
-                return `'${str}'`;
             }
+
+            // Use single quote syntax.
+            return `'${str}'`;
         }
 
         let command = ["curl " + escapeStringPosix(this.url).replace(/[[{}\]]/g, "\\$&")];
-        command.push(`-X${this.requestMethod}`);
+        command.push("-X " + escapeStringPosix(this.requestMethod));
 
         for (let key in this.requestHeaders)
             command.push("-H " + escapeStringPosix(`${key}: ${this.requestHeaders[key]}`));
@@ -1182,6 +1196,17 @@ WI.Resource = class Resource extends WI.SourceCode
 
         throw errorString;
     }
+
+    // Private
+
+    _requestContentFailure(error)
+    {
+        return Promise.resolve({
+            error: WI.UIString("An error occurred trying to load the resource."),
+            reason: error?.message || this._failureReasonText,
+            sourceCode: this,
+        });
+    }
 };
 
 WI.Resource.TypeIdentifier = "resource";
@@ -1217,9 +1242,6 @@ WI.Resource.Type = {
     Beacon: "resource-type-beacon",
     WebSocket: "resource-type-websocket",
     Other: "resource-type-other",
-
-    // COMPATIBILITY (iOS 13): Page.ResourceType.Stylesheet was renamed to Page.ResourceType.StyleSheet.
-    Stylesheet: "resource-type-style-sheet",
 };
 
 WI.Resource.ResponseSource = {

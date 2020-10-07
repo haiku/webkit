@@ -46,7 +46,7 @@ STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(JSNPMethod);
 
 const ClassInfo JSNPMethod::s_info = { "NPMethod", &InternalFunction::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(JSNPMethod) };
 
-static EncodedJSValue JSC_HOST_CALL callMethod(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(callMethod);
 
 JSNPMethod::JSNPMethod(JSGlobalObject* globalObject, Structure* structure, NPIdentifier npIdentifier)
     : InternalFunction(globalObject->vm(), structure, callMethod, nullptr)
@@ -56,17 +56,17 @@ JSNPMethod::JSNPMethod(JSGlobalObject* globalObject, Structure* structure, NPIde
 
 void JSNPMethod::finishCreation(VM& vm, const String& name)
 {
-    Base::finishCreation(vm, name);
+    Base::finishCreation(vm, 0, name);
     ASSERT(inherits(vm, info()));
 }
 
 IsoSubspace* JSNPMethod::subspaceForImpl(VM& vm)
 {
-    static NeverDestroyed<IsoSubspacePerVM> perVM([] (VM& vm) { return ISO_SUBSPACE_PARAMETERS(vm.destructibleObjectHeapCellType.get(), JSNPMethod); });
+    static NeverDestroyed<IsoSubspacePerVM> perVM([] (VM& vm) { return ISO_SUBSPACE_PARAMETERS(vm.cellHeapCellType.get(), JSNPMethod); });
     return &perVM.get().forVM(vm);
 }
 
-static EncodedJSValue JSC_HOST_CALL callMethod(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(callMethod, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);

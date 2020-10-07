@@ -26,12 +26,13 @@
 #include "config.h"
 #include "InjectedScriptHost.h"
 
-#include "JSCInlines.h"
 #include "JSInjectedScriptHost.h"
-
-using namespace JSC;
+#include "JSObjectInlines.h"
+#include "StructureInlines.h"
 
 namespace Inspector {
+
+using namespace JSC;
 
 InjectedScriptHost::~InjectedScriptHost()
 {

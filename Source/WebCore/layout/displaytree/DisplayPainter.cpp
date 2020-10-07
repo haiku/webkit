@@ -30,13 +30,13 @@
 
 #include "CachedImage.h"
 #include "Color.h"
-#include "DisplayBox.h"
 #include "GraphicsContext.h"
 #include "InlineFormattingState.h"
 #include "InlineTextItem.h"
 #include "IntRect.h"
-#include "LayoutContainer.h"
-#include "LayoutDescendantIterator.h"
+#include "LayoutBoxGeometry.h"
+#include "LayoutContainerBox.h"
+#include "LayoutInitialContainingBlock.h"
 #include "LayoutState.h"
 #include "RenderStyle.h"
 #include "TextRun.h"
@@ -44,10 +44,11 @@
 namespace WebCore {
 namespace Display {
 
-static void paintBoxDecoration(GraphicsContext& context, const Box& absoluteDisplayBox, const RenderStyle& style, bool needsMarginPainting)
+// FIXME: Move to display box.
+static void paintBoxDecoration(GraphicsContext& context, const Layout::BoxGeometry& absoluteBoxGeometry, const RenderStyle& style, bool needsMarginPainting)
 {
-    auto decorationBoxTopLeft = needsMarginPainting ? absoluteDisplayBox.rectWithMargin().topLeft() : absoluteDisplayBox.topLeft();
-    auto decorationBoxSize = needsMarginPainting ? absoluteDisplayBox.rectWithMargin().size() : LayoutSize(absoluteDisplayBox.borderBoxWidth(), absoluteDisplayBox.borderBoxHeight());
+    auto decorationBoxTopLeft = needsMarginPainting ? absoluteBoxGeometry.logicalRectWithMargin().topLeft() : absoluteBoxGeometry.logicalTopLeft();
+    auto decorationBoxSize = needsMarginPainting ? absoluteBoxGeometry.logicalRectWithMargin().size() : LayoutSize(absoluteBoxGeometry.borderBoxWidth(), absoluteBoxGeometry.borderBoxHeight());
     // Background color
     if (style.hasBackground()) {
         context.fillRect({ decorationBoxTopLeft, decorationBoxSize }, style.backgroundColor());
@@ -71,7 +72,7 @@ static void paintBoxDecoration(GraphicsContext& context, const Box& absoluteDisp
             context.drawLine(start, end);
         };
 
-        context.setFillColor(Color::transparent);
+        context.setFillColor(Color::transparentBlack);
 
         auto decorationBoxWidth = decorationBoxSize.width();
         auto decorationBoxHeight = decorationBoxSize.height();
@@ -110,90 +111,188 @@ static void paintBoxDecoration(GraphicsContext& context, const Box& absoluteDisp
     }
 }
 
-static void paintInlineContent(GraphicsContext& context, const Box& rootAbsoluteDisplayBox, const Layout::InlineFormattingState& formattingState)
+static void paintInlineContent(GraphicsContext& context, LayoutPoint absoluteOffset, const Layout::InlineFormattingState& formattingState)
 {
-    auto& inlineRuns = formattingState.inlineRuns();
-    if (inlineRuns.isEmpty())
-        return;
-
-    for (auto& run : inlineRuns) {
-        if (auto textContext = run->textContext()) {
-            auto& style = run->style();
+    for (auto& run : formattingState.lineRuns()) {
+        auto& runRect = run.logicalRect();
+        if (auto& textContent = run.text()) {
+            auto& style = run.layoutBox().style();
             context.setStrokeColor(style.color());
             context.setFillColor(style.color());
 
-            auto logicalLeft = rootAbsoluteDisplayBox.left() + run->logicalLeft();
+            auto absoluteLeft = absoluteOffset.x() + runRect.left();
             // FIXME: Add non-baseline align painting
-            auto& lineBox = formattingState.lineBoxForRun(*run);
-            auto baselineOffset = rootAbsoluteDisplayBox.top() + lineBox.logicalTop() + lineBox.baselineOffset();
-            if (auto expansionContext = textContext->expansion())
-                context.drawText(style.fontCascade(), TextRun { textContext->content(), logicalLeft, expansionContext->horizontalExpansion, expansionContext->behavior }, { logicalLeft, baselineOffset });
-            else
-                context.drawText(style.fontCascade(), TextRun { textContext->content(), logicalLeft }, { logicalLeft, baselineOffset });
-        } else if (auto* cachedImage = run->image()) {
-            auto runAbsoluteRect = FloatRect { rootAbsoluteDisplayBox.left() + run->logicalLeft(), rootAbsoluteDisplayBox.top() + run->logicalTop(), run->logicalWidth(), run->logicalHeight() };
-            context.drawImage(*cachedImage->image(), runAbsoluteRect);
+            auto baseline = absoluteOffset.y() + runRect.top() + style.fontMetrics().ascent();
+            auto expansion = run.expansion();
+            // FIXME: The final painter should have access to the current line to offset the runs.
+            auto textRun = TextRun { textContent->content(), runRect.left(), expansion.horizontalExpansion, expansion.behavior };
+            textRun.setTabSize(!style.collapseWhiteSpace(), style.tabSize());
+            context.drawText(style.fontCascade(), textRun, { absoluteLeft, baseline });
         }
     }
 }
 
-static Box absoluteDisplayBox(const Layout::LayoutState& layoutState, const Layout::Box& layoutBox)
+Layout::BoxGeometry Painter::absoluteBoxGeometry(const Layout::LayoutState& layoutState, const Layout::Box& layoutBoxToPaint)
 {
     // Should never really happen but table code is way too incomplete.
-    if (!layoutState.hasDisplayBox(layoutBox))
+    if (!layoutState.hasBoxGeometry(layoutBoxToPaint))
         return { };
+    if (is<Layout::InitialContainingBlock>(layoutBoxToPaint))
+        return layoutState.geometryForBox(layoutBoxToPaint);
 
-    auto absoluteBox = Box { layoutState.displayBoxForLayoutBox(layoutBox) };
-    for (auto* container = layoutBox.containingBlock(); container != &layoutBox.initialContainingBlock(); container = container->containingBlock())
-        absoluteBox.moveBy(layoutState.displayBoxForLayoutBox(*container).topLeft());
+    auto paintContainer = [&] (const auto& layoutBox) {
+        if (layoutBox.isTableCell()) {
+            // The table cell's containing block is the table box (skipping both the row and the section), but it's positioned relative to the table section.
+            // Let's skip the row and go right to the section box.
+            return &layoutBox.parent().parent();
+        }
+        return &layoutBox.containingBlock();
+    };
+    auto absoluteBox = Layout::BoxGeometry { layoutState.geometryForBox(layoutBoxToPaint) };
+    for (auto* container = paintContainer(layoutBoxToPaint); !is<Layout::InitialContainingBlock>(container); container = paintContainer(*container))
+        absoluteBox.moveBy(layoutState.geometryForBox(*container).logicalTopLeft());
     return absoluteBox;
 }
 
-static void paintBoxDecorationAndChildren(GraphicsContext& context, const Layout::LayoutState& layoutState, const Layout::Box& layoutBox, const IntRect& dirtyRect)
+static bool isPaintRootCandidate(const Layout::Box& layoutBox)
 {
-    if (!layoutBox.isAnonymous()) {
-        auto absoluteDisplayBox = Display::absoluteDisplayBox(layoutState, layoutBox);
-        if (dirtyRect.intersects(snappedIntRect(absoluteDisplayBox.rect())))
-            paintBoxDecoration(context, absoluteDisplayBox, layoutBox.style(), layoutBox.isBodyBox());
+    return layoutBox.isPositioned();
+}
+
+using LayoutBoxList = Vector<const Layout::Box*>;
+
+enum PaintPhase { Decoration, Content };
+static void paintSubtree(GraphicsContext& context, const Layout::LayoutState& layoutState, const Layout::Box& paintRootBox, const IntRect& dirtyRect, PaintPhase paintPhase)
+{
+    auto paint = [&] (auto& layoutBox) {
+        if (layoutBox.style().visibility() != Visibility::Visible)
+            return;
+        if (!layoutState.hasBoxGeometry(layoutBox))
+            return;
+        auto absoluteBoxGeometry = Painter::absoluteBoxGeometry(layoutState, layoutBox);
+        if (!dirtyRect.intersects(snappedIntRect(absoluteBoxGeometry.logicalRect())))
+            return;
+
+        if (paintPhase == PaintPhase::Decoration) {
+            if (layoutBox.isAnonymous())
+                return;
+            paintBoxDecoration(context, absoluteBoxGeometry, layoutBox.style(), layoutBox.isBodyBox());
+            return;
+        }
+        // Only inline content for now.
+        if (layoutBox.establishesInlineFormattingContext()) {
+            auto& containerBox = downcast<Layout::ContainerBox>(layoutBox);
+            paintInlineContent(context, absoluteBoxGeometry.logicalTopLeft(), layoutState.establishedInlineFormattingState(containerBox));
+        }
+    };
+
+    paint(paintRootBox);
+    if (!is<Layout::ContainerBox>(paintRootBox) || !downcast<Layout::ContainerBox>(paintRootBox).hasChild())
+        return;
+
+    LayoutBoxList layoutBoxList;
+    layoutBoxList.append(downcast<Layout::ContainerBox>(paintRootBox).firstChild());
+    while (!layoutBoxList.isEmpty()) {
+        while (true) {
+            auto& layoutBox = *layoutBoxList.last();
+            if (isPaintRootCandidate(layoutBox))
+                break;
+            paint(layoutBox);
+            if (!is<Layout::ContainerBox>(layoutBox) || !downcast<Layout::ContainerBox>(layoutBox).hasChild())
+                break;
+            layoutBoxList.append(downcast<Layout::ContainerBox>(layoutBox).firstChild());
+        }
+        while (!layoutBoxList.isEmpty()) {
+            auto& layoutBox = *layoutBoxList.takeLast();
+            // Stay within.
+            if (&layoutBox == &paintRootBox)
+                return;
+            if (auto* nextSibling = layoutBox.nextSibling()) {
+                layoutBoxList.append(nextSibling);
+                break;
+            }
+        }
+    }
+}
+
+static LayoutRect collectPaintRootsAndContentRect(const Layout::LayoutState& layoutState, const Layout::Box& rootLayoutBox, LayoutBoxList& positiveZOrderList, LayoutBoxList& negativeZOrderList)
+{
+    auto appendPaintRoot = [&] (const auto& layoutBox) {
+        if (layoutBox.style().usedZIndex() < 0) {
+            negativeZOrderList.append(&layoutBox);
+            return;
+        }
+        positiveZOrderList.append(&layoutBox);
+    };
+
+    auto contentRect = LayoutRect { layoutState.geometryForBox(rootLayoutBox).logicalRect() };
+
+    // Initial BFC is always a paint root.
+    appendPaintRoot(rootLayoutBox);
+    LayoutBoxList layoutBoxList;
+    layoutBoxList.append(&rootLayoutBox);
+    while (!layoutBoxList.isEmpty()) {
+        while (true) {
+            auto& layoutBox = *layoutBoxList.last();
+            if (layoutBox.style().visibility() != Visibility::Visible)
+                break;
+            if (isPaintRootCandidate(layoutBox))
+                appendPaintRoot(layoutBox);
+            if (layoutState.hasBoxGeometry(layoutBox))
+                contentRect.uniteIfNonZero(Painter::absoluteBoxGeometry(layoutState, layoutBox).logicalRect());
+            if (!is<Layout::ContainerBox>(layoutBox) || !downcast<Layout::ContainerBox>(layoutBox).hasChild())
+                break;
+            layoutBoxList.append(downcast<Layout::ContainerBox>(layoutBox).firstChild());
+        }
+        while (!layoutBoxList.isEmpty()) {
+            auto& layoutBox = *layoutBoxList.takeLast();
+            if (auto* nextSibling = layoutBox.nextSibling()) {
+                layoutBoxList.append(nextSibling);
+                break;
+            }
+        }
     }
 
-    if (!is<Layout::Container>(layoutBox))
-        return;
-    for (auto& childLayoutBox : Layout::childrenOfType<Layout::Box>(downcast<Layout::Container>(layoutBox))) {
-        if (childLayoutBox.style().visibility() != Visibility::Visible)
-            continue;
-        paintBoxDecorationAndChildren(context, layoutState, childLayoutBox, dirtyRect);
-    }
+    auto compareZIndex = [] (const Layout::Box* a, const Layout::Box* b) {
+        return a->style().usedZIndex() < b->style().usedZIndex();
+    };
+
+    std::stable_sort(positiveZOrderList.begin(), positiveZOrderList.end(), compareZIndex);
+    std::stable_sort(negativeZOrderList.begin(), negativeZOrderList.end(), compareZIndex);
+    return contentRect;
 }
 
 void Painter::paint(const Layout::LayoutState& layoutState, GraphicsContext& context, const IntRect& dirtyRect)
 {
-    auto& layoutRoot = layoutState.root();
-    if (!layoutRoot.firstChild())
+    auto& rootLayoutBox = layoutState.root();
+    if (!rootLayoutBox.firstChild())
         return;
+
+    Vector<const Layout::Box*> negativeZOrderList;
+    Vector<const Layout::Box*> positiveZOrderList;
+    auto contentRect = collectPaintRootsAndContentRect(layoutState, rootLayoutBox, positiveZOrderList, negativeZOrderList);
+
     // Fill the entire content area.
-    auto rootRect = LayoutRect { layoutState.displayBoxForLayoutBox(layoutRoot).rect() };
-    for (auto& layoutBox : Layout::descendantsOfType<Layout::Box>(layoutRoot))
-        rootRect.uniteIfNonZero(Display::absoluteDisplayBox(layoutState, layoutBox).rect());
-    context.fillRect(rootRect, Color::white);
+    context.fillRect(contentRect, Color::white);
 
-    // 1. Paint box decoration (both block and inline).
-    paintBoxDecorationAndChildren(context, layoutState, *layoutRoot.firstChild(), dirtyRect);
-
-    // 2. Paint content
-    for (auto& layoutBox : Layout::descendantsOfType<Layout::Box>(layoutRoot)) {
-        auto absoluteDisplayBox = Display::absoluteDisplayBox(layoutState, layoutBox);
-        // FIXME: This is the best we can do with no layout overflow support.
-        if (!dirtyRect.intersects(snappedIntRect(absoluteDisplayBox.rect())))
-            continue;
-        if (layoutBox.style().visibility() != Visibility::Visible)
-            continue;
-        if (layoutBox.establishesInlineFormattingContext()) {
-            auto& container = downcast<Layout::Container>(layoutBox);
-            paintInlineContent(context, absoluteDisplayBox, downcast<Layout::InlineFormattingState>(layoutState.establishedFormattingState(container)));
-            continue;
-        }
+    for (auto& paintRootBox : negativeZOrderList) {
+        paintSubtree(context, layoutState, *paintRootBox, dirtyRect, PaintPhase::Decoration);
+        paintSubtree(context, layoutState, *paintRootBox, dirtyRect, PaintPhase::Content);
     }
+
+    for (auto& paintRootBox : positiveZOrderList) {
+        paintSubtree(context, layoutState, *paintRootBox, dirtyRect, PaintPhase::Decoration);
+        paintSubtree(context, layoutState, *paintRootBox, dirtyRect, PaintPhase::Content);
+    }
+}
+
+void Painter::paintInlineFlow(const Layout::LayoutState& layoutState, GraphicsContext& context)
+{
+    auto& layoutRoot = layoutState.root();
+
+    ASSERT(layoutRoot.establishesInlineFormattingContext());
+
+    paintInlineContent(context, { }, layoutState.establishedInlineFormattingState(layoutRoot));
 }
 
 }

@@ -41,7 +41,7 @@ namespace WebKit {
 class LocalStorageDatabase;
 class LocalStorageNamespace;
 
-class StorageArea {
+class StorageArea : public CanMakeWeakPtr<StorageArea> {
     WTF_MAKE_NONCOPYABLE(StorageArea);
     WTF_MAKE_FAST_ALLOCATED;
 public:
@@ -71,6 +71,7 @@ public:
     void openDatabaseAndImportItemsIfNeeded() const;
 
     void syncToDatabase();
+    void close();
 
 private:
     void dispatchEvents(IPC::Connection::UniqueID sourceConnection, StorageAreaImplIdentifier, const String& key, const String& oldValue, const String& newValue, const String& urlString) const;

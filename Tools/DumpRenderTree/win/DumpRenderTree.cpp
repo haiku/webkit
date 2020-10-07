@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2015 Apple Inc.  All rights reserved.
+ * Copyright (C) 2005-2020 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -488,6 +488,13 @@ static wstring dumpFramesAsText(IWebFrame* frame)
         }
     }
 
+    // To keep things tidy, strip all trailing spaces: they are not a meaningful part of dumpAsText test output.
+    std::wstring::size_type spacePosition;
+    while ((spacePosition = result.find(L" \n")) != std::wstring::npos)
+        result.erase(spacePosition, 1);
+    while (!result.empty() && result.back() == ' ')
+        result.pop_back();
+
     return result;
 }
 
@@ -796,10 +803,15 @@ static void enableExperimentalFeatures(IWebPreferences* preferences)
     prefsPrivate->setVisualViewportAPIEnabled(TRUE);
     prefsPrivate->setCSSOMViewScrollingAPIEnabled(TRUE);
     prefsPrivate->setResizeObserverEnabled(TRUE);
-    prefsPrivate->setWebAnimationsEnabled(TRUE);
+    prefsPrivate->setWebAnimationsCompositeOperationsEnabled(TRUE);
+    prefsPrivate->setWebAnimationsMutableTimelinesEnabled(TRUE);
+    prefsPrivate->setCSSCustomPropertiesAndValuesEnabled(TRUE);
     prefsPrivate->setServerTimingEnabled(TRUE);
+    prefsPrivate->setAspectRatioOfImgFromWidthAndHeightEnabled(TRUE);
     // FIXME: WebGL2
     // FIXME: WebRTC
+    prefsPrivate->setCSSOMViewSmoothScrollingEnabled(TRUE);
+    prefsPrivate->setCSSIndividualTransformPropertiesEnabled(TRUE);
 }
 
 static void resetWebPreferencesToConsistentValues(IWebPreferences* preferences)
@@ -810,7 +822,7 @@ static void resetWebPreferencesToConsistentValues(IWebPreferences* preferences)
 
     preferences->setAutosaves(FALSE);
 
-    COMPtr<IWebPreferencesPrivate6> prefsPrivate(Query, preferences);
+    COMPtr<IWebPreferencesPrivate8> prefsPrivate(Query, preferences);
     ASSERT(prefsPrivate);
     prefsPrivate->setFullScreenEnabled(TRUE);
 
@@ -830,6 +842,8 @@ static void resetWebPreferencesToConsistentValues(IWebPreferences* preferences)
     static _bstr_t pictographFamily(TEXT("Segoe UI Symbol"));
 #endif
 
+    prefsPrivate->setAllowTopNavigationToDataURLs(TRUE);
+    prefsPrivate->setModernUnprefixedWebAudioEnabled(TRUE);
     prefsPrivate->setAllowUniversalAccessFromFileURLs(TRUE);
     prefsPrivate->setAllowFileAccessFromFileURLs(TRUE);
     preferences->setStandardFontFamily(standardFamily);
@@ -890,11 +904,6 @@ static void resetWebPreferencesToConsistentValues(IWebPreferences* preferences)
 
     preferences->setFontSmoothing(FontSmoothingTypeStandard);
 
-    prefsPrivate->setFetchAPIEnabled(TRUE);
-    prefsPrivate->setShadowDOMEnabled(TRUE);
-    prefsPrivate->setCustomElementsEnabled(TRUE);
-    prefsPrivate->setResourceTimingEnabled(TRUE);
-    prefsPrivate->setUserTimingEnabled(TRUE);
     prefsPrivate->setDataTransferItemsEnabled(TRUE);
     prefsPrivate->clearNetworkLoaderSession();
 
@@ -903,18 +912,20 @@ static void resetWebPreferencesToConsistentValues(IWebPreferences* preferences)
 
 static void setWebPreferencesForTestOptions(IWebPreferences* preferences, const TestOptions& options)
 {
-    COMPtr<IWebPreferencesPrivate7> prefsPrivate { Query, preferences };
+    COMPtr<IWebPreferencesPrivate8> prefsPrivate { Query, preferences };
 
-    prefsPrivate->setWebAnimationsCSSIntegrationEnabled(options.enableWebAnimationsCSSIntegration);
     prefsPrivate->setMenuItemElementEnabled(options.enableMenuItemElement);
     prefsPrivate->setKeygenElementEnabled(options.enableKeygenElement);
     prefsPrivate->setModernMediaControlsEnabled(options.enableModernMediaControls);
-    prefsPrivate->setIsSecureContextAttributeEnabled(options.enableIsSecureContextAttribute);
     prefsPrivate->setInspectorAdditionsEnabled(options.enableInspectorAdditions);
     prefsPrivate->setRequestIdleCallbackEnabled(options.enableRequestIdleCallback);
     prefsPrivate->setAsyncClipboardAPIEnabled(options.enableAsyncClipboardAPI);
+    prefsPrivate->setContactPickerAPIEnabled(options.enableContactPickerAPI);
+    prefsPrivate->setWebSQLEnabled(options.enableWebSQL);
+    prefsPrivate->setAllowTopNavigationToDataURLs(options.allowTopNavigationToDataURLs);
     preferences->setPrivateBrowsingEnabled(options.useEphemeralSession);
     preferences->setUsesPageCache(options.enableBackForwardCache);
+    prefsPrivate->setCSSOMViewSmoothScrollingEnabled(options.enableCSSOMViewSmoothScrolling);
 }
 
 static String applicationId()
@@ -1042,7 +1053,7 @@ static void resetWebViewToConsistentStateBeforeTesting(const TestOptions& option
     if (webViewPrivate && SUCCEEDED(webViewPrivate->viewWindow(&viewWindow)) && viewWindow)
         ::SetFocus(viewWindow);
 
-    webViewPrivate->resetOriginAccessWhitelists();
+    webViewPrivate->resetOriginAccessAllowLists();
 
     sharedUIDelegate->resetUndoManager();
 

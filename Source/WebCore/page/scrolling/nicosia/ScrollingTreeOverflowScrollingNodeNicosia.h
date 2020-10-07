@@ -33,6 +33,8 @@
 #include "ScrollingTreeOverflowScrollingNode.h"
 
 namespace WebCore {
+class ScrollAnimation;
+class ScrollAnimationKinetic;
 
 class ScrollingTreeOverflowScrollingNodeNicosia final : public ScrollingTreeOverflowScrollingNode {
 public:
@@ -44,11 +46,20 @@ private:
 
     void commitStateAfterChildren(const ScrollingStateNode&) override;
 
-    FloatPoint adjustedScrollPosition(const FloatPoint&, ScrollPositionClamp) const override;
+    FloatPoint adjustedScrollPosition(const FloatPoint&, ScrollClamping) const override;
 
     void repositionScrollingLayers() override;
 
-    ScrollingEventResult handleWheelEvent(const PlatformWheelEvent&) override;
+    WheelEventHandlingResult handleWheelEvent(const PlatformWheelEvent&) override;
+
+    void stopScrollAnimations() override;
+
+#if ENABLE(KINETIC_SCROLLING)
+    std::unique_ptr<ScrollAnimationKinetic> m_kineticAnimation;
+#endif
+#if ENABLE(SMOOTH_SCROLLING)
+    std::unique_ptr<ScrollAnimation> m_smoothAnimation;
+#endif
 };
 
 } // namespace WebCore

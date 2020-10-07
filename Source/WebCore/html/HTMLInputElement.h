@@ -26,16 +26,12 @@
 
 #include "FileChooser.h"
 #include "HTMLTextFormControlElement.h"
-#include "StepRange.h"
 #include <memory>
 #include <wtf/WeakPtr.h>
 
-#if PLATFORM(IOS_FAMILY)
-#include "DateComponents.h"
-#endif
-
 namespace WebCore {
 
+class Decimal;
 class DragData;
 class FileList;
 class HTMLDataListElement;
@@ -44,6 +40,7 @@ class Icon;
 class InputType;
 class ListAttributeTargetObserver;
 class RadioButtonGroups;
+class StepRange;
 
 struct DateTimeChooserParameters;
 
@@ -53,6 +50,9 @@ struct InputElementClickState {
     bool indeterminate { false };
     RefPtr<HTMLInputElement> checkedRadioButton;
 };
+
+enum class AnyStepHandling : bool;
+enum class DateComponentsType : uint8_t;
 
 class HTMLInputElement : public HTMLTextFormControlElement {
     WTF_MAKE_ISO_ALLOCATED(HTMLInputElement);
@@ -118,22 +118,19 @@ public:
     WEBCORE_EXPORT bool isText() const;
 
     WEBCORE_EXPORT bool isEmailField() const;
-    bool isFileUpload() const;
+    WEBCORE_EXPORT bool isFileUpload() const;
     bool isImageButton() const;
     WEBCORE_EXPORT bool isNumberField() const;
     bool isSubmitButton() const;
     WEBCORE_EXPORT bool isTelephoneField() const;
     WEBCORE_EXPORT bool isURLField() const;
     WEBCORE_EXPORT bool isDateField() const;
-    WEBCORE_EXPORT bool isDateTimeField() const;
     WEBCORE_EXPORT bool isDateTimeLocalField() const;
     WEBCORE_EXPORT bool isMonthField() const;
     WEBCORE_EXPORT bool isTimeField() const;
     WEBCORE_EXPORT bool isWeekField() const;
 
-#if PLATFORM(IOS_FAMILY)
-    DateComponents::Type dateType() const;
-#endif
+    DateComponentsType dateType() const;
 
     HTMLElement* containerElement() const;
     
@@ -235,7 +232,7 @@ public:
 
     unsigned effectiveMaxLength() const;
 
-    bool multiple() const;
+    WEBCORE_EXPORT bool multiple() const;
 
     bool isAutoFilled() const { return m_isAutoFilled; }
     WEBCORE_EXPORT void setAutoFilled(bool = true);
@@ -276,7 +273,7 @@ public:
 #if ENABLE(DATALIST_ELEMENT)
     WEBCORE_EXPORT RefPtr<HTMLElement> list() const;
     RefPtr<HTMLDataListElement> dataList() const;
-    void listAttributeTargetChanged();
+    void dataListMayHaveChanged();
 #endif
 
     Vector<Ref<HTMLInputElement>> radioButtonGroup() const;
@@ -391,7 +388,7 @@ private:
 
     bool canStartSelection() const final;
 
-    void accessKeyAction(bool sendMouseEvents) final;
+    bool accessKeyAction(bool sendMouseEvents) final;
 
     void parseAttribute(const QualifiedName&, const AtomString&) final;
     bool isPresentationAttribute(const QualifiedName&) const final;

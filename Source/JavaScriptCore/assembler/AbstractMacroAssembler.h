@@ -120,14 +120,8 @@ public:
         TimesTwo,
         TimesFour,
         TimesEight,
+        ScalePtr = isAddress64Bit() ? TimesEight : TimesFour,
     };
-    
-    static Scale timesPtr()
-    {
-        if (sizeof(void*) == 4)
-            return TimesFour;
-        return TimesEight;
-    }
     
     struct BaseIndex;
     
@@ -295,7 +289,7 @@ public:
             return const_cast<void*>(m_value);
         }
 
-        const void* m_value { 0 };
+        const void* m_value { nullptr };
     };
 
     struct ImmPtr : private TrustedImmPtr
@@ -585,10 +579,8 @@ public:
         friend struct DFG::OSRExit;
         friend class LinkBuffer;
     public:
-        Jump()
-        {
-        }
-        
+        Jump() = default;
+
 #if CPU(ARM_THUMB2)
         // Fixme: this information should be stored in the instruction stream, not in the Jump object.
         Jump(AssemblerLabel jmp, ARMv7Assembler::JumpType type = ARMv7Assembler::JumpNoCondition, ARMv7Assembler::Condition condition = ARMv7Assembler::ConditionInvalid)
@@ -685,14 +677,14 @@ public:
     private:
         AssemblerLabel m_label;
 #if CPU(ARM_THUMB2)
-        ARMv7Assembler::JumpType m_type;
-        ARMv7Assembler::Condition m_condition;
+        ARMv7Assembler::JumpType m_type { ARMv7Assembler::JumpNoCondition };
+        ARMv7Assembler::Condition m_condition { ARMv7Assembler::ConditionInvalid };
 #elif CPU(ARM64)
-        ARM64Assembler::JumpType m_type;
-        ARM64Assembler::Condition m_condition;
-        bool m_is64Bit;
-        unsigned m_bitNumber;
-        ARM64Assembler::RegisterID m_compareRegister;
+        ARM64Assembler::JumpType m_type { ARM64Assembler::JumpNoCondition };
+        ARM64Assembler::Condition m_condition { ARM64Assembler::ConditionInvalid };
+        bool m_is64Bit { false };
+        unsigned m_bitNumber { 0 };
+        ARM64Assembler::RegisterID m_compareRegister { ARM64Registers::InvalidGPRReg };
 #endif
     };
 
@@ -917,6 +909,22 @@ public:
             return;
         }
         RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    template<PtrTag callTag, PtrTag destTag>
+    static CodeLocationLabel<destTag> prepareForAtomicRepatchNearCallConcurrently(CodeLocationNearCall<callTag> nearCall, CodeLocationLabel<destTag> destination)
+    {
+#if USE(JUMP_ISLANDS)
+        switch (nearCall.callMode()) {
+        case NearCallMode::Tail:
+            return CodeLocationLabel<destTag>(tagCodePtr<destTag>(AssemblerType::prepareForAtomicRelinkJumpConcurrently(nearCall.dataLocation(), destination.dataLocation())));
+        case NearCallMode::Regular:
+            return CodeLocationLabel<destTag>(tagCodePtr<destTag>(AssemblerType::prepareForAtomicRelinkCallConcurrently(nearCall.dataLocation(), destination.untaggedExecutableAddress())));
+        }
+#else
+        UNUSED_PARAM(nearCall);
+        return destination;
+#endif
     }
 
     template<PtrTag tag>

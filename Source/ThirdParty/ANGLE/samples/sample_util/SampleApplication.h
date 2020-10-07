@@ -19,6 +19,7 @@
 #include "util/egl_loader_autogen.h"
 
 class EGLWindow;
+class GLWindowBase;
 
 namespace angle
 {
@@ -45,26 +46,31 @@ class SampleApplication
 
     virtual void swap();
 
+    virtual void onKeyUp(const Event::KeyEvent &keyEvent);
+    virtual void onKeyDown(const Event::KeyEvent &keyEvent);
+
     OSWindow *getWindow() const;
     EGLConfig getConfig() const;
     EGLDisplay getDisplay() const;
     EGLSurface getSurface() const;
     EGLContext getContext() const;
 
-    bool popEvent(Event *event);
-
     int run();
     void exit();
 
   private:
+    bool popEvent(Event *event);
+
     std::string mName;
     uint32_t mWidth;
     uint32_t mHeight;
     bool mRunning;
 
     Timer mTimer;
+    GLWindowBase *mGLWindow;
     EGLWindow *mEGLWindow;
     OSWindow *mOSWindow;
+    angle::GLESDriverType mDriverType;
 
     EGLPlatformParameters mPlatformParams;
 

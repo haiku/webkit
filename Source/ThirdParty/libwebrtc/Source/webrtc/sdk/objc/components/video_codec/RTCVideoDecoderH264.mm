@@ -19,10 +19,14 @@
 #import "helpers.h"
 #import "helpers/scoped_cftyperef.h"
 
+#if defined(WEBRTC_IOS)
+#import "helpers/UIDevice+RTCDevice.h"
+#endif
+
 #include "modules/video_coding/include/video_error_codes.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/timeutils.h"
+#include "rtc_base/time_utils.h"
 #include "sdk/objc/components/video_codec/nalu_rewriter.h"
 
 // Struct that we pass to the decoder per frame to decode. We receive it again
@@ -92,16 +96,18 @@ void decompressionOutputCallback(void *decoderRef,
   return WEBRTC_VIDEO_CODEC_OK;
 }
 
-- (NSInteger)startDecodeWithSettings:(RTCVideoEncoderSettings *)settings
-                       numberOfCores:(int)numberOfCores {
-  return WEBRTC_VIDEO_CODEC_OK;
-}
-
 - (NSInteger)decode:(RTCEncodedImage *)inputImage
         missingFrames:(BOOL)missingFrames
     codecSpecificInfo:(nullable id<RTCCodecSpecificInfo>)info
          renderTimeMs:(int64_t)renderTimeMs {
   RTC_DCHECK(inputImage.buffer);
+
+  return [self decodeData: (uint8_t *)inputImage.buffer.bytes size: inputImage.buffer.length timeStamp: inputImage.timeStamp];
+}
+
+- (NSInteger)decodeData:(const uint8_t *)data
+        size:(size_t)size
+        timeStamp:(uint32_t)timeStamp {
 
   if (_error != noErr) {
     RTC_LOG(LS_WARNING) << "Last frame decode failed.";
@@ -110,8 +116,7 @@ void decompressionOutputCallback(void *decoderRef,
   }
 
   rtc::ScopedCFTypeRef<CMVideoFormatDescriptionRef> inputFormat =
-      rtc::ScopedCF(webrtc::CreateVideoFormatDescription((uint8_t *)inputImage.buffer.bytes,
-                                                         inputImage.buffer.length));
+      rtc::ScopedCF(webrtc::CreateVideoFormatDescription(data, size));
   if (inputFormat) {
     // Check if the video format has changed, and reinitialize decoder if
     // needed.
@@ -133,8 +138,8 @@ void decompressionOutputCallback(void *decoderRef,
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
   CMSampleBufferRef sampleBuffer = nullptr;
-  if (!webrtc::H264AnnexBBufferToCMSampleBuffer((uint8_t *)inputImage.buffer.bytes,
-                                                inputImage.buffer.length,
+  if (!webrtc::H264AnnexBBufferToCMSampleBuffer(data,
+                                                size,
                                                 _videoFormat,
                                                 &sampleBuffer,
                                                 _memoryPool)) {
@@ -143,14 +148,17 @@ void decompressionOutputCallback(void *decoderRef,
   RTC_DCHECK(sampleBuffer);
   VTDecodeFrameFlags decodeFlags = kVTDecodeFrame_EnableAsynchronousDecompression;
   std::unique_ptr<RTCFrameDecodeParams> frameDecodeParams;
-  frameDecodeParams.reset(new RTCFrameDecodeParams(_callback, inputImage.timeStamp));
+  frameDecodeParams.reset(new RTCFrameDecodeParams(_callback, timeStamp));
   OSStatus status = VTDecompressionSessionDecodeFrame(
       _decompressionSession, sampleBuffer, decodeFlags, frameDecodeParams.release(), nullptr);
 #if defined(WEBRTC_IOS)
   // Re-initialize the decoder if we have an invalid session while the app is
-  // active and retry the decode request.
-  if (status == kVTInvalidSessionErr && [self resetDecompressionSession] == WEBRTC_VIDEO_CODEC_OK) {
-    frameDecodeParams.reset(new RTCFrameDecodeParams(_callback, inputImage.timeStamp));
+  // active or decoder malfunctions and retry the decode request.
+  if ((status == kVTInvalidSessionErr || status == kVTVideoDecoderMalfunctionErr) &&
+      [self resetDecompressionSession] == WEBRTC_VIDEO_CODEC_OK) {
+    RTC_LOG(LS_INFO) << "Failed to decode frame with code: " << status
+                     << " retrying decode after decompression session reset";
+    frameDecodeParams.reset(new RTCFrameDecodeParams(_callback, timeStamp));
     status = VTDecompressionSessionDecodeFrame(
         _decompressionSession, sampleBuffer, decodeFlags, frameDecodeParams.release(), nullptr);
   }
@@ -246,8 +254,14 @@ void decompressionOutputCallback(void *decoderRef,
 
 - (void)destroyDecompressionSession {
   if (_decompressionSession) {
-#if defined(WEBRTC_IOS)
+#if defined(WEBRTC_WEBKIT_BUILD)
     VTDecompressionSessionWaitForAsynchronousFrames(_decompressionSession);
+#else
+#if defined(WEBRTC_IOS)
+    if ([UIDevice isIOS11OrLater]) {
+      VTDecompressionSessionWaitForAsynchronousFrames(_decompressionSession);
+    }
+#endif
 #endif
     VTDecompressionSessionInvalidate(_decompressionSession);
     CFRelease(_decompressionSession);

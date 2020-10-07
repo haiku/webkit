@@ -31,12 +31,19 @@ OBJC_CLASS JSScript;
 
 namespace JSC {
 
-class JSAPIGlobalObject : public JSGlobalObject {
+class JSAPIGlobalObject final : public JSGlobalObject {
 public:
     using Base = JSGlobalObject;
 
     DECLARE_EXPORT_INFO;
     static const GlobalObjectMethodTable s_globalObjectMethodTable;
+
+    static constexpr bool needsDestruction = true;
+    template<typename CellType, SubspaceAccess mode>
+    static IsoSubspace* subspaceFor(VM& vm)
+    {
+        return vm.apiGlobalObjectSpace<mode>();
+    }
 
     static JSAPIGlobalObject* create(VM& vm, Structure* structure)
     {
@@ -47,10 +54,12 @@ public:
 
     static Structure* createStructure(VM& vm, JSValue prototype)
     {
-        auto* result = Structure::create(vm, 0, prototype, TypeInfo(GlobalObjectType, StructureFlags), info());
+        auto* result = Structure::create(vm, nullptr, prototype, TypeInfo(GlobalObjectType, StructureFlags), info());
         result->setTransitionWatchpointIsLikelyToBeFired(true);
         return result;
     }
+
+    static void reportUncaughtExceptionAtEventLoop(JSGlobalObject*, Exception*);
 
     static JSInternalPromise* moduleLoaderImportModule(JSGlobalObject*, JSModuleLoader*, JSString* moduleNameValue, JSValue parameters, const SourceOrigin&);
     static Identifier moduleLoaderResolve(JSGlobalObject*, JSModuleLoader*, JSValue keyValue, JSValue referrerValue, JSValue);

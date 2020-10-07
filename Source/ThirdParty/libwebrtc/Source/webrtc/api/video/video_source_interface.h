@@ -42,20 +42,25 @@ struct RTC_EXPORT VideoSinkWants {
   absl::optional<int> target_pixel_count;
   // Tells the source the maximum framerate the sink wants.
   int max_framerate_fps = std::numeric_limits<int>::max();
+
+  // Tells the source that the sink wants width and height of the video frames
+  // to be divisible by |resolution_alignment|.
+  // For example: With I420, this value would be a multiple of 2.
+  // Note that this field is unrelated to any horizontal or vertical stride
+  // requirements the encoder has on the incoming video frame buffers.
+  int resolution_alignment = 1;
 };
 
 template <typename VideoFrameT>
 class VideoSourceInterface {
  public:
+  virtual ~VideoSourceInterface() = default;
+
   virtual void AddOrUpdateSink(VideoSinkInterface<VideoFrameT>* sink,
                                const VideoSinkWants& wants) = 0;
   // RemoveSink must guarantee that at the time the method returns,
   // there is no current and no future calls to VideoSinkInterface::OnFrame.
   virtual void RemoveSink(VideoSinkInterface<VideoFrameT>* sink) = 0;
-
- protected:
-  // Non-public, since one shouldn't own sources via this interface.
-  virtual ~VideoSourceInterface() {}
 };
 
 }  // namespace rtc

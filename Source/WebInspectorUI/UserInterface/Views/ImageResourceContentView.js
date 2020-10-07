@@ -25,7 +25,7 @@
 
 WI.ImageResourceContentView = class ImageResourceContentView extends WI.ResourceContentView
 {
-    constructor(resource)
+    constructor(resource, {disableDropZone} = {})
     {
         console.assert(resource instanceof WI.Resource);
 
@@ -33,8 +33,9 @@ WI.ImageResourceContentView = class ImageResourceContentView extends WI.Resource
 
         this._imageElement = null;
         this._draggingInternalImageElement = false;
+        this._disableDropZone = disableDropZone || false;
 
-        const toolTip = WI.UIString("Show transparency grid");
+        const toolTip = WI.repeatedUIString.showTransparencyGridTooltip();
         const activatedToolTip = WI.UIString("Hide transparency grid");
         this._showGridButtonNavigationItem = new WI.ActivateButtonNavigationItem("show-grid", toolTip, activatedToolTip, "Images/NavigationItemCheckers.svg", 13, 13);
         this._showGridButtonNavigationItem.visibilityPriority = WI.NavigationItem.VisibilityPriority.Low;
@@ -86,7 +87,7 @@ WI.ImageResourceContentView = class ImageResourceContentView extends WI.Resource
             this._draggingInternalImageElement = false;
         });
 
-        if (WI.NetworkManager.supportsLocalResourceOverrides()) {
+        if (WI.NetworkManager.supportsOverridingResponses() && !this._disableDropZone) {
             let dropZoneView = new WI.DropZoneView(this);
             dropZoneView.targetElement = imageContainer;
             this.addSubview(dropZoneView);
@@ -160,7 +161,7 @@ WI.ImageResourceContentView = class ImageResourceContentView extends WI.Resource
 
             console.assert(localResourceOverride);
 
-            let revision = localResourceOverride.localResource.currentRevision;
+            let revision = localResourceOverride.localResource.editableRevision;
             revision.updateRevisionContent(content, {base64Encoded, mimeType});
 
             if (!this.showingLocalResourceOverride)

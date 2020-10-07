@@ -98,9 +98,10 @@ private:
     RefPtr<WebDataListSuggestionsDropdown> createDataListSuggestionsDropdown(WebPageProxy&) override;
 #endif
     void selectionDidChange() override;
-    RefPtr<ViewSnapshot> takeViewSnapshot() override;
+    RefPtr<ViewSnapshot> takeViewSnapshot(Optional<WebCore::IntRect>&&) override;
 #if ENABLE(DRAG_SUPPORT)
-    void startDrag(Ref<WebCore::SelectionData>&&, WebCore::DragOperation, RefPtr<ShareableBitmap>&& dragImage) override;
+    void startDrag(WebCore::SelectionData&&, OptionSet<WebCore::DragOperation>, RefPtr<ShareableBitmap>&& dragImage) override;
+    void didPerformDragControllerAction() override;
 #endif
 
     void enterAcceleratedCompositingMode(const LayerTreeContext&) override;
@@ -110,7 +111,11 @@ private:
     void handleDownloadRequest(DownloadProxy&) override;
     void didChangeContentSize(const WebCore::IntSize&) override;
     void didCommitLoadForMainFrame(const String& mimeType, bool useCustomContentProvider) override;
-    void didFailLoadForMainFrame() override;
+    void didStartProvisionalLoadForMainFrame() override;
+    void didFirstVisuallyNonEmptyLayoutForMainFrame() override;
+    void didFinishNavigation(API::Navigation*) override;
+    void didFailNavigation(API::Navigation*) override;
+    void didSameDocumentNavigationForMainFrame(SameDocumentNavigationType) override;
 
     // Auxiliary Client Creation
 #if ENABLE(FULLSCREEN_API)
@@ -136,11 +141,6 @@ private:
     void willRecordNavigationSnapshot(WebBackForwardListItem&) override;
     void didRemoveNavigationGestureSnapshot() override;
 
-    void didStartProvisionalLoadForMainFrame() override;
-    void didFirstVisuallyNonEmptyLayoutForMainFrame() override;
-    void didFinishLoadForMainFrame() override;
-    void didSameDocumentNavigationForMainFrame(SameDocumentNavigationType) override;
-
 #if ENABLE(TOUCH_EVENTS)
     void doneWithTouchEvent(const NativeWebTouchEvent&, bool wasEventHandled) override;
 #endif
@@ -155,8 +155,6 @@ private:
     void didRestoreScrollPosition() override;
     void isPlayingAudioWillChange() final { }
     void isPlayingAudioDidChange() final { }
-
-    void didFinishProcessingAllPendingMouseEvents() final { }
 
     void requestDOMPasteAccess(const WebCore::IntRect&, const String&, CompletionHandler<void(WebCore::DOMPasteAccessResponse)>&&) final;
 
@@ -173,6 +171,8 @@ private:
 #endif
 
     void didChangeWebPageID() const override;
+
+    String themeName() const override;
 
     // Members of PageClientImpl class
     GtkWidget* m_viewWidget;

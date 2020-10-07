@@ -48,12 +48,11 @@ public:
 
     static JSWebAssemblyInstance* createInstance(JSGlobalObject*, JSWebAssemblyModule*, JSObject* importObject, Structure*);
 
-protected:
-    void finishCreation(VM&, WebAssemblyInstancePrototype*);
-
 private:
     WebAssemblyInstanceConstructor(VM&, Structure*);
+    void finishCreation(VM&, WebAssemblyInstancePrototype*);
 };
+STATIC_ASSERT_ISO_SUBSPACE_SHARABLE(WebAssemblyInstanceConstructor, InternalFunction);
 
 } // namespace JSC
 

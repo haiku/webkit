@@ -77,9 +77,11 @@ function installDependenciesWithApt {
         libicu-dev \
         libjpeg-dev \
         libfile-copy-recursive-perl \
-        $(aptIfElse libpng-dev libpng12-dev) \
+        libopenjp2-7-dev \
+        libpng-dev \
         libseccomp-dev \
         libsqlite3-dev \
+        libsystemd-dev \
         libtasn1-6-dev \
         libtool \
         libwebp-dev \
@@ -97,6 +99,7 @@ function installDependenciesWithApt {
         apache2 \
         curl \
         gdb \
+        fonts-liberation \
         libapache2-mod-bw \
         libapache2-mod-php \
         php-json \
@@ -109,12 +112,18 @@ function installDependenciesWithApt {
         ruby-highline \
         ruby-json"
 
+    # These are dependencies necessary for building with the Flatpak SDK.
+    packages="$packages \
+        flatpak"
+
     # These are dependencies necessary for building the jhbuild.
     packages="$packages \
         git \
         gsettings-desktop-schemas-dev \
+        gyp \
         libegl1-mesa-dev \
         libexpat1-dev \
+        libfdk-aac-dev \
         libgles2-mesa-dev \
         libluajit-5.1-dev \
         libmount-dev \
@@ -135,14 +144,34 @@ function installDependenciesWithApt {
         libwayland-dev \
         luajit \
         python3-setuptools \
+        uuid-dev \
         yasm"
 
     # These are dependencies necessary for using webkit-patch
     packages="$packages \
         git-svn \
+        python3-secretstorage \
         subversion"
 
+    # These are GStreamer plugins needed to play different media files.
+    packages="$packages \
+        gstreamer1.0-gl \
+        gstreamer1.0-libav \
+        gstreamer1.0-plugins-bad \
+        gstreamer1.0-plugins-base \
+        gstreamer1.0-plugins-good \
+        gstreamer1.0-plugins-ugly \
+        gstreamer1.0-pulseaudio"
+
     apt-get install $packages
+
+    # Ubuntu Bionic doesn't ship pipenv. So fallback to the pip3 install path.
+    if apt-cache show pipenv &>/dev/null; then
+        apt-get install pipenv
+    else
+        apt-get install -y python3-pip
+        pip3 install pipenv
+    fi
 }
 
 function installDependenciesWithPacman {
@@ -163,7 +192,6 @@ function installDependenciesWithPacman {
         grep \
         groff \
         gstreamer \
-        gst-plugins-bad \
         gst-plugins-base-libs \
         gzip \
         icu \
@@ -181,12 +209,14 @@ function installDependenciesWithPacman {
         m4 \
         make \
         ninja \
+        openjpeg2 \
         patch \
         perl-file-copy-recursive \
         pkg-config \
         ruby
         sed \
         sqlite \
+        libsystemd \
         texinfo \
         which \
         zlib \
@@ -206,13 +236,21 @@ function installDependenciesWithPacman {
         python2-gobject \
         python2-lxml \
         python2-psutil \
-        ruby"
+        ruby \
+        ttf-liberation"
+
+    # These are dependencies necessary for building with the Flatpak SDK.
+    packages="$packages \
+        flatpak \
+        python-pipenv"
 
     # These are dependencies necessary for building the jhbuild.
     packages="$packages \
         expat \
         git \
         gsettings-desktop-schemas \
+        gyp \
+        libfdk-aac \
         libproxy \
         libpsl \
         libpulse \
@@ -237,7 +275,16 @@ function installDependenciesWithPacman {
 
     # These are dependencies necessary for using webkit-patch
     packages="$packages \
+        python-secretstorage \
         svn"
+
+    # These are GStreamer plugins needed to play different media files.
+    packages="$packages \
+        gst-plugins-bad \
+        gst-plugins-base \
+        gst-plugins-good \
+        gst-plugins-ugly"
+
     pacman -S --needed $packages
 
 	cat <<-EOF
@@ -290,6 +337,7 @@ function installDependenciesWithDnf {
         libxml2-devel \
         libxslt-devel \
         ninja-build \
+        openjpeg2-devel \
         patch \
         perl-File-Copy-Recursive \
         perl-JSON-PP \
@@ -297,6 +345,7 @@ function installDependenciesWithDnf {
         perl-version \
         ruby \
         sqlite-devel \
+        systemd-devel \
         zlib-devel"
 
     # These are dependencies necessary for running tests.
@@ -304,6 +353,7 @@ function installDependenciesWithDnf {
         curl \
         gdb \
         httpd \
+        liberation-fonts \
         mod_bw \
         mod_ssl \
         perl-CGI \
@@ -317,16 +367,24 @@ function installDependenciesWithDnf {
         rubygem-highline \
         rubygem-json"
 
+    # These are dependencies necessary for building with the Flatpak SDK.
+    packages="$packages \
+        flatpak \
+        pipenv"
+
     # These are dependencies necessary for building the jhbuild.
     packages="$packages \
         expat-devel \
+        fdk-aac-devel \
         git \
         gsettings-desktop-schemas-devel \
+        gyp \
         libmount-devel \
         libproxy-devel \
         libpsl-devel \
         libsrtp-devel \
         libtheora-devel \
+        libuuid-devel \
         libv4l-devel \
         libvorbis-devel \
         libvpx-devel \
@@ -349,7 +407,17 @@ function installDependenciesWithDnf {
     # These are dependencies necessary for using webkit-patch
     packages="$packages
         git-svn \
+        python3-secretstorage \
         subversion"
+
+    # These are GStreamer plugins needed to play different media files.
+    packages="$packages \
+        gstreamer1-plugins-bad-free \
+        gstreamer1-plugins-bad-free-extras \
+        gstreamer1-plugins-base \
+        gstreamer1-plugins-good \
+        gstreamer1-plugins-good-extras \
+        gstreamer1-plugins-ugly-free"
 
     dnf install $packages
 }

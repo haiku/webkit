@@ -26,6 +26,7 @@
 #include "config.h"
 #include "WebURLSchemeHandler.h"
 
+#include "URLSchemeTaskParameters.h"
 #include "WebPageProxy.h"
 #include "WebURLSchemeTask.h"
 
@@ -48,9 +49,10 @@ WebURLSchemeHandler::~WebURLSchemeHandler()
     ASSERT(m_tasks.isEmpty());
 }
 
-void WebURLSchemeHandler::startTask(WebPageProxy& page, WebProcessProxy& process, PageIdentifier webPageID, uint64_t taskIdentifier, ResourceRequest&& request, SyncLoadCompletionHandler&& completionHandler)
+void WebURLSchemeHandler::startTask(WebPageProxy& page, WebProcessProxy& process, PageIdentifier webPageID, URLSchemeTaskParameters&& parameters, SyncLoadCompletionHandler&& completionHandler)
 {
-    auto result = m_tasks.add(taskIdentifier, WebURLSchemeTask::create(*this, page, process, webPageID, taskIdentifier, WTFMove(request), WTFMove(completionHandler)));
+    auto taskIdentifier = parameters.taskIdentifier;
+    auto result = m_tasks.add(taskIdentifier, WebURLSchemeTask::create(*this, page, process, webPageID, WTFMove(parameters), WTFMove(completionHandler)));
     ASSERT(result.isNewEntry);
 
     auto pageEntry = m_tasksByPageIdentifier.add(page.identifier(), HashSet<uint64_t>());
@@ -103,7 +105,7 @@ void WebURLSchemeHandler::stopTask(WebPageProxy& page, uint64_t taskIdentifier)
 void WebURLSchemeHandler::taskCompleted(WebURLSchemeTask& task)
 {
     auto takenTask = m_tasks.take(task.identifier());
-    ASSERT_UNUSED(takenTask, takenTask->ptr() == &task);
+    ASSERT_UNUSED(takenTask, takenTask == &task);
     removeTaskFromPageMap(task.pageProxyID(), task.identifier());
 
     platformTaskCompleted(task);

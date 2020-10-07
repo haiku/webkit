@@ -29,7 +29,6 @@
 
 #include "APICallbackFunction.h"
 #include "APICast.h"
-#include "IsoSubspacePerVM.h"
 #include "JSCClassPrivate.h"
 #include "JSCContextPrivate.h"
 #include "JSDestructibleObjectHeapCellType.h"
@@ -53,16 +52,29 @@ static JSObjectRef callAsConstructor(JSContextRef callerContext, JSObjectRef con
 
 const ClassInfo JSCCallbackFunction::s_info = { "CallbackFunction", &InternalFunction::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(JSCCallbackFunction) };
 
+static JSC_DECLARE_HOST_FUNCTION(callJSCCallbackFunction);
+static JSC_DECLARE_HOST_FUNCTION(constructJSCCallbackFunction);
+
+JSC_DEFINE_HOST_FUNCTION(callJSCCallbackFunction, (JSGlobalObject* globalObject, CallFrame* callFrame))
+{
+    return APICallbackFunction::callImpl<JSCCallbackFunction>(globalObject, callFrame);
+}
+
+JSC_DEFINE_HOST_FUNCTION(constructJSCCallbackFunction, (JSGlobalObject* globalObject, CallFrame* callFrame))
+{
+    return APICallbackFunction::constructImpl<JSCCallbackFunction>(globalObject, callFrame);
+}
+
 JSCCallbackFunction* JSCCallbackFunction::create(VM& vm, JSGlobalObject* globalObject, const String& name, Type type, JSCClass* jscClass, GRefPtr<GClosure>&& closure, GType returnType, Optional<Vector<GType>>&& parameters)
 {
     Structure* structure = globalObject->glibCallbackFunctionStructure();
     JSCCallbackFunction* function = new (NotNull, allocateCell<JSCCallbackFunction>(vm.heap)) JSCCallbackFunction(vm, structure, type, jscClass, WTFMove(closure), returnType, WTFMove(parameters));
-    function->finishCreation(vm, name);
+    function->finishCreation(vm, 0, name);
     return function;
 }
 
 JSCCallbackFunction::JSCCallbackFunction(VM& vm, Structure* structure, Type type, JSCClass* jscClass, GRefPtr<GClosure>&& closure, GType returnType, Optional<Vector<GType>>&& parameters)
-    : InternalFunction(vm, structure, APICallbackFunction::call<JSCCallbackFunction>, type == Type::Constructor ? APICallbackFunction::construct<JSCCallbackFunction> : nullptr)
+    : InternalFunction(vm, structure, callJSCCallbackFunction, type == Type::Constructor ? constructJSCCallbackFunction : nullptr)
     , m_functionCallback(callAsFunction)
     , m_constructCallback(callAsConstructor)
     , m_type(type)
@@ -221,12 +233,6 @@ JSObjectRef JSCCallbackFunction::construct(JSContextRef callerContext, size_t ar
 void JSCCallbackFunction::destroy(JSCell* cell)
 {
     static_cast<JSCCallbackFunction*>(cell)->JSCCallbackFunction::~JSCCallbackFunction();
-}
-
-IsoSubspace* JSCCallbackFunction::subspaceForImpl(VM& vm)
-{
-    NeverDestroyed<IsoSubspacePerVM> perVM([] (VM& vm) -> IsoSubspacePerVM::SubspaceParameters { return ISO_SUBSPACE_PARAMETERS(vm.destructibleObjectHeapCellType.get(), JSCCallbackFunction); });
-    return &perVM.get().forVM(vm);
 }
 
 } // namespace JSC

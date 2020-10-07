@@ -40,10 +40,9 @@ class FloatingState;
 enum class StyleDiff;
 
 class FormattingState {
+    WTF_MAKE_NONCOPYABLE(FormattingState);
     WTF_MAKE_ISO_ALLOCATED(FormattingState);
 public:
-    virtual ~FormattingState();
-
     FloatingState& floatingState() const { return m_floatingState; }
 
     void markNeedsLayout(const Box&, StyleDiff);
@@ -59,10 +58,12 @@ public:
     bool isBlockFormattingState() const { return m_type == Type::Block; }
     bool isInlineFormattingState() const { return m_type == Type::Inline; }
     bool isTableFormattingState() const { return m_type == Type::Table; }
+    bool isFlexFormattingState() const { return m_type == Type::Flex; }
 
     LayoutState& layoutState() const { return m_layoutState; }
 
-    Display::Box& displayBox(const Box& layoutBox);
+    // FIXME: We need to find a way to limit access to mutatable geometry.
+    BoxGeometry& boxGeometry(const Box& layoutBox);
     // Since we layout the out-of-flow boxes at the end of the formatting context layout, it's okay to store them in the formatting state -as opposed to the containing block level.
     using OutOfFlowBoxList = Vector<WeakPtr<const Box>>;
     void addOutOfFlowBox(const Box& outOfFlowBox) { m_outOfFlowBoxes.append(makeWeakPtr(outOfFlowBox)); }
@@ -70,8 +71,9 @@ public:
     const OutOfFlowBoxList& outOfFlowBoxes() const { return m_outOfFlowBoxes; }
 
 protected:
-    enum class Type { Block, Inline, Table };
+    enum class Type { Block, Inline, Table, Flex };
     FormattingState(Ref<FloatingState>&&, Type, LayoutState&);
+    ~FormattingState();
 
 private:
     LayoutState& m_layoutState;

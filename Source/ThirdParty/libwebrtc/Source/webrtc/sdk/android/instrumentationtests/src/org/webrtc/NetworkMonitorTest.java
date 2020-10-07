@@ -15,32 +15,31 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.webrtc.NetworkMonitorAutoDetect.ConnectionType;
-import static org.webrtc.NetworkMonitorAutoDetect.ConnectivityManagerDelegate;
 import static org.webrtc.NetworkMonitorAutoDetect.INVALID_NET_ID;
-import static org.webrtc.NetworkMonitorAutoDetect.NetworkInformation;
-import static org.webrtc.NetworkMonitorAutoDetect.NetworkState;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.Network;
-import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.support.annotation.Nullable;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.annotation.UiThreadTest;
 import android.support.test.filters.MediumTest;
 import android.support.test.filters.SmallTest;
 import android.support.test.rule.UiThreadTestRule;
-import javax.annotation.Nullable;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.webrtc.NetworkMonitorAutoDetect.ConnectionType;
+import org.webrtc.NetworkMonitorAutoDetect.ConnectivityManagerDelegate;
+import org.webrtc.NetworkMonitorAutoDetect.NetworkInformation;
+import org.webrtc.NetworkMonitorAutoDetect.NetworkState;
 
 /**
  * Tests for org.webrtc.NetworkMonitor.

@@ -83,6 +83,12 @@ private:
     bool isAlwaysOnLoggingAllowed() const override;
     bool supportsUnrestrictedApplePay() const override;
 
+    String userAgentScriptsBlockedErrorMessage() const final;
+
+    void getSetupFeatures(const WebCore::ApplePaySetupConfiguration&, const URL&, CompletionHandler<void(Vector<Ref<WebCore::ApplePaySetupFeature>>&&)>&&) final;
+    void beginApplePaySetup(const WebCore::ApplePaySetupConfiguration&, const URL&, Vector<RefPtr<WebCore::ApplePaySetupFeature>>&&, CompletionHandler<void(bool)>&&) final;
+    void endApplePaySetup() final;
+
     // IPC::MessageReceiver.
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) override;
 
@@ -110,10 +116,6 @@ private:
     WebPage& m_webPage;
 
     Optional<AvailablePaymentNetworksSet> m_availablePaymentNetworks;
-
-#if USE(APPLE_INTERNAL_SDK)
-#import <WebKitAdditions/WebPaymentCoordinatorAdditions.h>
-#endif
 };
 
 } // namespace WebKit

@@ -13,19 +13,38 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <queue>
 
+#include "api/transport/field_trial_based_config.h"
 #include "api/transport/network_types.h"
+#include "rtc_base/experiments/field_trial_parser.h"
 
 namespace webrtc {
 class RtcEventLog;
+
+struct BitrateProberConfig {
+  explicit BitrateProberConfig(const WebRtcKeyValueConfig* key_value_config);
+  BitrateProberConfig(const BitrateProberConfig&) = default;
+  BitrateProberConfig& operator=(const BitrateProberConfig&) = default;
+  ~BitrateProberConfig() = default;
+
+  // The minimum number probing packets used.
+  FieldTrialParameter<int> min_probe_packets_sent;
+  // A minimum interval between probes to allow scheduling to be feasible.
+  FieldTrialParameter<TimeDelta> min_probe_delta;
+  // The minimum probing duration.
+  FieldTrialParameter<TimeDelta> min_probe_duration;
+  // Maximum amount of time each probe can be delayed. Probe cluster is reset
+  // and retried from the start when this limit is reached.
+  FieldTrialParameter<TimeDelta> max_probe_delay;
+};
 
 // Note that this class isn't thread-safe by itself and therefore relies
 // on being protected by the caller.
 class BitrateProber {
  public:
-  BitrateProber();
-  explicit BitrateProber(RtcEventLog* event_log);
+  explicit BitrateProber(const WebRtcKeyValueConfig& field_trials);
   ~BitrateProber();
 
   void SetEnabled(bool enable);
@@ -42,11 +61,12 @@ class BitrateProber {
 
   // Create a cluster used to probe for |bitrate_bps| with |num_probes| number
   // of probes.
-  void CreateProbeCluster(int bitrate_bps, int64_t now_ms);
+  void CreateProbeCluster(DataRate bitrate, Timestamp now, int cluster_id);
 
-  // Returns the number of milliseconds until the next probe should be sent to
-  // get accurate probing.
-  int TimeUntilNextProbe(int64_t now_ms);
+  // Returns the at which the next probe should be sent to get accurate probing.
+  // If probing is not desired at this time, Timestamp::PlusInfinity() will be
+  // returned.
+  Timestamp NextProbeTime(Timestamp now) const;
 
   // Information about the current probing cluster.
   PacedPacketInfo CurrentCluster() const;
@@ -59,7 +79,7 @@ class BitrateProber {
   // multiple packets per probe, this call would be made at the end of sending
   // the last packet in probe. |probe_size| is the total size of all packets
   // in probe.
-  void ProbeSent(int64_t now_ms, size_t probe_size);
+  void ProbeSent(Timestamp now, size_t probe_size);
 
  private:
   enum class ProbingState {
@@ -82,12 +102,12 @@ class BitrateProber {
 
     int sent_probes = 0;
     int sent_bytes = 0;
-    int64_t time_created_ms = -1;
-    int64_t time_started_ms = -1;
+    Timestamp created_at = Timestamp::MinusInfinity();
+    Timestamp started_at = Timestamp::MinusInfinity();
     int retries = 0;
   };
 
-  int64_t GetNextProbeTime(const ProbeCluster& cluster);
+  Timestamp CalculateNextProbeTime(const ProbeCluster& cluster) const;
 
   ProbingState probing_state_;
 
@@ -97,10 +117,12 @@ class BitrateProber {
   std::queue<ProbeCluster> clusters_;
 
   // Time the next probe should be sent when in kActive state.
-  int64_t next_probe_time_ms_;
+  Timestamp next_probe_time_;
 
-  int next_cluster_id_;
-  RtcEventLog* const event_log_;
+  int total_probe_count_;
+  int total_failed_probe_count_;
+
+  BitrateProberConfig config_;
 };
 
 }  // namespace webrtc

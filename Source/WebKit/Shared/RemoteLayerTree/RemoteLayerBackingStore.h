@@ -69,9 +69,9 @@ public:
     void applyBackingStoreToLayer(CALayer *, LayerContentsType);
 
     void encode(IPC::Encoder&) const;
-    static bool decode(IPC::Decoder&, RemoteLayerBackingStore&);
+    static WARN_UNUSED_RETURN bool decode(IPC::Decoder&, RemoteLayerBackingStore&);
 
-    void enumerateRectsBeingDrawn(CGContextRef, void (^)(CGRect));
+    void enumerateRectsBeingDrawn(WebCore::GraphicsContext&, void (^)(WebCore::FloatRect));
 
     bool hasFrontBuffer() const
     {

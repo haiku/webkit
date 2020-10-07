@@ -29,6 +29,7 @@
 
 #include "CSSPropertyNames.h"
 #include "Document.h"
+#include "Element.h"
 #include "PlatformEvent.h"
 #include "RenderStyleConstants.h"
 #include "Timer.h"
@@ -70,6 +71,8 @@ public:
 
     void rendererWillBeDestroyed(const Element&);
     void willNotProceedWithClick();
+
+    void willNotProceedWithFixedObservationTimeWindow();
 
     void setHiddenTouchTarget(Element& targetElement) { m_hiddenTouchTargetElement = makeWeakPtr(targetElement); }
     void resetHiddenTouchTarget() { m_hiddenTouchTargetElement = { }; }
@@ -197,6 +200,7 @@ private:
         CanceledTransition,
         StartedFixedObservationTimeWindow,
         EndedFixedObservationTimeWindow,
+        WillNotProceedWithFixedObservationTimeWindow,
         ElementDidBecomeVisible
     };
     void adjustObservedState(Event);

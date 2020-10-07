@@ -52,5 +52,9 @@
 			<string>Editor</string>
 		</dict>
 	</array>
+    <key>NSCameraUsageDescription</key>
+    <string>Recording video on behalf of websites</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Recording audio on behalf of websites</string>
 </dict>
 </plist>

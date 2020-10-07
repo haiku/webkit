@@ -37,7 +37,6 @@ WI.Setting = class Setting extends WI.Object
 
         this._name = name;
 
-        this._localStorageKey = WI.Setting._localStorageKey(this._name);
         this._defaultValue = defaultValue;
     }
 
@@ -45,22 +44,25 @@ WI.Setting = class Setting extends WI.Object
 
     static migrateValue(key)
     {
-        let localStorageKey = WI.Setting._localStorageKey(key);
+        let localStorageKey = WI.Setting._localStorageKeyPrefix + key;
 
         let value = undefined;
-        if (!window.InspectorTest && window.localStorage && localStorageKey in window.localStorage) {
-            try {
-                value = JSON.parse(window.localStorage[localStorageKey]);
-            } catch { }
+        if (!window.InspectorTest && window.localStorage) {
+            let item = window.localStorage.getItem(localStorageKey);
+            if (item !== null) {
+                try {
+                    value = JSON.parse(item);
+                } catch { }
 
-            window.localStorage.removeItem(localStorageKey);
+                window.localStorage.removeItem(localStorageKey);
+            }
         }
         return value;
     }
 
     static reset()
     {
-        let prefix = Setting._localStorageKey("");
+        let prefix = WI.Setting._localStorageKeyPrefix;
 
         let keysToRemove = [];
         for (let i = 0; i < window.localStorage.length; ++i) {
@@ -73,19 +75,10 @@ WI.Setting = class Setting extends WI.Object
             window.localStorage.removeItem(key);
     }
 
-    static _localStorageKey(name)
-    {
-        let inspectionLevel = InspectorFrontendHost ? InspectorFrontendHost.inspectionLevel() : 1;
-        let levelString = inspectionLevel > 1 ? "-" + inspectionLevel : "";
-        return `com.apple.WebInspector${levelString}.${name}`;
-    }
-
     // Public
 
-    get name()
-    {
-        return this._name;
-    }
+    get name() { return this._name; }
+    get defaultValue() { return this._defaultValue; }
 
     get value()
     {
@@ -95,11 +88,15 @@ WI.Setting = class Setting extends WI.Object
         // Make a copy of the default value so changes to object values don't modify the default value.
         this._value = JSON.parse(JSON.stringify(this._defaultValue));
 
-        if (!window.InspectorTest && window.localStorage && this._localStorageKey in window.localStorage) {
-            try {
-                this._value = JSON.parse(window.localStorage[this._localStorageKey]);
-            } catch {
-                delete window.localStorage[this._localStorageKey];
+        if (!window.InspectorTest && window.localStorage) {
+            let key = WI.Setting._localStorageKeyPrefix + this._name;
+            let item = window.localStorage.getItem(key);
+            if (item !== null) {
+                try {
+                    this._value = JSON.parse(item);
+                } catch {
+                    window.localStorage.removeItem(key);
+                }
             }
         }
 
@@ -119,11 +116,12 @@ WI.Setting = class Setting extends WI.Object
     save()
     {
         if (!window.InspectorTest && window.localStorage) {
+            let key = WI.Setting._localStorageKeyPrefix + this._name;
             try {
                 if (Object.shallowEqual(this._value, this._defaultValue))
-                    delete window.localStorage[this._localStorageKey];
+                    window.localStorage.removeItem(key);
                 else
-                    window.localStorage[this._localStorageKey] = JSON.stringify(this._value);
+                    window.localStorage.setItem(key, JSON.stringify(this._value));
             } catch {
                 console.error("Error saving setting with name: " + this._name);
             }
@@ -139,8 +137,50 @@ WI.Setting = class Setting extends WI.Object
     }
 };
 
+WI.Setting._localStorageKeyPrefix = (function() {
+    let inspectionLevel = InspectorFrontendHost ? InspectorFrontendHost.inspectionLevel : 1;
+    let levelString = inspectionLevel > 1 ? "-" + inspectionLevel : "";
+    return `com.apple.WebInspector${levelString}.`;
+})();
+
+WI.Setting.isFirstLaunch = !!window.InspectorTest || (window.localStorage && Object.keys(window.localStorage).every((key) => !key.startsWith(WI.Setting._localStorageKeyPrefix)));
+
 WI.Setting.Event = {
     Changed: "setting-changed"
+};
+
+WI.EngineeringSetting = class EngineeringSetting extends WI.Setting
+{
+    get value()
+    {
+        if (WI.isEngineeringBuild)
+            return super.value;
+        return this.defaultValue;
+    }
+
+    set value(value)
+    {
+        console.assert(WI.isEngineeringBuild);
+        if (WI.isEngineeringBuild)
+            super.value = value;
+    }
+};
+
+WI.DebugSetting = class DebugSetting extends WI.Setting
+{
+    get value()
+    {
+        if (WI.isDebugUIEnabled())
+            return super.value;
+        return this.defaultValue;
+    }
+
+    set value(value)
+    {
+        console.assert(WI.isDebugUIEnabled());
+        if (WI.isDebugUIEnabled())
+            super.value = value;
+    }
 };
 
 WI.settings = {
@@ -155,30 +195,23 @@ WI.settings = {
     emulateInUserGesture: new WI.Setting("emulate-in-user-gesture", false),
     enableControlFlowProfiler: new WI.Setting("enable-control-flow-profiler", false),
     enableLineWrapping: new WI.Setting("enable-line-wrapping", true),
+    frontendAppearance: new WI.Setting("frontend-appearance", "system"),
     groupMediaRequestsByDOMNode: new WI.Setting("group-media-requests-by-dom-node", WI.Setting.migrateValue("group-by-dom-node") || false),
     indentUnit: new WI.Setting("indent-unit", 4),
     indentWithTabs: new WI.Setting("indent-with-tabs", false),
     resourceCachingDisabled: new WI.Setting("disable-resource-caching", false),
     searchCaseSensitive: new WI.Setting("search-case-sensitive", false),
+    searchFromSelection: new WI.Setting("search-from-selection", false),
     searchRegularExpression: new WI.Setting("search-regular-expression", false),
     selectedNetworkDetailContentViewIdentifier: new WI.Setting("network-detail-content-view-identifier", "preview"),
     sourceMapsEnabled: new WI.Setting("source-maps-enabled", true),
-    showAllAnimationFramesBreakpoint: new WI.Setting("show-all-animation-frames-breakpoint", false),
-    showAllIntervalsBreakpoint: new WI.Setting("show-all-inteverals-breakpoint", false),
-    showAllListenersBreakpoint: new WI.Setting("show-all-listeners-breakpoint", false),
-    showAllMicrotasksBreakpoint: new WI.Setting("show-all-microtasks-breakpoint", false),
-    showAllRequestsBreakpoint: new WI.Setting("show-all-requests-breakpoint", false),
-    showAllTimeoutsBreakpoint: new WI.Setting("show-all-timeouts-breakpoint", false),
-    showAssertionFailuresBreakpoint: new WI.Setting("show-assertion-failures-breakpoint", true),
     showCanvasPath: new WI.Setting("show-canvas-path", false),
     showImageGrid: new WI.Setting("show-image-grid", true),
     showInvisibleCharacters: new WI.Setting("show-invisible-characters", !!WI.Setting.migrateValue("show-invalid-characters")),
     showJavaScriptTypeInformation: new WI.Setting("show-javascript-type-information", false),
-    showPaintRects: new WI.Setting("show-paint-rects", false),
     showRulers: new WI.Setting("show-rulers", false),
     showRulersDuringElementSelection: new WI.Setting("show-rulers-during-element-selection", true),
     showScopeChainOnPause: new WI.Setting("show-scope-chain-sidebar", true),
-    showShadowDOM: new WI.Setting("show-shadow-dom", true),
     showWhitespaceCharacters: new WI.Setting("show-whitespace-characters", false),
     tabSize: new WI.Setting("tab-size", 4),
     timelinesAutoStop: new WI.Setting("timelines-auto-stop", true),
@@ -186,10 +219,9 @@ WI.settings = {
     zoomFactor: new WI.Setting("zoom-factor", 1),
 
     // Experimental
-    experimentalEnablePreviewFeatures: new WI.Setting("experimental-enable-preview-features", false),
-    experimentalEnableLayersTab: new WI.Setting("experimental-enable-layers-tab", false),
-    experimentalEnableNewTabBar: new WI.Setting("experimental-enable-new-tab-bar", false),
+    experimentalEnablePreviewFeatures: new WI.Setting("experimental-enable-preview-features", true),
     experimentalEnableStylesJumpToEffective: new WI.Setting("experimental-styles-jump-to-effective", false),
+    experimentalEnableStyelsJumpToVariableDeclaration: new WI.Setting("experimental-styles-jump-to-variable-declaration", false),
 
     // Protocol
     protocolLogAsText: new WI.Setting("protocol-log-as-text", false),
@@ -198,34 +230,35 @@ WI.settings = {
     protocolFilterMultiplexingBackendMessages: new WI.Setting("protocol-filter-multiplexing-backend-messages", true),
 
     // Engineering
-    engineeringShowInternalScripts: new WI.Setting("engineering-show-internal-scripts", false),
-    engineeringPauseForInternalScripts: new WI.Setting("engineering-pause-for-internal-scripts", false),
-    engineeringShowInternalObjectsInHeapSnapshot: new WI.Setting("engineering-show-internal-objects-in-heap-snapshot", false),
-    engineeringShowPrivateSymbolsInHeapSnapshot: new WI.Setting("engineering-show-private-symbols-in-heap-snapshot", false),
-    engineeringAllowEditingUserAgentShadowTrees: new WI.Setting("engineering-allow-editing-user-agent-shadow-trees", false),
+    engineeringShowInternalExecutionContexts: new WI.EngineeringSetting("engineering-show-internal-execution-contexts", false),
+    engineeringShowInternalScripts: new WI.EngineeringSetting("engineering-show-internal-scripts", false),
+    engineeringPauseForInternalScripts: new WI.EngineeringSetting("engineering-pause-for-internal-scripts", false),
+    engineeringShowInternalObjectsInHeapSnapshot: new WI.EngineeringSetting("engineering-show-internal-objects-in-heap-snapshot", false),
+    engineeringShowPrivateSymbolsInHeapSnapshot: new WI.EngineeringSetting("engineering-show-private-symbols-in-heap-snapshot", false),
+    engineeringAllowEditingUserAgentShadowTrees: new WI.EngineeringSetting("engineering-allow-editing-user-agent-shadow-trees", false),
 
     // Debug
-    debugShowConsoleEvaluations: new WI.Setting("debug-show-console-evaluations", false),
-    debugEnableLayoutFlashing: new WI.Setting("debug-enable-layout-flashing", false),
-    debugEnableStyleEditingDebugMode: new WI.Setting("debug-enable-style-editing-debug-mode", false),
-    debugEnableUncaughtExceptionReporter: new WI.Setting("debug-enable-uncaught-exception-reporter", true),
-    debugLayoutDirection: new WI.Setting("debug-layout-direction-override", "system"),
+    debugShowConsoleEvaluations: new WI.DebugSetting("debug-show-console-evaluations", false),
+    debugOutlineFocusedElement: new WI.DebugSetting("debug-outline-focused-element", false),
+    debugEnableLayoutFlashing: new WI.DebugSetting("debug-enable-layout-flashing", false),
+    debugEnableStyleEditingDebugMode: new WI.DebugSetting("debug-enable-style-editing-debug-mode", false),
+    debugEnableUncaughtExceptionReporter: new WI.DebugSetting("debug-enable-uncaught-exception-reporter", true),
+    debugEnableDiagnosticLogging: new WI.DebugSetting("debug-enable-diagnostic-logging", true),
+    debugAutoLogDiagnosticEvents: new WI.DebugSetting("debug-auto-log-diagnostic-events", false),
+    debugLayoutDirection: new WI.DebugSetting("debug-layout-direction-override", "system"),
 };
 
 WI.previewFeatures = [];
 
-WI.isTechnologyPreviewBuild = function()
+// WebKit may by default enable certain features in a Technology Preview that are not enabled in trunk.
+// Provide a switch that will make non-preview builds behave like an experimental build, for those preview features.
+WI.canShowPreviewFeatures = function()
 {
-    return WI.isExperimentalBuild && !WI.isEngineeringBuild;
+    let hasPreviewFeatures = WI.previewFeatures.length > 0;
+    return hasPreviewFeatures && WI.isExperimentalBuild;
 };
 
 WI.arePreviewFeaturesEnabled = function()
 {
-    if (WI.isExperimentalBuild)
-        return true;
-
-    if (WI.settings.experimentalEnablePreviewFeatures.value)
-        return true;
-
-    return false;
+    return WI.canShowPreviewFeatures() && WI.settings.experimentalEnablePreviewFeatures.value;
 };

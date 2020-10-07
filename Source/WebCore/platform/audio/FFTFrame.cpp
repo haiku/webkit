@@ -33,6 +33,7 @@
 #include "FFTFrame.h"
 
 #include "Logging.h"
+#include "VectorMath.h"
 #include <complex>
 #include <wtf/MathExtras.h>
 
@@ -172,6 +173,34 @@ void FFTFrame::interpolateFrequencyComponents(const FFTFrame& frame1, const FFTF
     }
 }
 
+void FFTFrame::scaleFFT(float factor)
+{
+    VectorMath::multiplyByScalar(realData(), factor, realData(), fftSize());
+    VectorMath::multiplyByScalar(imagData(), factor, imagData(), fftSize());
+}
+
+void FFTFrame::multiply(const FFTFrame& frame)
+{
+    FFTFrame& frame1 = *this;
+    const FFTFrame& frame2 = frame;
+
+    float* realP1 = frame1.realData();
+    float* imagP1 = frame1.imagData();
+    const float* realP2 = frame2.realData();
+    const float* imagP2 = frame2.imagData();
+
+    unsigned halfSize = m_FFTSize / 2;
+    float real0 = realP1[0];
+    float imag0 = imagP1[0];
+
+    // Complex multiply
+    VectorMath::multiplyComplex(realP1, imagP1, realP2, imagP2, realP1, imagP1, halfSize);
+
+    // Multiply the packed DC/nyquist component
+    realP1[0] = real0 * realP2[0];
+    imagP1[0] = imag0 * imagP2[0];
+}
+
 double FFTFrame::extractAverageGroupDelay()
 {
     float* realP = realData();
@@ -259,7 +288,7 @@ void FFTFrame::print()
     int n = m_FFTSize / 2;
 
     for (int i = 1; i < n; i++) {
-        double mag = sqrt(realP[i] * realP[i] + imagP[i] * imagP[i]);
+        double mag = std::hypot(realP[i], imagP[i]);
         double phase = atan2(realP[i], imagP[i]);
 
         LOG(WebAudio, "[%d] (%f %f)\n", i, mag, phase);

@@ -16,6 +16,10 @@
 #    include <sys/system_properties.h>
 #endif
 
+#if defined(ANGLE_PLATFORM_LINUX)
+#    include <sys/utsname.h>
+#endif
+
 namespace rx
 {
 // Intel
@@ -23,6 +27,8 @@ namespace rx
 namespace
 {
 // gen7
+const uint32_t IvyBridge[] = {0x0152, 0x0156, 0x015A, 0x0162, 0x0166, 0x016A};
+
 const uint32_t Haswell[] = {
     0x0402, 0x0406, 0x040A, 0x040B, 0x040E, 0x0C02, 0x0C06, 0x0C0A, 0x0C0B, 0x0C0E,
     0x0A02, 0x0A06, 0x0A0A, 0x0A0B, 0x0A0E, 0x0D02, 0x0D06, 0x0D0A, 0x0D0B, 0x0D0E,  // hsw_gt1
@@ -90,6 +96,11 @@ bool IntelDriverVersion::operator>=(const IntelDriverVersion &version)
     return !(*this < version);
 }
 
+bool IsIvyBridge(uint32_t DeviceId)
+{
+    return std::find(std::begin(IvyBridge), std::end(IvyBridge), DeviceId) != std::end(IvyBridge);
+}
+
 bool IsHaswell(uint32_t DeviceId)
 {
     return std::find(std::begin(Haswell), std::end(Haswell), DeviceId) != std::end(Haswell);
@@ -129,6 +140,8 @@ const char *GetVendorString(uint32_t vendorId)
             return "Advanced Micro Devices";
         case VENDOR_ID_ARM:
             return "ARM";
+        case VENDOR_ID_BROADCOM:
+            return "Broadcom";
         case VENDOR_ID_GOOGLE:
             return "Google";
         case VENDOR_ID_INTEL:
@@ -192,5 +205,51 @@ OSVersion GetMacOSVersion()
     return OSVersion(0, 0, 0);
 }
 #endif
+
+#if defined(ANGLE_PLATFORM_LINUX)
+bool ParseLinuxOSVersion(const char *version, int *major, int *minor, int *patch)
+{
+    errno = 0;  // reset global error flag.
+    char *next;
+    *major = static_cast<int>(strtol(version, &next, 10));
+    if (next == nullptr || *next != '.' || errno != 0)
+    {
+        return false;
+    }
+
+    *minor = static_cast<int>(strtol(next + 1, &next, 10));
+    if (next == nullptr || *next != '.' || errno != 0)
+    {
+        return false;
+    }
+
+    *patch = static_cast<int>(strtol(next + 1, &next, 10));
+    if (errno != 0)
+    {
+        return false;
+    }
+
+    return true;
+}
+#endif
+
+OSVersion GetLinuxOSVersion()
+{
+#if defined(ANGLE_PLATFORM_LINUX)
+    struct utsname uname_info;
+    if (uname(&uname_info) != 0)
+    {
+        return OSVersion(0, 0, 0);
+    }
+
+    int majorVersion = 0, minorVersion = 0, patchVersion = 0;
+    if (ParseLinuxOSVersion(uname_info.release, &majorVersion, &minorVersion, &patchVersion))
+    {
+        return OSVersion(majorVersion, minorVersion, patchVersion);
+    }
+#endif
+
+    return OSVersion(0, 0, 0);
+}
 
 }  // namespace rx

@@ -10,7 +10,9 @@
 
 #include "modules/congestion_controller/bbr/rtt_stats.h"
 
-#include <cstdlib>
+#include <algorithm>
+#include <string>
+#include <type_traits>
 
 #include "rtc_base/logging.h"
 
@@ -47,7 +49,7 @@ void RttStats::UpdateRtt(TimeDelta send_delta,
                          Timestamp now) {
   if (send_delta.IsInfinite() || send_delta <= TimeDelta::Zero()) {
     RTC_LOG(LS_WARNING) << "Ignoring measured send_delta, because it's is "
-                        << "either infinite, zero, or negative.  send_delta = "
+                           "either infinite, zero, or negative.  send_delta = "
                         << ToString(send_delta);
     return;
   }

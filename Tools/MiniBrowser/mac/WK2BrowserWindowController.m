@@ -27,14 +27,17 @@
 
 #import "AppDelegate.h"
 #import "SettingsController.h"
+#import <SecurityInterface/SFCertificateTrustPanel.h>
 #import <WebKit/WKFrameInfo.h>
 #import <WebKit/WKNavigationActionPrivate.h>
 #import <WebKit/WKNavigationDelegate.h>
+#import <WebKit/WKOpenPanelParametersPrivate.h>
 #import <WebKit/WKPreferencesPrivate.h>
 #import <WebKit/WKUIDelegate.h>
 #import <WebKit/WKUIDelegatePrivate.h>
 #import <WebKit/WKWebViewConfigurationPrivate.h>
 #import <WebKit/WKWebViewPrivate.h>
+#import <WebKit/WKWebViewPrivateForTesting.h>
 #import <WebKit/WKWebsiteDataStorePrivate.h>
 #import <WebKit/WebNSURLExtras.h>
 #import <WebKit/_WKIconLoadingDelegate.h>
@@ -53,6 +56,12 @@ static const int testFooterBannerHeight = 58;
 @end
 
 @implementation MiniBrowserNSTextFinder
+
+- (void)dealloc
+{
+    [_hideInterfaceCallback release];
+    [super dealloc];
+}
 
 - (void)performAction:(NSTextFinderAction)op
 {
@@ -97,13 +106,15 @@ static const int testFooterBannerHeight = 58;
 
     [_webView addObserver:self forKeyPath:@"title" options:0 context:keyValueObservingContext];
     [_webView addObserver:self forKeyPath:@"URL" options:0 context:keyValueObservingContext];
+    [_webView addObserver:self forKeyPath:@"hasOnlySecureContent" options:0 context:keyValueObservingContext];
 
     _webView.navigationDelegate = self;
     _webView.UIDelegate = self;
 
+    SettingsController *settingsController = [[NSApplication sharedApplication] browserAppDelegate].settingsController;
     // This setting installs the new WK2 Icon Loading Delegate and tests that mechanism by
     // telling WebKit to load every icon referenced by the page.
-    if ([[SettingsController shared] loadsAllSiteIcons])
+    if (settingsController.loadsAllSiteIcons)
         _webView._iconLoadingDelegate = self;
     
     _webView._observedRenderingProgressEvents = _WKRenderingProgressEventFirstLayout
@@ -112,7 +123,9 @@ static const int testFooterBannerHeight = 58;
         | _WKRenderingProgressEventFirstLayoutAfterSuppressedIncrementalRendering
         | _WKRenderingProgressEventFirstPaintAfterSuppressedIncrementalRendering;
 
-    _zoomTextOnly = NO;
+
+    if (settingsController.customUserAgent)
+        _webView.customUserAgent = settingsController.customUserAgent;
 
     _webView._usePlatformFindUI = NO;
 
@@ -121,9 +134,18 @@ static const int testFooterBannerHeight = 58;
     _textFinder.incrementalSearchingShouldDimContentView = NO;
     _textFinder.client = _webView;
     _textFinder.findBarContainer = self;
+    
+#if __has_feature(objc_arc)
+    __weak WKWebView *weakWebView = _webView;
+#else
+    WKWebView *weakWebView = _webView;
+#endif
     _textFinder.hideInterfaceCallback = ^{
-        [_webView _hideFindUI];
+        WKWebView *webView = weakWebView;
+        [webView _hideFindUI];
     };
+
+    _zoomTextOnly = NO;
 }
 
 - (instancetype)initWithConfiguration:(WKWebViewConfiguration *)configuration
@@ -134,13 +156,16 @@ static const int testFooterBannerHeight = 58;
     _configuration = [configuration copy];
     _isPrivateBrowsingWindow = !_configuration.websiteDataStore.isPersistent;
 
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(userAgentDidChange:) name:kUserAgentChangedNotificationName object:nil];
     return self;
 }
 
 - (void)dealloc
 {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
     [_webView removeObserver:self forKeyPath:@"title"];
     [_webView removeObserver:self forKeyPath:@"URL"];
+    [_webView removeObserver:self forKeyPath:@"hasOnlySecureContent"];
     
     [progressIndicator unbind:NSHiddenBinding];
     [progressIndicator unbind:NSValueBinding];
@@ -151,6 +176,13 @@ static const int testFooterBannerHeight = 58;
     [_configuration release];
 
     [super dealloc];
+}
+
+- (void)userAgentDidChange:(NSNotification *)notification
+{
+    SettingsController *settingsController = [[NSApplication sharedApplication] browserAppDelegate].settingsController;
+    _webView.customUserAgent = settingsController.customUserAgent;
+    [_webView reload];
 }
 
 - (IBAction)fetch:(id)sender
@@ -203,7 +235,10 @@ static BOOL areEssentiallyEqual(double a, double b)
     return (fabs(a - b) <= tolerance);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-implementations"
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem
+#pragma GCC diagnostic pop
 {
     SEL action = menuItem.action;
 
@@ -228,6 +263,8 @@ static BOOL areEssentiallyEqual(double a, double b)
         [menuItem setTitle:[_webView isHidden] ? @"Show Web View" : @"Hide Web View"];
     else if (action == @selector(removeReinsertWebView:))
         [menuItem setTitle:[_webView window] ? @"Remove Web View" : @"Insert Web View"];
+    else if (action == @selector(toggleFullWindowWebView:))
+        [menuItem setTitle:[self webViewFillsWindow] ? @"Inset Web View" : @"Fit Web View to Window"];
     else if (action == @selector(toggleZoomMode:))
         [menuItem setState:_zoomTextOnly ? NSControlStateValueOn : NSControlStateValueOff];
     else if (action == @selector(toggleEditable:))
@@ -251,6 +288,12 @@ static BOOL areEssentiallyEqual(double a, double b)
 - (IBAction)reload:(id)sender
 {
     [_webView reload];
+}
+
+- (IBAction)showCertificate:(id)sender
+{
+    if (_webView.serverTrust)
+        [[SFCertificateTrustPanel sharedCertificateTrustPanel] beginSheetForWindow:self.window modalDelegate:nil didEndSelector:nil contextInfo:NULL trust:_webView.serverTrust message:@"TLS Certificate Details"];
 }
 
 - (IBAction)forceRepaint:(id)sender
@@ -353,6 +396,9 @@ static BOOL areEssentiallyEqual(double a, double b)
     if (action == @selector(goBack:) || action == @selector(goForward:))
         return [_webView validateUserInterfaceItem:item];
 
+    if (action == @selector(showCertificate:))
+        return _webView.serverTrust != nil;
+
     return YES;
 }
 
@@ -368,7 +414,7 @@ static BOOL areEssentiallyEqual(double a, double b)
 
 - (void)windowWillClose:(NSNotification *)notification
 {
-    [(BrowserAppDelegate *)[[NSApplication sharedApplication] delegate] browserWindowWillClose:self.window];
+    [[[NSApplication sharedApplication] browserAppDelegate] browserWindowWillClose:self.window];
     [self autorelease];
 }
 
@@ -417,7 +463,7 @@ static BOOL areEssentiallyEqual(double a, double b)
 
 - (void)didChangeSettings
 {
-    SettingsController *settings = [SettingsController shared];
+    SettingsController *settings = [[NSApplication sharedApplication] browserAppDelegate].settingsController;
     WKPreferences *preferences = _webView.configuration.preferences;
 
     _webView._useSystemAppearance = settings.useSystemAppearance;
@@ -437,6 +483,8 @@ static BOOL areEssentiallyEqual(double a, double b)
     preferences._punchOutWhiteBackgroundsInDarkMode = settings.punchOutWhiteBackgroundsInDarkMode;
 
     _webView.configuration.websiteDataStore._resourceLoadStatisticsEnabled = settings.resourceLoadStatisticsEnabled;
+
+    [self setWebViewFillsWindow:settings.webViewFillsWindow];
 
     BOOL useTransparentWindows = settings.useTransparentWindows;
     if (useTransparentWindows != !_webView._drawsBackground) {
@@ -478,7 +526,12 @@ static BOOL areEssentiallyEqual(double a, double b)
         title = url.lastPathComponent ?: url._web_userVisibleString;
     }
 
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 110000
+    self.window.title = title;
+    self.window.subtitle = [NSString stringWithFormat:@"[WK2 %d]%@%@", _webView._webProcessIdentifier, _isPrivateBrowsingWindow ? @" 🙈" : @"", _webView._editable ? @" ✏️" : @""];
+#else
     self.window.title = [NSString stringWithFormat:@"%@%@ [WK2 %d]%@", _isPrivateBrowsingWindow ? @"🙈 " : @"", title, _webView._webProcessIdentifier, _webView._editable ? @" [Editable]" : @""];
+#endif
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
@@ -490,6 +543,8 @@ static BOOL areEssentiallyEqual(double a, double b)
         [self updateTitle:_webView.title];
     else if ([keyPath isEqualToString:@"URL"])
         [self updateTextFieldFromURL:_webView.URL];
+    else if ([keyPath isEqualToString:@"hasOnlySecureContent"])
+        [self updateLockButtonIcon:_webView.hasOnlySecureContent];
 }
 
 - (nullable WKWebView *)webView:(WKWebView *)webView createWebViewWithConfiguration:(WKWebViewConfiguration *)configuration forNavigationAction:(WKNavigationAction *)navigationAction windowFeatures:(WKWindowFeatures *)windowFeatures
@@ -561,6 +616,7 @@ static BOOL areEssentiallyEqual(double a, double b)
     NSOpenPanel *openPanel = [NSOpenPanel openPanel];
 
     openPanel.allowsMultipleSelection = parameters.allowsMultipleSelection;
+    [openPanel setAllowedFileTypes:parameters._allowedFileExtensions];
 
     [openPanel beginSheetModalForWindow:webView.window completionHandler:^(NSInteger result) {
         if (result == NSModalResponseOK)
@@ -600,6 +656,14 @@ static BOOL areEssentiallyEqual(double a, double b)
         return;
 
     urlText.stringValue = [URL _web_userVisibleString];
+}
+
+- (void)updateLockButtonIcon:(BOOL)hasOnlySecureContent
+{
+    if (hasOnlySecureContent)
+        [lockButton setImage:[NSImage imageNamed:NSImageNameLockLockedTemplate]];
+    else
+        [lockButton setImage:[NSImage imageNamed:NSImageNameLockUnlockedTemplate]];
 }
 
 - (void)loadURLString:(NSString *)urlString
@@ -807,16 +871,6 @@ static NSSet *dataTypes()
 
 - (void)findBarViewDidChangeHeight
 {
-}
-
-- (void)_webView:(WKWebView *)webView requestMediaCaptureAuthorization: (_WKCaptureDevices)devices decisionHandler:(void (^)(BOOL authorized))decisionHandler
-{
-    decisionHandler(true);
-}
-
-- (void)_webView:(WKWebView *)webView includeSensitiveMediaDeviceDetails:(void (^)(BOOL includeSensitiveDetails))decisionHandler
-{
-    decisionHandler(false);
 }
 
 - (IBAction)saveAsPDF:(id)sender

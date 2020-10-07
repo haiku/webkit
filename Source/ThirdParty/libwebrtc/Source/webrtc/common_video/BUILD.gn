@@ -8,11 +8,13 @@
 
 import("../webrtc.gni")
 
-rtc_static_library("common_video") {
+rtc_library("common_video") {
   visibility = [ "*" ]
 
   sources = [
     "bitrate_adjuster.cc",
+    "frame_rate_estimator.cc",
+    "frame_rate_estimator.h",
     "h264/h264_bitstream_parser.cc",
     "h264/h264_bitstream_parser.h",
     "h264/h264_common.cc",
@@ -28,6 +30,7 @@ rtc_static_library("common_video") {
     "include/bitrate_adjuster.h",
     "include/i420_buffer_pool.h",
     "include/incoming_video_stream.h",
+    "include/quality_limitation_reason.h",
     "include/video_frame.h",
     "include/video_frame_buffer.h",
     "incoming_video_stream.cc",
@@ -38,18 +41,37 @@ rtc_static_library("common_video") {
     "video_render_frames.h",
   ]
 
+  if (rtc_use_h265) {
+    sources += [
+      "h265/h265_common.cc",
+      "h265/h265_common.h",
+      "h265/h265_pps_parser.cc",
+      "h265/h265_pps_parser.h",
+      "h265/h265_sps_parser.cc",
+      "h265/h265_sps_parser.h",
+      "h265/h265_vps_parser.cc",
+      "h265/h265_vps_parser.h",
+    ]
+  }
+
   deps = [
-    "..:webrtc_common",
+    "../api:scoped_refptr",
+    "../api/task_queue",
+    "../api/units:time_delta",
+    "../api/units:timestamp",
     "../api/video:encoded_image",
     "../api/video:video_bitrate_allocation",
     "../api/video:video_bitrate_allocator",
     "../api/video:video_frame",
     "../api/video:video_frame_i420",
+    "../api/video:video_rtp_headers",
+    "../api/video_codecs:bitstream_parser_api",
     "../media:rtc_h264_profile_id",
+    "../rtc_base",
     "../rtc_base:checks",
-    "../rtc_base:rtc_base",
     "../rtc_base:rtc_task_queue",
     "../rtc_base:safe_minmax",
+    "../rtc_base/system:rtc_export",
     "../system_wrappers:metrics",
     "//third_party/abseil-cpp/absl/types:optional",
     "//third_party/libyuv",
@@ -63,9 +85,7 @@ if (rtc_include_tests) {
     bundle_data("common_video_unittests_bundle_data") {
       testonly = true
       sources = common_video_resources
-      outputs = [
-        "{{bundle_resources_dir}}/{{source_file_part}}",
-      ]
+      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
     }
   }
 
@@ -74,6 +94,7 @@ if (rtc_include_tests) {
 
     sources = [
       "bitrate_adjuster_unittest.cc",
+      "frame_rate_estimator_unittest.cc",
       "h264/h264_bitstream_parser_unittest.cc",
       "h264/pps_parser_unittest.cc",
       "h264/profile_level_id_unittest.cc",
@@ -86,14 +107,21 @@ if (rtc_include_tests) {
 
     deps = [
       ":common_video",
+      "../:webrtc_common",
+      "../api:scoped_refptr",
+      "../api/units:time_delta",
       "../api/video:video_frame",
       "../api/video:video_frame_i010",
       "../api/video:video_frame_i420",
-      "../modules/video_capture:video_capture",
-      "../rtc_base:rtc_base",
+      "../api/video:video_rtp_headers",
+      "../media:rtc_h264_profile_id",
+      "../rtc_base",
+      "../rtc_base:checks",
       "../rtc_base:rtc_base_approved",
       "../rtc_base:rtc_base_tests_utils",
+      "../system_wrappers:system_wrappers",
       "../test:fileutils",
+      "../test:frame_utils",
       "../test:test_main",
       "../test:test_support",
       "../test:video_test_common",

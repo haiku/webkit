@@ -15,15 +15,34 @@
 #import "api/video_codec/RTCVideoCodecConstants.h"
 #import "api/video_codec/RTCVideoEncoderVP8.h"
 #import "base/RTCVideoCodecInfo.h"
-#if !defined(RTC_DISABLE_VP9)
+#if defined(RTC_ENABLE_VP9)
 #import "api/video_codec/RTCVideoEncoderVP9.h"
 #endif
+#if !defined(DISABLE_H265)
+#import "RTCH265ProfileLevelId.h"
+#import "RTCVideoEncoderH265.h"
+#endif
 
-@implementation RTCDefaultVideoEncoderFactory
+@implementation RTCDefaultVideoEncoderFactory {
+  bool _supportsH265;
+  bool _supportsVP9;
+}
 
-@synthesize preferredCodec;
+- (id)initWithH265:(bool)supportsH265 vp9:(bool)supportsVP9
+{
+  self = [super init];
+  if (self) {
+      _supportsH265 = supportsH265;
+      _supportsVP9 = supportsVP9;
+  }
+  return self;
+}
 
 + (NSArray<RTCVideoCodecInfo *> *)supportedCodecs {
+    return [self supportedCodecsWithH265:true vp9:true];
+}
+
++ (NSArray<RTCVideoCodecInfo *> *)supportedCodecsWithH265:(bool)supportsH265 vp9:(bool)supportsVP9 {
   NSDictionary<NSString *, NSString *> *constrainedHighParams = @{
     @"profile-level-id" : kRTCMaxSupportedH264ProfileLevelConstrainedHigh,
     @"level-asymmetry-allowed" : @"1",
@@ -42,20 +61,28 @@
       [[RTCVideoCodecInfo alloc] initWithName:kRTCVideoCodecH264Name
                                    parameters:constrainedBaselineParams];
 
+  NSMutableArray<RTCVideoCodecInfo *> *codecs = [[NSMutableArray alloc] initWithCapacity:5];
+
+  [codecs addObject:constrainedHighInfo];
+  [codecs addObject:constrainedBaselineInfo];
+#if !defined(RTC_DISABLE_H265)
+  if (supportsH265) {
+    RTCVideoCodecInfo *h265Info = [[RTCVideoCodecInfo alloc] initWithName:kRTCVideoCodecH265Name];
+    [codecs addObject:h265Info];
+  }
+#endif
+
   RTCVideoCodecInfo *vp8Info = [[RTCVideoCodecInfo alloc] initWithName:kRTCVideoCodecVp8Name];
+  [codecs addObject:vp8Info];
 
-#if !defined(RTC_DISABLE_VP9)
-  RTCVideoCodecInfo *vp9Info = [[RTCVideoCodecInfo alloc] initWithName:kRTCVideoCodecVp9Name];
+#if defined(RTC_ENABLE_VP9)
+  if (supportsVP9) {
+    RTCVideoCodecInfo *vp9Info = [[RTCVideoCodecInfo alloc] initWithName:kRTCVideoCodecVp9Name];
+    [codecs addObject:vp9Info];
+  }
 #endif
 
-  return @[
-    constrainedHighInfo,
-    constrainedBaselineInfo,
-    vp8Info,
-#if !defined(RTC_DISABLE_VP9)
-    vp9Info,
-#endif
-  ];
+  return codecs;
 }
 
 - (id<RTCVideoEncoder>)createEncoder:(RTCVideoCodecInfo *)info {
@@ -63,9 +90,15 @@
     return [[RTCVideoEncoderH264 alloc] initWithCodecInfo:info];
   } else if ([info.name isEqualToString:kRTCVideoCodecVp8Name]) {
     return [RTCVideoEncoderVP8 vp8Encoder];
-#if !defined(RTC_DISABLE_VP9)
+#if defined(RTC_ENABLE_VP9)
   } else if ([info.name isEqualToString:kRTCVideoCodecVp9Name]) {
     return [RTCVideoEncoderVP9 vp9Encoder];
+#endif
+#if !defined(DISABLE_H265)
+  } else if (@available(iOS 11, *)) {
+    if ([info.name isEqualToString:kRTCVideoCodecH265Name]) {
+      return [[RTCVideoEncoderH265 alloc] initWithCodecInfo:info];
+    }
 #endif
   }
 
@@ -73,17 +106,7 @@
 }
 
 - (NSArray<RTCVideoCodecInfo *> *)supportedCodecs {
-  NSMutableArray<RTCVideoCodecInfo *> *codecs = [[[self class] supportedCodecs] mutableCopy];
-
-  NSMutableArray<RTCVideoCodecInfo *> *orderedCodecs = [NSMutableArray array];
-  NSUInteger index = [codecs indexOfObject:self.preferredCodec];
-  if (index != NSNotFound) {
-    [orderedCodecs addObject:[codecs objectAtIndex:index]];
-    [codecs removeObjectAtIndex:index];
-  }
-  [orderedCodecs addObjectsFromArray:codecs];
-
-  return [orderedCodecs copy];
+  return [[self class] supportedCodecsWithH265:_supportsH265 vp9: _supportsVP9];
 }
 
 @end

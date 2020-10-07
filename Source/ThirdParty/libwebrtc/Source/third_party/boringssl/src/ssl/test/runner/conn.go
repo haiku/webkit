@@ -22,7 +22,6 @@ import (
 )
 
 var errNoCertificateAlert = errors.New("tls: no certificate alert")
-var errEndOfEarlyDataAlert = errors.New("tls: end of early data alert")
 
 // A Conn represents a secured connection.
 // It implements the net.Conn interface.
@@ -44,7 +43,6 @@ type Conn struct {
 	didResume            bool // whether this connection was a session resumption
 	extendedMasterSecret bool // whether this session used an extended master secret
 	cipherSuite          *cipherSuite
-	earlyCipherSuite     *cipherSuite
 	ocspResponse         []byte // stapled OCSP response
 	sctList              []byte // signed certificate timestamp list
 	peerCertificates     []*x509.Certificate
@@ -106,6 +104,7 @@ type Conn struct {
 	pendingFragments [][]byte // pending outgoing handshake fragments.
 	pendingPacket    []byte   // pending outgoing packet.
 
+	keyUpdateSeen      bool
 	keyUpdateRequested bool
 	seenOneByteRecord  bool
 
@@ -453,7 +452,7 @@ func (hc *halfConn) decrypt(b *block) (ok bool, prefixLen int, contentType recor
 				n := len(payload) - c.Overhead()
 				additionalData[11] = byte(n >> 8)
 				additionalData[12] = byte(n)
-			} else if isDraft28(hc.wireVersion) {
+			} else {
 				additionalData = b.data[:recordHeaderLen]
 			}
 			var err error
@@ -619,7 +618,7 @@ func (hc *halfConn) encrypt(b *block, explicitIVLen int, typ recordType) (bool, 
 				copy(additionalData[8:], b.data[:3])
 				additionalData[11] = byte(payloadLen >> 8)
 				additionalData[12] = byte(payloadLen)
-			} else if isDraft28(hc.wireVersion) {
+			} else {
 				additionalData = make([]byte, 5)
 				copy(additionalData, b.data[:3])
 				n := len(b.data) - recordHeaderLen
@@ -760,6 +759,9 @@ func (c *Conn) useInTrafficSecret(version uint16, suite *cipherSuite, secret []b
 	if !c.isClient {
 		side = clientWrite
 	}
+	if c.config.Bugs.MockQUICTransport != nil {
+		c.config.Bugs.MockQUICTransport.readSecret = secret
+	}
 	c.in.useTrafficSecret(version, suite, secret, side)
 	c.seenHandshakePackEnd = false
 	return nil
@@ -769,6 +771,9 @@ func (c *Conn) useOutTrafficSecret(version uint16, suite *cipherSuite, secret []
 	side := serverWrite
 	if c.isClient {
 		side = clientWrite
+	}
+	if c.config.Bugs.MockQUICTransport != nil {
+		c.config.Bugs.MockQUICTransport.writeSecret = secret
 	}
 	c.out.useTrafficSecret(version, suite, secret, side)
 }
@@ -959,14 +964,18 @@ func (c *Conn) readRecord(want recordType) error {
 		break
 	}
 
-	if c.expectTLS13ChangeCipherSpec {
+	if c.expectTLS13ChangeCipherSpec && c.config.Bugs.MockQUICTransport == nil {
 		if err := c.readTLS13ChangeCipherSpec(); err != nil {
 			return err
 		}
 	}
 
 Again:
-	typ, b, err := c.doReadRecord(want)
+	doReadRecord := c.doReadRecord
+	if c.config.Bugs.MockQUICTransport != nil {
+		doReadRecord = c.config.Bugs.MockQUICTransport.readRecord
+	}
+	typ, b, err := doReadRecord(want)
 	if err != nil {
 		return err
 	}
@@ -1006,10 +1015,6 @@ Again:
 			if alert(data[1]) == alertNoCertificate {
 				c.in.freeBlock(b)
 				return errNoCertificateAlert
-			}
-			if alert(data[1]) == alertEndOfEarlyData {
-				c.in.freeBlock(b)
-				return errEndOfEarlyDataAlert
 			}
 
 			// drop on the floor
@@ -1086,7 +1091,7 @@ func (c *Conn) sendAlertLocked(level byte, err alert) error {
 // L < c.out.Mutex.
 func (c *Conn) sendAlert(err alert) error {
 	level := byte(alertLevelError)
-	if err == alertNoRenegotiation || err == alertCloseNotify || err == alertNoCertificate || err == alertEndOfEarlyData {
+	if err == alertNoRenegotiation || err == alertCloseNotify || err == alertNoCertificate {
 		level = alertLevelWarning
 	}
 	return c.SendAlert(level, err)
@@ -1120,18 +1125,14 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (n int, err error) {
 			msgType = typeHelloRetryRequest
 		}
 		if msgType != data[0] {
-			newData := make([]byte, len(data))
-			copy(newData, data)
-			newData[0] = msgType
-			data = newData
+			data = append([]byte{msgType}, data[1:]...)
 		}
 
 		if c.config.Bugs.SendTrailingMessageData != 0 && msgType == c.config.Bugs.SendTrailingMessageData {
-			newData := make([]byte, len(data))
+			// Add a 0 to the body.
+			newData := make([]byte, len(data)+1)
 			copy(newData, data)
 
-			// Add a 0 to the body.
-			newData = append(newData, 0)
 			// Fix the header.
 			newLen := len(newData) - 4
 			newData[1] = byte(newLen >> 16)
@@ -1140,10 +1141,19 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (n int, err error) {
 
 			data = newData
 		}
+
+		if c.config.Bugs.TrailingDataWithFinished && msgType == typeFinished {
+			// Add a 0 to the record. Note unused bytes in |data| may be owned by the
+			// caller, so we force a new allocation.
+			data = append(data[:len(data):len(data)], 0)
+		}
 	}
 
 	if c.isDTLS {
 		return c.dtlsWriteRecord(typ, data)
+	}
+	if c.config.Bugs.MockQUICTransport != nil {
+		return c.config.Bugs.MockQUICTransport.writeRecord(typ, data)
 	}
 
 	if typ == recordTypeHandshake {
@@ -1320,9 +1330,6 @@ func (c *Conn) doReadHandshake() ([]byte, error) {
 		if err := c.readRecord(recordTypeHandshake); err != nil {
 			return nil, err
 		}
-	}
-	if c.hand.Len() > 4+n && c.config.Bugs.ForbidHandshakePacking {
-		return nil, errors.New("tls: forbidden trailing data after a handshake message")
 	}
 	return c.hand.Next(4 + n), nil
 }
@@ -1635,6 +1642,8 @@ func (c *Conn) handlePostHandshakeMessage() error {
 	}
 
 	if keyUpdate, ok := msg.(*keyUpdateMsg); ok {
+		c.keyUpdateSeen = true
+
 		if c.config.Bugs.RejectUnsolicitedKeyUpdate {
 			return errors.New("tls: unexpected KeyUpdate message")
 		}
@@ -1665,7 +1674,7 @@ func (c *Conn) ReadKeyUpdateACK() error {
 	keyUpdate, ok := msg.(*keyUpdateMsg)
 	if !ok {
 		c.sendAlert(alertUnexpectedMessage)
-		return errors.New("tls: unexpected message when reading KeyUpdate")
+		return fmt.Errorf("tls: unexpected message (%T) when reading KeyUpdate", msg)
 	}
 
 	if keyUpdate.keyUpdateRequest != keyUpdateNotRequested {
@@ -1708,13 +1717,12 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 				// Soft error, like EAGAIN
 				return 0, err
 			}
-			if c.hand.Len() > 0 {
+			for c.hand.Len() > 0 {
 				// We received handshake bytes, indicating a
 				// post-handshake message.
 				if err := c.handlePostHandshakeMessage(); err != nil {
 					return 0, err
 				}
-				continue
 			}
 		}
 		if err := c.in.err; err != nil {
@@ -1884,17 +1892,13 @@ func (c *Conn) VerifyHostname(host string) error {
 }
 
 func (c *Conn) exportKeyingMaterialTLS13(length int, secret, label, context []byte) []byte {
-	cipherSuite := c.cipherSuite
-	if cipherSuite == nil {
-		cipherSuite = c.earlyCipherSuite
-	}
-	hash := cipherSuite.hash()
+	hash := c.cipherSuite.hash()
 	exporterKeyingLabel := []byte("exporter")
 	contextHash := hash.New()
 	contextHash.Write(context)
 	exporterContext := hash.New().Sum(nil)
-	derivedSecret := hkdfExpandLabel(cipherSuite.hash(), secret, label, exporterContext, hash.Size())
-	return hkdfExpandLabel(cipherSuite.hash(), derivedSecret, exporterKeyingLabel, contextHash.Sum(nil), length)
+	derivedSecret := hkdfExpandLabel(c.cipherSuite.hash(), secret, label, exporterContext, hash.Size())
+	return hkdfExpandLabel(c.cipherSuite.hash(), derivedSecret, exporterKeyingLabel, contextHash.Sum(nil), length)
 }
 
 // ExportKeyingMaterial exports keying material from the current connection

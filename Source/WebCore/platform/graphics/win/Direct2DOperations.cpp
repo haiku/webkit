@@ -189,46 +189,46 @@ void setCompositeOperation(PlatformContextDirect2D& platformContext, CompositeOp
         }
     } else {
         switch (compositeOperation) {
-        case CompositeClear:
+        case CompositeOperator::Clear:
             // FIXME: targetBlendMode = D2D1_BLEND_MODE_CLEAR;
             break;
-        case CompositeCopy:
+        case CompositeOperator::Copy:
             targetCompositeMode = D2D1_COMPOSITE_MODE_SOURCE_COPY;
             break;
-        case CompositeSourceOver:
+        case CompositeOperator::SourceOver:
             targetCompositeMode = D2D1_COMPOSITE_MODE_SOURCE_OVER;
             break;
-        case CompositeSourceIn:
+        case CompositeOperator::SourceIn:
             targetCompositeMode = D2D1_COMPOSITE_MODE_SOURCE_IN;
             break;
-        case CompositeSourceOut:
+        case CompositeOperator::SourceOut:
             targetCompositeMode = D2D1_COMPOSITE_MODE_SOURCE_OUT;
             break;
-        case CompositeSourceAtop:
+        case CompositeOperator::SourceAtop:
             targetCompositeMode = D2D1_COMPOSITE_MODE_SOURCE_ATOP;
             break;
-        case CompositeDestinationOver:
+        case CompositeOperator::DestinationOver:
             targetCompositeMode = D2D1_COMPOSITE_MODE_DESTINATION_OVER;
             break;
-        case CompositeDestinationIn:
+        case CompositeOperator::DestinationIn:
             targetCompositeMode = D2D1_COMPOSITE_MODE_DESTINATION_IN;
             break;
-        case CompositeDestinationOut:
+        case CompositeOperator::DestinationOut:
             targetCompositeMode = D2D1_COMPOSITE_MODE_DESTINATION_OUT;
             break;
-        case CompositeDestinationAtop:
+        case CompositeOperator::DestinationAtop:
             targetCompositeMode = D2D1_COMPOSITE_MODE_DESTINATION_ATOP;
             break;
-        case CompositeXOR:
+        case CompositeOperator::XOR:
             targetCompositeMode = D2D1_COMPOSITE_MODE_XOR;
             break;
-        case CompositePlusDarker:
+        case CompositeOperator::PlusDarker:
             targetBlendMode = D2D1_BLEND_MODE_DARKEN;
             break;
-        case CompositePlusLighter:
+        case CompositeOperator::PlusLighter:
             targetBlendMode = D2D1_BLEND_MODE_LIGHTEN;
             break;
-        case CompositeDifference:
+        case CompositeOperator::Difference:
             targetBlendMode = D2D1_BLEND_MODE_DIFFERENCE;
             break;
         }
@@ -301,7 +301,7 @@ FillSource::FillSource(const GraphicsContextState& state, const GraphicsContext&
         AffineTransform userToBaseCTM; // FIXME: This isn't really needed on Windows
         brush = state.fillPattern->createPlatformPattern(context, state.alpha, userToBaseCTM);
     } else if (state.fillGradient && !state.fillGradient->stops().isEmpty())
-        brush = state.fillGradient->createPlatformGradientIfNecessary(platformContext.renderTarget());
+        brush = state.fillGradient->createBrush(platformContext.renderTarget());
     else
         brush = platformContext.brushWithColor(color);
 }
@@ -318,7 +318,7 @@ StrokeSource::StrokeSource(const GraphicsContextState& state, const GraphicsCont
         AffineTransform userToBaseCTM; // FIXME: This isn't really needed on Windows
         brush = state.strokePattern->createPlatformPattern(context, state.alpha, userToBaseCTM);
     } else if (state.strokeGradient)
-        brush = state.strokeGradient->createPlatformGradientIfNecessary(platformContext.renderTarget());
+        brush = state.strokeGradient->createBrush(platformContext.renderTarget());
     else
         brush = platformContext.brushWithColor(color);
 }
@@ -775,12 +775,12 @@ void drawGlyphs(PlatformContextDirect2D& platformContext, const FillSource& fill
     Color shadowColor;
     graphicsContext.getShadow(shadowOffset, shadowBlur, shadowColor);
 
-    bool hasSimpleShadow = graphicsContext.textDrawingMode() == TextModeFill && shadowColor.isValid() && !shadowBlur && (!graphicsContext.shadowsIgnoreTransforms() || graphicsContext.getCTM().isIdentityOrTranslationOrFlipped());
+    bool hasSimpleShadow = graphicsContext.textDrawingMode() == TextDrawingMode::Fill && shadowColor.isValid() && !shadowBlur && (!graphicsContext.shadowsIgnoreTransforms() || graphicsContext.getCTM().isIdentityOrTranslationOrFlipped());
     if (hasSimpleShadow) {
         // Paint simple shadows ourselves instead of relying on CG shadows, to avoid losing subpixel antialiasing.
         graphicsContext.clearShadow();
         Color fillColor = graphicsContext.fillColor();
-        Color shadowFillColor(shadowColor.red(), shadowColor.green(), shadowColor.blue(), shadowColor.alpha() * fillColor.alpha() / 255);
+        Color shadowFillColor = shadowColor.colorWithAlphaMultipliedBy(fillColor.alphaAsFloat());
         float shadowTextX = point.x() + shadowOffset.width();
         // If shadows are ignoring transforms, then we haven't applied the Y coordinate flip yet, so down is negative.
         float shadowTextY = point.y() + shadowOffset.height() * (graphicsContext.shadowsIgnoreTransforms() ? -1 : 1);

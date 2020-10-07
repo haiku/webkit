@@ -39,8 +39,8 @@ NetworkProcessCreationParameters::NetworkProcessCreationParameters() = default;
 
 void NetworkProcessCreationParameters::encode(IPC::Encoder& encoder) const
 {
-    encoder.encodeEnum(cacheModel);
-#if PLATFORM(MAC)
+    encoder << cacheModel;
+#if PLATFORM(MAC) || PLATFORM(MACCATALYST)
     encoder << uiProcessCookieStorageIdentifier;
 #endif
 #if PLATFORM(IOS_FAMILY)
@@ -54,14 +54,10 @@ void NetworkProcessCreationParameters::encode(IPC::Encoder& encoder) const
     encoder << uiProcessBundleIdentifier;
     encoder << uiProcessSDKVersion;
     IPC::encode(encoder, networkATSContext.get());
-    encoder << storageAccessAPIEnabled;
 #endif
-    encoder << defaultDataStoreParameters;
 #if USE(SOUP)
-    encoder.encodeEnum(cookieAcceptPolicy);
-    encoder << ignoreTLSErrors;
+    encoder << cookieAcceptPolicy;
     encoder << languages;
-    encoder << proxySettings;
 #endif
 
     encoder << urlSchemesRegisteredAsSecure;
@@ -69,22 +65,15 @@ void NetworkProcessCreationParameters::encode(IPC::Encoder& encoder) const
     encoder << urlSchemesRegisteredAsLocal;
     encoder << urlSchemesRegisteredAsNoAccess;
 
-#if ENABLE(SERVICE_WORKER)
-    encoder << serviceWorkerRegistrationDirectory << serviceWorkerRegistrationDirectoryExtensionHandle << urlSchemesServiceWorkersCanHandle << shouldDisableServiceWorkerProcessTerminationDelay;
-#endif
-    encoder << shouldEnableITPDatabase;
     encoder << enableAdClickAttributionDebugMode;
-    encoder << hstsStorageDirectory;
-    encoder << hstsStorageDirectoryExtensionHandle;
-    encoder << enableLegacyTLS;
 }
 
 bool NetworkProcessCreationParameters::decode(IPC::Decoder& decoder, NetworkProcessCreationParameters& result)
 {
-    if (!decoder.decodeEnum(result.cacheModel))
+    if (!decoder.decode(result.cacheModel))
         return false;
 
-#if PLATFORM(MAC)
+#if PLATFORM(MAC) || PLATFORM(MACCATALYST)
     if (!decoder.decode(result.uiProcessCookieStorageIdentifier))
         return false;
 #endif
@@ -118,24 +107,12 @@ bool NetworkProcessCreationParameters::decode(IPC::Decoder& decoder, NetworkProc
         return false;
     if (!IPC::decode(decoder, result.networkATSContext))
         return false;
-    if (!decoder.decode(result.storageAccessAPIEnabled))
-        return false;
 #endif
 
-    Optional<WebsiteDataStoreParameters> defaultDataStoreParameters;
-    decoder >> defaultDataStoreParameters;
-    if (!defaultDataStoreParameters)
-        return false;
-    result.defaultDataStoreParameters = WTFMove(*defaultDataStoreParameters);
-
 #if USE(SOUP)
-    if (!decoder.decodeEnum(result.cookieAcceptPolicy))
-        return false;
-    if (!decoder.decode(result.ignoreTLSErrors))
+    if (!decoder.decode(result.cookieAcceptPolicy))
         return false;
     if (!decoder.decode(result.languages))
-        return false;
-    if (!decoder.decode(result.proxySettings))
         return false;
 #endif
 
@@ -148,36 +125,7 @@ bool NetworkProcessCreationParameters::decode(IPC::Decoder& decoder, NetworkProc
     if (!decoder.decode(result.urlSchemesRegisteredAsNoAccess))
         return false;
 
-#if ENABLE(SERVICE_WORKER)
-    if (!decoder.decode(result.serviceWorkerRegistrationDirectory))
-        return false;
-    
-    Optional<SandboxExtension::Handle> serviceWorkerRegistrationDirectoryExtensionHandle;
-    decoder >> serviceWorkerRegistrationDirectoryExtensionHandle;
-    if (!serviceWorkerRegistrationDirectoryExtensionHandle)
-        return false;
-    result.serviceWorkerRegistrationDirectoryExtensionHandle = WTFMove(*serviceWorkerRegistrationDirectoryExtensionHandle);
-    
-    if (!decoder.decode(result.urlSchemesServiceWorkersCanHandle))
-        return false;
-    
-    if (!decoder.decode(result.shouldDisableServiceWorkerProcessTerminationDelay))
-        return false;
-#endif
-
-    if (!decoder.decode(result.shouldEnableITPDatabase))
-        return false;
-
     if (!decoder.decode(result.enableAdClickAttributionDebugMode))
-        return false;
-
-    if (!decoder.decode(result.hstsStorageDirectory))
-        return false;
-
-    if (!decoder.decode(result.hstsStorageDirectoryExtensionHandle))
-        return false;
-    
-    if (!decoder.decode(result.enableLegacyTLS))
         return false;
 
     return true;

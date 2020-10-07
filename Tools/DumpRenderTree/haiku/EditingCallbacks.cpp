@@ -34,7 +34,7 @@
 #include "EditorClientHaiku.h"
 #include "EditorInsertAction.h"
 #include <WebCore/Node.h>
-#include <WebCore/Range.h>
+#include <WebCore/SimpleRange.h>
 #include <WebCore/StyleProperties.h>
 #include "TestRunner.h"
 #include "TextAffinity.h"
@@ -42,30 +42,29 @@
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
 
-static WTF::String dumpPath(WebCore::Node* node)
+static std::string dumpPath(WebCore::Node* node)
 {
     ASSERT(node);
 
-    WTF::String str(node->nodeName());
+    std::string result(node->nodeName().utf8().data());
 
     WebCore::Node* parent = node->parentNode();
     if (parent) {
-        str.append(" > ");
-        str.append(dumpPath(parent));
+        result += " > " + dumpPath(parent);
     }
-    return str;
+    return result;
 }
 
-static BString dumpRange(WebCore::Range* range)
+static BString dumpRange(WebCore::SimpleRange* range)
 {
     if (!range)
         return BString();
 
-	BString string;
+    BString string;
     string.SetToFormat("range from %d of %s to %d of %s",
-        range->startOffset(), dumpPath(&range->startContainer()).utf8().data(),
-        range->endOffset(), dumpPath(&range->endContainer()).utf8().data());
-	return string;
+        range->startOffset(), dumpPath(&range->startContainer()).c_str(),
+        range->endOffset(), dumpPath(&range->endContainer()).c_str());
+    return string;
 }
 
 static const char* insertActionString(WebCore::EditorInsertAction action)
@@ -94,31 +93,31 @@ static const char* selectionAffinityString(WebCore::EAffinity affinity)
     return "NSSelectionAffinityUpstream";
 }
 
-static void shouldBeginEditing(WebCore::Range* range)
+static void shouldBeginEditing(WebCore::SimpleRange* range)
 {
     if (!done && gTestRunner->dumpEditingCallbacks()) {
         printf("EDITING DELEGATE: shouldBeginEditingInDOMRange:%s\n", dumpRange(range).String());
     }
 }
 
-static void shouldEndEditing(WebCore::Range* range)
+static void shouldEndEditing(WebCore::SimpleRange* range)
 {
     if (!done && gTestRunner->dumpEditingCallbacks()) {
         printf("EDITING DELEGATE: shouldEndEditingInDOMRange:%s\n", dumpRange(range).String());
     }
 }
 
-static void shouldInsertNode(WebCore::Node* node, WebCore::Range* range,
+static void shouldInsertNode(WebCore::Node* node, WebCore::SimpleRange* range,
     WebCore::EditorInsertAction action)
 {
     if (!done && gTestRunner->dumpEditingCallbacks()) {
         printf("EDITING DELEGATE: shouldInsertNode:%s replacingDOMRange:%s givenAction:%s\n",
-               dumpPath(node).utf8().data(), dumpRange(range).String(),
+               dumpPath(node).c_str(), dumpRange(range).String(),
                insertActionString(action));
     }
 }
 
-static void shouldInsertText(BString text, WebCore::Range* range,
+static void shouldInsertText(BString text, WebCore::SimpleRange* range,
     WebCore::EditorInsertAction action)
 {
     if (!done && gTestRunner->dumpEditingCallbacks()) {
@@ -127,14 +126,15 @@ static void shouldInsertText(BString text, WebCore::Range* range,
     }
 }
 
-static void shouldDeleteRange(WebCore::Range* range)
+static void shouldDeleteRange(WebCore::SimpleRange* range)
 {
     if (!done && gTestRunner->dumpEditingCallbacks()) {
         printf("EDITING DELEGATE: shouldDeleteDOMRange:%s\n", dumpRange(range).String());
     }
 }
 
-static void shouldChangeSelectedRange(WebCore::Range* fromRange, WebCore::Range* toRange,
+static void shouldChangeSelectedRange(WebCore::SimpleRange* fromRange,
+    WebCore::SimpleRange* toRange,
     WebCore::EAffinity affinity, bool stillSelecting)
 {
     if (!done && gTestRunner->dumpEditingCallbacks()) {
@@ -144,7 +144,7 @@ static void shouldChangeSelectedRange(WebCore::Range* fromRange, WebCore::Range*
     }
 }
 
-static void shouldApplyStyle(WebCore::StyleProperties* style, WebCore::Range* range)
+static void shouldApplyStyle(WebCore::StyleProperties* style, WebCore::SimpleRange* range)
 {
     if (!done && gTestRunner->dumpEditingCallbacks()) {
         printf("EDITING DELEGATE: shouldApplyStyle:%s toElementsInDOMRange:%s\n",
@@ -182,14 +182,14 @@ bool handleEditingCallback(BMessage* message)
     {
         case EDITOR_DELETE_RANGE:
         {
-            WebCore::Range* range = NULL;
+            WebCore::SimpleRange* range = NULL;
             message->FindPointer("range", (void**)&range);
             shouldDeleteRange(range);
             return true;
         }
         case EDITOR_BEGIN_EDITING:
         {
-            WebCore::Range* range = NULL;
+            WebCore::SimpleRange* range = NULL;
             message->FindPointer("range", (void**)&range);
             shouldBeginEditing(range);
             return true;
@@ -202,14 +202,14 @@ bool handleEditingCallback(BMessage* message)
             return true;
         case EDITOR_END_EDITING:
         {
-            WebCore::Range* range = NULL;
+            WebCore::SimpleRange* range = NULL;
             message->FindPointer("range", (void**)&range);
             shouldEndEditing(range);
             return true;
         }
         case EDITOR_INSERT_NODE:
         {
-            WebCore::Range* range = NULL;
+            WebCore::SimpleRange* range = NULL;
             WebCore::Node* node = NULL;
             message->FindPointer("range", (void**)&range);
             message->FindPointer("node", (void**)&node);
@@ -219,7 +219,7 @@ bool handleEditingCallback(BMessage* message)
         }
         case EDITOR_INSERT_TEXT:
         {
-            WebCore::Range* range = NULL;
+            WebCore::SimpleRange* range = NULL;
             message->FindPointer("range", (void**)&range);
             BString text = message->FindString("text");
             WebCore::EditorInsertAction action = (WebCore::EditorInsertAction)message->FindInt32("action");
@@ -228,8 +228,8 @@ bool handleEditingCallback(BMessage* message)
         }
         case EDITOR_CHANGE_SELECTED_RANGE:
         {
-            WebCore::Range* fromRange = NULL;
-            WebCore::Range* toRange = NULL;
+            WebCore::SimpleRange* fromRange = NULL;
+            WebCore::SimpleRange* toRange = NULL;
             message->FindPointer("from", (void**)&fromRange);
             message->FindPointer("to", (void**)&toRange);
             WebCore::EAffinity affinity = (WebCore::EAffinity)message->FindInt32("affinity");
@@ -239,7 +239,7 @@ bool handleEditingCallback(BMessage* message)
         }
         case EDITOR_APPLY_STYLE:
         {
-            WebCore::Range* range = NULL;
+            WebCore::SimpleRange* range = NULL;
             WebCore::StyleProperties* style = NULL;
             message->FindPointer("range", (void**)&range);
             message->FindPointer("style", (void**)&style);

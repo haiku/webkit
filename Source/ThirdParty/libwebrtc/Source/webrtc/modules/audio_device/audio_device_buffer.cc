@@ -8,17 +8,19 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include "modules/audio_device/audio_device_buffer.h"
+
 #include <string.h>
+
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 
 #include "common_audio/signal_processing/include/signal_processing_library.h"
-#include "modules/audio_device/audio_device_buffer.h"
 #include "rtc_base/bind.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/timeutils.h"
+#include "rtc_base/time_utils.h"
 #include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
@@ -39,8 +41,10 @@ static const size_t kMinValidCallTimeTimeInMilliseconds =
 static const double k2Pi = 6.28318530717959;
 #endif
 
-AudioDeviceBuffer::AudioDeviceBuffer()
-    : task_queue_(kTimerQueueName),
+AudioDeviceBuffer::AudioDeviceBuffer(TaskQueueFactory* task_queue_factory)
+    : task_queue_(task_queue_factory->CreateTaskQueue(
+          kTimerQueueName,
+          TaskQueueFactory::Priority::NORMAL)),
       audio_transport_cb_(nullptr),
       rec_sample_rate_(0),
       play_sample_rate_(0),
@@ -63,7 +67,6 @@ AudioDeviceBuffer::AudioDeviceBuffer()
   phase_ = 0.0;
   RTC_LOG(WARNING) << "AUDIO_DEVICE_PLAYS_SINUS_TONE is defined!";
 #endif
-  WebRtcSpl_Init();
 }
 
 AudioDeviceBuffer::~AudioDeviceBuffer() {
@@ -410,11 +413,19 @@ void AudioDeviceBuffer::LogStats(LogState state) {
                                abs_diff_rate_in_percent);
       RTC_LOG(INFO) << "[REC : " << time_since_last << "msec, "
                     << rec_sample_rate / 1000 << "kHz] callbacks: "
-                    << stats.rec_callbacks - last_stats_.rec_callbacks << ", "
-                    << "samples: " << diff_samples << ", "
-                    << "rate: " << static_cast<int>(rate + 0.5) << ", "
-                    << "rate diff: " << abs_diff_rate_in_percent << "%, "
-                    << "level: " << stats.max_rec_level;
+                    << stats.rec_callbacks - last_stats_.rec_callbacks
+                    << ", "
+                       "samples: "
+                    << diff_samples
+                    << ", "
+                       "rate: "
+                    << static_cast<int>(rate + 0.5)
+                    << ", "
+                       "rate diff: "
+                    << abs_diff_rate_in_percent
+                    << "%, "
+                       "level: "
+                    << stats.max_rec_level;
     }
 
     diff_samples = stats.play_samples - last_stats_.play_samples;
@@ -428,11 +439,19 @@ void AudioDeviceBuffer::LogStats(LogState state) {
                                abs_diff_rate_in_percent);
       RTC_LOG(INFO) << "[PLAY: " << time_since_last << "msec, "
                     << play_sample_rate / 1000 << "kHz] callbacks: "
-                    << stats.play_callbacks - last_stats_.play_callbacks << ", "
-                    << "samples: " << diff_samples << ", "
-                    << "rate: " << static_cast<int>(rate + 0.5) << ", "
-                    << "rate diff: " << abs_diff_rate_in_percent << "%, "
-                    << "level: " << stats.max_play_level;
+                    << stats.play_callbacks - last_stats_.play_callbacks
+                    << ", "
+                       "samples: "
+                    << diff_samples
+                    << ", "
+                       "rate: "
+                    << static_cast<int>(rate + 0.5)
+                    << ", "
+                       "rate diff: "
+                    << abs_diff_rate_in_percent
+                    << "%, "
+                       "level: "
+                    << stats.max_play_level;
     }
   }
   last_stats_ = stats;

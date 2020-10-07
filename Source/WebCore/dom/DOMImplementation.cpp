@@ -51,7 +51,6 @@
 #include "SecurityOriginPolicy.h"
 #include "Settings.h"
 #include "StyleSheetContents.h"
-#include "SubframeLoader.h"
 #include "Text.h"
 #include "TextDocument.h"
 #include "XMLDocument.h"
@@ -159,7 +158,7 @@ Ref<Document> DOMImplementation::createDocument(const String& type, Frame* frame
     MediaEngineSupportParameters parameters;
     parameters.type = ContentType { type };
     parameters.url = url;
-    if (MediaPlayer::supportsType(parameters))
+    if (MediaPlayer::supportsType(parameters) != MediaPlayer::SupportsType::IsNotSupported)
         return MediaDocument::create(frame, url);
 #endif
 
@@ -173,7 +172,7 @@ Ref<Document> DOMImplementation::createDocument(const String& type, Frame* frame
 
     // The following is the relatively costly lookup that requires initializing the plug-in database.
     if (frame && frame->page()) {
-        auto allowedPluginTypes = frame->loader().subframeLoader().allowPlugins()
+        auto allowedPluginTypes = frame->loader().arePluginsEnabled()
             ? PluginData::AllPlugins : PluginData::OnlyApplicationPlugins;
         if (frame->page()->pluginData().supportsWebVisibleMimeType(type, allowedPluginTypes))
             return PluginDocument::create(*frame, url);
@@ -187,8 +186,11 @@ Ref<Document> DOMImplementation::createDocument(const String& type, Frame* frame
         return TextDocument::create(frame, url);
     if (equalLettersIgnoringASCIICase(type, "image/svg+xml"))
         return SVGDocument::create(frame, url);
-    if (MIMETypeRegistry::isXMLMIMEType(type))
-        return XMLDocument::create(frame, url);
+    if (MIMETypeRegistry::isXMLMIMEType(type)) {
+        auto document = XMLDocument::create(frame, url);
+        document->overrideMIMEType(type);
+        return document;
+    }
     return HTMLDocument::create(frame, url);
 }
 

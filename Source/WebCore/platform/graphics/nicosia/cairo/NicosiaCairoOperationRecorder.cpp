@@ -34,6 +34,7 @@
 
 #include "CairoOperations.h"
 #include "FloatRoundedRect.h"
+#include "Gradient.h"
 #include "ImageBuffer.h"
 #include "NicosiaPaintingOperationReplayCairo.h"
 #include <type_traits>
@@ -294,7 +295,7 @@ void CairoOperationRecorder::fillRect(const FloatRect& rect, Gradient& gradient)
         }
     };
 
-    append(createCommand<FillRect>(rect, adoptRef(gradient.createPlatformGradient(1.0))));
+    append(createCommand<FillRect>(rect, gradient.createPattern(1.0)));
 }
 
 void CairoOperationRecorder::fillRect(const FloatRect& rect, const Color& color, CompositeOperator compositeOperator, BlendMode blendMode)
@@ -496,13 +497,13 @@ void CairoOperationRecorder::clearRect(const FloatRect& rect)
 
 void CairoOperationRecorder::drawGlyphs(const Font& font, const GlyphBuffer& glyphBuffer, unsigned from, unsigned numGlyphs, const FloatPoint& point, FontSmoothingMode fontSmoothing)
 {
-    struct DrawGlyphs final : PaintingOperation, OperationData<Cairo::FillSource, Cairo::StrokeSource, Cairo::ShadowState, FloatPoint, RefPtr<cairo_scaled_font_t>, float, Vector<cairo_glyph_t>, float, TextDrawingModeFlags, float, FloatSize, Color> {
+    struct DrawGlyphs final : PaintingOperation, OperationData<Cairo::FillSource, Cairo::StrokeSource, Cairo::ShadowState, FloatPoint, RefPtr<cairo_scaled_font_t>, float, Vector<cairo_glyph_t>, float, TextDrawingModeFlags, float, FloatSize, Color, FontSmoothingMode> {
         virtual ~DrawGlyphs() = default;
 
         void execute(PaintingOperationReplay& replayer) override
         {
             Cairo::drawGlyphs(contextForReplay(replayer), arg<0>(), arg<1>(), arg<2>(), arg<3>(), arg<4>().get(),
-                arg<5>(), arg<6>(), arg<7>(), arg<8>(), arg<9>(), arg<10>(), arg<11>());
+                arg<5>(), arg<6>(), arg<7>(), arg<8>(), arg<9>(), arg<10>(), arg<11>(), arg<12>());
         }
 
         void dump(TextStream& ts) override
@@ -511,7 +512,6 @@ void CairoOperationRecorder::drawGlyphs(const Font& font, const GlyphBuffer& gly
         }
     };
 
-    UNUSED_PARAM(fontSmoothing);
     if (!font.platformData().size())
         return;
 
@@ -534,7 +534,7 @@ void CairoOperationRecorder::drawGlyphs(const Font& font, const GlyphBuffer& gly
         Cairo::ShadowState(state), point,
         RefPtr<cairo_scaled_font_t>(font.platformData().scaledFont()),
         font.syntheticBoldOffset(), WTFMove(glyphs), xOffset, state.textDrawingMode,
-        state.strokeThickness, state.shadowOffset, state.shadowColor));
+        state.strokeThickness, state.shadowOffset, state.shadowColor, fontSmoothing));
 }
 
 ImageDrawResult CairoOperationRecorder::drawImage(Image& image, const FloatRect& destination, const FloatRect& source, const ImagePaintingOptions& imagePaintingOptions)
@@ -1091,6 +1091,11 @@ FloatRect CairoOperationRecorder::roundToDevicePixels(const FloatRect& rect, Gra
 void CairoOperationRecorder::append(std::unique_ptr<PaintingOperation>&& command)
 {
     m_commandList.append(WTFMove(command));
+}
+
+void CairoOperationRecorder::clipToDrawingCommands(const FloatRect&, ColorSpace, Function<void(GraphicsContext&)>&&)
+{
+    // FIXME: Not implemented.
 }
 
 } // namespace Nicosia

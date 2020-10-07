@@ -24,7 +24,6 @@
 
 import json
 import re
-from sets import Set
 
 
 class JSONChecker(object):
@@ -70,7 +69,7 @@ class JSONFeaturesChecker(JSONChecker):
                 self._handle_style_error(0, 'json/syntax', 5, '"features" key not found, the key is mandatory.')
                 return
 
-            specification_name_set = Set()
+            specification_name_set = set()
             if 'specification' in features_definition:
                 previous_specification_name = ''
                 for specification_object in features_definition['specification']:
@@ -283,13 +282,16 @@ class JSONCSSPropertiesChecker(JSONChecker):
             'font-property': self.validate_boolean,
             'getter': self.validate_string,
             'high-priority': self.validate_boolean,
+            'sink-priority': self.validate_boolean,
             'initial': self.validate_string,
             'internal-only': self.validate_boolean,
             'longhands': self.validate_array,
             'name-for-methods': self.validate_string,
             'no-default-color': self.validate_boolean,
+            'related-property': self.validate_string,
             'runtime-flag': self.validate_string,
             'setter': self.validate_string,
+            'settings-flag': self.validate_string,
             'skip-builder': self.validate_boolean,
             'skip-codegen': self.validate_boolean,
             'svg': self.validate_boolean,

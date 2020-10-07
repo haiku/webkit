@@ -73,7 +73,7 @@ class FlakyTestReporter(object):
             return None
         # Match any bugs which are from known bots or the email this bot is using.
         allowed_emails = self._bot_emails | set([self._bugzilla_email])
-        bugs = filter(lambda bug: bug.reporter_email() in allowed_emails, bugs)
+        bugs = list(filter(lambda bug: bug.reporter_email() in allowed_emails, bugs))
         if not bugs:
             return None
         if len(bugs) > 1:
@@ -156,15 +156,14 @@ If you would like to track this test fix with another bug, please close this bug
         # Check to make sure that the path makes sense.
         # Since we're not actually getting this path from the results.html
         # there is a chance it's wrong.
-        bot_id = self._tool.status_server.bot_id or "bot"
         archive_path = self._find_in_archive(results_diff_path, results_archive_zip)
         if archive_path:
             results_diff = results_archive_zip.read(archive_path)
-            description = "Failure diff from %s" % bot_id
+            description = "Failure diff from bot"
             self._tool.bugs.add_attachment_to_bug(flake_bug_id, results_diff, description, filename="failure.diff")
         else:
             _log.warn("%s does not exist in results archive, uploading entire archive." % results_diff_path)
-            description = "Archive of layout-test-results from %s" % bot_id
+            description = "Archive of layout-test-results from bot"
             # results_archive is a ZipFile object, grab the File object (.fp) to pass to Mechanize for uploading.
             results_archive_file = results_archive_zip.fp
             # Rewind the file object to start (since Mechanize won't do that automatically)

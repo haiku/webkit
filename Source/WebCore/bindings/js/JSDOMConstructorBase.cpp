@@ -22,6 +22,7 @@
 #include "config.h"
 #include "JSDOMConstructor.h"
 
+#include "WebCoreJSClientData.h"
 #include <JavaScriptCore/JSCInlines.h>
 
 namespace WebCore {
@@ -29,7 +30,9 @@ using namespace JSC;
 
 STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(JSDOMConstructorBase);
 
-static EncodedJSValue JSC_HOST_CALL callThrowTypeError(JSGlobalObject* globalObject, CallFrame*)
+static JSC_DECLARE_HOST_FUNCTION(callThrowTypeError);
+
+JSC_DEFINE_HOST_FUNCTION(callThrowTypeError, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -37,23 +40,25 @@ static EncodedJSValue JSC_HOST_CALL callThrowTypeError(JSGlobalObject* globalObj
     return JSValue::encode(jsNull());
 }
 
-CallType JSDOMConstructorBase::getCallData(JSCell*, CallData& callData)
+JSC_DEFINE_HOST_FUNCTION(callThrowTypeErrorForJSDOMConstructorNotConstructable, (JSC::JSGlobalObject* globalObject, JSC::CallFrame*))
 {
+    JSC::VM& vm = globalObject->vm();
+    auto scope = DECLARE_THROW_SCOPE(vm);
+    JSC::throwTypeError(globalObject, scope, "Illegal constructor"_s);
+    return JSC::JSValue::encode(JSC::jsNull());
+}
+
+CallData JSDOMConstructorBase::getCallData(JSCell*)
+{
+    CallData callData;
+    callData.type = CallData::Type::Native;
     callData.native.function = callThrowTypeError;
-    return CallType::Host;
+    return callData;
 }
 
-String JSDOMConstructorBase::className(const JSObject*, JSC::VM&)
+JSC::IsoSubspace* JSDOMConstructorBase::subspaceForImpl(JSC::VM& vm)
 {
-    return "Function"_s;
-}
-
-String JSDOMConstructorBase::toStringName(const JSObject* object, JSC::JSGlobalObject* lexicalGlobalObject)
-{
-    VM& vm = lexicalGlobalObject->vm();
-    const ClassInfo* info = object->classInfo(vm);
-    ASSERT(info);
-    return info->methodTable.className(object, vm);
+    return &static_cast<JSVMClientData*>(vm.clientData)->domConstructorSpace();
 }
 
 } // namespace WebCore

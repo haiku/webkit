@@ -73,21 +73,29 @@ void CommandLineAPIHost::disconnect()
     m_instrumentingAgents = nullptr;
 }
 
-void CommandLineAPIHost::inspect(JSC::JSGlobalObject& lexicalGlobalObject, JSC::JSValue valueToInspect, JSC::JSValue hintsValue)
+void CommandLineAPIHost::inspect(JSC::JSGlobalObject& lexicalGlobalObject, JSC::JSValue object, JSC::JSValue hints)
 {
     if (!m_instrumentingAgents)
         return;
 
-    auto* inspectorAgent = m_instrumentingAgents->inspectorAgent();
+    auto* inspectorAgent = m_instrumentingAgents->persistentInspectorAgent();
     if (!inspectorAgent)
         return;
 
-    RefPtr<JSON::Object> hintsObject;
-    if (!Inspector::toInspectorValue(&lexicalGlobalObject, hintsValue)->asObject(hintsObject))
+    auto objectValue = Inspector::toInspectorValue(&lexicalGlobalObject, object);
+    if (!objectValue)
         return;
 
-    auto remoteObject = BindingTraits<Inspector::Protocol::Runtime::RemoteObject>::runtimeCast(Inspector::toInspectorValue(&lexicalGlobalObject, valueToInspect));
-    inspectorAgent->inspect(WTFMove(remoteObject), WTFMove(hintsObject));
+    auto hintsValue = Inspector::toInspectorValue(&lexicalGlobalObject, hints);
+    if (!hintsValue)
+        return;
+
+    auto hintsObject = hintsValue->asObject();
+    if (!hintsObject)
+        return;
+
+    auto remoteObject = Protocol::BindingTraits<Protocol::Runtime::RemoteObject>::runtimeCast(objectValue.releaseNonNull());
+    inspectorAgent->inspect(WTFMove(remoteObject), hintsObject.releaseNonNull());
 }
 
 CommandLineAPIHost::EventListenersRecord CommandLineAPIHost::getEventListeners(JSGlobalObject& lexicalGlobalObject, EventTarget& target)
@@ -113,7 +121,7 @@ CommandLineAPIHost::EventListenersRecord CommandLineAPIHost::getEventListeners(J
             if (&jsListener.isolatedWorld() != &currentWorld(lexicalGlobalObject))
                 continue;
 
-            auto* function = jsListener.jsFunction(*scriptExecutionContext);
+            auto* function = jsListener.ensureJSFunction(*scriptExecutionContext);
             if (!function)
                 continue;
 
@@ -136,8 +144,7 @@ void CommandLineAPIHost::clearConsoleMessages()
     if (!consoleAgent)
         return;
 
-    ErrorString ignored;
-    consoleAgent->clearMessages(ignored);
+    consoleAgent->clearMessages();
 }
 
 void CommandLineAPIHost::copyText(const String& text)
@@ -168,7 +175,7 @@ JSC::JSValue CommandLineAPIHost::inspectedObject(JSC::JSGlobalObject& lexicalGlo
 String CommandLineAPIHost::databaseId(Database& database)
 {
     if (m_instrumentingAgents) {
-        if (auto* databaseAgent = m_instrumentingAgents->inspectorDatabaseAgent())
+        if (auto* databaseAgent = m_instrumentingAgents->enabledDatabaseAgent())
             return databaseAgent->databaseId(database);
     }
     return { };

@@ -379,10 +379,8 @@ void GraphicsContextPlatformPrivate::rotate(float angle)
 
 D2D1_COLOR_F GraphicsContext::colorWithGlobalAlpha(const Color& color) const
 {
-    float colorAlpha = color.alphaAsFloat();
-    float globalAlpha = m_data->currentGlobalAlpha();
-
-    return D2D1::ColorF(color.rgb(), globalAlpha * colorAlpha);
+    auto [r, g, b, a] = color.toSRGBALossy<float>();
+    return D2D1::ColorF(r, g, b, a * m_data->currentGlobalAlpha());
 }
 
 ID2D1Brush* GraphicsContext::solidStrokeBrush() const
@@ -1062,19 +1060,19 @@ void GraphicsContext::setPlatformImageInterpolationQuality(InterpolationQuality 
     D2D1_INTERPOLATION_MODE quality = D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR;
 
     switch (mode) {
-    case InterpolationDefault:
+    case InterpolationQuality::Default:
         quality = D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR;
         break;
-    case InterpolationNone:
+    case InterpolationQuality::DoNotInterpolate:
         quality = D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR;
         break;
-    case InterpolationLow:
+    case InterpolationQuality::Low:
         quality = D2D1_INTERPOLATION_MODE_LINEAR;
         break;
-    case InterpolationMedium:
+    case InterpolationQuality::Medium:
         quality = D2D1_INTERPOLATION_MODE_CUBIC;
         break;
-    case InterpolationHigh:
+    case InterpolationQuality::High:
         quality = D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC;
         break;
     }

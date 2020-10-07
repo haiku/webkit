@@ -95,6 +95,9 @@ void DrawingAreaCoordinatedGraphics::setNeedsDisplayInRect(const IntRect& rect)
 {
     if (m_layerTreeHost) {
         ASSERT(m_dirtyRegion.isEmpty());
+#if USE(GRAPHICS_LAYER_TEXTURE_MAPPER)
+        m_layerTreeHost->setNonCompositedContentsNeedDisplay(rect);
+#endif
         return;
     }
 
@@ -204,8 +207,10 @@ void DrawingAreaCoordinatedGraphics::forceRepaint()
         // Call setShouldNotifyAfterNextScheduledLayerFlush(false) here to
         // prevent layerHostDidFlushLayers() from being called a second time.
         m_layerTreeHost->setShouldNotifyAfterNextScheduledLayerFlush(false);
+#if USE(COORDINATED_GRAPHICS)
         layerHostDidFlushLayers();
-    }
+#endif
+        }
 }
 
 bool DrawingAreaCoordinatedGraphics::forceRepaintAsync(CallbackID callbackID)
@@ -291,7 +296,7 @@ void DrawingAreaCoordinatedGraphics::didChangeViewportAttributes(ViewportAttribu
 }
 #endif
 
-bool DrawingAreaCoordinatedGraphics::supportsAsyncScrolling()
+bool DrawingAreaCoordinatedGraphics::supportsAsyncScrolling() const
 {
     return m_supportsAsyncScrolling;
 }
@@ -338,14 +343,18 @@ void DrawingAreaCoordinatedGraphics::setRootCompositingLayer(GraphicsLayer* grap
     enterAcceleratedCompositingMode(graphicsLayer);
 }
 
-void DrawingAreaCoordinatedGraphics::scheduleCompositingLayerFlush()
+void DrawingAreaCoordinatedGraphics::triggerRenderingUpdate()
 {
+    if (m_layerTreeStateIsFrozen)
+        return;
+
     if (m_layerTreeHost)
         m_layerTreeHost->scheduleLayerFlush();
     else
         setNeedsDisplay();
 }
 
+#if USE(COORDINATED_GRAPHICS)
 void DrawingAreaCoordinatedGraphics::layerHostDidFlushLayers()
 {
     ASSERT(m_layerTreeHost);
@@ -362,15 +371,14 @@ void DrawingAreaCoordinatedGraphics::layerHostDidFlushLayers()
         m_compositingAccordingToProxyMessages = true;
     }
 }
+#endif
 
-#if USE(REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR)
 RefPtr<DisplayRefreshMonitor> DrawingAreaCoordinatedGraphics::createDisplayRefreshMonitor(PlatformDisplayID displayID)
 {
     if (!m_layerTreeHost || m_wantsToExitAcceleratedCompositingMode || exitAcceleratedCompositingModePending())
         return nullptr;
     return m_layerTreeHost->createDisplayRefreshMonitor(displayID);
 }
-#endif
 
 void DrawingAreaCoordinatedGraphics::activityStateDidChange(OptionSet<ActivityState::Flag> changed, ActivityStateChangeID, const Vector<CallbackID>&)
 {
@@ -406,6 +414,7 @@ void DrawingAreaCoordinatedGraphics::updateBackingStoreState(uint64_t stateID, b
         m_webPage.setDeviceScaleFactor(deviceScaleFactor);
         m_webPage.setSize(size);
         m_webPage.updateRendering();
+        m_webPage.finalizeRenderingUpdate({ });
         m_webPage.flushPendingEditorStateUpdate();
         m_webPage.scrollMainFrameIfNotAtMaxScrollPosition(scrollOffset);
 
@@ -557,29 +566,41 @@ void DrawingAreaCoordinatedGraphics::resumePainting()
 
 void DrawingAreaCoordinatedGraphics::enterAcceleratedCompositingMode(GraphicsLayer* graphicsLayer)
 {
+#if PLATFORM(GTK)
+    if (!m_alwaysUseCompositing) {
+        m_webPage.corePage()->settings().setForceCompositingMode(true);
+        m_alwaysUseCompositing = true;
+    }
+#endif
     m_discardPreviousLayerTreeHostTimer.stop();
 
     m_exitCompositingTimer.stop();
     m_wantsToExitAcceleratedCompositingMode = false;
 
-    // In order to ensure that we get a unique DisplayRefreshMonitor per-DrawingArea (necessary because ThreadedDisplayRefreshMonitor
-    // is driven by the ThreadedCompositor of the drawing area), give each page a unique DisplayID derived from WebPage's unique ID.
-    m_webPage.windowScreenDidChange(std::numeric_limits<uint32_t>::max() - m_webPage.identifier().toUInt64());
+    auto changeWindowScreen = [&] {
+        // In order to ensure that we get a unique DisplayRefreshMonitor per-DrawingArea (necessary because ThreadedDisplayRefreshMonitor
+        // is driven by the ThreadedCompositor of the drawing area), give each page a unique DisplayID derived from WebPage's unique ID.
+        m_webPage.windowScreenDidChange(m_layerTreeHost->displayID(), WTF::nullopt);
+    };
 
     ASSERT(!m_layerTreeHost);
     if (m_previousLayerTreeHost) {
         m_layerTreeHost = WTFMove(m_previousLayerTreeHost);
+        changeWindowScreen();
         m_layerTreeHost->setIsDiscardable(false);
         m_layerTreeHost->resumeRendering();
         if (!m_layerTreeStateIsFrozen)
             m_layerTreeHost->setLayerFlushSchedulingEnabled(true);
     } else {
-#if USE(COORDINATED_GRAPHICS)
+#if USE(COORDINATED_GRAPHICS) || USE(GRAPHICS_LAYER_TEXTURE_MAPPER)
         m_layerTreeHost = makeUnique<LayerTreeHost>(m_webPage);
+        changeWindowScreen();
 #else
         m_layerTreeHost = nullptr;
         return;
 #endif
+        if (m_layerTreeStateIsFrozen)
+            m_layerTreeHost->setLayerFlushSchedulingEnabled(false);
         if (m_isPaintingSuspended)
             m_layerTreeHost->pauseRendering();
     }
@@ -615,7 +636,7 @@ void DrawingAreaCoordinatedGraphics::exitAcceleratedCompositingMode()
     m_discardPreviousLayerTreeHostTimer.startOneShot(5_s);
 
     // Always use the primary display ID (0) when not in accelerated compositing mode.
-    m_webPage.windowScreenDidChange(0);
+    m_webPage.windowScreenDidChange(0, WTF::nullopt);
 
     m_dirtyRegion = m_webPage.bounds();
 
@@ -676,6 +697,9 @@ void DrawingAreaCoordinatedGraphics::display()
     ASSERT(!m_isWaitingForDidUpdate);
     ASSERT(!m_inUpdateBackingStoreState);
 
+    if (m_layerTreeStateIsFrozen)
+        return;
+
     if (m_isPaintingSuspended)
         return;
 
@@ -728,6 +752,7 @@ void DrawingAreaCoordinatedGraphics::display(UpdateInfo& updateInfo)
     ASSERT(!m_webPage.size().isEmpty());
 
     m_webPage.updateRendering();
+    m_webPage.finalizeRenderingUpdate({ });
     m_webPage.flushPendingEditorStateUpdate();
 
     // The layout may have put the page into accelerated compositing mode. If the LayerTreeHost is

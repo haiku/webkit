@@ -7,10 +7,11 @@ list(APPEND WebCore_SOURCES
     platform/graphics/nicosia/NicosiaAnimation.cpp
     platform/graphics/texmap/BitmapTexture.cpp
     platform/graphics/texmap/BitmapTexturePool.cpp
-    platform/graphics/texmap/GraphicsContext3DTextureMapper.cpp
+    platform/graphics/texmap/GraphicsContextGLTextureMapper.cpp
     platform/graphics/texmap/TextureMapper.cpp
     platform/graphics/texmap/TextureMapperBackingStore.cpp
     platform/graphics/texmap/TextureMapperFPSCounter.cpp
+    platform/graphics/texmap/TextureMapperGCGLPlatformLayer.cpp
     platform/graphics/texmap/TextureMapperLayer.cpp
     platform/graphics/texmap/TextureMapperTile.cpp
 )
@@ -77,6 +78,7 @@ if (USE_COORDINATED_GRAPHICS)
     )
     list(APPEND WebCore_SOURCES
         platform/graphics/nicosia/NicosiaBuffer.cpp
+        platform/graphics/nicosia/NicosiaImageBufferPipe.cpp
         platform/graphics/nicosia/NicosiaPaintingContext.cpp
         platform/graphics/nicosia/NicosiaPaintingEngine.cpp
         platform/graphics/nicosia/NicosiaPaintingEngineBasic.cpp
@@ -93,7 +95,7 @@ if (USE_COORDINATED_GRAPHICS)
         platform/graphics/nicosia/texmap/NicosiaBackingStoreTextureMapperImpl.cpp
         platform/graphics/nicosia/texmap/NicosiaCompositionLayerTextureMapperImpl.cpp
         platform/graphics/nicosia/texmap/NicosiaContentLayerTextureMapperImpl.cpp
-        platform/graphics/nicosia/texmap/NicosiaGC3DLayer.cpp
+        platform/graphics/nicosia/texmap/NicosiaGCGLLayer.cpp
         platform/graphics/nicosia/texmap/NicosiaImageBackingTextureMapperImpl.cpp
     )
     list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS
@@ -116,5 +118,11 @@ else ()
     list(APPEND WebCore_SOURCES
         platform/graphics/texmap/GraphicsLayerTextureMapper.cpp
         platform/graphics/texmap/TextureMapperTiledBackingStore.cpp
+    )
+endif ()
+
+if (USE_ANGLE_WEBGL)
+    list(APPEND WebCore_SOURCES
+        platform/graphics/nicosia/texmap/NicosiaGCGLANGLELayer.cpp
     )
 endif ()

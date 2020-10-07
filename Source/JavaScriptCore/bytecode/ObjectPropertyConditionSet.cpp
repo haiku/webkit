@@ -67,7 +67,7 @@ bool ObjectPropertyConditionSet::hasOneSlotBaseCondition() const
         switch (condition.kind()) {
         case PropertyCondition::Presence:
         case PropertyCondition::Equivalence:
-        case PropertyCondition::CustomFunctionEquivalence:
+        case PropertyCondition::HasStaticProperty:
             if (sawBase)
                 return false;
             sawBase = true;
@@ -87,7 +87,7 @@ ObjectPropertyCondition ObjectPropertyConditionSet::slotBaseCondition() const
     for (const ObjectPropertyCondition& condition : *this) {
         if (condition.kind() == PropertyCondition::Presence
             || condition.kind() == PropertyCondition::Equivalence
-            || condition.kind() == PropertyCondition::CustomFunctionEquivalence) {
+            || condition.kind() == PropertyCondition::HasStaticProperty) {
             result = condition;
             numFound++;
         }
@@ -244,11 +244,11 @@ ObjectPropertyCondition generateCondition(
         result = ObjectPropertyCondition::equivalence(vm, owner, object, uid, value);
         break;
     }
-    case PropertyCondition::CustomFunctionEquivalence: {
+    case PropertyCondition::HasStaticProperty: {
         auto entry = object->findPropertyHashEntry(vm, uid);
         if (!entry)
             return ObjectPropertyCondition();
-        result = ObjectPropertyCondition::customFunctionEquivalence(vm, owner, object, uid);
+        result = ObjectPropertyCondition::hasStaticProperty(vm, owner, object, uid);
         break;
     }
     default:
@@ -400,10 +400,16 @@ ObjectPropertyConditionSet generateConditionsForPrototypePropertyHitCustom(
                     // notices a custom, it must be a CustomGetterSetterType cell or something
                     // in the static property table. Custom values get reified into CustomGetterSetters.
                     JSValue value = object->getDirect(offset);
-                    ASSERT_UNUSED(value, value.isCell() && value.asCell()->type() == CustomGetterSetterType);
+
+                    if (!value.isCell() || value.asCell()->type() != CustomGetterSetterType) {
+                        // The value could have just got changed to some other type, so check if it's still
+                        // a custom getter setter.
+                        return false;
+                    }
+
                     kind = PropertyCondition::Equivalence;
                 } else if (structure->findPropertyHashEntry(uid))
-                    kind = PropertyCondition::CustomFunctionEquivalence;
+                    kind = PropertyCondition::HasStaticProperty;
                 else if (attributes & PropertyAttribute::DontDelete) {
                     // This can't change, so we can blindly cache it.
                     return true;
@@ -509,7 +515,7 @@ ObjectPropertyCondition generateConditionForSelfEquivalence(
 }
 
 // Current might be null. Structure can't be null.
-static Optional<PrototypeChainCachingStatus> preparePrototypeChainForCaching(JSGlobalObject* globalObject, JSCell* current, Structure* structure, JSObject* target)
+static Optional<PrototypeChainCachingStatus> prepareChainForCaching(JSGlobalObject* globalObject, JSCell* current, Structure* structure, JSObject* target)
 {
     ASSERT(structure);
     VM& vm = globalObject->vm();
@@ -571,20 +577,20 @@ static Optional<PrototypeChainCachingStatus> preparePrototypeChainForCaching(JSG
     return result;
 }
 
-Optional<PrototypeChainCachingStatus> preparePrototypeChainForCaching(JSGlobalObject* globalObject, JSCell* base, JSObject* target)
+Optional<PrototypeChainCachingStatus> prepareChainForCaching(JSGlobalObject* globalObject, JSCell* base, JSObject* target)
 {
-    return preparePrototypeChainForCaching(globalObject, base, base->structure(globalObject->vm()), target);
+    return prepareChainForCaching(globalObject, base, base->structure(globalObject->vm()), target);
 }
 
-Optional<PrototypeChainCachingStatus> preparePrototypeChainForCaching(JSGlobalObject* globalObject, JSCell* base, const PropertySlot& slot)
+Optional<PrototypeChainCachingStatus> prepareChainForCaching(JSGlobalObject* globalObject, JSCell* base, const PropertySlot& slot)
 {
     JSObject* target = slot.isUnset() ? nullptr : slot.slotBase();
-    return preparePrototypeChainForCaching(globalObject, base, target);
+    return prepareChainForCaching(globalObject, base, target);
 }
 
-Optional<PrototypeChainCachingStatus> preparePrototypeChainForCaching(JSGlobalObject* globalObject, Structure* baseStructure, JSObject* target)
+Optional<PrototypeChainCachingStatus> prepareChainForCaching(JSGlobalObject* globalObject, Structure* baseStructure, JSObject* target)
 {
-    return preparePrototypeChainForCaching(globalObject, nullptr, baseStructure, target);
+    return prepareChainForCaching(globalObject, nullptr, baseStructure, target);
 }
 
 } // namespace JSC

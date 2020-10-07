@@ -29,10 +29,7 @@
 
 #if ENABLE(WEBASSEMBLY)
 
-#include "BytecodeDumper.h"
-#include "BytecodeStructs.h"
 #include "InstructionStream.h"
-#include "LLIntThunks.h"
 
 namespace JSC { namespace Wasm {
 
@@ -40,15 +37,6 @@ void FunctionCodeBlock::setInstructions(std::unique_ptr<InstructionStream> instr
 {
     m_instructions = WTFMove(instructions);
     m_instructionsRawPointer = m_instructions->rawPointer();
-}
-
-void FunctionCodeBlock::dumpBytecode()
-{
-    BytecodeDumper<FunctionCodeBlock> dumper(this, WTF::dataFile());
-    for (auto it = m_instructions->begin(); it != m_instructions->end(); it += it->size<WasmOpcodeTraits>()) {
-        dumpWasm(&dumper, it.offset(), it.ptr());
-        dataLogLn();
-    }
 }
 
 void FunctionCodeBlock::addOutOfLineJumpTarget(InstructionStream::Offset bytecodeOffset, int target)
@@ -84,11 +72,7 @@ const Signature& FunctionCodeBlock::signature(unsigned index) const
 
 auto FunctionCodeBlock::addJumpTable(size_t numberOfEntries) -> JumpTable&
 {
-#if !ASSERT_DISABLED
-    m_jumpTables.append(JumpTable(numberOfEntries, 0));
-#else
     m_jumpTables.append(JumpTable(numberOfEntries));
-#endif
     return m_jumpTables.last();
 }
 

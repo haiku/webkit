@@ -8,7 +8,6 @@
 </head>
 <body>
 <script>
-    testRunner.setUseITPDatabase(false);
     description("Tests that telemetry for prevalent resources is calculated correctly.");
     jsTestIsAsync = true;
 
@@ -113,8 +112,6 @@
 
     if (window.testRunner) {
         setEnableFeature(true, function() {
-            testRunner.setStatisticsNotifyPagesWhenDataRecordsWereScanned(true);
-            testRunner.setStatisticsNotifyPagesWhenTelemetryWasCaptured(true);
             setUpInsufficientStatisticsAndContinue();
         });
     }

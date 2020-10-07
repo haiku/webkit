@@ -68,13 +68,14 @@ bool CachedModuleScriptLoader::load(Document& document, const URL& sourceURL)
     m_cachedScript = m_scriptFetcher->requestModuleScript(document, sourceURL, WTFMove(integrity));
     if (!m_cachedScript)
         return false;
+    m_sourceURL = sourceURL;
 
     // If the content is already cached, this immediately calls notifyFinished.
     m_cachedScript->addClient(*this);
     return true;
 }
 
-void CachedModuleScriptLoader::notifyFinished(CachedResource& resource)
+void CachedModuleScriptLoader::notifyFinished(CachedResource& resource, const NetworkLoadMetrics&)
 {
     ASSERT_UNUSED(resource, &resource == m_cachedScript);
     ASSERT(m_cachedScript);

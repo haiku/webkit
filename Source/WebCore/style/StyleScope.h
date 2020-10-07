@@ -43,7 +43,6 @@ class Document;
 class Element;
 class Node;
 class ProcessingInstruction;
-class StyleResolver;
 class StyleSheet;
 class StyleSheetContents;
 class StyleSheetList;
@@ -51,6 +50,8 @@ class ShadowRoot;
 class TreeScope;
 
 namespace Style {
+
+class Resolver;
 
 // This is used to identify style scopes that can affect an element.
 // Scopes are in tree-of-trees order. Styles from earlier scopes win over later ones (modulo !important).
@@ -107,6 +108,8 @@ public:
     // The change is assumed to potentially affect all author and user stylesheets including shadow roots.
     WEBCORE_EXPORT void didChangeStyleSheetEnvironment();
 
+    void invalidateMatchedDeclarationsCache();
+
     bool hasPendingUpdate() const { return m_pendingUpdate || m_hasDescendantWithPendingUpdate; }
     void flushPendingUpdate();
 
@@ -114,12 +117,15 @@ public:
     Vector<Ref<ProcessingInstruction>> collectXSLTransforms();
 #endif
 
-    StyleResolver& resolver();
-    StyleResolver* resolverIfExists();
+    WEBCORE_EXPORT Resolver& resolver();
+    Resolver* resolverIfExists();
     void clearResolver();
     void releaseMemory();
 
     const Document& document() const { return m_document; }
+    Document& document() { return m_document; }
+    const ShadowRoot* shadowRoot() const { return m_shadowRoot; }
+    ShadowRoot* shadowRoot() { return m_shadowRoot; }
 
     static Scope& forNode(Node&);
     static Scope* forOrdinal(Element&, ScopeOrdinal);
@@ -140,13 +146,19 @@ private:
 
     void collectActiveStyleSheets(Vector<RefPtr<StyleSheet>>&);
 
-    enum StyleResolverUpdateType {
+    enum class ResolverUpdateType {
         Reconstruct,
         Reset,
         Additive
     };
-    StyleResolverUpdateType analyzeStyleSheetChange(const Vector<RefPtr<CSSStyleSheet>>& newStylesheets, bool& requiresFullStyleRecalc);
-    void updateStyleResolver(Vector<RefPtr<CSSStyleSheet>>&, StyleResolverUpdateType);
+    struct StyleSheetChange {
+        ResolverUpdateType resolverUpdateType;
+        Vector<StyleSheetContents*> addedSheets { };
+    };
+    StyleSheetChange analyzeStyleSheetChange(const Vector<RefPtr<CSSStyleSheet>>& newStylesheets);
+    void invalidateStyleAfterStyleSheetChange(const StyleSheetChange&);
+
+    void updateResolver(Vector<RefPtr<CSSStyleSheet>>&, ResolverUpdateType);
 
     void pendingUpdateTimerFired();
     void clearPendingUpdate();
@@ -154,7 +166,7 @@ private:
     Document& m_document;
     ShadowRoot* m_shadowRoot { nullptr };
 
-    std::unique_ptr<StyleResolver> m_resolver;
+    std::unique_ptr<Resolver> m_resolver;
 
     Vector<RefPtr<StyleSheet>> m_styleSheetsForStyleSheetList;
     Vector<RefPtr<CSSStyleSheet>> m_activeStyleSheets;

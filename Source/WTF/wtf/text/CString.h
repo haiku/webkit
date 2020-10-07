@@ -32,9 +32,12 @@
 
 namespace WTF {
 
+DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(CStringBuffer);
+
 // CStringBuffer is the ref-counted storage class for the characters in a CString.
 // The data is implicitly allocated 1 character longer than length(), as it is zero-terminated.
 class CStringBuffer final : public RefCounted<CStringBuffer> {
+    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(CStringBuffer);
 public:
     const char* data() { return mutableData(); }
     size_t length() const { return m_length; }
@@ -64,7 +67,7 @@ public:
 
     const char* data() const
     {
-        return m_buffer ? m_buffer->data() : 0;
+        return m_buffer ? m_buffer->data() : nullptr;
     }
     WTF_EXPORT_PRIVATE char* mutableData();
     size_t length() const
@@ -80,6 +83,9 @@ public:
     bool isHashTableDeletedValue() const { return m_buffer.isHashTableDeletedValue(); }
     
     WTF_EXPORT_PRIVATE unsigned hash() const;
+
+    // Useful if you want your CString to hold dynamic data.
+    WTF_EXPORT_PRIVATE void grow(size_t newLength);
 
 private:
     void copyBufferIfNeeded();
@@ -100,9 +106,7 @@ struct CStringHash {
 };
 
 template<typename T> struct DefaultHash;
-template<> struct DefaultHash<CString> {
-    typedef CStringHash Hash;
-};
+template<> struct DefaultHash<CString> : CStringHash { };
 
 template<typename T> struct HashTraits;
 template<> struct HashTraits<CString> : SimpleClassHashTraits<CString> { };

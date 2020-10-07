@@ -3,17 +3,7 @@ if (this.importScripts) {
     importScripts('shared.js');
 }
 
-description("Test structured clone permutations in IndexedDB. File/FileList tests require DumpRenderTree.");
-
-if (self.eventSender) {
-    var fileInput = document.getElementById("fileInput");
-    var fileRect = fileInput.getClientRects()[0];
-    var targetX = fileRect.left + fileRect.width / 2;
-    var targetY = fileRect.top + fileRect.height / 2;
-    eventSender.beginDragWithFiles(['resources/test-data.html', 'resources/test-data.txt']);
-    eventSender.mouseMoveTo(targetX, targetY);
-    eventSender.mouseUp();
-}
+description("Test structured clone permutations in IndexedDB.");
 
 indexedDBTest(prepareDatabase, startTests);
 function prepareDatabase()
@@ -34,18 +24,25 @@ function startTests()
         testBoolean,
         testNumber,
         testString,
+        testBigInt,
         testBooleanObject,
         testNumberObject,
         testStringObject,
+        testBigIntObject,
         testDateObject,
         testRegExpObject,
         testImageData,
         testBlob,
         testFile,
         testFileList,
-        testArray,
         testObject,
-        testTypedArray
+        testArray,
+        testTypedArray,
+        testArrays,
+        testMap,
+        testSet,
+        testGeometryTypes,
+        testCryptoKey
     ];
 
     function nextTest() {
@@ -122,7 +119,6 @@ function testPrimitiveValue(string, callback)
     testValue(test_data, function(result) {
         self.result = result;
         shouldBeTrue("is(test_data, result)");
-        debug("");
         callback();
     });
 }
@@ -139,7 +135,6 @@ function testObjectWithValue(string, callback)
         shouldBeTrue("test_data !== result");
         shouldBe("result.toString()", "test_data.toString()");
         shouldBeTrue("is(test_data.valueOf(), result.valueOf())");
-        debug("");
         callback();
     });
 }
@@ -157,14 +152,12 @@ function testNull(callback)
 function testBoolean(callback)
 {
     debug("Testing boolean primitives");
-    debug("");
     forEachWithCallback(testPrimitiveValue, ["true", "false"], callback);
 }
 
 function testBooleanObject(callback)
 {
     debug("Testing Boolean objects");
-    debug("");
     forEachWithCallback(testObjectWithValue, [
         "new Boolean(true)",
         "new Boolean(false)"
@@ -174,7 +167,6 @@ function testBooleanObject(callback)
 function testString(callback)
 {
     debug("Testing string primitives");
-    debug("");
     forEachWithCallback(testPrimitiveValue, [
         "''",
         "'this is a sample string'",
@@ -185,7 +177,6 @@ function testString(callback)
 function testStringObject(callback)
 {
     debug("Testing String objects");
-    debug("");
     forEachWithCallback(testObjectWithValue, [
         "new String()",
         "new String('this is a sample string')",
@@ -196,7 +187,6 @@ function testStringObject(callback)
 function testNumber(callback)
 {
     debug("Testing number primitives");
-    debug("");
     forEachWithCallback(testPrimitiveValue, [
         "NaN",
         "-Infinity",
@@ -221,7 +211,6 @@ function testNumber(callback)
 function testNumberObject(callback)
 {
     debug("Testing Number objects");
-    debug("");
     forEachWithCallback(testObjectWithValue, [
         "new Number(NaN)",
         "new Number(-Infinity)",
@@ -235,10 +224,45 @@ function testNumberObject(callback)
     ], callback);
 }
 
+function testBigInt(callback)
+{
+    debug("Testing BigInt primitives");
+    forEachWithCallback(testPrimitiveValue, [
+        "-12345678901234567890n",
+        "-1n",
+        "0n",
+        "1n",
+        "12345678901234567890n",
+    ], callback);
+}
+
+function testBigIntObject(callback)
+{
+    debug("Testing BigInt objects");
+    function testOneBigIntObject(string, callback) {
+        debug("Testing BigInt object: " + string);
+        var value = eval("value = (" + string + ")");
+        test_data = value;
+        testValue(test_data, function(result) {
+            self.result = result;
+            shouldBeEqualToString("typeof result", "bigint");
+            shouldBe("test_data.toString()", "result.toString()");
+            callback();
+        });
+    }
+    forEachWithCallback(testOneBigIntObject, [
+        "BigInt(-12345678901234567890)",
+        "BigInt(-1)",
+        "BigInt(0)",
+        "BigInt(1)",
+        "BigInt(-0)",
+        "BigInt('0x1fffffffffffff')"
+    ], callback);
+}
+
 function testDateObject(callback)
 {
     debug("Testing Date objects");
-    debug("");
     forEachWithCallback(testObjectWithValue, [
         "new Date(-1e13)",
         "new Date(-1e12)",
@@ -257,7 +281,6 @@ function testDateObject(callback)
 function testRegExpObject(callback)
 {
     debug("Testing RegExp objects");
-    debug("");
     function testRegExp(string, callback) {
         debug("Testing RegExp: " + string);
         var value = eval("value = (" + string + ")");
@@ -352,13 +375,6 @@ function compareBlobs(blob1, blob2, callback)
 function testBlob(callback)
 {
     debug("Testing Blob");
-
-    // FIXME: Blob, File, and FileList support is incomplete.
-    // http://crbug.com/108012
-    debug("Skipping test");
-    callback();
-    return;
-
     shouldBeTrue("FileReader != null");
     evalAndLog("test_content = 'This is a test. This is only a test.'");
     evalAndLog("test_data = new Blob([test_content])");
@@ -379,11 +395,6 @@ function compareFiles(file1, file2, callback)
     shouldBeTrue("file1 !== file2");
     shouldBeEqualToString("Object.prototype.toString.call(file1)", "[object File]");
     shouldBeEqualToString("Object.prototype.toString.call(file2)", "[object File]");
-    debug("file1.size: " + file1.size);
-    shouldBe("file1.size", "file2.size");
-    debug("file1.type: " + file1.type);
-    shouldBe("file1.type", "file2.type");
-    debug("file1.name: " + file1.name);
     shouldBe("file1.name", "file2.name");
     shouldBe("String(file1.lastModifiedDate)", "String(file2.lastModifiedDate)");
     if (callback) {
@@ -394,16 +405,9 @@ function compareFiles(file1, file2, callback)
 function testFile(callback)
 {
     debug("Testing File");
-
-    // FIXME: Blob, File, and FileList support is incomplete.
-    // http://crbug.com/108012
-    debug("Skipping test");
-    callback();
-    return;
-
-    evalAndLog("test_content = fileInput.files[0]");
-
-    self.test_data = test_content;
+    evalAndLog("test_content = 'This is a test. This is only a test.'");
+    evalAndLog("blob = new Blob([test_content])");
+    evalAndLog("test_data = new File([blob], 'fileName')");
     testValue(test_data, function(result) {
         self.result = result;
         compareFiles(result, test_data, callback);
@@ -414,16 +418,7 @@ function testFile(callback)
 function testFileList(callback)
 {
     debug("Testing FileList");
-
-    // FIXME: Blob, File, and FileList support is incomplete.
-    // http://crbug.com/108012
-    debug("Skipping test");
-    callback();
-    return;
-
-    evalAndLog("test_content = fileInput.files");
-
-    self.test_data = test_content;
+    evalAndLog("test_data = document.getElementById('fileInput').files;");
     testValue(test_data, function(result) {
         self.result = result;
         shouldBeTrue("test_data !== result");
@@ -442,7 +437,8 @@ function testFileList(callback)
     });
 }
 
-function testArray(callback) {
+function testArray(callback) 
+{
     debug("Testing Array");
     evalAndLog("test_data = []");
     evalAndLog("test_data[0] = 'foo'");
@@ -465,7 +461,8 @@ function testArray(callback) {
     });
 }
 
-function testObject(callback) {
+function testObject(callback) 
+{
     debug("Testing Object");
     evalAndLog("test_data = []");
     evalAndLog("test_data[0] = 'foo'");
@@ -488,9 +485,9 @@ function testObject(callback) {
     });
 }
 
-function testTypedArray(callback) {
+function testTypedArray(callback) 
+{
     debug("Testing TypedArray");
-
     function testTypedArrayValue(string, callback) {
         evalAndLog("value = " + string);
         test_data = value;
@@ -502,7 +499,6 @@ function testTypedArray(callback) {
             for (i = 0; i < test_data.length; ++i) {
                 shouldBeTrue("is(test_data[" + i + "], result[" + i + "])");
             }
-            debug("");
             callback();
         });
     }
@@ -521,11 +517,103 @@ function testTypedArray(callback) {
     ], callback);
 }
 
+function testArrays(callback)
+{
+    debug("Testing Arrays");
+    evalAndLog("test_data = []");
+    evalAndLog("test_data[0] = []");
+    evalAndLog("test_data[1] = [1, 2, 3]");
+    evalAndLog("test_data[10] = Object.assign(['foo', 'bar'], {10: true, 11: false, 20: 123, 21: 456, 30: null})");
+    evalAndLog("test_data[11] = Object.assign(['foo', 'bar'], {a: true, b: false, foo: 123, bar: 456, '': null})");
+    testValue(test_data, function(result) {
+        self.result = result;
+        shouldBeTrue("test_data !== result");
+        shouldBe("typeof test_data", "typeof result");
+        shouldBeTrue("test_data.length === result.length");
+        Object.keys(test_data).forEach((key) => {
+            shouldBeTrue("arrayCompare(test_data[" + key + "], result[" + key + "])");
+        });
+        callback();
+    });
+}
+
+function testMap(callback)
+{
+    debug("Testing Map");
+    evalAndLog("test_data = new Map([[1,2],[3,4]])");
+    testValue(test_data, function(result) {
+        self.result = result;
+        shouldBe("typeof test_data", "typeof result");
+        shouldBe("test_data.size", "result.size");
+        Object.keys(test_data).forEach((key) => {
+            shouldBeTrue("test_data[" + key + "] === result[" + key + "]");
+        });
+        callback();
+    });
+}
+
+function testSet(callback)
+{
+    debug("Testing Set");
+    evalAndLog("test_data = new Set([1,2,3,4])");
+    testValue(test_data, function(result) {
+        self.result = result;
+        shouldBe("typeof test_data", "typeof result");
+        shouldBe("test_data.size", "result.size");
+        for (var element of test_data)
+            shouldBeTrue("result.has("+ element +")");
+        callback();
+    });
+}
+
+function testGeometryTypes(callback)
+{
+    debug("Testing geometry types");
+    function testOneGeometryType(string, callback) {
+        debug("Testing geometry type: " + string);
+        var value = eval("value = (" + string + ")");
+        test_data = value;
+        testValue(test_data, function(result) {
+            self.result = result;
+            shouldBeTrue("test_data !== result");
+            shouldBeEqualToString("typeof result", "object");
+            shouldBe("Object.prototype.toString.call(test_data)", "Object.prototype.toString.call(result)");
+            shouldBe("test_data.toString()", "result.toString()");
+            callback();
+        });
+    }
+    forEachWithCallback(testOneGeometryType, [
+        "new DOMMatrix()",
+        "new DOMMatrixReadOnly()",
+        "new DOMPoint()",
+        "new DOMPointReadOnly()",
+        "new DOMRect()",
+        "new DOMRectReadOnly()",
+        "new DOMQuad()"
+    ], callback);
+}
+
+function testCryptoKey(callback)
+{
+    debug("Testing CryptoKey");
+    evalAndLog("promise = crypto.subtle.generateKey({ name: 'HMAC', hash: {name: 'SHA-512'}}, true, ['sign', 'verify']);");
+    promise.then((test_data) => {
+        self.test_data = test_data;
+        testValue(test_data, function(result) {
+            self.result = result;
+            shouldBe("typeof test_data", "typeof result");
+            shouldBe("test_data.type", "result.type");
+            shouldBe("test_data.extractable", "result.extractable");
+            shouldBe("test_data.algorithm.toString()", "result.algorithm.toString()");
+            shouldBeTrue("arrayCompare(test_data.usages, result.usages)");
+            callback();
+        });
+    });
+}
+
 function testBadTypes()
 {
-    debug("");
     debug("Test types that can't be cloned:");
-    debug("");
 
     evalAndLog("transaction = db.transaction('storeName', 'readwrite')");
     evalAndLog("store = transaction.objectStore('storeName')");
@@ -533,13 +621,14 @@ function testBadTypes()
     transaction.onabort = unexpectedAbortCallback;
     transaction.oncomplete = finishJSTest;
 
-    debug("");
-    debug("Other JavaScript object types:");
+    debug("Testing Error");
     evalAndExpectException("store.put(new Error, 'key')", "DOMException.DATA_CLONE_ERR");
+    debug("Testing Function");
     evalAndExpectException("store.put(new Function, 'key')", "DOMException.DATA_CLONE_ERR");
+    debug("Testing DOMException");
+    evalAndExpectException("store.put(new DOMException, 'key')", "DOMException.DATA_CLONE_ERR");
 
-    debug("");
-    debug("Other host object types:");
+    debug("Testing other host object types");
     evalAndExpectException("store.put(self, 'key')", "DOMException.DATA_CLONE_ERR");
     evalAndExpectException("store.put(document, 'key')", "DOMException.DATA_CLONE_ERR");
     evalAndExpectException("store.put(document.body, 'key')", "DOMException.DATA_CLONE_ERR");

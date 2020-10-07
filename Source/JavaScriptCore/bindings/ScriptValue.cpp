@@ -30,15 +30,12 @@
 #include "config.h"
 #include "ScriptValue.h"
 
-#include "APICast.h"
-#include "CatchScope.h"
 #include "JSCInlines.h"
 #include "JSLock.h"
 
-using namespace JSC;
-using namespace Inspector;
-
 namespace Inspector {
+
+using namespace JSC;
 
 static RefPtr<JSON::Value> jsToInspectorValue(JSGlobalObject* globalObject, JSValue value, int maxDepth)
 {
@@ -72,7 +69,7 @@ static RefPtr<JSON::Value> jsToInspectorValue(JSGlobalObject* globalObject, JSVa
                 auto elementValue = jsToInspectorValue(globalObject, array.getIndex(globalObject, i), maxDepth);
                 if (!elementValue)
                     return nullptr;
-                inspectorArray->pushValue(WTFMove(elementValue));
+                inspectorArray->pushValue(elementValue.releaseNonNull());
             }
             return inspectorArray;
         }
@@ -85,7 +82,7 @@ static RefPtr<JSON::Value> jsToInspectorValue(JSGlobalObject* globalObject, JSVa
             auto inspectorValue = jsToInspectorValue(globalObject, object.get(globalObject, name), maxDepth);
             if (!inspectorValue)
                 return nullptr;
-            inspectorObject->setValue(name.string(), WTFMove(inspectorValue));
+            inspectorObject->setValue(name.string(), inspectorValue.releaseNonNull());
         }
         return inspectorObject;
     }

@@ -41,6 +41,8 @@ WI.ApplicationCacheManager = class ApplicationCacheManager extends WI.Object
 
     activateExtraDomain(domain)
     {
+        // COMPATIBILITY (iOS 14.0): Inspector.activateExtraDomains was removed in favor of a declared debuggable type
+
         console.assert(domain === "ApplicationCache");
 
         for (let target of WI.targets)
@@ -175,17 +177,19 @@ WI.ApplicationCacheManager = class ApplicationCacheManager extends WI.Object
 
     _manifestForFrameLoaded(frameId, error, manifestURL)
     {
-        if (error) {
-            WI.reportInternalError(error);
-            return;
-        }
-
         if (!this._enabled)
             return;
 
         var frame = WI.networkManager.frameForIdentifier(frameId);
         if (!frame)
             return;
+
+        // A frame can go away between `ApplicationCache.getManifestForFrame` being called and the
+        // response being received.
+        if (error) {
+            WI.reportInternalError(error);
+            return;
+        }
 
         if (!manifestURL)
             this._frameManifestRemoved(frame);

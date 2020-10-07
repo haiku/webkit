@@ -29,6 +29,7 @@
 #import "TestWKWebView.h"
 #import "UIKitSPI.h"
 #import <CoreServices/CoreServices.h>
+#import <WebCore/LegacyNSPasteboardTypes.h>
 #import <WebKit/WKPreferencesPrivate.h>
 #import <WebKit/_WKExperimentalFeature.h>
 
@@ -47,6 +48,16 @@
         done = true;
     }];
     [self evaluateJavaScript:@"readClipboard()" completionHandler:nil];
+    TestWebKitAPI::Util::run(&done);
+}
+
+- (void)writeString:(NSString *)string toClipboardWithType:(NSString *)type
+{
+    __block bool done = false;
+    [self performAfterReceivingMessage:@"wroteStringToClipboard" action:^{
+        done = true;
+    }];
+    [self evaluateJavaScript:[NSString stringWithFormat:@"writeStringToClipboard(`%@`, `%@`)", type, string] completionHandler:nil];
     TestWebKitAPI::Util::run(&done);
 }
 
@@ -97,7 +108,7 @@ static void writeMultipleObjectsToPlatformPasteboard()
     NSPasteboard *pasteboard = NSPasteboard.generalPasteboard;
     [pasteboard clearContents];
     [pasteboard writeObjects:@[firstItem.get(), secondItem.get(), thirdItem.get(), fourthItem.get()]];
-#elif PLATFORM(IOS)
+#elif PLATFORM(IOS_FAMILY) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
     auto firstItem = adoptNS([[NSItemProvider alloc] initWithObject:@"Hello"]);
     auto secondItem = adoptNS([[NSItemProvider alloc] initWithObject:[NSURL URLWithString:@"https://apple.com/"]]);
     auto thirdItem = adoptNS([[NSItemProvider alloc] init]);
@@ -118,6 +129,16 @@ static void writeMultipleObjectsToPlatformPasteboard()
 #endif
 }
 
+static NSString *readMarkupFromPasteboard()
+{
+#if PLATFORM(MAC)
+    NSData *rawData = [NSPasteboard.generalPasteboard dataForType:WebCore::legacyHTMLPasteboardType()];
+#else
+    NSData *rawData = [UIPasteboard.generalPasteboard dataForPasteboardType:(__bridge NSString *)kUTTypeHTML];
+#endif
+    return [[[NSString alloc] initWithData:rawData encoding:NSUTF8StringEncoding] autorelease];
+}
+
 TEST(ClipboardTests, ReadMultipleItems)
 {
     auto webView = createWebViewForClipboardTests();
@@ -133,3 +154,32 @@ TEST(ClipboardTests, ReadMultipleItems)
     EXPECT_WK_STREQ("https://webkit.org/", [webView objectByEvaluatingJavaScript:@"clipboardData[3]['text/uri-list']"]);
     EXPECT_WK_STREQ("https://webkit.org/", [webView stringByEvaluatingJavaScript:@"clipboardData[3]['text/html'].querySelector('a').href"]);
 }
+
+TEST(ClipboardTests, WriteSanitizedMarkup)
+{
+    auto webView = createWebViewForClipboardTests();
+    [webView writeString:@"<script>/* super secret */</script>This is a test." toClipboardWithType:@"text/html"];
+
+    NSString *writtenMarkup = readMarkupFromPasteboard();
+    EXPECT_TRUE([writtenMarkup containsString:@"This is a test."]);
+    EXPECT_FALSE([writtenMarkup containsString:@"super secret"]);
+    EXPECT_FALSE([writtenMarkup containsString:@"<script>"]);
+}
+
+#if PLATFORM(MAC)
+
+TEST(ClipboardTests, ConvertTIFFToPNGWhenPasting)
+{
+    auto webView = createWebViewForClipboardTests();
+    auto url = [[NSBundle mainBundle] URLForResource:@"sunset-in-cupertino-100px" withExtension:@"tiff" subdirectory:@"TestWebKitAPI.resources"];
+    auto pasteboard = NSPasteboard.generalPasteboard;
+    [pasteboard clearContents];
+    [pasteboard setData:[NSData dataWithContentsOfURL:url] forType:NSPasteboardTypeTIFF];
+    [webView readClipboard];
+
+    EXPECT_WK_STREQ("", [webView stringByEvaluatingJavaScript:@"exception ? exception.message : ''"]);
+    EXPECT_EQ(1U, [[webView objectByEvaluatingJavaScript:@"clipboardData.length"] unsignedIntValue]);
+    EXPECT_TRUE([[webView stringByEvaluatingJavaScript:@"clipboardData[0]['image/png'].src"] containsString:@"blob:"]);
+}
+
+#endif // PLATFORM(MAC)

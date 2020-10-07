@@ -11,6 +11,7 @@
 #include "modules/audio_coding/codecs/red/audio_encoder_copy_red.h"
 
 #include <string.h>
+
 #include <utility>
 #include <vector>
 
@@ -122,12 +123,6 @@ void AudioEncoderCopyRed::OnReceivedUplinkPacketLossFraction(
     float uplink_packet_loss_fraction) {
   speech_encoder_->OnReceivedUplinkPacketLossFraction(
       uplink_packet_loss_fraction);
-}
-
-void AudioEncoderCopyRed::OnReceivedUplinkRecoverablePacketLossFraction(
-    float uplink_recoverable_packet_loss_fraction) {
-  speech_encoder_->OnReceivedUplinkRecoverablePacketLossFraction(
-      uplink_recoverable_packet_loss_fraction);
 }
 
 void AudioEncoderCopyRed::OnReceivedUplinkBandwidth(

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2019-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,19 +25,35 @@
 
 #pragma once
 
+#include "GCLogging.h"
+
+using WTF::PrintStream;
+
 namespace JSC {
+
+#if PLATFORM(IOS_FAMILY)
+#define MAXIMUM_NUMBER_OF_FTL_COMPILER_THREADS 2
+#else
+#define MAXIMUM_NUMBER_OF_FTL_COMPILER_THREADS 8
+#endif
+
+#if ENABLE(WEBASSEMBLY_STREAMING_API)
+constexpr bool enableWebAssemblyStreamingApi = true;
+#else
+constexpr bool enableWebAssemblyStreamingApi = false;
+#endif
 
 // How do JSC VM options work?
 // ===========================
 // The FOR_EACH_JSC_OPTION() macro below defines a list of all JSC options in use,
 // along with their types and default values. The options values are actually
-// realized as an array of OptionEntry elements in JSC::Config.
+// realized as fields in OptionsStorage embedded in JSC::Config.
 //
-//     Options::initialize() will initialize the array of options values with
-// the defaults specified in FOR_EACH_JSC_OPTION() below. After that, the values can
-// be programmatically read and written to using an accessor method with the
-// same name as the option. For example, the option "useJIT" can be read and
-// set like so:
+//     Options::initialize() will initialize the option values with the defaults
+// specified in FOR_EACH_JSC_OPTION() below. After that, the values can be
+// programmatically read and written to using an accessor method with the same
+// name as the option. For example, the option "useJIT" can be read and set like
+// so:
 //
 //     bool jitIsOn = Options::useJIT();  // Get the option value.
 //     Options::useJIT() = false;         // Sets the option value.
@@ -54,9 +70,13 @@ namespace JSC {
 // checks are done after the option values are set. If you alter the option
 // values after the sanity checks (for your own testing), then you're liable to
 // ensure that the new values set are sane and reasonable for your own run.
+//
+// Any modifications to options must be done before the first VM is instantiated.
+// On instantiation of the first VM instance, the Options will be write protected
+// and cannot be modified thereafter.
 
 #define FOR_EACH_JSC_OPTION(v)                                          \
-    v(Bool, useKernTCSM, true, Normal, "Note: this needs to go before other options since they depend on this value.") \
+    v(Bool, useKernTCSM, defaultTCSMValue(), Normal, "Note: this needs to go before other options since they depend on this value.") \
     v(Bool, validateOptions, false, Normal, "crashes if mis-typed JSC options were passed to the VM") \
     v(Unsigned, dumpOptions, 0, Normal, "dumps JSC options (0 = None, 1 = Overridden only, 2 = All, 3 = Verbose)") \
     v(OptionString, configFile, nullptr, Normal, "file to configure JSC options and logging location") \
@@ -70,13 +90,13 @@ namespace JSC {
     \
     v(Bool, reportMustSucceedExecutableAllocations, false, Normal, nullptr) \
     \
-    v(Unsigned, maxPerThreadStackUsage, 4 * MB, Normal, "Max allowed stack usage by the VM") \
+    v(Unsigned, maxPerThreadStackUsage, 5 * MB, Normal, "Max allowed stack usage by the VM") \
     v(Unsigned, softReservedZoneSize, 128 * KB, Normal, "A buffer greater than reservedZoneSize that reserves space for stringifying exceptions.") \
     v(Unsigned, reservedZoneSize, 64 * KB, Normal, "The amount of stack space we guarantee to our clients (and to interal VM code that does not call out to clients).") \
     \
+    v(Bool, crashOnDisallowedVMEntry, ASSERT_ENABLED, Normal, "Forces a crash if we attempt to enter the VM when disallowed") \
     v(Bool, crashIfCantAllocateJITMemory, false, Normal, nullptr) \
     v(Unsigned, jitMemoryReservationSize, 0, Normal, "Set this number to change the executable allocation size in ExecutableAllocatorFixedVMPool. (In bytes.)") \
-    v(Bool, useSeparatedWXHeap, false, Normal, nullptr) \
     \
     v(Bool, forceCodeBlockLiveness, false, Normal, nullptr) \
     v(Bool, forceICFailure, false, Normal, nullptr) \
@@ -86,9 +106,11 @@ namespace JSC {
     v(Unsigned, repatchBufferingCountdown, 8, Normal, nullptr) \
     \
     v(Bool, dumpGeneratedBytecodes, false, Normal, nullptr) \
+    v(Bool, dumpGeneratedWasmBytecodes, false, Normal, nullptr) \
     v(Bool, dumpBytecodeLivenessResults, false, Normal, nullptr) \
     v(Bool, validateBytecode, false, Normal, nullptr) \
     v(Bool, forceDebuggerBytecodeGeneration, false, Normal, nullptr) \
+    v(Bool, debuggerTriggersBreakpointException, false, Normal, "Using the debugger statement will trigger an breakpoint exception (Useful when lldbing)") \
     v(Bool, dumpBytecodesBeforeGeneratorification, false, Normal, nullptr) \
     \
     v(Bool, useFunctionDotArguments, true, Normal, nullptr) \
@@ -98,6 +120,9 @@ namespace JSC {
     v(Unsigned, shadowChickenLogSize, 1000, Normal, nullptr) \
     v(Unsigned, shadowChickenMaxTailDeletedFramesSize, 128, Normal, nullptr) \
     \
+    v(Bool, useIterationIntrinsics, true, Normal, nullptr) \
+    \
+    v(Bool, useOSLog, false, Normal, "Log dataLog()s to os_log instead of stderr") \
     /* dumpDisassembly implies dumpDFGDisassembly. */ \
     v(Bool, dumpDisassembly, false, Normal, "dumps disassembly of all JIT compiled code upon compilation") \
     v(Bool, asyncDisassembly, false, Normal, nullptr) \
@@ -107,14 +132,13 @@ namespace JSC {
     v(Bool, dumpWasmDisassembly, false, Normal, "dumps disassembly of all Wasm code upon compilation") \
     v(Bool, dumpBBQDisassembly, false, Normal, "dumps disassembly of BBQ Wasm code upon compilation") \
     v(Bool, dumpOMGDisassembly, false, Normal, "dumps disassembly of OMG Wasm code upon compilation") \
-    v(Bool, dumpAllDFGNodes, false, Normal, nullptr) \
     v(Bool, logJITCodeForPerf, false, Configurable, nullptr) \
     v(OptionRange, bytecodeRangeToJITCompile, 0, Normal, "bytecode size range to allow compilation on, e.g. 1:100") \
     v(OptionRange, bytecodeRangeToDFGCompile, 0, Normal, "bytecode size range to allow DFG compilation on, e.g. 1:100") \
     v(OptionRange, bytecodeRangeToFTLCompile, 0, Normal, "bytecode size range to allow FTL compilation on, e.g. 1:100") \
-    v(OptionString, jitWhitelist, nullptr, Normal, "file with list of function signatures to allow compilation on") \
-    v(OptionString, dfgWhitelist, nullptr, Normal, "file with list of function signatures to allow DFG compilation on") \
-    v(OptionString, ftlWhitelist, nullptr, Normal, "file with list of function signatures to allow FTL compilation on") \
+    v(OptionString, jitAllowlist, nullptr, Normal, "file with newline separated list of function signatures to allow compilation on or, if no such file exists, the function signature to allow") \
+    v(OptionString, dfgAllowlist, nullptr, Normal, "file with newline separated list of function signatures to allow DFG compilation on or, if no such file exists, the function signature to allow") \
+    v(OptionString, ftlAllowlist, nullptr, Normal, "file with newline separated list of function signatures to allow FTL compilation on or, if no such file exists, the function signature to allow") \
     v(Bool, dumpSourceAtDFGTime, false, Normal, "dumps source code of JS function being DFG compiled") \
     v(Bool, dumpBytecodeAtDFGTime, false, Normal, "dumps bytecode of JS function being DFG compiled") \
     v(Bool, dumpGraphAfterParsing, false, Normal, nullptr) \
@@ -130,6 +154,7 @@ namespace JSC {
     v(Bool, logCompilationChanges, false, Normal, nullptr) \
     v(Bool, useProbeOSRExit, false, Normal, nullptr) \
     v(Bool, printEachOSRExit, false, Normal, nullptr) \
+    v(Bool, validateDoesGC, ASSERT_ENABLED, Normal, nullptr) \
     v(Bool, validateGraph, false, Normal, nullptr) \
     v(Bool, validateGraphAtEachPhase, false, Normal, nullptr) \
     v(Bool, verboseValidationFailure, false, Normal, nullptr) \
@@ -143,6 +168,7 @@ namespace JSC {
     v(Bool, reportDFGCompileTimes, false, Normal, "dumps JS function signature and the time it took to DFG and FTL compile") \
     v(Bool, reportFTLCompileTimes, false, Normal, "dumps JS function signature and the time it took to FTL compile") \
     v(Bool, reportTotalCompileTimes, false, Normal, nullptr) \
+    v(Bool, reportTotalPhaseTimes, false, Normal, "This prints phase times at the end of running script inside jsc.cpp") \
     v(Bool, reportParseTimes, false, Normal, "dumps JS function signature and the time it took to parse") \
     v(Bool, reportBytecodeCompileTimes, false, Normal, "dumps JS function signature and the time it took to bytecode compile") \
     v(Bool, countParseTimes, false, Normal, "counts parse times") \
@@ -183,7 +209,7 @@ namespace JSC {
     v(Double, gcIncrementScale, 0, Normal, nullptr) \
     v(Bool, scribbleFreeCells, false, Normal, nullptr) \
     v(Double, sizeClassProgression, 1.4, Normal, nullptr) \
-    v(Unsigned, largeAllocationCutoff, 100000, Normal, nullptr) \
+    v(Unsigned, preciseAllocationCutoff, 100000, Normal, nullptr) \
     v(Bool, dumpSizeClasses, false, Normal, nullptr) \
     v(Bool, useBumpAllocator, true, Normal, nullptr) \
     v(Bool, stealEmptyBlocksFromOtherAllocators, true, Normal, nullptr) \
@@ -194,14 +220,13 @@ namespace JSC {
     v(Bool, useOSREntryToFTL, true, Normal, nullptr) \
     \
     v(Bool, useFTLJIT, true, Normal, "allows the FTL JIT to be used if true") \
-    v(Bool, useFTLTBAA, true, Normal, nullptr) \
     v(Bool, validateFTLOSRExitLiveness, false, Normal, nullptr) \
     v(Unsigned, defaultB3OptLevel, 2, Normal, nullptr) \
     v(Bool, b3AlwaysFailsBeforeCompile, false, Normal, nullptr) \
     v(Bool, b3AlwaysFailsBeforeLink, false, Normal, nullptr) \
     v(Bool, ftlCrashes, false, Normal, nullptr) /* fool-proof way of checking that you ended up in the FTL. ;-) */\
-    v(Bool, clobberAllRegsInFTLICSlowPath, !ASSERT_DISABLED, Normal, nullptr) \
-    v(Bool, enableJITDebugAssertions, !ASSERT_DISABLED, Normal, nullptr) \
+    v(Bool, clobberAllRegsInFTLICSlowPath, ASSERT_ENABLED, Normal, nullptr) \
+    v(Bool, enableJITDebugAssertions, ASSERT_ENABLED, Normal, nullptr) \
     v(Bool, useAccessInlining, true, Normal, nullptr) \
     v(Unsigned, maxAccessVariantListSize, 8, Normal, nullptr) \
     v(Bool, usePolyvariantDevirtualization, true, Normal, nullptr) \
@@ -216,7 +241,6 @@ namespace JSC {
     v(Unsigned, frequentCallThreshold, 2, Normal, nullptr) \
     v(Double, minimumCallToKnownRate, 0.51, Normal, nullptr) \
     v(Bool, createPreHeaders, true, Normal, nullptr) \
-    v(Bool, useMovHintRemoval, true, Normal, nullptr) \
     v(Bool, usePutStackSinking, true, Normal, nullptr) \
     v(Bool, useObjectAllocationSinking, true, Normal, nullptr) \
     v(Bool, useValueRepElimination, true, Normal, nullptr) \
@@ -327,6 +351,7 @@ namespace JSC {
     v(Bool, useGC, true, Normal, nullptr) \
     v(Bool, gcAtEnd, false, Normal, "If true, the jsc CLI will do a GC before exiting") \
     v(Bool, forceGCSlowPaths, false, Normal, "If true, we will force all JIT fast allocations down their slow paths.") \
+    v(Bool, forceDidDeferGCWork, false, Normal, "If true, we will force all DeferGC destructions to perform a GC.") \
     v(Unsigned, gcMaxHeapSize, 0, Normal, nullptr) \
     v(Unsigned, forceRAMSize, 0, Normal, nullptr) \
     v(Bool, recordGCPauseTimes, false, Normal, nullptr) \
@@ -342,7 +367,7 @@ namespace JSC {
     v(Bool, collectSamplingProfilerDataForJSCShell, false, Normal, "This corresponds to the JSC shell's --sample option.") \
     v(Unsigned, samplingProfilerTopFunctionsCount, 12, Normal, "Number of top functions to report when using the command line interface.") \
     v(Unsigned, samplingProfilerTopBytecodesCount, 40, Normal, "Number of top bytecodes to report when using the command line interface.") \
-    v(OptionString, samplingProfilerPath, nullptr, Normal, "The path to the directory to write sampiling profiler output to. This probably will not work with WK2 unless the path is in the whitelist.") \
+    v(OptionString, samplingProfilerPath, nullptr, Normal, "The path to the directory to write sampiling profiler output to. This probably will not work with WK2 unless the path is in the sandbox.") \
     v(Bool, sampleCCode, false, Normal, "Causes the sampling profiler to record profiling data for C frames.") \
     \
     v(Bool, alwaysGeneratePCToCodeOriginMap, false, Normal, "This will make sure we always generate a PCToCodeOriginMap for JITed code.") \
@@ -360,6 +385,9 @@ namespace JSC {
     v(Bool, validateExceptionChecks, false, Normal, "Verifies that needed exception checks are performed.") \
     v(Unsigned, unexpectedExceptionStackTraceLimit, 100, Normal, "Stack trace limit for debugging unexpected exceptions observed in the VM") \
     \
+    v(Bool, validateDFGClobberize, false, Normal, "Emits code in the DFG/FTL to validate the Clobberize phase")\
+    v(Bool, validateBoundsCheckElimination, false, Normal, "Emits code in the DFG/FTL to validate bounds check elimination")\
+    \
     v(Bool, useExecutableAllocationFuzz, false, Normal, nullptr) \
     v(Unsigned, fireExecutableAllocationFuzzAt, 0, Normal, nullptr) \
     v(Unsigned, fireExecutableAllocationFuzzAtOrAfter, 0, Normal, nullptr) \
@@ -369,12 +397,19 @@ namespace JSC {
     v(Unsigned, fireOSRExitFuzzAtStatic, 0, Normal, nullptr) \
     v(Unsigned, fireOSRExitFuzzAt, 0, Normal, nullptr) \
     v(Unsigned, fireOSRExitFuzzAtOrAfter, 0, Normal, nullptr) \
+    v(Bool, verboseOSRExitFuzz, true, Normal, nullptr) \
     \
     v(Unsigned, seedOfVMRandomForFuzzer, 0, Normal, "0 means not fuzzing this; use a cryptographically random seed") \
     v(Bool, useRandomizingFuzzerAgent, false, Normal, nullptr) \
     v(Unsigned, seedOfRandomizingFuzzerAgent, 1, Normal, nullptr) \
-    v(Bool, dumpRandomizingFuzzerAgentPredictions, false, Normal, nullptr) \
+    v(Bool, dumpFuzzerAgentPredictions, false, Normal, nullptr) \
     v(Bool, useDoublePredictionFuzzerAgent, false, Normal, nullptr) \
+    v(Bool, useFileBasedFuzzerAgent, false, Normal, nullptr) \
+    v(Bool, usePredictionFileCreatingFuzzerAgent, false, Normal, nullptr) \
+    v(Bool, requirePredictionForFileBasedFuzzerAgent, false, Normal, nullptr) \
+    v(OptionString, fuzzerPredictionsFile, nullptr, Normal, "file with list of predictions for FileBasedFuzzerAgent") \
+    v(Bool, useNarrowingNumberPredictionFuzzerAgent, false, Normal, nullptr) \
+    v(Bool, useWideningNumberPredictionFuzzerAgent, false, Normal, nullptr) \
     \
     v(Bool, logPhaseTimes, false, Normal, nullptr) \
     v(Double, rareBlockPenalty, 0.001, Normal, nullptr) \
@@ -389,6 +424,7 @@ namespace JSC {
     v(Bool, useB3TailDup, true, Normal, nullptr) \
     v(Unsigned, maxB3TailDupBlockSize, 3, Normal, nullptr) \
     v(Unsigned, maxB3TailDupBlockSuccessors, 3, Normal, nullptr) \
+    v(Bool, useB3HoistLoopInvariantValues, false, Normal, nullptr) \
     \
     v(Bool, useDollarVM, false, Restricted, "installs the $vm debugging tool in global objects") \
     v(OptionString, functionOverrides, nullptr, Restricted, "file with debugging overrides for function bodies") \
@@ -416,24 +452,23 @@ namespace JSC {
     \
     v(Bool, useWebAssembly, true, Normal, "Expose the WebAssembly global object.") \
     \
-    v(Bool, enableSpectreMitigations, true, Restricted, "Enable Spectre mitigations.") \
-    v(Bool, enableSpectreGadgets, false, Restricted, "enable gadgets to test Spectre mitigations.") \
-    v(Bool, zeroStackFrame, false, Normal, "Zero stack frame on entry to a function.") \
-    \
     v(Bool, failToCompileWebAssemblyCode, false, Normal, "If true, no Wasm::Plan will sucessfully compile a function.") \
     v(Size, webAssemblyPartialCompileLimit, 5000, Normal, "Limit on the number of bytes a Wasm::Plan::compile should attempt before checking for other work.") \
     v(Unsigned, webAssemblyBBQAirOptimizationLevel, 0, Normal, "Air Optimization level for BBQ Web Assembly module compilations.") \
     v(Unsigned, webAssemblyBBQB3OptimizationLevel, 1, Normal, "B3 Optimization level for BBQ Web Assembly module compilations.") \
     v(Unsigned, webAssemblyOMGOptimizationLevel, Options::defaultB3OptLevel(), Normal, "B3 Optimization level for OMG Web Assembly module compilations.") \
+    v(Unsigned, webAssemblyBBQFallbackSize, 60000, Normal, "Limit of Wasm function size above which we fallback to BBQ compilation mode.") \
     \
     v(Bool, useBBQTierUpChecks, true, Normal, "Enables tier up checks for our BBQ code.") \
     v(Bool, useWebAssemblyOSR, true, Normal, nullptr) \
+    v(Int32, thresholdForBBQOptimizeAfterWarmUp, 150, Normal, "The count before we tier up a function to BBQ.") \
+    v(Int32, thresholdForBBQOptimizeSoon, 50, Normal, nullptr) \
     v(Int32, thresholdForOMGOptimizeAfterWarmUp, 50000, Normal, "The count before we tier up a function to OMG.") \
     v(Int32, thresholdForOMGOptimizeSoon, 500, Normal, nullptr) \
     v(Int32, omgTierUpCounterIncrementForLoop, 1, Normal, "The amount the tier up counter is incremented on each loop backedge.") \
     v(Int32, omgTierUpCounterIncrementForEntry, 15, Normal, "The amount the tier up counter is incremented on each function entry.") \
     /* FIXME: enable fast memories on iOS and pre-allocate them. https://bugs.webkit.org/show_bug.cgi?id=170774 */ \
-    v(Bool, useWebAssemblyFastMemory, !isIOS(), Normal, "If true, we will try to use a 32-bit address space with a signal handler to bounds check wasm memory.") \
+    v(Bool, useWebAssemblyFastMemory, OS_CONSTANT(EFFECTIVE_ADDRESS_WIDTH) >= 48, Normal, "If true, we will try to use a 32-bit address space with a signal handler to bounds check wasm memory.") \
     v(Bool, logWebAssemblyMemory, false, Normal, nullptr) \
     v(Unsigned, webAssemblyFastMemoryRedzonePages, 128, Normal, "WebAssembly fast memories use 4GiB virtual allocations, plus a redzone (counted as multiple of 64KiB WebAssembly pages) at the end to catch reg+imm accesses which exceed 32-bit, anything beyond the redzone is explicitly bounds-checked") \
     v(Bool, crashIfWebAssemblyCantFastMemory, false, Normal, "If true, we will crash if we can't obtain fast memory for wasm.") \
@@ -442,14 +477,21 @@ namespace JSC {
     v(Bool, useFastTLSForWasmContext, true, Normal, "If true, we will store context in fast TLS. If false, we will pin it to a register.") \
     v(Bool, wasmBBQUsesAir, true, Normal, nullptr) \
     v(Bool, useWasmLLInt, true, Normal, nullptr) \
+    v(Bool, useBBQJIT, true, Normal, "allows the BBQ JIT to be used if true") \
+    v(Bool, useOMGJIT, true, Normal, "allows the OMG JIT to be used if true") \
+    v(Bool, useWasmLLIntPrologueOSR, true, Normal, "allows prologue OSR from Wasm LLInt if true") \
+    v(Bool, useWasmLLIntLoopOSR, true, Normal, "allows loop OSR from Wasm LLInt if true") \
+    v(Bool, useWasmLLIntEpilogueOSR, true, Normal, "allows epilogue OSR from Wasm LLInt if true") \
+    v(OptionRange, wasmFunctionIndexRangeToCompile, 0, Normal, "wasm function index range to allow compilation on, e.g. 1:100") \
+    v(Bool, wasmLLIntTiersUpToBBQ, true, Normal, nullptr) \
     v(Size, webAssemblyBBQAirModeThreshold, isIOS() ? (10 * MB) : 0, Normal, "If 0, we always use BBQ Air. If Wasm module code size hits this threshold, we compile Wasm module with B3 BBQ mode.") \
     v(Bool, useWebAssemblyStreamingApi, enableWebAssemblyStreamingApi, Normal, "Allow to run WebAssembly's Streaming API") \
     v(Bool, useEagerWebAssemblyModuleHashing, false, Normal, "Unnamed WebAssembly modules are identified in backtraces through their hash, if available.") \
-    v(Bool, useWebAssemblyReferences, true, Normal, "Allow types from the wasm references spec.") \
+    v(Bool, useWebAssemblyReferences, false, Normal, "Allow types from the wasm references spec.") \
     v(Bool, useWebAssemblyMultiValues, true, Normal, "Allow types from the wasm mulit-values spec.") \
+    /* FIXME: We should make sure finalizers don't run for detached windows before enabling WeakRefs by default. https://bugs.webkit.org/show_bug.cgi?id=214508 */ \
     v(Bool, useWeakRefs, false, Normal, "Expose the WeakRef constructor.") \
-    v(Bool, useBigInt, false, Normal, "If true, we will enable BigInt support.") \
-    v(Bool, useNullishAwareOperators, false, Normal, "Enable support for ?. and ?? operators.") \
+    v(Bool, useIntlDateTimeFormatDayPeriod, true, Normal, "Expose the Intl.DateTimeFormat dayPeriod feature.") \
     v(Bool, useArrayAllocationProfiling, true, Normal, "If true, we will use our normal array allocation profiling. If false, the allocation profile will always claim to be undecided.") \
     v(Bool, forcePolyProto, false, Normal, "If true, create_this will always create an object with a poly proto structure.") \
     v(Bool, forceMiniVMMode, false, Normal, "If true, it will force mini VM mode on.") \
@@ -466,6 +508,18 @@ namespace JSC {
     v(Double, dumpJITMemoryFlushInterval, 10, Restricted, "Maximum time in between flushes of the JIT memory dump in seconds.") \
     v(Bool, useUnlinkedCodeBlockJettisoning, false, Normal, "If true, UnlinkedCodeBlock can be jettisoned.") \
     v(Bool, forceOSRExitToLLInt, false, Normal, "If true, we always exit to the LLInt. If false, we exit to whatever is most convenient.") \
+    v(Unsigned, getByValICMaxNumberOfIdentifiers, 4, Normal, "Number of identifiers we see in the LLInt that could cause us to bail on generating an IC for get_by_val.") \
+    v(Bool, usePublicClassFields, true, Normal, "If true, the parser will understand public data fields inside classes.") \
+    v(Bool, useRandomizingExecutableIslandAllocation, false, Normal, "For the arm64 ExecutableAllocator, if true, select which region to use randomly. This is useful for testing that jump islands work.") \
+    v(Bool, exposeProfilersOnGlobalObject, false, Normal, "If true, we will expose functions to enable/disable both the sampling profiler and the super sampler") \
+    v(Bool, allowUnsupportedTiers, false, Normal, "If true, we will not disable DFG or FTL when an experimental feature is enabled.") \
+    v(Bool, usePrivateClassFields, false, Normal, "If true, the parser will understand private data fields inside classes.") \
+    v(Bool, returnEarlyFromInfiniteLoopsForFuzzing, false, Normal, nullptr) \
+    v(Size, earlyReturnFromInfiniteLoopsLimit, 1300000000, Normal, "When returnEarlyFromInfiniteLoopsForFuzzing is true, this determines the number of executions a loop can run for before just returning. This is helpful for the fuzzer so it doesn't get stuck in infinite loops.") \
+    v(Bool, useLICMFuzzing, false, Normal, nullptr) \
+    v(Unsigned, seedForLICMFuzzer, 424242, Normal, nullptr) \
+    v(Double, allowHoistingLICMProbability, 0.5, Normal, nullptr) \
+    v(Bool, exposeCustomSettersOnGlobalObjectForTesting, false, Normal, nullptr) \
 
 enum OptionEquivalence {
     SameOption,
@@ -478,7 +532,6 @@ enum OptionEquivalence {
     v(showDisassembly, dumpDisassembly, SameOption) \
     v(showDFGDisassembly, dumpDFGDisassembly, SameOption) \
     v(showFTLDisassembly, dumpFTLDisassembly, SameOption) \
-    v(showAllDFGNodes, dumpAllDFGNodes, SameOption) \
     v(alwaysDoFullCollection, useGenerationalGC, InvertedOption) \
     v(enableOSREntryToDFG, useOSREntryToDFG, SameOption) \
     v(enableOSREntryToFTL, useOSREntryToFTL, SameOption) \
@@ -503,14 +556,22 @@ enum OptionEquivalence {
     v(enableOSRExitFuzz, useOSRExitFuzz, SameOption) \
     v(enableDollarVM, useDollarVM, SameOption) \
     v(enableWebAssembly, useWebAssembly, SameOption) \
-    v(verboseDFGByteCodeParsing, verboseDFGBytecodeParsing, SameOption) \
     v(maximumOptimizationCandidateInstructionCount, maximumOptimizationCandidateBytecodeCost, SameOption) \
     v(maximumFunctionForCallInlineCandidateInstructionCount, maximumFunctionForCallInlineCandidateBytecodeCost, SameOption) \
     v(maximumFunctionForClosureCallInlineCandidateInstructionCount, maximumFunctionForClosureCallInlineCandidateBytecodeCost, SameOption) \
     v(maximumFunctionForConstructInlineCandidateInstructionCount, maximumFunctionForConstructInlineCandidateBytecoodeCost, SameOption) \
     v(maximumFTLCandidateInstructionCount, maximumFTLCandidateBytecodeCost, SameOption) \
     v(maximumInliningCallerSize, maximumInliningCallerBytecodeCost, SameOption) \
+    v(validateBCE, validateBoundsCheckElimination, SameOption)
 
+enum ExperimentalOptionFlags {
+    LLIntAndBaselineOnly = 0,
+    SupportsDFG = 1 << 0,
+    SupportsFTL = 1 << 1,
+};
+
+#define FOR_EACH_JSC_EXPERIMENTAL_OPTION(v) \
+    v(usePrivateClassFields, LLIntAndBaselineOnly, "https://bugs.webkit.org/show_bug.cgi?id=212781", "https://bugs.webkit.org/show_bug.cgi?id=212784")
 
 constexpr size_t countNumberOfJSCOptions()
 {
@@ -523,5 +584,59 @@ constexpr size_t countNumberOfJSCOptions()
 
 constexpr size_t NumberOfOptions = countNumberOfJSCOptions();
 
-} // namespace JSC
+class OptionRange {
+private:
+    enum RangeState { Uninitialized, InitError, Normal, Inverted };
+public:
+    OptionRange& operator=(int value)
+    {
+        // Only used for initialization to state Uninitialized.
+        // OptionsList specifies OptionRange options with default value 0.
+        RELEASE_ASSERT(!value);
 
+        m_state = Uninitialized;
+        m_rangeString = nullptr;
+        m_lowLimit = 0;
+        m_highLimit = 0;
+        return *this;
+    }
+
+    bool init(const char*);
+    bool isInRange(unsigned);
+    const char* rangeString() const { return (m_state > InitError) ? m_rangeString : s_nullRangeStr; }
+    
+    void dump(PrintStream& out) const;
+
+private:
+    static const char* const s_nullRangeStr;
+
+    RangeState m_state;
+    const char* m_rangeString;
+    unsigned m_lowLimit;
+    unsigned m_highLimit;
+};
+
+struct OptionsStorage {
+    using Bool = bool;
+    using Unsigned = unsigned;
+    using Double = double;
+    using Int32 = int32_t;
+    using Size = size_t;
+    using OptionRange = JSC::OptionRange;
+    using OptionString = const char*;
+    using GCLogLevel = GCLogging::Level;
+
+    bool allowUnfinalizedAccess;
+    bool isFinalized;
+
+#define DECLARE_OPTION(type_, name_, defaultValue_, availability_, description_) \
+    type_ name_; \
+    type_ name_##Default;
+FOR_EACH_JSC_OPTION(DECLARE_OPTION)
+#undef DECLARE_OPTION
+};
+
+// Options::Metadata's offsetOfOption and offsetOfOptionDefault relies on this.
+static_assert(sizeof(OptionsStorage) <= 16 * KB);
+
+} // namespace JSC

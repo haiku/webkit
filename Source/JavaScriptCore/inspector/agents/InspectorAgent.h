@@ -40,33 +40,26 @@ namespace Inspector {
 class BackendDispatcher;
 class InspectorEnvironment;
 
-typedef String ErrorString;
-
 class JS_EXPORT_PRIVATE InspectorAgent final : public InspectorAgentBase, public InspectorBackendDispatcherHandler {
     WTF_MAKE_NONCOPYABLE(InspectorAgent);
     WTF_MAKE_FAST_ALLOCATED;
 public:
     InspectorAgent(AgentContext&);
-    ~InspectorAgent() override;
+    ~InspectorAgent();
 
     // InspectorAgentBase
-    void didCreateFrontendAndBackend(FrontendRouter*, BackendDispatcher*) override;
-    void willDestroyFrontendAndBackend(DisconnectReason) override;
+    void didCreateFrontendAndBackend(FrontendRouter*, BackendDispatcher*);
+    void willDestroyFrontendAndBackend(DisconnectReason);
 
     // InspectorBackendDispatcherHandler
-    void enable(ErrorString&) override;
-    void disable(ErrorString&) override;
-    void initialized(ErrorString&) override;
+    Protocol::ErrorStringOr<void> enable();
+    Protocol::ErrorStringOr<void> disable();
+    Protocol::ErrorStringOr<void> initialized();
 
     // CommandLineAPI
-    void inspect(RefPtr<Protocol::Runtime::RemoteObject>&& objectToInspect, RefPtr<JSON::Object>&& hints);
+    void inspect(Ref<Protocol::Runtime::RemoteObject>&&, Ref<JSON::Object>&& hints);
 
     void evaluateForTestInFrontend(const String& script);
-
-#if ENABLE(INSPECTOR_ALTERNATE_DISPATCHERS)
-    void activateExtraDomain(const String&);
-    void activateExtraDomains(const Vector<String>&);
-#endif
 
 private:
     InspectorEnvironment& m_environment;

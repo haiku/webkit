@@ -245,4 +245,24 @@ bool WindowSurfaceGLX::getWindowDimensions(Window window,
     return XGetGeometry(mDisplay, window, &root, &x, &y, width, height, &border, &depth) != 0;
 }
 
+egl::Error WindowSurfaceGLX::getSyncValues(EGLuint64KHR *ust, EGLuint64KHR *msc, EGLuint64KHR *sbc)
+{
+    if (!mGLX.getSyncValuesOML(mGLXWindow, reinterpret_cast<int64_t *>(ust),
+                               reinterpret_cast<int64_t *>(msc), reinterpret_cast<int64_t *>(sbc)))
+    {
+        return egl::EglBadSurface() << "glXGetSyncValuesOML failed.";
+    }
+    return egl::NoError();
+}
+
+egl::Error WindowSurfaceGLX::getMscRate(EGLint *numerator, EGLint *denominator)
+{
+    if (!mGLX.getMscRateOML(mGLXWindow, reinterpret_cast<int32_t *>(numerator),
+                            reinterpret_cast<int32_t *>(denominator)))
+    {
+        return egl::EglBadSurface() << "glXGetMscRateOML failed.";
+    }
+    return egl::NoError();
+}
+
 }  // namespace rx

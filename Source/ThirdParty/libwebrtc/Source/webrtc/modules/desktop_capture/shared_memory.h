@@ -19,8 +19,8 @@
 
 #include <memory>
 
-#include "rtc_base/constructormagic.h"
-#include "rtc_base/thread_checker.h"
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
@@ -30,7 +30,7 @@ namespace webrtc {
 // for video frames must extend this class with creation and destruction logic
 // specific for the target platform and then call
 // DesktopCapturer::SetSharedMemoryFactory().
-class SharedMemory {
+class RTC_EXPORT SharedMemory {
  public:
 #if defined(WEBRTC_WIN)
   typedef HANDLE Handle;

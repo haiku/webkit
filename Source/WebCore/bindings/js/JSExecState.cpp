@@ -26,7 +26,7 @@
 #include "config.h"
 #include "JSExecState.h"
 
-#include "Microtasks.h"
+#include "EventLoop.h"
 #include "RejectedPromiseTracker.h"
 #include "ScriptExecutionContext.h"
 #include "ScriptState.h"
@@ -39,13 +39,13 @@ void JSExecState::didLeaveScriptContext(JSC::JSGlobalObject* lexicalGlobalObject
     ScriptExecutionContext* context = scriptExecutionContextFromExecState(lexicalGlobalObject);
     if (!context)
         return;
-    MicrotaskQueue::contextQueue(*context).performMicrotaskCheckpoint();
+    context->eventLoop().performMicrotaskCheckpoint();
     context->ensureRejectedPromiseTracker().processQueueSoon();
 }
 
-JSC::JSValue functionCallHandlerFromAnyThread(JSC::JSGlobalObject* lexicalGlobalObject, JSC::JSValue functionObject, JSC::CallType callType, const JSC::CallData& callData, JSC::JSValue thisValue, const JSC::ArgList& args, NakedPtr<JSC::Exception>& returnedException)
+JSC::JSValue functionCallHandlerFromAnyThread(JSC::JSGlobalObject* lexicalGlobalObject, JSC::JSValue functionObject, const JSC::CallData& callData, JSC::JSValue thisValue, const JSC::ArgList& args, NakedPtr<JSC::Exception>& returnedException)
 {
-    return JSExecState::call(lexicalGlobalObject, functionObject, callType, callData, thisValue, args, returnedException);
+    return JSExecState::call(lexicalGlobalObject, functionObject, callData, thisValue, args, returnedException);
 }
 
 JSC::JSValue evaluateHandlerFromAnyThread(JSC::JSGlobalObject* lexicalGlobalObject, const JSC::SourceCode& source, JSC::JSValue thisValue, NakedPtr<JSC::Exception>& returnedException)

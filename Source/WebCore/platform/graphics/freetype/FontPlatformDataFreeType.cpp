@@ -111,10 +111,10 @@ static void setCairoFontOptionsFromFontConfigPattern(cairo_font_options_t* optio
 #endif
 }
 
-FontPlatformData::FontPlatformData(cairo_font_face_t* fontFace, FcPattern* pattern, float size, bool fixedWidth, bool syntheticBold, bool syntheticOblique, FontOrientation orientation)
+FontPlatformData::FontPlatformData(cairo_font_face_t* fontFace, RefPtr<FcPattern>&& pattern, float size, bool fixedWidth, bool syntheticBold, bool syntheticOblique, FontOrientation orientation)
     : FontPlatformData(size, syntheticBold, syntheticOblique, orientation)
 {
-    m_pattern = pattern;
+    m_pattern = WTFMove(pattern);
     m_fixedWidth = fixedWidth;
 
     buildScaledFont(fontFace);
@@ -279,7 +279,7 @@ HbUniquePtr<hb_font_t> FontPlatformData::createOpenTypeMathHarfBuzzFont() const
     if (!ftFace)
         return nullptr;
 
-    HbUniquePtr<hb_face_t> face(hb_ft_face_create_cached(ftFace));
+    HbUniquePtr<hb_face_t> face(hb_ft_face_create_referenced(ftFace));
     if (!hb_ot_math_has_data(face.get()))
         return nullptr;
 

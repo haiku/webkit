@@ -146,6 +146,18 @@ Object.defineProperty(Map.prototype, "getOrInitialize",
     }
 });
 
+Object.defineProperty(Set.prototype, "find",
+{
+    value(predicate)
+    {
+        for (let item of this) {
+            if (predicate(item, this))
+                return item;
+        }
+        return undefined;
+    },
+});
+
 Object.defineProperty(Set.prototype, "addAll",
 {
     value(iterable)
@@ -471,6 +483,29 @@ Object.defineProperty(DocumentFragment.prototype, "createChild",
 {
     value: Element.prototype.createChild
 });
+
+(function() {
+    const fontSymbol = Symbol("font");
+
+    Object.defineProperty(HTMLInputElement.prototype, "autosize",
+    {
+        value(extra = 0)
+        {
+            extra += 6; // UserAgent styles add 1px padding and 2px border.
+            if (this.type === "number")
+                extra += 13; // Number input inner spin button width.
+            extra += 2; // Add extra pixels for the cursor.
+
+            WI.ImageUtilities.scratchCanvasContext2D((context) => {
+                this[fontSymbol] ||= window.getComputedStyle(this).font;
+
+                context.font = this[fontSymbol];
+                let textMetrics = context.measureText(this.value || this.placeholder);
+                this.style.setProperty("width", (textMetrics.width + extra) + "px");
+            });
+        },
+    });
+})();
 
 Object.defineProperty(Event.prototype, "stop",
 {
@@ -1211,6 +1246,25 @@ Object.defineProperty(Math, "roundTo",
     }
 });
 
+// https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Matrix_math_for_the_web#Multiplying_a_matrix_and_a_point
+Object.defineProperty(Math, "multiplyMatrixByVector",
+{
+    value(matrix, vector)
+    {
+        let height = matrix.length;
+        let width = matrix[0].length;
+        console.assert(width === vector.length);
+
+        let result = Array(width).fill(0);
+        for (let i = 0; i < width; ++i) {
+            for (let rowIndex = 0; rowIndex < height; ++rowIndex)
+                result[i] += vector[rowIndex] * matrix[i][rowIndex];
+        }
+
+        return result;
+    }
+});
+
 Object.defineProperty(Number, "constrain",
 {
     value(num, min, max)
@@ -1293,12 +1347,12 @@ Object.defineProperty(Number, "secondsToString",
 
 Object.defineProperty(Number, "bytesToString",
 {
-    value(bytes, higherResolution)
+    value(bytes, higherResolution, bytesThreshold)
     {
-        if (higherResolution === undefined)
-            higherResolution = true;
+        higherResolution ??= true;
+        bytesThreshold ??= 1024;
 
-        if (Math.abs(bytes) < 1024)
+        if (Math.abs(bytes) < bytesThreshold)
             return WI.UIString("%.0f B").format(bytes);
 
         let kilobytes = bytes / 1024;
@@ -1329,13 +1383,13 @@ Object.defineProperty(Number, "abbreviate",
         if (num < 1000)
             return num.toLocaleString();
 
-        if (num < 1000000)
+        if (num < 1_000_000)
             return WI.UIString("%.1fK").format(Math.round(num / 100) / 10);
 
-        if (num < 1000000000)
-            return WI.UIString("%.1fM").format(Math.round(num / 100000) / 10);
+        if (num < 1_000_000_000)
+            return WI.UIString("%.1fM").format(Math.round(num / 100_000) / 10);
 
-        return WI.UIString("%.1fB").format(Math.round(num / 100000000) / 10);
+        return WI.UIString("%.1fB").format(Math.round(num / 100_000_000) / 10);
     }
 });
 

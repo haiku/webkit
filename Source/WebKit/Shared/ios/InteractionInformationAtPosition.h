@@ -30,6 +30,7 @@
 #include "ArgumentCoders.h"
 #include "InteractionInformationRequest.h"
 #include "ShareableBitmap.h"
+#include <WebCore/Cursor.h>
 #include <WebCore/ElementContext.h>
 #include <WebCore/IntPoint.h>
 #include <WebCore/ScrollTypes.h>
@@ -51,11 +52,9 @@ struct InteractionInformationAtPosition {
     InteractionInformationRequest request;
 
     bool canBeValid { true };
-    bool nodeAtPositionHasDoubleClickHandler { false };
-#if ENABLE(DATA_INTERACTION)
-    bool hasSelectionAtPosition { false };
-#endif
+    Optional<bool> nodeAtPositionHasDoubleClickHandler;
     bool isSelectable { false };
+    bool prefersDraggingOverTextSelection { false };
     bool isNearMarkedText { false };
     bool touchCalloutEnabled { true };
     bool isLink { false };
@@ -70,6 +69,7 @@ struct InteractionInformationAtPosition {
 #if ENABLE(DATALIST_ELEMENT)
     bool preventTextInteraction { false };
 #endif
+    bool shouldNotUseIBeamInEditableContent { false };
     WebCore::FloatPoint adjustedPointForNodeRespondingToClickEvents;
     URL url;
     URL imageURL;
@@ -82,6 +82,11 @@ struct InteractionInformationAtPosition {
     RefPtr<ShareableBitmap> image;
     String textBefore;
     String textAfter;
+
+    float caretHeight { 0 };
+    WebCore::FloatRect lineCaretExtent;
+
+    Optional<WebCore::Cursor> cursor;
 
     WebCore::TextIndicatorData linkIndicator;
 #if ENABLE(DATA_DETECTION)
@@ -97,7 +102,7 @@ struct InteractionInformationAtPosition {
     void mergeCompatibleOptionalInformation(const InteractionInformationAtPosition& oldInformation);
 
     void encode(IPC::Encoder&) const;
-    static bool decode(IPC::Decoder&, InteractionInformationAtPosition&);
+    static WARN_UNUSED_RETURN bool decode(IPC::Decoder&, InteractionInformationAtPosition&);
 };
 
 }

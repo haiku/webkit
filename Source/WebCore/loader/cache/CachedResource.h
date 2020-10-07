@@ -48,6 +48,7 @@ class CachedResourceRequest;
 class CookieJar;
 class LoadTiming;
 class MemoryCache;
+class NetworkLoadMetrics;
 class SecurityOrigin;
 class SharedBuffer;
 class SubresourceLoader;
@@ -56,8 +57,10 @@ class TextResourceDecoder;
 // A resource that is held in the cache. Classes who want to use this object should derive
 // from CachedResourceClient, to get the function calls in case the requested data has arrived.
 // This class also does the actual communication with the loader to obtain the resource from the network.
+DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(CachedResource);
 class CachedResource {
-    WTF_MAKE_NONCOPYABLE(CachedResource); WTF_MAKE_FAST_ALLOCATED;
+    WTF_MAKE_NONCOPYABLE(CachedResource);
+    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(CachedResource);
     friend class MemoryCache;
 
 public:
@@ -67,34 +70,35 @@ public:
         CSSStyleSheet,
         Script,
         FontResource,
-#if ENABLE(SVG_FONTS)
         SVGFontResource,
-#endif
         MediaResource,
         RawResource,
         Icon,
         Beacon,
         Ping,
-        SVGDocumentResource
 #if ENABLE(XSLT)
-        , XSLStyleSheet
+        XSLStyleSheet,
 #endif
-        , LinkPrefetch
-#if ENABLE(VIDEO_TRACK)
-        , TextTrackResource
-#endif
+        LinkPrefetch,
+        TextTrackResource,
 #if ENABLE(APPLICATION_MANIFEST)
-        , ApplicationManifest
+        ApplicationManifest,
 #endif
+        SVGDocumentResource,
+        LastType = SVGDocumentResource,
     };
+    static constexpr unsigned bitWidthOfType = 5;
+    static_assert(static_cast<unsigned>(Type::LastType) <= ((1U << bitWidthOfType) - 1));
 
-    enum Status {
+    enum Status : uint8_t {
         Unknown,      // let cache decide what to do with it
         Pending,      // only partially loaded
         Cached,       // regular case
         LoadError,
         DecodeError
     };
+    static constexpr unsigned bitWidthOfStatus = 3;
+    static_assert(static_cast<unsigned>(DecodeError) <= ((1ULL << bitWidthOfStatus) - 1));
 
     CachedResource(CachedResourceRequest&&, Type, const PAL::SessionID&, const CookieJar*);
     virtual ~CachedResource();
@@ -106,7 +110,7 @@ public:
     virtual const TextResourceDecoder* textResourceDecoder() const { return nullptr; }
     virtual void updateBuffer(SharedBuffer&);
     virtual void updateData(const char* data, unsigned length);
-    virtual void finishLoading(SharedBuffer*);
+    virtual void finishLoading(SharedBuffer*, const NetworkLoadMetrics&);
     virtual void error(CachedResource::Status);
 
     void setResourceError(const ResourceError& error) { m_error = error; }
@@ -140,6 +144,8 @@ public:
         PreloadReferencedWhileLoading,
         PreloadReferencedWhileComplete
     };
+    static constexpr unsigned bitWidthOfPreloadResult = 2;
+
     PreloadResult preloadResult() const { return static_cast<PreloadResult>(m_preloadResult); }
 
     virtual void didAddClient(CachedResourceClient&);
@@ -150,7 +156,11 @@ public:
     unsigned numberOfClients() const { return m_clients.size(); }
 
     Status status() const { return static_cast<Status>(m_status); }
-    void setStatus(Status status) { m_status = status; }
+    void setStatus(Status status)
+    {
+        m_status = status;
+        ASSERT(this->status() == status);
+    }
 
     unsigned size() const { return encodedSize() + decodedSize() + overheadSize(); }
     unsigned encodedSize() const { return m_encodedSize; }
@@ -301,7 +311,7 @@ private:
 
     void decodedDataDeletionTimerFired();
 
-    virtual void checkNotify();
+    virtual void checkNotify(const NetworkLoadMetrics&);
     virtual bool mayTryReplaceEncodedData() const { return false; }
 
     Seconds freshnessLifetime(const ResourceResponse&) const;
@@ -351,32 +361,30 @@ private:
     RefPtr<SecurityOrigin> m_origin;
     AtomString m_initiatorName;
 
-    RedirectChainCacheStatus m_redirectChainCacheStatus;
-
     unsigned m_encodedSize { 0 };
     unsigned m_decodedSize { 0 };
     unsigned m_accessCount { 0 };
     unsigned m_handleCount { 0 };
     unsigned m_preloadCount { 0 };
 
-    unsigned m_status { Pending }; // Status
+    RedirectChainCacheStatus m_redirectChainCacheStatus;
 
-    PreloadResult m_preloadResult { PreloadResult::PreloadNotReferenced };
+    Type m_type : bitWidthOfType;
 
-    ResourceResponse::Tainting m_responseTainting { ResourceResponse::Tainting::Basic };
-    ResourceLoadPriority m_loadPriority;
+    PreloadResult m_preloadResult : bitWidthOfPreloadResult;
+    ResourceResponse::Tainting m_responseTainting : ResourceResponse::bitWidthOfTainting;
+    ResourceLoadPriority m_loadPriority : bitWidthOfResourceLoadPriority;
 
-    Type m_type; // Type
+    Status m_status : bitWidthOfStatus;
+    bool m_requestedFromNetworkingLayer : 1;
+    bool m_inCache : 1;
+    bool m_loading : 1;
+    bool m_isLinkPreload : 1;
+    bool m_hasUnknownEncoding : 1;
+    bool m_switchingClientsToRevalidatedResource : 1;
+    bool m_ignoreForRequestCount : 1;
 
-    bool m_requestedFromNetworkingLayer { false };
-    bool m_inCache { false };
-    bool m_loading { false };
-    bool m_isLinkPreload { false };
-    bool m_hasUnknownEncoding { false };
-    bool m_switchingClientsToRevalidatedResource { false };
-    bool m_ignoreForRequestCount { false };
-
-#ifndef NDEBUG
+#if ASSERT_ENABLED
     bool m_deleted { false };
     unsigned m_lruIndex { 0 };
 #endif

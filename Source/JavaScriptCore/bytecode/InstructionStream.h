@@ -32,14 +32,16 @@
 
 namespace JSC {
 
+DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(InstructionStream);
+
 class InstructionStream {
     WTF_MAKE_FAST_ALLOCATED;
-
-    using InstructionBuffer = Vector<uint8_t, 0, UnsafeVectorOverflow>;
 
     friend class InstructionStreamWriter;
     friend class CachedInstructionStream;
 public:
+    using InstructionBuffer = Vector<uint8_t, 0, UnsafeVectorOverflow, 16, InstructionStreamMalloc>;
+
     size_t sizeInBytes() const;
 
     using Offset = unsigned;
@@ -109,7 +111,9 @@ public:
     public:
         Ref freeze() const  { return Ref { m_instructions, m_index }; }
         inline Instruction* operator->() { return unwrap(); }
+        inline const Instruction* operator->() const { return unwrap(); }
         inline Instruction* ptr() { return unwrap(); }
+        inline const Instruction* ptr() const { return unwrap(); }
         inline operator Ref()
         {
             return Ref { m_instructions, m_index };
@@ -117,6 +121,7 @@ public:
 
     private:
         inline Instruction* unwrap() { return reinterpret_cast<Instruction*>(&m_instructions[m_index]); }
+        inline const Instruction* unwrap() const { return reinterpret_cast<const Instruction*>(&m_instructions[m_index]); }
     };
 
 private:
@@ -171,7 +176,7 @@ public:
         return m_instructions.data();
     }
 
-    bool contains(Instruction *) const;
+    bool contains(Instruction*) const;
 
 protected:
     explicit InstructionStream(InstructionBuffer&&);
@@ -185,6 +190,13 @@ public:
     InstructionStreamWriter()
         : InstructionStream({ })
     { }
+
+    void setInstructionBuffer(InstructionBuffer&& buffer)
+    {
+        RELEASE_ASSERT(!m_instructions.size());
+        RELEASE_ASSERT(!buffer.size());
+        m_instructions = WTFMove(buffer);
+    }
 
     inline MutableRef ref(Offset offset)
     {
@@ -254,6 +266,19 @@ public:
         m_finalized = true;
         m_instructions.shrinkToFit();
         return std::unique_ptr<InstructionStream> { new InstructionStream(WTFMove(m_instructions)) };
+    }
+
+    std::unique_ptr<InstructionStream> finalize(InstructionBuffer& usedBuffer)
+    {
+        m_finalized = true;
+
+        InstructionBuffer resultBuffer(m_instructions.size());
+        RELEASE_ASSERT(m_instructions.sizeInBytes() == resultBuffer.sizeInBytes());
+        memcpy(resultBuffer.data(), m_instructions.data(), m_instructions.sizeInBytes());
+
+        usedBuffer = WTFMove(m_instructions);
+
+        return std::unique_ptr<InstructionStream> { new InstructionStream(WTFMove(resultBuffer)) };
     }
 
     MutableRef ref()

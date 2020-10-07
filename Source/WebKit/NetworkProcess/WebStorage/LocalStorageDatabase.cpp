@@ -34,6 +34,7 @@
 #include <WebCore/SuddenTermination.h>
 #include <wtf/FileSystem.h>
 #include <wtf/RefPtr.h>
+#include <wtf/RunLoop.h>
 #include <wtf/WorkQueue.h>
 #include <wtf/text/StringHash.h>
 #include <wtf/text/WTFString.h>
@@ -213,7 +214,8 @@ void LocalStorageDatabase::clear()
 
 void LocalStorageDatabase::close()
 {
-    ASSERT(!m_isClosed);
+    if (m_isClosed)
+        return;
     m_isClosed = true;
 
     if (m_didScheduleDatabaseUpdate) {

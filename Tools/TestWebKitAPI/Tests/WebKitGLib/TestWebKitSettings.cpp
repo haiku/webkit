@@ -81,11 +81,6 @@ static void testWebKitSettings(Test*, gconstpointer)
     webkit_settings_set_enable_frame_flattening(settings, TRUE);
     g_assert_true(webkit_settings_get_enable_frame_flattening(settings));
 
-    // Plugins are enabled by default.
-    g_assert_true(webkit_settings_get_enable_plugins(settings));
-    webkit_settings_set_enable_plugins(settings, FALSE);
-    g_assert_false(webkit_settings_get_enable_plugins(settings));
-
     // Java is enabled by default.
     g_assert_true(webkit_settings_get_enable_java(settings));
     webkit_settings_set_enable_java(settings, FALSE);
@@ -231,15 +226,15 @@ static void testWebKitSettings(Test*, gconstpointer)
     webkit_settings_set_print_backgrounds(settings, FALSE);
     g_assert_false(webkit_settings_get_print_backgrounds(settings));
 
-    // WebAudio is disabled by default.
-    g_assert_false(webkit_settings_get_enable_webaudio(settings));
-    webkit_settings_set_enable_webaudio(settings, TRUE);
+    // WebAudio is enabled by default.
     g_assert_true(webkit_settings_get_enable_webaudio(settings));
+    webkit_settings_set_enable_webaudio(settings, FALSE);
+    g_assert_false(webkit_settings_get_enable_webaudio(settings));
 
-    // WebGL is disabled by default.
-    g_assert_false(webkit_settings_get_enable_webgl(settings));
-    webkit_settings_set_enable_webgl(settings, TRUE);
+    // WebGL is enabled by default.
     g_assert_true(webkit_settings_get_enable_webgl(settings));
+    webkit_settings_set_enable_webgl(settings, FALSE);
+    g_assert_false(webkit_settings_get_enable_webgl(settings));
 
     // Allow Modal Dialogs is disabled by default.
     g_assert_false(webkit_settings_get_allow_modal_dialogs(settings));
@@ -331,12 +326,25 @@ static void testWebKitSettings(Test*, gconstpointer)
     webkit_settings_set_allow_universal_access_from_file_urls(settings, TRUE);
     g_assert_true(webkit_settings_get_allow_universal_access_from_file_urls(settings));
 
+    // Top frame navigation to data url is not allowed by default.
+    g_assert_false(webkit_settings_get_allow_top_navigation_to_data_urls(settings));
+    webkit_settings_set_allow_top_navigation_to_data_urls(settings, TRUE);
+    g_assert_true(webkit_settings_get_allow_top_navigation_to_data_urls(settings));
+
     // Media is enabled by default.
     g_assert_true(webkit_settings_get_enable_media(settings));
     webkit_settings_set_enable_media(settings, FALSE);
     g_assert_false(webkit_settings_get_enable_media(settings));
 
+    // Default media content types requiring hardware support is nullptr.
+    g_assert_cmpstr(nullptr, ==, webkit_settings_get_media_content_types_requiring_hardware_support(settings));
+    webkit_settings_set_media_content_types_requiring_hardware_support(settings, "video/*; codecs=\"*\"");
+    g_assert_cmpstr("video/*; codecs=\"*\"", ==, webkit_settings_get_media_content_types_requiring_hardware_support(settings));
+    webkit_settings_set_media_content_types_requiring_hardware_support(settings, nullptr);
+    g_assert_cmpstr(nullptr, ==, webkit_settings_get_media_content_types_requiring_hardware_support(settings));
+
 #if PLATFORM(GTK)
+#if !USE(GTK4)
     // Ondemand is the default hardware acceleration policy.
     g_assert_cmpuint(webkit_settings_get_hardware_acceleration_policy(settings), ==, WEBKIT_HARDWARE_ACCELERATION_POLICY_ON_DEMAND);
     webkit_settings_set_hardware_acceleration_policy(settings, WEBKIT_HARDWARE_ACCELERATION_POLICY_NEVER);
@@ -345,6 +353,7 @@ static void testWebKitSettings(Test*, gconstpointer)
     g_assert_cmpuint(webkit_settings_get_hardware_acceleration_policy(settings), ==, WEBKIT_HARDWARE_ACCELERATION_POLICY_ALWAYS);
     webkit_settings_set_hardware_acceleration_policy(settings, WEBKIT_HARDWARE_ACCELERATION_POLICY_ON_DEMAND);
     g_assert_cmpuint(webkit_settings_get_hardware_acceleration_policy(settings), ==, WEBKIT_HARDWARE_ACCELERATION_POLICY_ON_DEMAND);
+#endif
 
     // Back-forward navigation gesture is disabled by default
     g_assert_false(webkit_settings_get_enable_back_forward_navigation_gestures(settings));

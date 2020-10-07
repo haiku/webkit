@@ -11,15 +11,19 @@
 
 #include "modules/video_coding/codecs/h264/include/h264.h"
 
+#include <memory>
+#include <string>
+
+#include "absl/types/optional.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "media/base/h264_profile_level_id.h"
+#include "media/base/media_constants.h"
 
 #if defined(WEBRTC_USE_H264)
 #include "modules/video_coding/codecs/h264/h264_decoder_impl.h"
 #include "modules/video_coding/codecs/h264/h264_encoder_impl.h"
 #endif
 
-#include "absl/memory/memory.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
@@ -87,7 +91,7 @@ std::unique_ptr<H264Encoder> H264Encoder::Create(
 #if defined(WEBRTC_USE_H264)
   RTC_CHECK(g_rtc_use_h264);
   RTC_LOG(LS_INFO) << "Creating H264EncoderImpl.";
-  return absl::make_unique<H264EncoderImpl>(codec);
+  return std::make_unique<H264EncoderImpl>(codec);
 #else
   RTC_NOTREACHED();
   return nullptr;
@@ -103,7 +107,7 @@ std::unique_ptr<H264Decoder> H264Decoder::Create() {
 #if defined(WEBRTC_USE_H264)
   RTC_CHECK(g_rtc_use_h264);
   RTC_LOG(LS_INFO) << "Creating H264DecoderImpl.";
-  return absl::make_unique<H264DecoderImpl>();
+  return std::make_unique<H264DecoderImpl>();
 #else
   RTC_NOTREACHED();
   return nullptr;

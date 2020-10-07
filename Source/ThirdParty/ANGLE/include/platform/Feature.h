@@ -13,9 +13,12 @@
 #include <string>
 #include <vector>
 
-#define ANGLE_FEATURE_CONDITION(set, feature, cond) \
-    set->feature.enabled   = cond;                  \
-    set->feature.condition = ANGLE_STRINGIFY(cond);
+#define ANGLE_FEATURE_CONDITION(set, feature, cond)       \
+    do                                                    \
+    {                                                     \
+        (set)->feature.enabled   = cond;                  \
+        (set)->feature.condition = ANGLE_STRINGIFY(cond); \
+    } while (0)
 
 namespace angle
 {
@@ -28,6 +31,7 @@ enum class FeatureCategory
     D3DCompilerWorkarounds,
     VulkanWorkarounds,
     VulkanFeatures,
+    MetalFeatures,
 };
 
 constexpr char kFeatureCategoryFrontendWorkarounds[]    = "Frontend workarounds";
@@ -36,6 +40,7 @@ constexpr char kFeatureCategoryD3DWorkarounds[]         = "D3D workarounds";
 constexpr char kFeatureCategoryD3DCompilerWorkarounds[] = "D3D compiler workarounds";
 constexpr char kFeatureCategoryVulkanWorkarounds[]      = "Vulkan workarounds";
 constexpr char kFeatureCategoryVulkanFeatures[]         = "Vulkan features";
+constexpr char kFeatureCategoryMetalFeatures[]          = "Metal features";
 constexpr char kFeatureCategoryUnknown[]                = "Unknown";
 
 inline const char *FeatureCategoryToString(const FeatureCategory &fc)
@@ -64,6 +69,10 @@ inline const char *FeatureCategoryToString(const FeatureCategory &fc)
 
         case FeatureCategory::VulkanFeatures:
             return kFeatureCategoryVulkanFeatures;
+            break;
+
+        case FeatureCategory::MetalFeatures:
+            return kFeatureCategoryMetalFeatures;
             break;
 
         default:
@@ -130,7 +139,7 @@ inline Feature::Feature(const char *name,
       description(description),
       bug(bug),
       enabled(false),
-      condition(nullptr)
+      condition("")
 {
     if (mapPtr != nullptr)
     {

@@ -61,6 +61,7 @@
 #include "InspectorClientHaiku.h"
 #include "LibWebRTCProvider.h"
 #include "LogInitialization.h"
+#include "MediaRecorderProvider.h"
 #include "MemoryCache.h"
 #include "WebNavigatorContentUtilsClient.h"
 #include "NotificationClientHaiku.h"
@@ -76,6 +77,7 @@
 #include "PlugInClient.h"
 #include "PluginInfoProvider.h"
 #include "PointerLockController.h"
+#include "ProgressTracker.h"
 #include "ProgressTrackerClient.h"
 #include "ProgressTrackerHaiku.h"
 #include "ResourceHandle.h"
@@ -172,24 +174,23 @@ BMessenger BWebPage::sDownloadListener;
     PlatformStrategiesHaiku::initialize();
 
 #if USE(GCRYPT)
-	// Call gcry_check_version() before any other libgcrypt call, ignoring the
-	// returned version string.
-	gcry_check_version(nullptr);
+    // Call gcry_check_version() before any other libgcrypt call, ignoring the
+    // returned version string.
+    gcry_check_version(nullptr);
 
-	// Pre-allocate 16kB of secure memory and finish the initialization.
-	gcry_control(GCRYCTL_INIT_SECMEM, 16384, nullptr);
-	gcry_control(GCRYCTL_INITIALIZATION_FINISHED, nullptr);
+    // Pre-allocate 16kB of secure memory and finish the initialization.
+    gcry_control(GCRYCTL_INIT_SECMEM, 16384, nullptr);
+    gcry_control(GCRYCTL_INITIALIZATION_FINISHED, nullptr);
 #endif
 
-    ScriptController::initializeThreading();
+    ScriptController::initializeMainThread();
     WTF::initializeMainThread();
     WTF::AtomString::init();
     WebCore::UTF8Encoding();
 
     WebVisitedLinkStore::setShouldTrackVisitedLinks(true);
 
-    RunLoop::initializeMainRunLoop();
-	RunLoop::run(); // This attaches it to the existing be_app looper
+    RunLoop::run(); // This attaches it to the existing be_app looper
 }
 
 /*static*/ void BWebPage::ShutdownOnce()
@@ -204,18 +205,15 @@ BMessenger BWebPage::sDownloadListener;
     uint32 cacheMinDeadCapacity;
     uint32 cacheMaxDeadCapacity;
     WTF::Seconds deadDecodedDataDeletionInterval;
-    uint32 pageCacheCapacity;
 
     switch (model) {
     case B_WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER:
-        pageCacheCapacity = 0;
         cacheTotalCapacity = 0;
         cacheMinDeadCapacity = 0;
         cacheMaxDeadCapacity = 0;
         deadDecodedDataDeletionInterval = WTF::Seconds(0);
         break;
     case B_WEBKIT_CACHE_MODEL_WEB_BROWSER:
-        pageCacheCapacity = 3;
         cacheTotalCapacity = 32 * 1024 * 1024;
         cacheMinDeadCapacity = cacheTotalCapacity / 4;
         cacheMaxDeadCapacity = cacheTotalCapacity / 2;
@@ -228,6 +226,14 @@ BMessenger BWebPage::sDownloadListener;
     MemoryCache::singleton().setCapacities(cacheMinDeadCapacity, cacheMaxDeadCapacity, cacheTotalCapacity);
     MemoryCache::singleton().setDeadDecodedDataDeletionInterval(deadDecodedDataDeletionInterval);
 }
+
+
+class MediaRecorderProviderHaiku: public MediaRecorderProvider
+{
+	public:
+		MediaRecorderProviderHaiku() = default;
+};
+
 
 BWebPage::BWebPage(BWebView* webView, BUrlContext* context)
     : BHandler("BWebPage")
@@ -246,8 +252,6 @@ BWebPage::BWebPage(BWebView* webView, BUrlContext* context)
     , fStatusbarVisible(true)
     , fMenubarVisible(true)
 {
-    fProgressTracker = new ProgressTrackerClientHaiku(this);
-
     // FIXME we should get this from the page settings, but they are created
     // after the page, and we need this before the page is created.
     BPath storagePath;
@@ -265,15 +269,18 @@ BWebPage::BWebPage(BWebView* webView, BUrlContext* context)
 		SocketProvider::create(),
         makeUniqueRef<LibWebRTCProvider>(),
 		CacheStorageProvider::create(),
-		BackForwardList::create(), CookieJar::create(storageProvider.copyRef()));
+		BackForwardList::create(),
+		CookieJar::create(storageProvider.copyRef()),
+    	makeUniqueRef<ProgressTrackerClientHaiku>(this),
+    	makeUniqueRef<FrameLoaderClientHaiku>(this),
+		makeUniqueRef<MediaRecorderProviderHaiku>()
+		);
 
 	// alternativeText
     pageClients.chromeClient = new ChromeClientHaiku(this, webView);
     pageClients.contextMenuClient = new ContextMenuClientHaiku(this);
-    pageClients.dragClient = new DragClientHaiku(webView);
+    pageClients.dragClient = std::make_unique<DragClientHaiku>(webView);
     pageClients.inspectorClient = new InspectorClientHaiku();
-    pageClients.loaderClientForMainFrame = new FrameLoaderClientHaiku(this);
-    pageClients.progressTrackerClient = fProgressTracker;
 	pageClients.diagnosticLoggingClient = std::make_unique<WebKit::WebDiagnosticLoggingClient>();
     pageClients.applicationCacheStorage = &WebApplicationCache::storage();
     pageClients.databaseProvider = &WebDatabaseProvider::singleton();
@@ -336,10 +343,8 @@ BWebPage::~BWebPage()
 
 void BWebPage::Init()
 {
-	WebFramePrivate* data = new WebFramePrivate;
-	data->page = fPage;
-
-    fMainFrame = new BWebFrame(this, 0, data);
+	WebFramePrivate* data = new WebFramePrivate(fPage);
+	fMainFrame = new BWebFrame(this, 0, data);
 }
 
 void BWebPage::Shutdown()
@@ -350,8 +355,8 @@ void BWebPage::Shutdown()
 void BWebPage::SetListener(const BMessenger& listener)
 {
 	fListener = listener;
-    fMainFrame->SetListener(listener);
-    fProgressTracker->setDispatchTarget(listener);
+	fMainFrame->SetListener(listener);
+	static_cast<ProgressTrackerClientHaiku&>(fPage->progress().client()).setDispatchTarget(listener);
 }
 
 void BWebPage::SetDownloadListener(const BMessenger& listener)
@@ -755,6 +760,9 @@ void BWebPage::paint(BRect rect, bool immediate)
 
     if (!view || !frame->contentRenderer())
         return;
+
+    page()->updateRendering();
+
     view->updateLayoutAndStyleIfNeededRecursive();
 
     if (!fWebView->LockLooper())
@@ -770,16 +778,11 @@ void BWebPage::paint(BRect rect, bool immediate)
         return;
     }
 
-    // FIXME workaround for sometimes badly calculated update rectangle somewhere
-    // in WebCore. In some cases we get asked to redraw only a small part of the
-    // page, instead of everything.
-    //rect = fWebView->Bounds();
-
     fWebView->UnlockLooper();
+    MainFrame()->Frame()->view()->flushCompositingStateIncludingSubframes();
 
     BRegion region(rect);
     internalPaint(offscreenView, view, &region);
-    MainFrame()->Frame()->view()->flushCompositingStateIncludingSubframes();
 
     offscreenView->Sync();
     offscreenView->UnlockLooper();
@@ -799,70 +802,12 @@ void BWebPage::internalPaint(BView* offscreenView,
     offscreenView->PushState();
     offscreenView->ConstrainClippingRegion(dirty);
 
+	// TODO do not recreate a context everytime this is called, we can preserve
+	// it alongside the offscreen view in BWebView?
     WebCore::GraphicsContext context(offscreenView);
     frameView->paint(context, IntRect(dirty->Frame()));
 
     offscreenView->PopState();
-}
-
-
-void BWebPage::scroll(int xOffset, int yOffset, const BRect& rectToScroll,
-       const BRect& clipRect)
-{
-    if (!rectToScroll.IsValid() || !clipRect.IsValid()
-        || (xOffset == 0 && yOffset == 0) || !fWebView->LockLooper()) {
-        return;
-    }
-
-    BBitmap* bitmap = fWebView->OffscreenBitmap();
-    BView* offscreenView = fWebView->OffscreenView();
-
-    // Lock the offscreen bitmap while we still have the
-    // window locked. This cannot deadlock and makes sure
-    // the window is not deleting the offscreen view right
-    // after we unlock it and before locking the bitmap.
-    if (!bitmap->Lock()) {
-       fWebView->UnlockLooper();
-       return;
-    }
-    fWebView->UnlockLooper();
-
-    BRect clip = offscreenView->Bounds();
-    if (clipRect.IsValid())
-        clip = clip & clipRect;
-
-    BRect rectAtSrc = rectToScroll;
-    BRect rectAtDst = rectAtSrc.OffsetByCopy(xOffset, yOffset);
-
-    // remember the part that will be clean
-    BRegion repaintRegion(rectAtSrc);
-    repaintRegion.Exclude(rectAtDst);
-    BRegion clipRegion(clip);
-    repaintRegion.IntersectWith(&clipRegion);
-
-    if (clip.Intersects(rectAtSrc) && clip.Intersects(rectAtDst)) {
-        // clip source rect
-        rectAtSrc = rectAtSrc & clip;
-        // clip dest rect
-        rectAtDst = rectAtDst & clip;
-
-        // move dest back over source and clip source to dest
-        rectAtDst.OffsetBy(-xOffset, -yOffset);
-        rectAtSrc = rectAtSrc & rectAtDst;
-        rectAtDst.OffsetBy(xOffset, yOffset);
-
-        offscreenView->CopyBits(rectAtSrc, rectAtDst);
-    }
-
-    if (repaintRegion.Frame().IsValid()) {
-        WebCore::Frame* frame = fMainFrame->Frame();
-        WebCore::FrameView* view = frame->view();
-
-        internalPaint(offscreenView, view, &repaintRegion);
-    }
-
-    offscreenView->Sync();
-    bitmap->Unlock();
 }
 
 

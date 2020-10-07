@@ -68,12 +68,16 @@ static const uint32_t maximumSessionStateDataSize = std::numeric_limits<uint32_t
 
 template<typename T> void isValidEnum(T);
 
+
+DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(HistoryEntryDataEncoder);
+DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(HistoryEntryDataEncoder);
+
 class HistoryEntryDataEncoder {
 public:
     HistoryEntryDataEncoder()
         : m_bufferSize(0)
         , m_bufferCapacity(512)
-        , m_buffer(MallocPtr<uint8_t>::malloc(m_bufferCapacity))
+        , m_buffer(MallocPtr<uint8_t, HistoryEntryDataEncoderMalloc>::malloc(m_bufferCapacity))
         , m_bufferPointer(m_buffer.get())
     {
         // Keep format compatibility by encoding an unused uint64_t here.
@@ -190,7 +194,7 @@ public:
         return *this << static_cast<uint32_t>(value);
     }
 
-    MallocPtr<uint8_t> finishEncoding(size_t& size)
+    MallocPtr<uint8_t, HistoryEntryDataEncoderMalloc> finishEncoding(size_t& size)
     {
         size = m_bufferSize;
         return WTFMove(m_buffer);
@@ -244,7 +248,7 @@ private:
 
     size_t m_bufferSize;
     size_t m_bufferCapacity;
-    MallocPtr<uint8_t> m_buffer;
+    MallocPtr<uint8_t, HistoryEntryDataEncoderMalloc> m_buffer;
     uint8_t* m_bufferPointer;
 };
 
@@ -369,7 +373,7 @@ static void encodeFrameStateNode(HistoryEntryDataEncoder& encoder, const FrameSt
 #endif
 }
 
-static MallocPtr<uint8_t> encodeSessionHistoryEntryData(const FrameState& frameState, size_t& bufferSize)
+static MallocPtr<uint8_t, HistoryEntryDataEncoderMalloc> encodeSessionHistoryEntryData(const FrameState& frameState, size_t& bufferSize)
 {
     HistoryEntryDataEncoder encoder;
 
@@ -394,7 +398,7 @@ static RetainPtr<CFDataRef> encodeSessionHistoryEntryData(const FrameState& fram
             nullptr, // allocate
             nullptr, // reallocate
             [](void *ptr, void *info) {
-                WTF::fastFree(ptr);
+                HistoryEntryDataEncoderMalloc::free(ptr);
             },
             nullptr, // preferredSize
         };
@@ -508,7 +512,7 @@ RefPtr<API::Data> encodeLegacySessionState(const SessionState& sessionState)
     CFIndex length = CFDataGetLength(data.get());
 
     size_t bufferSize = length + sizeof(uint32_t);
-    auto buffer = MallocPtr<uint8_t>::malloc(bufferSize);
+    auto buffer = MallocPtr<uint8_t, HistoryEntryDataEncoderMalloc>::malloc(bufferSize);
 
     // Put the session state version number at the start of the buffer
     buffer.get()[0] = (sessionStateDataVersion & 0xff000000) >> 24;
@@ -520,7 +524,7 @@ RefPtr<API::Data> encodeLegacySessionState(const SessionState& sessionState)
     CFDataGetBytes(data.get(), CFRangeMake(0, length), buffer.get() + sizeof(uint32_t));
 
     return API::Data::createWithoutCopying(buffer.leakPtr(), bufferSize, [] (unsigned char* buffer, const void* context) {
-        fastFree(buffer);
+        HistoryEntryDataEncoderMalloc::free(buffer);
     }, nullptr);
 }
 
@@ -956,7 +960,7 @@ static void decodeBackForwardTreeNode(HistoryEntryDataDecoder& decoder, FrameSta
 #endif
 }
 
-static bool decodeSessionHistoryEntryData(const uint8_t* buffer, size_t bufferSize, FrameState& mainFrameState)
+static WARN_UNUSED_RETURN bool decodeSessionHistoryEntryData(const uint8_t* buffer, size_t bufferSize, FrameState& mainFrameState)
 {
     HistoryEntryDataDecoder decoder { buffer, bufferSize };
 
@@ -971,12 +975,12 @@ static bool decodeSessionHistoryEntryData(const uint8_t* buffer, size_t bufferSi
     return decoder.finishDecoding();
 }
 
-static bool decodeSessionHistoryEntryData(CFDataRef historyEntryData, FrameState& mainFrameState)
+static WARN_UNUSED_RETURN bool decodeSessionHistoryEntryData(CFDataRef historyEntryData, FrameState& mainFrameState)
 {
     return decodeSessionHistoryEntryData(CFDataGetBytePtr(historyEntryData), static_cast<size_t>(CFDataGetLength(historyEntryData)), mainFrameState);
 }
 
-static bool decodeSessionHistoryEntry(CFDictionaryRef entryDictionary, BackForwardListItemState& backForwardListItemState)
+static WARN_UNUSED_RETURN bool decodeSessionHistoryEntry(CFDictionaryRef entryDictionary, BackForwardListItemState& backForwardListItemState)
 {
     auto title = dynamic_cf_cast<CFStringRef>(CFDictionaryGetValue(entryDictionary, sessionHistoryEntryTitleKey));
     if (!title)
@@ -1001,7 +1005,7 @@ static bool decodeSessionHistoryEntry(CFDictionaryRef entryDictionary, BackForwa
         CFNumberGetValue(rawShouldOpenExternalURLsPolicy, kCFNumberSInt64Type, &value);
         shouldOpenExternalURLsPolicy = static_cast<WebCore::ShouldOpenExternalURLsPolicy>(value);
     } else
-        shouldOpenExternalURLsPolicy = WebCore::ShouldOpenExternalURLsPolicy::ShouldAllowExternalSchemes;
+        shouldOpenExternalURLsPolicy = WebCore::ShouldOpenExternalURLsPolicy::ShouldAllowExternalSchemesButNotAppLinks;
 
     if (!decodeSessionHistoryEntryData(historyEntryData, backForwardListItemState.pageState.mainFrameState))
         return false;
@@ -1014,7 +1018,7 @@ static bool decodeSessionHistoryEntry(CFDictionaryRef entryDictionary, BackForwa
     return true;
 }
 
-static bool decodeSessionHistoryEntries(CFArrayRef entriesArray, Vector<BackForwardListItemState>& entries)
+static WARN_UNUSED_RETURN bool decodeSessionHistoryEntries(CFArrayRef entriesArray, Vector<BackForwardListItemState>& entries)
 {
     for (CFIndex i = 0, size = CFArrayGetCount(entriesArray); i < size; ++i) {
         auto entryDictionary = dynamic_cf_cast<CFDictionaryRef>(CFArrayGetValueAtIndex(entriesArray, i));
@@ -1031,7 +1035,7 @@ static bool decodeSessionHistoryEntries(CFArrayRef entriesArray, Vector<BackForw
     return true;
 }
 
-static bool decodeV0SessionHistory(CFDictionaryRef sessionHistoryDictionary, BackForwardListState& backForwardListState)
+static WARN_UNUSED_RETURN bool decodeV0SessionHistory(CFDictionaryRef sessionHistoryDictionary, BackForwardListState& backForwardListState)
 {
     auto currentIndexNumber = dynamic_cf_cast<CFNumberRef>(CFDictionaryGetValue(sessionHistoryDictionary, sessionHistoryCurrentIndexKey));
     if (!currentIndexNumber)
@@ -1067,7 +1071,7 @@ static bool decodeV0SessionHistory(CFDictionaryRef sessionHistoryDictionary, Bac
     return true;
 }
 
-static bool decodeV1SessionHistory(CFDictionaryRef sessionHistoryDictionary, BackForwardListState& backForwardListState)
+static WARN_UNUSED_RETURN bool decodeV1SessionHistory(CFDictionaryRef sessionHistoryDictionary, BackForwardListState& backForwardListState)
 {
     auto currentIndexNumber = dynamic_cf_cast<CFNumberRef>(CFDictionaryGetValue(sessionHistoryDictionary, sessionHistoryCurrentIndexKey));
     if (!currentIndexNumber) {
@@ -1098,7 +1102,7 @@ static bool decodeV1SessionHistory(CFDictionaryRef sessionHistoryDictionary, Bac
     return true;
 }
 
-static bool decodeSessionHistory(CFDictionaryRef backForwardListDictionary, BackForwardListState& backForwardListState)
+static WARN_UNUSED_RETURN bool decodeSessionHistory(CFDictionaryRef backForwardListDictionary, BackForwardListState& backForwardListState)
 {
     auto sessionHistoryVersionNumber = dynamic_cf_cast<CFNumberRef>(CFDictionaryGetValue(backForwardListDictionary, sessionHistoryVersionKey));
     if (!sessionHistoryVersionNumber) {

@@ -95,7 +95,7 @@ WI.SpreadsheetCSSStyleDeclarationEditor = class SpreadsheetCSSStyleDeclarationEd
         let propertyViewPendingStartEditing = null;
         for (let index = 0; index < properties.length; index++) {
             let property = properties[index];
-            let propertyView = new WI.SpreadsheetStyleProperty(this, property);
+            let propertyView = new WI.SpreadsheetStyleProperty(this, property, {selectable: true});
             propertyView.index = index;
             this.element.append(propertyView.element);
             this._propertyViews.push(propertyView);
@@ -229,6 +229,9 @@ WI.SpreadsheetCSSStyleDeclarationEditor = class SpreadsheetCSSStyleDeclarationEd
             properties = this._style.visibleProperties;
         else
             properties = this._style.properties;
+
+        if (this._style.inherited)
+            properties = properties.filter((property) => property.inherited);
 
         if (this._sortPropertiesByName)
             properties.sort((a, b) => a.name.extendedLocaleCompare(b.name));
@@ -679,7 +682,7 @@ WI.SpreadsheetCSSStyleDeclarationEditor = class SpreadsheetCSSStyleDeclarationEd
 
     _updateDebugLockStatus()
     {
-        if (!this._style || !WI.isDebugUIEnabled() || !WI.settings.debugEnableStyleEditingDebugMode.value)
+        if (!this._style || !WI.settings.debugEnableStyleEditingDebugMode.value)
             return;
 
         this.element.classList.toggle("debug-style-locked", this._style.locked);

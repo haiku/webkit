@@ -96,6 +96,8 @@ void FontCascadeFonts::GlyphPageCacheEntry::setSingleFontPage(RefPtr<GlyphPage>&
     m_singleFont = page;
 }
 
+DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(FontCascadeFonts);
+
 FontCascadeFonts::FontCascadeFonts(RefPtr<FontSelector>&& fontSelector)
     : m_cachedPrimaryFont(nullptr)
     , m_fontSelector(fontSelector)
@@ -348,10 +350,6 @@ GlyphData FontCascadeFonts::glyphDataForSystemFallback(UChar32 character, const 
     auto systemFallbackFont = font->systemFallbackFontForCharacter(character, description, m_isForPlatformFont ? IsForPlatformFont::Yes : IsForPlatformFont::No);
     if (!systemFallbackFont)
         return GlyphData();
-
-#if HAVE(DISALLOWABLE_USER_INSTALLED_FONTS)
-    ASSERT(!systemFallbackFont->isUserInstalledFont() || description.shouldAllowUserInstalledFonts() == AllowUserInstalledFonts::Yes);
-#endif
 
     if (systemFallbackShouldBeInvisible)
         systemFallbackFont = const_cast<Font*>(&systemFallbackFont->invisibleFont());

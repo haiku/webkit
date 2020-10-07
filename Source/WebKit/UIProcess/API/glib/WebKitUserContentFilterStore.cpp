@@ -29,6 +29,7 @@
 #include "APIContentRuleList.h"
 #include "APIContentRuleListStore.h"
 #include "WebKitError.h"
+#include "WebKitInitialize.h"
 #include "WebKitUserContent.h"
 #include "WebKitUserContentPrivate.h"
 #include <WebCore/ContentExtensionError.h>
@@ -39,6 +40,8 @@
 #include <wtf/glib/GRefPtr.h>
 #include <wtf/glib/GUniquePtr.h>
 #include <wtf/glib/WTFGType.h>
+
+using namespace WebKit;
 
 /**
  * SECTION: WebKitUserContentFilterStore
@@ -70,7 +73,6 @@ enum {
 static inline GError* toGError(WebKitUserContentFilterError code, const std::error_code error)
 {
     ASSERT(error);
-    ASSERT(error.category() == WebCore::ContentExtensions::contentExtensionErrorCategory());
     return g_error_new_literal(WEBKIT_USER_CONTENT_FILTER_ERROR, code, error.message().c_str());
 }
 
@@ -117,6 +119,8 @@ static void webkitUserContentFilterStoreConstructed(GObject* object)
 
 static void webkit_user_content_filter_store_class_init(WebKitUserContentFilterStoreClass* storeClass)
 {
+    webkitInitialize();
+
     GObjectClass* gObjectClass = G_OBJECT_CLASS(storeClass);
 
     gObjectClass->get_property = webkitUserContentFilterStoreGetProperty;
@@ -187,9 +191,10 @@ static void webkitUserContentFilterStoreSaveBytes(GRefPtr<GTask>&& task, String&
         if (g_task_return_error_if_cancelled(task.get()))
             return;
 
-        if (error)
+        if (error) {
+            ASSERT(error.category() == WebCore::ContentExtensions::contentExtensionErrorCategory());
             g_task_return_error(task.get(), toGError(WEBKIT_USER_CONTENT_FILTER_ERROR_INVALID_SOURCE, error));
-        else
+        } else
             g_task_return_pointer(task.get(), webkitUserContentFilterCreate(WTFMove(contentRuleList)), reinterpret_cast<GDestroyNotify>(webkit_user_content_filter_unref));
     });
 }

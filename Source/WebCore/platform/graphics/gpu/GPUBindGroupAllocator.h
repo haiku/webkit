@@ -27,14 +27,19 @@
 
 #if ENABLE(WEBGPU)
 
-#include <objc/NSObjCRuntime.h>
 #include <wtf/Optional.h>
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
-#include <wtf/RetainPtr.h>
 
+#if USE(METAL)
+#include <objc/NSObjCRuntime.h>
+#include <wtf/RetainPtr.h>
+#endif
+
+#if USE(METAL)
 OBJC_PROTOCOL(MTLArgumentEncoder);
 OBJC_PROTOCOL(MTLBuffer);
+#endif
 
 namespace WebCore {
 
@@ -69,6 +74,7 @@ private:
 #endif
 
     Ref<GPUErrorScopes> m_errorScopes;
+    int m_numBindGroups { 0 };
 };
 
 } // namespace WebCore

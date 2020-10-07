@@ -49,18 +49,19 @@ CommandResult::CommandResult(RefPtr<JSON::Value>&& result, Optional<ErrorCode> e
     if (!result)
         return;
 
-    RefPtr<JSON::Object> errorObject;
-    if (!result->asObject(errorObject))
+    auto errorObject = result->asObject();
+    if (!errorObject)
         return;
 
-    int error;
-    if (!errorObject->getInteger("code", error))
-        return;
-    String errorMessage;
-    if (!errorObject->getString("message", errorMessage))
+    auto error = errorObject->getInteger("code");
+    if (!error)
         return;
 
-    switch (error) {
+    auto errorMessage = errorObject->getString("message");
+    if (!errorMessage)
+        return;
+
+    switch (*error) {
     case ProtocolErrorCode::ParseError:
     case ProtocolErrorCode::InvalidRequest:
     case ProtocolErrorCode::MethodNotFound:
@@ -92,6 +93,8 @@ CommandResult::CommandResult(RefPtr<JSON::Value>&& result, Optional<ErrorCode> e
             m_errorCode = ErrorCode::ScriptTimeout;
         else if (errorName == "NodeNotFound")
             m_errorCode = ErrorCode::StaleElementReference;
+        else if (errorName == "InvalidNodeIdentifier")
+            m_errorCode = ErrorCode::NoSuchElement;
         else if (errorName == "MissingParameter" || errorName == "InvalidParameter")
             m_errorCode = ErrorCode::InvalidArgument;
         else if (errorName == "InvalidElementState")
@@ -146,12 +149,11 @@ unsigned CommandResult::httpStatusCode() const
     case ErrorCode::InvalidSessionID:
     case ErrorCode::UnknownCommand:
         return 404;
-    case ErrorCode::ScriptTimeout:
-    case ErrorCode::Timeout:
-        return 408;
     case ErrorCode::JavascriptError:
     case ErrorCode::MoveTargetOutOfBounds:
+    case ErrorCode::ScriptTimeout:
     case ErrorCode::SessionNotCreated:
+    case ErrorCode::Timeout:
     case ErrorCode::UnableToCaptureScreen:
     case ErrorCode::UnexpectedAlertOpen:
     case ErrorCode::UnknownError:

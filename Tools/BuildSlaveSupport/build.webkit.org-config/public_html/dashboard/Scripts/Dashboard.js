@@ -25,13 +25,17 @@
 
 Dashboard = {
     Platform: {
-        macOSCatalina: { name: "macos-catalina", readableName: "macOS Catalina", order: 1 },
-        macOSMojave: { name: "macos-mojave", readableName: "macOS Mojave", order: 2 },
-        macOSHighSierra: { name: "macos-highsierra", readableName: "macOS High Sierra", order: 3 },
-        iOS13Simulator: { name: "ios-simulator-13", readableName: "iOS 13 Simulator", order: 20 },
-        iOS13Device: { name: "ios-13", readableName: "iOS 13", order: 25 },
+        macOSBigSur: { name: "macos-bigsur", readableName: "macOS Big Sur", order: 1 },
+        macOSCatalina: { name: "macos-catalina", readableName: "macOS Catalina", order: 2 },
+        macOSMojave: { name: "macos-mojave", readableName: "macOS Mojave", order: 3 },
+        macOSHighSierra: { name: "macos-highsierra", readableName: "macOS High Sierra", order: 4 },
+        iOS14Simulator: { name: "ios-simulator-14", readableName: "iOS 14 Simulator", order: 20 },
+        iOS14Device: { name: "ios-14", readableName: "iOS 14", order: 25 },
+        tvOS14Simulator: { name: "tvos-simulator-14", readableName: "TvOS Simulator 14", order: 26 },
+        tvOS14Device: { name: "tvos-14", readableName: "TvOS 14", order: 27 },
+        watchOS7Simulator: { name: "watchos-simulator-7", readableName: "WatchOS Simulator 7", order: 28 },
+        watchOS7Device: { name: "watchos-7", readableName: "WatchOS 7", order: 29 },
         Windows10: { name: "windows-10", readableName: "Windows 10", order: 30 },
-        Windows7: { name: "windows-7", readableName: "Windows 7", order: 35 },
         WinCairo: { name: "wincairo-windows-10", readableName: "WinCairo", order: 50 },
         LinuxWPE: { name : "linux-wpe", readableName: "Linux WPE", order: 90 },
         LinuxGTK: { name : "linux-gtk", readableName: "Linux GTK", order: 91 },

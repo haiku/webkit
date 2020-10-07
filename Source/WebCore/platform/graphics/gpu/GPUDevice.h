@@ -28,6 +28,7 @@
 #if ENABLE(WEBGPU)
 
 #include "GPUBindGroupAllocator.h"
+#include "GPUErrorScopes.h"
 #include "GPUQueue.h"
 #include "GPUSwapChain.h"
 #include <wtf/Function.h>
@@ -35,10 +36,15 @@
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
-#include <wtf/RetainPtr.h>
 #include <wtf/WeakPtr.h>
 
+#if USE(METAL)
+#include <wtf/RetainPtr.h>
+#endif
+
+#if USE(METAL)
 OBJC_PROTOCOL(MTLDevice);
+#endif
 
 namespace WebCore {
 
@@ -68,8 +74,10 @@ struct GPUTextureDescriptor;
 
 enum class GPUBufferMappedOption;
 
+#if USE(METAL)
 using PlatformDevice = MTLDevice;
 using PlatformDeviceSmartPtr = RetainPtr<MTLDevice>;
+#endif
 
 class GPUDevice : public RefCounted<GPUDevice>, public CanMakeWeakPtr<GPUDevice> {
 public:
@@ -95,6 +103,8 @@ public:
     GPUSwapChain* swapChain() const { return m_swapChain.get(); }
     void setSwapChain(RefPtr<GPUSwapChain>&&);
 
+    void setErrorScopes(Ref<GPUErrorScopes>&& errorScopes) { m_errorScopes = WTFMove(errorScopes); }
+
     static constexpr bool useWHLSL = true;
 
 private:
@@ -104,6 +114,7 @@ private:
     mutable RefPtr<GPUQueue> m_queue;
     RefPtr<GPUSwapChain> m_swapChain;
     mutable RefPtr<GPUBindGroupAllocator> m_bindGroupAllocator;
+    RefPtr<GPUErrorScopes> m_errorScopes;
 };
 
 } // namespace WebCore

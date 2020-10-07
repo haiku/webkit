@@ -454,6 +454,9 @@ class AttributeLayoutBufferIndexed : public AttributeLayoutTest
 
 TEST_P(AttributeLayoutNonIndexed, Test)
 {
+    // Flaky on Linux SwANGLE http://anglebug.com/4502
+    ANGLE_SKIP_TEST_IF(IsLinux() && isSwiftshader());
+
     Run(true);
     ANGLE_SKIP_TEST_IF(IsWindows() && IsAMD() && IsOpenGL());
     Run(false);
@@ -461,6 +464,9 @@ TEST_P(AttributeLayoutNonIndexed, Test)
 
 TEST_P(AttributeLayoutMemoryIndexed, Test)
 {
+    // Flaky on Linux SwANGLE http://anglebug.com/4502
+    ANGLE_SKIP_TEST_IF(IsLinux() && isSwiftshader());
+
     Run(true);
     ANGLE_SKIP_TEST_IF(IsWindows() && IsAMD() && (IsOpenGL() || IsD3D11_FL93()));
     Run(false);
@@ -468,17 +474,16 @@ TEST_P(AttributeLayoutMemoryIndexed, Test)
 
 TEST_P(AttributeLayoutBufferIndexed, Test)
 {
+    // Flaky on Linux SwANGLE http://anglebug.com/4502
+    ANGLE_SKIP_TEST_IF(IsLinux() && isSwiftshader());
+
     Run(true);
     ANGLE_SKIP_TEST_IF(IsWindows() && IsAMD() && (IsOpenGL() || IsD3D11_FL93()));
     Run(false);
 }
 
-#define PARAMS                                                                         \
-    ES2_VULKAN(), ES2_OPENGL(), ES2_D3D9(), ES2_D3D11(), ES3_OPENGL(), ES2_OPENGLES(), \
-        ES3_OPENGLES(), ES3_VULKAN()
-
-ANGLE_INSTANTIATE_TEST(AttributeLayoutNonIndexed, PARAMS);
-ANGLE_INSTANTIATE_TEST(AttributeLayoutMemoryIndexed, PARAMS);
-ANGLE_INSTANTIATE_TEST(AttributeLayoutBufferIndexed, PARAMS);
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(AttributeLayoutNonIndexed);
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(AttributeLayoutMemoryIndexed);
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(AttributeLayoutBufferIndexed);
 
 }  // anonymous namespace

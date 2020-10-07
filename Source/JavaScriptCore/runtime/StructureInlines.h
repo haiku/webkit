@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,16 +36,16 @@
 
 namespace JSC {
 
-inline Structure* Structure::create(VM& vm, JSGlobalObject* globalObject, JSValue prototype, const TypeInfo& typeInfo, const ClassInfo* classInfo, IndexingType indexingType, unsigned inlineCapacity)
+inline Structure* Structure::create(VM& vm, JSGlobalObject* globalObject, JSValue prototype, const TypeInfo& typeInfo, const ClassInfo* classInfo, IndexingType indexingModeIncludingHistory, unsigned inlineCapacity)
 {
     ASSERT(vm.structureStructure);
     ASSERT(classInfo);
     if (auto* object = prototype.getObject()) {
-        ASSERT(!object->anyObjectInChainMayInterceptIndexedAccesses(vm) || hasSlowPutArrayStorage(indexingType) || !hasIndexedProperties(indexingType));
+        ASSERT(!object->anyObjectInChainMayInterceptIndexedAccesses(vm) || hasSlowPutArrayStorage(indexingModeIncludingHistory) || !hasIndexedProperties(indexingModeIncludingHistory));
         object->didBecomePrototype();
     }
 
-    Structure* structure = new (NotNull, allocateCell<Structure>(vm.heap)) Structure(vm, globalObject, prototype, typeInfo, classInfo, indexingType, inlineCapacity);
+    Structure* structure = new (NotNull, allocateCell<Structure>(vm.heap)) Structure(vm, globalObject, prototype, typeInfo, classInfo, indexingModeIncludingHistory, inlineCapacity);
     structure->finishCreation(vm);
     return structure;
 }
@@ -144,6 +144,9 @@ ALWAYS_INLINE PropertyOffset Structure::get(VM& vm, PropertyName propertyName, u
     ASSERT(!isCompilationThread());
     ASSERT(structure(vm)->classInfo() == info());
 
+    if (m_seenProperties.ruleOut(bitwise_cast<uintptr_t>(propertyName.uid())))
+        return invalidOffset;
+
     PropertyTable* propertyTable = ensurePropertyTableIfNotEmpty(vm);
     if (!propertyTable)
         return invalidOffset;
@@ -160,28 +163,48 @@ template<typename Functor>
 void Structure::forEachPropertyConcurrently(const Functor& functor)
 {
     Vector<Structure*, 8> structures;
-    Structure* structure;
+    Structure* tableStructure;
     PropertyTable* table;
     
-    findStructuresAndMapForMaterialization(structures, structure, table);
+    findStructuresAndMapForMaterialization(structures, tableStructure, table);
+
+    HashSet<UniquedStringImpl*> seenProperties;
+
+    for (auto* structure : structures) {
+        if (!structure->m_transitionPropertyName || seenProperties.contains(structure->m_transitionPropertyName.get()))
+            continue;
+
+        seenProperties.add(structure->m_transitionPropertyName.get());
+
+        switch (structure->transitionKind()) {
+        case TransitionKind::PropertyAddition:
+        case TransitionKind::PropertyAttributeChange:
+            break;
+        case TransitionKind::PropertyDeletion:
+            continue;
+        default:
+            ASSERT_NOT_REACHED();
+            break;
+        }
+
+        if (!functor(PropertyMapEntry(structure->m_transitionPropertyName.get(), structure->transitionOffset(), structure->transitionPropertyAttributes()))) {
+            if (table)
+                tableStructure->m_lock.unlock();
+            return;
+        }
+    }
     
     if (table) {
         for (auto& entry : *table) {
+            if (seenProperties.contains(entry.key))
+                continue;
+
             if (!functor(entry)) {
-                structure->m_lock.unlock();
+                tableStructure->m_lock.unlock();
                 return;
             }
         }
-        structure->m_lock.unlock();
-    }
-    
-    for (unsigned i = structures.size(); i--;) {
-        structure = structures[i];
-        if (!structure->m_nameInPrevious)
-            continue;
-        
-        if (!functor(PropertyMapEntry(structure->m_nameInPrevious.get(), structure->m_offset, structure->attributesInPrevious())))
-            return;
+        tableStructure->m_lock.unlock();
     }
 }
 
@@ -209,7 +232,7 @@ inline bool Structure::hasIndexingHeader(const JSCell* cell) const
     
     if (!isTypedView(typedArrayTypeForType(m_blob.type())))
         return false;
-    
+
     return jsCast<const JSArrayBufferView*>(cell)->mode() == WastefulTypedArray;
 }
 
@@ -227,32 +250,32 @@ inline bool Structure::transitivelyTransitionedFrom(Structure* structureToFind)
     return false;
 }
 
-inline void Structure::setCachedOwnKeys(VM& vm, JSImmutableButterfly* ownKeys)
+inline void Structure::setCachedPropertyNames(VM& vm, CachedPropertyNamesKind kind, JSImmutableButterfly* cached)
 {
-    ensureRareData(vm)->setCachedOwnKeys(vm, ownKeys);
+    ensureRareData(vm)->setCachedPropertyNames(vm, kind, cached);
 }
 
-inline JSImmutableButterfly* Structure::cachedOwnKeys() const
-{
-    if (!hasRareData())
-        return nullptr;
-    return rareData()->cachedOwnKeys();
-}
-
-inline JSImmutableButterfly* Structure::cachedOwnKeysIgnoringSentinel() const
+inline JSImmutableButterfly* Structure::cachedPropertyNames(CachedPropertyNamesKind kind) const
 {
     if (!hasRareData())
         return nullptr;
-    return rareData()->cachedOwnKeysIgnoringSentinel();
+    return rareData()->cachedPropertyNames(kind);
 }
 
-inline bool Structure::canCacheOwnKeys() const
+inline JSImmutableButterfly* Structure::cachedPropertyNamesIgnoringSentinel(CachedPropertyNamesKind kind) const
+{
+    if (!hasRareData())
+        return nullptr;
+    return rareData()->cachedPropertyNamesIgnoringSentinel(kind);
+}
+
+inline bool Structure::canCacheOwnPropertyNames() const
 {
     if (isDictionary())
         return false;
     if (hasIndexedProperties(indexingType()))
         return false;
-    if (typeInfo().overridesGetPropertyNames())
+    if (typeInfo().overridesAnyFormOfGetPropertyNames())
         return false;
     return true;
 }
@@ -264,7 +287,7 @@ ALWAYS_INLINE JSValue prototypeForLookupPrimitiveImpl(JSGlobalObject* globalObje
     if (structure->typeInfo().type() == StringType)
         return globalObject->stringPrototype();
     
-    if (structure->typeInfo().type() == BigIntType)
+    if (structure->typeInfo().type() == HeapBigIntType)
         return globalObject->bigIntPrototype();
 
     ASSERT(structure->typeInfo().type() == SymbolType);
@@ -310,9 +333,9 @@ inline bool Structure::isValid(JSGlobalObject* globalObject, StructureChain* cac
 
     VM& vm = globalObject->vm();
     JSValue prototype = prototypeForLookup(globalObject, base);
-    WriteBarrier<Structure>* cachedStructure = cachedPrototypeChain->head();
+    StructureID* cachedStructure = cachedPrototypeChain->head();
     while (*cachedStructure && !prototype.isNull()) {
-        if (asObject(prototype)->structure(vm) != cachedStructure->get())
+        if (asObject(prototype)->structureID() != *cachedStructure)
             return false;
         ++cachedStructure;
         prototype = asObject(prototype)->getPrototypeDirect(vm);
@@ -361,21 +384,22 @@ ALWAYS_INLINE bool Structure::checkOffsetConsistency(PropertyTable* propertyTabl
     auto fail = [&] (const char* description) {
         dataLog("Detected offset inconsistency: ", description, "!\n");
         dataLog("this = ", RawPointer(this), "\n");
-        dataLog("m_offset = ", m_offset, "\n");
+        dataLog("transitionOffset = ", transitionOffset(), "\n");
+        dataLog("maxOffset = ", maxOffset(), "\n");
         dataLog("m_inlineCapacity = ", m_inlineCapacity, "\n");
         dataLog("propertyTable = ", RawPointer(propertyTable), "\n");
-        dataLog("numberOfSlotsForLastOffset = ", numberOfSlotsForLastOffset(m_offset, m_inlineCapacity), "\n");
+        dataLog("numberOfSlotsForMaxOffset = ", numberOfSlotsForMaxOffset(maxOffset(), m_inlineCapacity), "\n");
         dataLog("totalSize = ", totalSize, "\n");
         dataLog("inlineOverflowAccordingToTotalSize = ", inlineOverflowAccordingToTotalSize, "\n");
-        dataLog("numberOfOutOfLineSlotsForLastOffset = ", numberOfOutOfLineSlotsForLastOffset(m_offset), "\n");
+        dataLog("numberOfOutOfLineSlotsForMaxOffset = ", numberOfOutOfLineSlotsForMaxOffset(maxOffset()), "\n");
         detailsFunc();
         UNREACHABLE_FOR_PLATFORM();
     };
     
-    if (numberOfSlotsForLastOffset(m_offset, m_inlineCapacity) != totalSize)
-        fail("numberOfSlotsForLastOffset doesn't match totalSize");
-    if (inlineOverflowAccordingToTotalSize != numberOfOutOfLineSlotsForLastOffset(m_offset))
-        fail("inlineOverflowAccordingToTotalSize doesn't match numberOfOutOfLineSlotsForLastOffset");
+    if (numberOfSlotsForMaxOffset(maxOffset(), m_inlineCapacity) != totalSize)
+        fail("numberOfSlotsForMaxOffset doesn't match totalSize");
+    if (inlineOverflowAccordingToTotalSize != numberOfOutOfLineSlotsForMaxOffset(maxOffset()))
+        fail("inlineOverflowAccordingToTotalSize doesn't match numberOfOutOfLineSlotsForMaxOffset");
 
     return true;
 }
@@ -411,11 +435,11 @@ inline size_t nextOutOfLineStorageCapacity(size_t currentCapacity)
     return currentCapacity * outOfLineGrowthFactor;
 }
 
-inline void Structure::setObjectToStringValue(JSGlobalObject* globalObject, VM& vm, JSString* value, PropertySlot toStringTagSymbolSlot)
+inline void Structure::cacheSpecialProperty(JSGlobalObject* globalObject, VM& vm, JSValue value, CachedSpecialPropertyKey key, const PropertySlot& slot)
 {
     if (!hasRareData())
         allocateRareData(vm);
-    rareData()->setObjectToStringValue(globalObject, vm, this, value, toStringTagSymbolSlot);
+    rareData()->cacheSpecialProperty(globalObject, vm, this, value, key, slot);
 }
 
 template<Structure::ShouldPin shouldPin, typename Func>
@@ -447,46 +471,104 @@ inline PropertyOffset Structure::add(VM& vm, PropertyName propertyName, unsigned
     PropertyOffset newOffset = table->nextOffset(m_inlineCapacity);
 
     m_propertyHash = m_propertyHash ^ rep->existingSymbolAwareHash();
+    m_seenProperties.add(bitwise_cast<uintptr_t>(rep));
+
+    auto result = table->add(vm, PropertyMapEntry(rep, newOffset, attributes));
+    ASSERT_UNUSED(result, result.second);
+    ASSERT_UNUSED(result, result.first.first->offset == newOffset);
+    auto newMaxOffset = std::max(newOffset, maxOffset());
     
-    PropertyOffset newLastOffset = m_offset;
-    table->add(PropertyMapEntry(rep, newOffset, attributes), newLastOffset, PropertyTable::PropertyOffsetMayChange);
+    func(locker, newOffset, newMaxOffset);
     
-    func(locker, newOffset, newLastOffset);
-    
-    ASSERT(m_offset == newLastOffset);
+    ASSERT(maxOffset() == newMaxOffset);
 
     checkConsistency();
     return newOffset;
 }
 
-template<typename Func>
-inline PropertyOffset Structure::remove(PropertyName propertyName, const Func& func)
+template<Structure::ShouldPin shouldPin, typename Func>
+inline PropertyOffset Structure::remove(VM& vm, PropertyName propertyName, const Func& func)
 {
-    ConcurrentJSLocker locker(m_lock);
-    
+    PropertyTable* table = ensurePropertyTable(vm);
+    GCSafeConcurrentJSLocker locker(m_lock, vm.heap);
+
+    switch (shouldPin) {
+    case ShouldPin::Yes:
+        pin(locker, vm, table);
+        break;
+    case ShouldPin::No:
+        setPropertyTable(vm, table);
+        break;
+    }
+
+    ASSERT(JSC::isValidOffset(get(vm, propertyName)));
+
     checkConsistency();
 
     auto rep = propertyName.uid();
-    
-    // We ONLY remove from uncacheable dictionaries, which will have a pinned property table.
-    // The only way for them not to have a table is if they are empty.
-    PropertyTable* table = propertyTableOrNull();
-
-    if (!table)
-        return invalidOffset;
 
     PropertyTable::find_iterator position = table->find(rep);
     if (!position.first)
         return invalidOffset;
+
+    setIsQuickPropertyAccessAllowedForEnumeration(false);
     
     PropertyOffset offset = position.first->offset;
 
-    table->remove(position);
+    table->remove(vm, position);
     table->addDeletedOffset(offset);
 
-    checkConsistency();
+    PropertyOffset newMaxOffset = maxOffset();
 
-    func(locker, offset);
+    func(locker, offset, newMaxOffset);
+
+    ASSERT(maxOffset() == newMaxOffset);
+    ASSERT(!JSC::isValidOffset(get(vm, propertyName)));
+
+    checkConsistency();
+    return offset;
+}
+
+template<Structure::ShouldPin shouldPin, typename Func>
+inline PropertyOffset Structure::attributeChange(VM& vm, PropertyName propertyName, unsigned attributes, const Func& func)
+{
+    PropertyTable* table = ensurePropertyTable(vm);
+
+    GCSafeConcurrentJSLocker locker(m_lock, vm.heap);
+
+    switch (shouldPin) {
+    case ShouldPin::Yes:
+        pin(locker, vm, table);
+        break;
+    case ShouldPin::No:
+        setPropertyTable(vm, table);
+        break;
+    }
+
+    ASSERT(JSC::isValidOffset(get(vm, propertyName)));
+
+    checkConsistency();
+    PropertyMapEntry* entry = table->get(propertyName.uid());
+    if (!entry)
+        return invalidOffset;
+
+    PropertyOffset offset = entry->offset;
+
+    if (attributes & PropertyAttribute::DontEnum)
+        setIsQuickPropertyAccessAllowedForEnumeration(false);
+    if (attributes & PropertyAttribute::ReadOnly)
+        setContainsReadOnlyProperties();
+
+    entry->attributes = attributes;
+
+    PropertyOffset newMaxOffset = maxOffset();
+
+    func(locker, offset, newMaxOffset);
+
+    ASSERT(maxOffset() == newMaxOffset);
+    ASSERT(JSC::isValidOffset(get(vm, propertyName)));
+
+    checkConsistency();
     return offset;
 }
 
@@ -497,13 +579,19 @@ inline PropertyOffset Structure::addPropertyWithoutTransition(VM& vm, PropertyNa
 }
 
 template<typename Func>
-inline PropertyOffset Structure::removePropertyWithoutTransition(VM&, PropertyName propertyName, const Func& func)
+inline PropertyOffset Structure::removePropertyWithoutTransition(VM& vm, PropertyName propertyName, const Func& func)
 {
     ASSERT(isUncacheableDictionary());
     ASSERT(isPinnedPropertyTable());
     ASSERT(propertyTableOrNull());
     
-    return remove(propertyName, func);
+    return remove<ShouldPin::Yes>(vm, propertyName, func);
+}
+
+template<typename Func>
+inline PropertyOffset Structure::attributeChangeWithoutTransition(VM& vm, PropertyName propertyName, unsigned attributes, const Func& func)
+{
+    return attributeChange<ShouldPin::Yes>(vm, propertyName, attributes, func);
 }
 
 ALWAYS_INLINE void Structure::setPrototypeWithoutTransition(VM& vm, JSValue prototype)
@@ -577,7 +665,7 @@ ALWAYS_INLINE bool Structure::shouldConvertToPolyProto(const Structure* a, const
     return !aObj && !bObj;
 }
 
-inline Structure* Structure::nonPropertyTransition(VM& vm, Structure* structure, NonPropertyTransition transitionKind)
+inline Structure* Structure::nonPropertyTransition(VM& vm, Structure* structure, TransitionKind transitionKind)
 {
     IndexingType indexingModeIncludingHistory = newIndexingType(structure->indexingModeIncludingHistory(), transitionKind);
 

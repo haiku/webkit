@@ -33,21 +33,14 @@
 #include "config.h"
 #include "ScriptCallStackFactory.h"
 
-#include "CallFrame.h"
-#include "CatchScope.h"
-#include "CodeBlock.h"
-#include "Exception.h"
-#include "JSCJSValue.h"
 #include "JSCInlines.h"
 #include "ScriptArguments.h"
 #include "ScriptCallFrame.h"
-#include "StackVisitor.h"
-#include "StrongInlines.h"
 #include <wtf/text/WTFString.h>
 
-using namespace JSC;
-
 namespace Inspector {
+
+using namespace JSC;
 
 class CreateScriptCallStackFunctor {
 public:

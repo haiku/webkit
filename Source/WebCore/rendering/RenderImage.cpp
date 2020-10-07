@@ -212,24 +212,6 @@ ImageSizeChangeType RenderImage::setImageSizeForAltText(CachedImage* newImage /*
     return ImageSizeChangeForAltText;
 }
 
-bool RenderImage::isEditableImage() const
-{
-    if (!element() || !is<HTMLImageElement>(element()))
-        return false;
-    return downcast<HTMLImageElement>(element())->hasEditableImageAttribute();
-}
-    
-bool RenderImage::requiresLayer() const
-{
-    if (RenderReplaced::requiresLayer())
-        return true;
-    
-    if (isEditableImage())
-        return true;
-    
-    return false;
-}
-
 void RenderImage::styleWillChange(StyleDifference diff, const RenderStyle& newStyle)
 {
     if (!hasInitializedStyle())
@@ -245,18 +227,48 @@ void RenderImage::styleDidChange(StyleDifference diff, const RenderStyle* oldSty
             repaintOrMarkForLayout(ImageSizeChangeForAltText);
         m_needsToSetSizeForAltText = false;
     }
-#if ENABLE(CSS_IMAGE_ORIENTATION)
-    if (diff == StyleDifference::Layout && oldStyle->imageOrientation() != style().imageOrientation())
+    if (diff == StyleDifference::Layout && oldStyle && oldStyle->imageOrientation() != style().imageOrientation())
         return repaintOrMarkForLayout(ImageSizeChangeNone);
-#endif
 
 #if ENABLE(CSS_IMAGE_RESOLUTION)
-    if (diff == StyleDifference::Layout
+    if (diff == StyleDifference::Layout && oldStyle
         && (oldStyle->imageResolution() != style().imageResolution()
             || oldStyle->imageResolutionSnap() != style().imageResolutionSnap()
             || oldStyle->imageResolutionSource() != style().imageResolutionSource()))
         repaintOrMarkForLayout(ImageSizeChangeNone);
 #endif
+}
+
+bool RenderImage::shouldCollapseToEmpty() const
+{
+    auto imageRepresentsNothing = [&] {
+        if (!element()->hasAttribute(HTMLNames::altAttr))
+            return false;
+        return imageResource().errorOccurred() && m_altText.isEmpty();
+    };
+    if (!element()) {
+        // Images with no associated elements do not fall under the category of unwanted content.
+        return false;
+    }
+    if (!isInline())
+        return false;
+    if (!imageRepresentsNothing())
+        return false;
+    return document().inNoQuirksMode() || (style().logicalWidth().isAuto() && style().logicalHeight().isAuto());
+}
+
+LayoutUnit RenderImage::computeReplacedLogicalWidth(ShouldComputePreferred shouldComputePreferred) const
+{
+    if (shouldCollapseToEmpty())
+        return { };
+    return RenderReplaced::computeReplacedLogicalWidth(shouldComputePreferred);
+}
+
+LayoutUnit RenderImage::computeReplacedLogicalHeight(Optional<LayoutUnit> estimatedUsedWidth) const
+{
+    if (shouldCollapseToEmpty())
+        return { };
+    return RenderReplaced::computeReplacedLogicalHeight(estimatedUsedWidth);
 }
 
 void RenderImage::imageChanged(WrappedImagePtr newImage, const IntRect* rect)
@@ -266,6 +278,11 @@ void RenderImage::imageChanged(WrappedImagePtr newImage, const IntRect* rect)
 
     if (hasVisibleBoxDecorations() || hasMask() || hasShapeOutside())
         RenderReplaced::imageChanged(newImage, rect);
+
+    if (shouldCollapseToEmpty()) {
+        // Image might need resizing when we are at the final state.
+        setNeedsLayout();
+    }
 
     if (newImage != imageResource().imagePtr() || !newImage)
         return;
@@ -363,7 +380,7 @@ void RenderImage::repaintOrMarkForLayout(ImageSizeChangeType imageSizeChange, co
     contentChanged(ImageChanged);
 }
 
-void RenderImage::notifyFinished(CachedResource& newImage)
+void RenderImage::notifyFinished(CachedResource& newImage, const NetworkLoadMetrics& metrics)
 {
     if (renderTreeBeingDestroyed())
         return;
@@ -378,6 +395,17 @@ void RenderImage::notifyFinished(CachedResource& newImage)
 
     if (is<HTMLImageElement>(element()))
         page().didFinishLoadingImageForElement(downcast<HTMLImageElement>(*element()));
+
+    RenderReplaced::notifyFinished(newImage, metrics);
+}
+
+void RenderImage::setImageDevicePixelRatio(float factor)
+{
+    if (m_imageDevicePixelRatio == factor)
+        return;
+
+    m_imageDevicePixelRatio = factor;
+    intrinsicSizeChanged();
 }
 
 bool RenderImage::isShowingMissingOrImageError() const
@@ -419,8 +447,13 @@ void RenderImage::paintIncompleteImageOutline(PaintInfo& paintInfo, LayoutPoint 
     GraphicsContext& context = paintInfo.context();
     context.setStrokeStyle(SolidStroke);
     context.setStrokeColor(Color::lightGray);
-    context.setFillColor(Color::transparent);
+    context.setFillColor(Color::transparentBlack);
     context.drawRect(snapRectToDevicePixels(LayoutRect({ paintOffset.x() + leftBorder + leftPadding, paintOffset.y() + topBorder + topPadding }, contentSize), document().deviceScaleFactor()), borderWidth);
+}
+
+static bool isDeferredImage(Element* element)
+{
+    return is<HTMLImageElement>(element) && downcast<HTMLImageElement>(element)->isDeferred();
 }
 
 void RenderImage::paintReplaced(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
@@ -436,7 +469,14 @@ void RenderImage::paintReplaced(PaintInfo& paintInfo, const LayoutPoint& paintOf
     float deviceScaleFactor = document().deviceScaleFactor();
     LayoutUnit missingImageBorderWidth(1 / deviceScaleFactor);
 
-    if (!imageResource().cachedImage() || shouldDisplayBrokenImageIcon()) {
+    if (context.detectingContentfulPaint()) {
+        if (!context.contenfulPaintDetected() && !isDeferredImage(element()) && cachedImage() && cachedImage()->canRender(this, deviceScaleFactor) && !contentSize.isEmpty())
+            context.setContentfulPaintDetected();
+
+        return;
+    }
+
+    if (!imageResource().cachedImage() || isDeferredImage(element()) || shouldDisplayBrokenImageIcon()) {
         if (paintInfo.phase == PaintPhase::Selection)
             return;
 
@@ -552,7 +592,6 @@ void RenderImage::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
     
 void RenderImage::paintAreaElementFocusRing(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
-#if !PLATFORM(IOS_FAMILY) || ENABLE(FULL_KEYBOARD_ACCESS)
     if (document().printing() || !frame().selection().isFocusedAndActive())
         return;
     
@@ -597,10 +636,6 @@ void RenderImage::paintAreaElementFocusRing(PaintInfo& paintInfo, const LayoutPo
 #else
     paintInfo.context().drawFocusRing(path, outlineWidth, areaElementStyle->outlineOffset(), areaElementStyle->visitedDependentColorWithColorFilter(CSSPropertyOutlineColor));
 #endif // PLATFORM(MAC)
-#else
-    UNUSED_PARAM(paintInfo);
-    UNUSED_PARAM(paintOffset);
-#endif // ENABLE(FULL_KEYBOARD_ACCESS)
 }
 
 void RenderImage::areaElementFocusChanged(HTMLAreaElement* element)
@@ -636,10 +671,10 @@ ImageDrawResult RenderImage::paintIntoRect(PaintInfo& paintInfo, const FloatRect
         downcast<BitmapImage>(*image).updateFromSettings(settings());
 
     ImagePaintingOptions options = {
-        imageElement ? imageElement->compositeOperator() : CompositeSourceOver,
+        imageElement ? imageElement->compositeOperator() : CompositeOperator::SourceOver,
         decodingModeForImageDraw(*image, paintInfo),
         imageOrientation(),
-        image ? chooseInterpolationQuality(paintInfo.context(), *image, image, LayoutSize(rect.size())) : InterpolationDefault
+        image ? chooseInterpolationQuality(paintInfo.context(), *image, image, LayoutSize(rect.size())) : InterpolationQuality::Default
     };
 
     auto drawResult = paintInfo.context().drawImage(*img, rect, options);
@@ -647,7 +682,7 @@ ImageDrawResult RenderImage::paintIntoRect(PaintInfo& paintInfo, const FloatRect
         imageResource().cachedImage()->addClientWaitingForAsyncDecoding(*this);
 
 #if USE(SYSTEM_PREVIEW)
-    if (imageElement && imageElement->isSystemPreviewImage() && drawResult == ImageDrawResult::DidDraw && RuntimeEnabledFeatures::sharedFeatures().systemPreviewEnabled())
+    if (imageElement && imageElement->isSystemPreviewImage() && drawResult == ImageDrawResult::DidDraw && imageElement->document().settings().systemPreviewEnabled())
         theme().paintSystemPreviewBadge(*img, paintInfo, rect);
 #endif
 
@@ -851,15 +886,6 @@ RenderBox* RenderImage::embeddedContentBox() const
         return downcast<SVGImage>(*cachedImage->image()).embeddedContentBox();
 
     return nullptr;
-}
-
-void RenderImage::incrementVisuallyNonEmptyPixelCountIfNeeded(const IntSize& size)
-{
-    if (m_didIncrementVisuallyNonEmptyPixelCount)
-        return;
-
-    view().frameView().incrementVisuallyNonEmptyPixelCount(size);
-    m_didIncrementVisuallyNonEmptyPixelCount = true;
 }
 
 } // namespace WebCore

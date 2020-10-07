@@ -1,4 +1,5 @@
 # Copyright (C) 2012 Google Inc. All rights reserved.
+# Copyright (C) 2020 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -30,10 +31,11 @@ import unittest
 
 from webkitpy.common.net.buildbot import Builder
 from webkitpy.common.system.executive import ScriptError
-from webkitpy.common.system.outputcapture import OutputCapture
 from webkitpy.port.test import TestPort
 from webkitpy.tool.commands.perfalizer import PerfalizerTask
 from webkitpy.tool.mocktool import MockTool
+
+from webkitcorepy import OutputCapture
 
 
 class PerfalizerTaskTest(unittest.TestCase):
@@ -63,15 +65,11 @@ class PerfalizerTaskTest(unittest.TestCase):
         perfalizer.run_webkit_patch = run_webkit_patch
         perfalizer._run_perf_test = run_perf_test
 
-        capture = OutputCapture()
-        capture.capture_output()
-
-        if commands_to_fail:
-            self.assertFalse(perfalizer.run())
-        else:
-            self.assertTrue(perfalizer.run())
-
-        capture.restore_output()
+        with OutputCapture():
+            if commands_to_fail:
+                self.assertFalse(perfalizer.run())
+            else:
+                self.assertTrue(perfalizer.run())
 
         return logs
 
@@ -85,13 +83,12 @@ class PerfalizerTaskTest(unittest.TestCase):
 
     def test_run_with_clean_fails(self):
         self.assertEqual(self._create_and_run_perfalizer(['clean']), [
-            'Preparing to run performance tests for the attachment 10000...',
-            'Unable to clean working directory'])
+            'Preparing to run performance tests for the attachment 10000...'])
 
     def test_run_with_update_fails(self):
         logs = self._create_and_run_perfalizer(['update'])
-        self.assertEqual(len(logs), 2)
-        self.assertEqual(logs[-1], 'Unable to update working directory')
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0], 'Preparing to run performance tests for the attachment 10000...')
 
     def test_run_with_build_fails(self):
         logs = self._create_and_run_perfalizer(['build'])
@@ -99,7 +96,7 @@ class PerfalizerTaskTest(unittest.TestCase):
 
     def test_run_with_build_fails(self):
         logs = self._create_and_run_perfalizer(['apply-attachment'])
-        self.assertEqual(len(logs), 4)
+        self.assertEqual(len(logs), 3)
 
     def test_run_with_perf_test_fails(self):
         logs = self._create_and_run_perfalizer(['run-perf-tests'])

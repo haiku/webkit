@@ -98,7 +98,7 @@ WI.TextResourceContentView = class TextResourceContentView extends WI.ResourceCo
     get supplementalRepresentedObjects()
     {
         let objects = WI.debuggerManager.probeSets.filter(function(probeSet) {
-            return this._resource.contentIdentifier === probeSet.breakpoint.contentIdentifier;
+            return !(probeSet.breakpoint instanceof WI.JavaScriptBreakpoint) || this._resource.contentIdentifier === probeSet.breakpoint.contentIdentifier;
         }, this);
 
         // If the SourceCodeTextEditor has an executionLineNumber, we can assume
@@ -144,9 +144,18 @@ WI.TextResourceContentView = class TextResourceContentView extends WI.ResourceCo
         // Do nothing.
     }
 
-    localResourceOverrideInitialContent()
+    get createLocalResourceOverrideTooltip()
     {
-        return {initialContent: this._textEditor.string};
+        return WI.UIString("Click to create a Local Override from this content");
+    }
+
+    requestLocalResourceOverrideInitialContent(callback)
+    {
+        callback({
+            mimeType: this.resource.mimeType,
+            base64Encoded: this.resource.base64Encoded,
+            content: this._textEditor.string,
+        });
     }
 
     get supportsSave()
@@ -156,11 +165,24 @@ WI.TextResourceContentView = class TextResourceContentView extends WI.ResourceCo
 
     get saveData()
     {
+        let saveData = {
+            content: this._textEditor.string,
+        };
+
         if (this.resource instanceof WI.CSSStyleSheet) {
-            let url = WI.FileUtilities.inspectorURLForFilename("InspectorStyleSheet.css");
-            return {url, content: this._textEditor.string, forceSaveAs: true};
+            saveData.suggestedName = "InspectorStyleSheet.css";
+            saveData.forceSaveAs = true;
+        } else {
+            saveData.url = this.resource.url;
+
+            if (this.resource.urlComponents.path === "/") {
+                let extension = WI.fileExtensionForMIMEType(this.resource.mimeType);
+                if (extension)
+                    saveData.suggestedName = `index.${extension}`;
+            }
         }
-        return {url: this.resource.url, content: this._textEditor.string};
+
+        return saveData;
     }
 
     get supportsSearch()
@@ -284,7 +306,7 @@ WI.TextResourceContentView = class TextResourceContentView extends WI.ResourceCo
     _textEditorContentDidChange(event)
     {
         this._ignoreSourceCodeContentDidChangeEvent = true;
-        this.resource.currentRevision.updateRevisionContent(this._textEditor.string);
+        this.resource.editableRevision.updateRevisionContent(this._textEditor.string);
         this._ignoreSourceCodeContentDidChangeEvent = false;
     }
 
@@ -301,7 +323,7 @@ WI.TextResourceContentView = class TextResourceContentView extends WI.ResourceCo
     _probeSetsChanged(event)
     {
         var breakpoint = event.data.probeSet.breakpoint;
-        if (breakpoint.sourceCodeLocation.sourceCode === this.resource)
+        if (!(breakpoint instanceof WI.JavaScriptBreakpoint) || breakpoint.sourceCodeLocation.sourceCode === this.resource)
             this.dispatchEventToListeners(WI.ContentView.Event.SupplementalRepresentedObjectsDidChange);
     }
 

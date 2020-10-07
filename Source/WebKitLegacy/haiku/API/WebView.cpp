@@ -39,7 +39,6 @@
 #include "PointerLockController.h"
 #include "ScrollableArea.h"
 #include "Scrollbar.h"
-#include "WebFrame.h"
 #include "WebPage.h"
 #include "WebViewConstants.h"
 
@@ -91,6 +90,8 @@ BWebView::BWebView(const char* name, BUrlContext* urlContext)
 
     FrameResized(Bounds().Width(), Bounds().Height());
 
+    // Disable default background painting, we manage it ourselves to avoid
+    // flickering
     SetViewColor(B_TRANSPARENT_COLOR);
 }
 
@@ -246,6 +247,8 @@ void BWebView::Hide()
 
 void BWebView::Draw(BRect rect)
 {
+    SetDrawingMode(B_OP_COPY);
+
     // Draw the page that was already rendered as an offscreen bitmap
     if (fOffscreenBitmap == NULL || !fOffscreenBitmap->Lock()) {
         SetHighColor(255, 255, 255);
@@ -569,13 +572,15 @@ void BWebView::_ResizeOffscreenView(int width, int height)
 
     fOffscreenBitmap = new BBitmap(bounds, B_RGB32, true);
     if (fOffscreenBitmap->InitCheck() != B_OK) {
-        BAlert* alert = new BAlert("Internal error", "Unable to create off-screen bitmap for WebKit contents.", "OK");
+        BAlert* alert = new BAlert("Internal error",
+            "Unable to create off-screen bitmap for WebKit contents.", "OK");
         alert->Go();
         exit(1);
     }
     fOffscreenView = new BView(bounds, "WebKit offscreen view", 0, 0);
     fOffscreenBitmap->Lock();
     fOffscreenBitmap->AddChild(fOffscreenView);
+    fOffscreenView->SetDrawingMode(B_OP_COPY);
 
     if (oldBitmap) {
         // Transfer the old bitmap contents (just the visible part) and
@@ -599,14 +604,14 @@ void BWebView::_DispatchMouseEvent(const BPoint& where, uint32 sanityWhat)
     if (!message || message->what != sanityWhat)
         return;
 
-	if (sanityWhat == B_MOUSE_UP) {
-		// the activation click may contain no previous buttons
-		if (!fLastMouseButtons)
-			return;
+    if (sanityWhat == B_MOUSE_UP) {
+        // the activation click may contain no previous buttons
+        if (!fLastMouseButtons)
+            return;
 
-		message->AddInt32("previous buttons", fLastMouseButtons);
-	} else
-		message->FindInt32("buttons", (int32*)&fLastMouseButtons);
+        message->AddInt32("previous buttons", fLastMouseButtons);
+    } else
+        message->FindInt32("buttons", (int32*)&fLastMouseButtons);
 
     fWebPage->mouseEvent(message, where, ConvertToScreen(where));
 }

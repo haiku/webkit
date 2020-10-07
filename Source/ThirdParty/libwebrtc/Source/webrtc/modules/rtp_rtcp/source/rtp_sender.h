@@ -21,16 +21,16 @@
 #include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "api/call/transport.h"
-#include "common_types.h"  // NOLINT(build/include)
+#include "api/transport/webrtc_key_value_config.h"
 #include "modules/rtp_rtcp/include/flexfec_sender.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
+#include "modules/rtp_rtcp/include/rtp_packet_sender.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
-#include "modules/rtp_rtcp/source/playout_delay_oracle.h"
 #include "modules/rtp_rtcp/source/rtp_packet_history.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_config.h"
-#include "modules/rtp_rtcp/source/rtp_utility.h"
-#include "rtc_base/constructormagic.h"
-#include "rtc_base/criticalsection.h"
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/critical_section.h"
 #include "rtc_base/deprecation.h"
 #include "rtc_base/random.h"
 #include "rtc_base/rate_statistics.h"
@@ -43,62 +43,23 @@ class OverheadObserver;
 class RateLimiter;
 class RtcEventLog;
 class RtpPacketToSend;
-class RTPSenderAudio;
-class RTPSenderVideo;
 
 class RTPSender {
  public:
-  RTPSender(bool audio,
-            Clock* clock,
-            Transport* transport,
-            RtpPacketSender* paced_sender,
-            // TODO(brandtr): Remove |flexfec_sender| when that is hooked up
-            // to PacedSender instead.
-            FlexfecSender* flexfec_sender,
-            TransportSequenceNumberAllocator* sequence_number_allocator,
-            TransportFeedbackObserver* transport_feedback_callback,
-            BitrateStatisticsObserver* bitrate_callback,
-            FrameCountObserver* frame_count_observer,
-            SendSideDelayObserver* send_side_delay_observer,
-            RtcEventLog* event_log,
-            SendPacketObserver* send_packet_observer,
-            RateLimiter* nack_rate_limiter,
-            OverheadObserver* overhead_observer,
-            bool populate_network2_timestamp,
-            FrameEncryptorInterface* frame_encryptor,
-            bool require_frame_encryption,
-            bool extmap_allow_mixed);
+  RTPSender(const RtpRtcp::Configuration& config,
+            RtpPacketHistory* packet_history,
+            RtpPacketSender* packet_sender);
 
   ~RTPSender();
 
-  void ProcessBitrate();
-
-  uint16_t ActualSendBitrateKbit() const;
-
-  uint32_t VideoBitrateSent() const;
-  uint32_t FecOverheadRate() const;
-  uint32_t NackOverheadRate() const;
-
-  int32_t RegisterPayload(absl::string_view payload_name,
-                          const int8_t payload_type,
-                          const uint32_t frequency,
-                          const size_t channels,
-                          const uint32_t rate);
-
-  int32_t DeRegisterSendPayload(const int8_t payload_type);
-
   void SetSendingMediaStatus(bool enabled);
   bool SendingMedia() const;
-
-  void SetAsPartOfAllocation(bool part_of_allocation);
-
-  void GetDataCounters(StreamDataCounters* rtp_stats,
-                       StreamDataCounters* rtx_stats) const;
+  bool IsAudioConfigured() const;
 
   uint32_t TimestampOffset() const;
   void SetTimestampOffset(uint32_t timestamp);
 
-  void SetSSRC(uint32_t ssrc);
+  void SetRid(const std::string& rid);
 
   void SetMid(const std::string& mid);
 
@@ -109,54 +70,36 @@ class RTPSender {
 
   void SetMaxRtpPacketSize(size_t max_packet_size);
 
-  bool SendOutgoingData(FrameType frame_type,
-                        int8_t payload_type,
-                        uint32_t timestamp,
-                        int64_t capture_time_ms,
-                        const uint8_t* payload_data,
-                        size_t payload_size,
-                        const RTPFragmentationHeader* fragmentation,
-                        const RTPVideoHeader* rtp_header,
-                        uint32_t* transport_frame_id_out,
-                        int64_t expected_retransmission_time_ms);
-
   void SetExtmapAllowMixed(bool extmap_allow_mixed);
 
   // RTP header extension
   int32_t RegisterRtpHeaderExtension(RTPExtensionType type, uint8_t id);
-  bool RegisterRtpHeaderExtension(const std::string& uri, int id);
+  bool RegisterRtpHeaderExtension(absl::string_view uri, int id);
   bool IsRtpHeaderExtensionRegistered(RTPExtensionType type) const;
   int32_t DeregisterRtpHeaderExtension(RTPExtensionType type);
+  void DeregisterRtpHeaderExtension(absl::string_view uri);
 
-  bool TimeToSendPacket(uint32_t ssrc,
-                        uint16_t sequence_number,
-                        int64_t capture_time_ms,
-                        bool retransmission,
-                        const PacedPacketInfo& pacing_info);
-  size_t TimeToSendPadding(size_t bytes, const PacedPacketInfo& pacing_info);
+  bool SupportsPadding() const;
+  bool SupportsRtxPayloadPadding() const;
+
+  std::vector<std::unique_ptr<RtpPacketToSend>> GeneratePadding(
+      size_t target_size_bytes,
+      bool media_has_been_sent);
 
   // NACK.
-  int SelectiveRetransmissions() const;
-  int SetSelectiveRetransmissions(uint8_t settings);
   void OnReceivedNack(const std::vector<uint16_t>& nack_sequence_numbers,
                       int64_t avg_rtt);
 
-  void SetStorePacketsStatus(bool enable, uint16_t number_to_store);
-
-  bool StorePackets() const;
-
   int32_t ReSendPacket(uint16_t packet_id);
 
-  // Feedback to decide when to stop sending the playout delay and MID header
-  // extensions.
-  void OnReceivedRtcpReportBlocks(const ReportBlockList& report_blocks);
+  // ACK.
+  void OnReceivedAckOnSsrc(int64_t extended_highest_sequence_number);
+  void OnReceivedAckOnRtxSsrc(int64_t extended_highest_sequence_number);
 
   // RTX.
   void SetRtxStatus(int mode);
   int RtxStatus() const;
-
-  uint32_t RtxSsrc() const;
-  void SetRtxSsrc(uint32_t ssrc);
+  absl::optional<uint32_t> RtxSsrc() const { return rtx_ssrc_; }
 
   void SetRtxPayloadType(int payload_type, int associated_payload_type);
 
@@ -180,36 +123,17 @@ class RTPSender {
   // Including RTP headers.
   size_t MaxRtpPacketSize() const;
 
-  uint32_t SSRC() const;
+  uint32_t SSRC() const { return ssrc_; }
 
-  absl::optional<uint32_t> FlexfecSsrc() const;
+  absl::optional<uint32_t> FlexfecSsrc() const { return flexfec_ssrc_; }
 
-  bool SendToNetwork(std::unique_ptr<RtpPacketToSend> packet,
-                     StorageType storage,
-                     RtpPacketSender::Priority priority);
+  // Sends packet to |transport_| or to the pacer, depending on configuration.
+  // TODO(bugs.webrtc.org/XXX): Remove in favor of EnqueuePackets().
+  bool SendToNetwork(std::unique_ptr<RtpPacketToSend> packet);
 
-  // Audio.
-
-  // Send a DTMF tone using RFC 2833 (4733).
-  int32_t SendTelephoneEvent(uint8_t key, uint16_t time_ms, uint8_t level);
-
-  // Store the audio level in d_bov for
-  // header-extension-for-audio-level-indication.
-  int32_t SetAudioLevel(uint8_t level_d_bov);
-
-  uint32_t MaxConfiguredBitrateVideo() const;
-
-  // ULPFEC.
-  void SetUlpfecConfig(int red_payload_type, int ulpfec_payload_type);
-
-  bool SetFecParameters(const FecProtectionParams& delta_params,
-                        const FecProtectionParams& key_params);
-
-  // Called on update of RTP statistics.
-  void RegisterRtpStatisticsCallback(StreamDataCountersCallback* callback);
-  StreamDataCountersCallback* GetRtpStatisticsCallback() const;
-
-  uint32_t BitrateSent() const;
+  // Pass a set of packets to RtpPacketSender instance, for paced or immediate
+  // sending to the network.
+  void EnqueuePackets(std::vector<std::unique_ptr<RtpPacketToSend>> packets);
 
   void SetRtpState(const RtpState& rtp_state);
   RtpState GetRtpState() const;
@@ -217,139 +141,61 @@ class RTPSender {
   RtpState GetRtxRtpState() const;
 
   int64_t LastTimestampTimeMs() const;
-  void SendKeepAlive(uint8_t payload_type);
-
-  void SetRtt(int64_t rtt_ms);
-
- protected:
-  int32_t CheckPayloadType(int8_t payload_type, VideoCodecType* video_type);
 
  private:
-  // Maps capture time in milliseconds to send-side delay in milliseconds.
-  // Send-side delay is the difference between transmission time and capture
-  // time.
-  typedef std::map<int64_t, int> SendDelayMap;
-
-  size_t SendPadData(size_t bytes, const PacedPacketInfo& pacing_info);
-
-  bool PrepareAndSendPacket(std::unique_ptr<RtpPacketToSend> packet,
-                            bool send_over_rtx,
-                            bool is_retransmit,
-                            const PacedPacketInfo& pacing_info);
-
-  // Return the number of bytes sent.  Note that both of these functions may
-  // return a larger value that their argument.
-  size_t TrySendRedundantPayloads(size_t bytes,
-                                  const PacedPacketInfo& pacing_info);
-
   std::unique_ptr<RtpPacketToSend> BuildRtxPacket(
       const RtpPacketToSend& packet);
 
-  bool SendPacketToNetwork(const RtpPacketToSend& packet,
-                           const PacketOptions& options,
-                           const PacedPacketInfo& pacing_info);
-
-  void RecomputeMaxSendDelay() RTC_EXCLUSIVE_LOCKS_REQUIRED(statistics_crit_);
-  void UpdateDelayStatistics(int64_t capture_time_ms, int64_t now_ms);
-  void UpdateOnSendPacket(int packet_id,
-                          int64_t capture_time_ms,
-                          uint32_t ssrc);
-
-  bool UpdateTransportSequenceNumber(RtpPacketToSend* packet, int* packet_id)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(send_critsect_);
-
-  void UpdateRtpStats(const RtpPacketToSend& packet,
-                      bool is_rtx,
-                      bool is_retransmit);
   bool IsFecPacket(const RtpPacketToSend& packet) const;
 
-  void AddPacketToTransportFeedback(uint16_t packet_id,
-                                    const RtpPacketToSend& packet,
-                                    const PacedPacketInfo& pacing_info);
-
-  void UpdateRtpOverhead(const RtpPacketToSend& packet);
-
   Clock* const clock_;
-  const int64_t clock_delta_ms_;
   Random random_ RTC_GUARDED_BY(send_critsect_);
 
   const bool audio_configured_;
-  const std::unique_ptr<RTPSenderAudio> audio_;
-  const std::unique_ptr<RTPSenderVideo> video_;
 
+  const uint32_t ssrc_;
+  const absl::optional<uint32_t> rtx_ssrc_;
+  const absl::optional<uint32_t> flexfec_ssrc_;
+
+  RtpPacketHistory* const packet_history_;
   RtpPacketSender* const paced_sender_;
-  TransportSequenceNumberAllocator* const transport_sequence_number_allocator_;
-  TransportFeedbackObserver* const transport_feedback_observer_;
-  int64_t last_capture_time_ms_sent_;
+
   rtc::CriticalSection send_critsect_;
 
-  Transport* transport_;
   bool sending_media_ RTC_GUARDED_BY(send_critsect_);
-  bool force_part_of_allocation_ RTC_GUARDED_BY(send_critsect_);
   size_t max_packet_size_;
 
   int8_t last_payload_type_ RTC_GUARDED_BY(send_critsect_);
-  std::map<int8_t, RtpUtility::Payload*> payload_type_map_;
 
   RtpHeaderExtensionMap rtp_header_extension_map_
       RTC_GUARDED_BY(send_critsect_);
 
-  // Tracks the current request for playout delay limits from application
-  // and decides whether the current RTP frame should include the playout
-  // delay extension on header.
-  PlayoutDelayOracle playout_delay_oracle_;
-
-  RtpPacketHistory packet_history_;
-  // TODO(brandtr): Remove |flexfec_packet_history_| when the FlexfecSender
-  // is hooked up to the PacedSender.
-  RtpPacketHistory flexfec_packet_history_;
-
-  // Statistics
-  rtc::CriticalSection statistics_crit_;
-  SendDelayMap send_delays_ RTC_GUARDED_BY(statistics_crit_);
-  SendDelayMap::const_iterator max_delay_it_ RTC_GUARDED_BY(statistics_crit_);
-  int64_t sum_delays_ms_ RTC_GUARDED_BY(statistics_crit_);
-  FrameCounts frame_counts_ RTC_GUARDED_BY(statistics_crit_);
-  StreamDataCounters rtp_stats_ RTC_GUARDED_BY(statistics_crit_);
-  StreamDataCounters rtx_rtp_stats_ RTC_GUARDED_BY(statistics_crit_);
-  StreamDataCountersCallback* rtp_stats_callback_
-      RTC_GUARDED_BY(statistics_crit_);
-  RateStatistics total_bitrate_sent_ RTC_GUARDED_BY(statistics_crit_);
-  RateStatistics nack_bitrate_sent_ RTC_GUARDED_BY(statistics_crit_);
-  FrameCountObserver* const frame_count_observer_;
-  SendSideDelayObserver* const send_side_delay_observer_;
-  RtcEventLog* const event_log_;
-  SendPacketObserver* const send_packet_observer_;
-  BitrateStatisticsObserver* const bitrate_callback_;
-
   // RTP variables
   uint32_t timestamp_offset_ RTC_GUARDED_BY(send_critsect_);
-  uint32_t remote_ssrc_ RTC_GUARDED_BY(send_critsect_);
   bool sequence_number_forced_ RTC_GUARDED_BY(send_critsect_);
   uint16_t sequence_number_ RTC_GUARDED_BY(send_critsect_);
   uint16_t sequence_number_rtx_ RTC_GUARDED_BY(send_critsect_);
-  // Must be explicitly set by the application, use of absl::optional
-  // only to keep track of correct use.
-  absl::optional<uint32_t> ssrc_ RTC_GUARDED_BY(send_critsect_);
+  // RID value to send in the RID or RepairedRID header extension.
+  std::string rid_ RTC_GUARDED_BY(send_critsect_);
   // MID value to send in the MID header extension.
   std::string mid_ RTC_GUARDED_BY(send_critsect_);
+  // Should we send MID/RID even when ACKed? (see below).
+  const bool always_send_mid_and_rid_;
+  // Track if any ACK has been received on the SSRC and RTX SSRC to indicate
+  // when to stop sending the MID and RID header extensions.
+  bool ssrc_has_acked_ RTC_GUARDED_BY(send_critsect_);
+  bool rtx_ssrc_has_acked_ RTC_GUARDED_BY(send_critsect_);
   uint32_t last_rtp_timestamp_ RTC_GUARDED_BY(send_critsect_);
   int64_t capture_time_ms_ RTC_GUARDED_BY(send_critsect_);
   int64_t last_timestamp_time_ms_ RTC_GUARDED_BY(send_critsect_);
-  bool media_has_been_sent_ RTC_GUARDED_BY(send_critsect_);
   bool last_packet_marker_bit_ RTC_GUARDED_BY(send_critsect_);
   std::vector<uint32_t> csrcs_ RTC_GUARDED_BY(send_critsect_);
   int rtx_ RTC_GUARDED_BY(send_critsect_);
-  absl::optional<uint32_t> ssrc_rtx_ RTC_GUARDED_BY(send_critsect_);
   // Mapping rtx_payload_type_map_[associated] = rtx.
   std::map<int8_t, int8_t> rtx_payload_type_map_ RTC_GUARDED_BY(send_critsect_);
-  size_t rtp_overhead_bytes_per_packet_ RTC_GUARDED_BY(send_critsect_);
+  bool supports_bwe_extension_ RTC_GUARDED_BY(send_critsect_);
 
   RateLimiter* const retransmission_rate_limiter_;
-  OverheadObserver* overhead_observer_;
-  const bool populate_network2_timestamp_;
-
-  const bool send_side_bwe_with_overhead_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(RTPSender);
 };

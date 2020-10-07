@@ -48,7 +48,7 @@ static AtkObject* wrapperParent(WebKitAccessible* wrapper)
     return WEBKIT_IS_ACCESSIBLE(atkParent) ? atkParent : nullptr;
 }
 
-void AXObjectCache::detachWrapper(AccessibilityObject* obj, AccessibilityDetachmentType detachmentType)
+void AXObjectCache::detachWrapper(AXCoreObject* obj, AccessibilityDetachmentType detachmentType)
 {
     auto* wrapper = obj->wrapper();
     ASSERT(wrapper);
@@ -61,19 +61,24 @@ void AXObjectCache::detachWrapper(AccessibilityObject* obj, AccessibilityDetachm
     webkitAccessibleDetach(WEBKIT_ACCESSIBLE(wrapper));
 }
 
-void AXObjectCache::attachWrapper(AccessibilityObject* obj)
+void AXObjectCache::attachWrapper(AXCoreObject* obj)
 {
-    GRefPtr<WebKitAccessible> wrapper = adoptGRef(webkitAccessibleNew(obj));
-    obj->setWrapper(wrapper.get());
+    // FIXME: at the moment, only allow to attach AccessibilityObjects.
+    if (!is<AccessibilityObject>(obj))
+        return;
+    AccessibilityObject* accessibilityObject = downcast<AccessibilityObject>(obj);
+
+    GRefPtr<WebKitAccessible> wrapper = adoptGRef(webkitAccessibleNew(accessibilityObject));
+    accessibilityObject->setWrapper(wrapper.get());
 
     // If an object is being attached and we are not in the middle of a layout update, then
     // we should report ATs by emitting the children-changed::add signal from the parent.
-    Document* document = obj->document();
+    Document* document = accessibilityObject->document();
     if (!document || document->childNeedsStyleRecalc())
         return;
 
     // Don't emit the signal when the actual object being added is not going to be exposed.
-    if (obj->accessibilityIsIgnoredByDefault())
+    if (accessibilityObject->accessibilityIsIgnoredByDefault())
         return;
 
     // Don't emit the signal if the object being added is not -- or not yet -- rendered,
@@ -81,10 +86,10 @@ void AXObjectCache::attachWrapper(AccessibilityObject* obj)
     // child. But if an assistive technology is listening, AT-SPI2 will attempt to create
     // and cache the state set for the child upon emission of the signal. If the object
     // has not yet been rendered, this will result in a crash.
-    if (!obj->renderer())
+    if (!accessibilityObject->renderer())
         return;
 
-    m_deferredAttachedWrapperObjectList.add(obj);
+    m_deferredAttachedWrapperObjectList.add(accessibilityObject);
 }
 
 void AXObjectCache::platformPerformDeferredCacheUpdate()
@@ -349,8 +354,7 @@ void AXObjectCache::nodeTextChangePlatformNotification(AccessibilityObject* obje
         // Consider previous text objects that might be present for
         // the current accessibility object to ensure we emit the
         // right offset (e.g. multiline text areas).
-        auto range = Range::create(document, node->parentNode(), 0, node, 0);
-        offsetToEmit = offset + TextIterator::rangeLength(range.ptr());
+        offsetToEmit = offset + characterCount(SimpleRange { { *node->parentNode(), 0 }, { *node, 0 } });
     }
 
     g_signal_emit_by_name(wrapper, detail.data(), offsetToEmit, textToEmit.length(), textToEmit.utf8().data());

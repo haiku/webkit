@@ -79,7 +79,7 @@ RenderSVGShape::~RenderSVGShape() = default;
 
 void RenderSVGShape::updateShapeFromElement()
 {
-    m_path = makeUnique<Path>(pathFromGraphicsElement(&graphicsElement()));
+    m_path = createPath();
     processMarkerPositions();
 
     m_fillBoundingBox = calculateObjectBoundingBox();
@@ -120,10 +120,10 @@ bool RenderSVGShape::shapeDependentStrokeContains(const FloatPoint& point, Point
         AffineTransform nonScalingTransform = nonScalingStrokeTransform();
         Path* usePath = nonScalingStrokePath(m_path.get(), nonScalingTransform);
 
-        return usePath->strokeContains(&applier, nonScalingTransform.mapPoint(point));
+        return usePath->strokeContains(applier, nonScalingTransform.mapPoint(point));
     }
 
-    return m_path->strokeContains(&applier, point);
+    return m_path->strokeContains(applier, point);
 }
 
 bool RenderSVGShape::shapeDependentFillContains(const FloatPoint& point, const WindRule fillRule) const
@@ -133,7 +133,7 @@ bool RenderSVGShape::shapeDependentFillContains(const FloatPoint& point, const W
 
 bool RenderSVGShape::fillContains(const FloatPoint& point, bool requiresFill, const WindRule fillRule)
 {
-    if (!m_fillBoundingBox.contains(point))
+    if (m_fillBoundingBox.isEmpty() || !m_fillBoundingBox.contains(point))
         return false;
 
     Color fallbackColor;
@@ -145,7 +145,7 @@ bool RenderSVGShape::fillContains(const FloatPoint& point, bool requiresFill, co
 
 bool RenderSVGShape::strokeContains(const FloatPoint& point, bool requiresStroke)
 {
-    if (!strokeBoundingBox().contains(point))
+    if (strokeBoundingBox().isEmpty() || !strokeBoundingBox().contains(point))
         return false;
 
     Color fallbackColor;
@@ -347,19 +347,12 @@ bool RenderSVGShape::isPointInStroke(const FloatPoint& point)
 
 float RenderSVGShape::getTotalLength() const
 {
-    if (m_path)
-        return m_path->length();
-
-    return 0;
+    return hasPath() ? path().length() : createPath()->length();
 }
 
 FloatPoint RenderSVGShape::getPointAtLength(float distance) const
 {
-    if (!m_path)
-        return { };
-
-    bool isValid;
-    return m_path->pointAtLength(distance, isValid);
+    return hasPath() ? path().pointAtLength(distance) : createPath()->pointAtLength(distance);
 }
 
 bool RenderSVGShape::nodeAtFloatPoint(const HitTestRequest& request, HitTestResult& result, const FloatPoint& pointInParent, HitTestAction hitTestAction)
@@ -373,6 +366,8 @@ bool RenderSVGShape::nodeAtFloatPoint(const HitTestRequest& request, HitTestResu
     if (!SVGRenderSupport::pointInClippingArea(*this, localPoint))
         return false;
 
+    SVGHitTestCycleDetectionScope hitTestScope(*this);
+
     PointerEventsHitRules hitRules(PointerEventsHitRules::SVG_PATH_HITTESTING, request, style().pointerEvents());
     bool isVisible = (style().visibility() == Visibility::Visible);
     if (isVisible || !hitRules.requireVisible) {
@@ -384,7 +379,7 @@ bool RenderSVGShape::nodeAtFloatPoint(const HitTestRequest& request, HitTestResu
             || (hitRules.canHitFill && (svgStyle.hasFill() || !hitRules.requireFill) && fillContains(localPoint, hitRules.requireFill, fillRule))
             || (hitRules.canHitBoundingBox && objectBoundingBox().contains(localPoint))) {
             updateHitTestResult(result, LayoutPoint(localPoint));
-            if (result.addNodeToListBasedTestResult(&graphicsElement(), request, localPoint) == HitTestProgress::Stop)
+            if (result.addNodeToListBasedTestResult(nodeForHitTest(), request, localPoint) == HitTestProgress::Stop)
                 return true;
         }
     }
@@ -501,6 +496,11 @@ void RenderSVGShape::drawMarkers(PaintInfo& paintInfo)
         if (RenderSVGResourceMarker* marker = markerForType(m_markerPositions[i].type, markerStart, markerMid, markerEnd))
             marker->draw(paintInfo, marker->markerTransformation(m_markerPositions[i].origin, m_markerPositions[i].angle, strokeWidth));
     }
+}
+
+std::unique_ptr<Path> RenderSVGShape::createPath() const
+{
+    return makeUnique<Path>(pathFromGraphicsElement(&graphicsElement()));
 }
 
 void RenderSVGShape::processMarkerPositions()

@@ -20,7 +20,7 @@
 #include "common/platform.h"
 #include "common/string_utils.h"
 #include "common/system_utils.h"
-#include "platform/Platform.h"
+#include "platform/PlatformMethods.h"
 #include "tests/test_expectations/GPUTestConfig.h"
 #include "tests/test_expectations/GPUTestExpectationsParser.h"
 #include "util/test_utils.h"
@@ -33,10 +33,6 @@ bool gGlobalError = false;
 bool gExpectError = false;
 
 constexpr char kInfoTag[] = "*RESULT";
-
-// Stored as globals to work around a Clang bug. http://crbug.com/951458
-std::vector<std::string> gUnexpectedFailed;
-std::vector<std::string> gUnexpectedPasses;
 
 void HandlePlatformError(PlatformMethods *platform, const char *errorMessage)
 {
@@ -58,9 +54,9 @@ std::string DrawElementsToGoogleTestName(const std::string &dEQPName)
 }
 
 const char *gCaseListSearchPaths[] = {
-    "/../../sdcard/chromium_tests_root/third_party/angle/third_party/deqp/src",
-    "/../../third_party/deqp/src",
-    "/../../third_party/angle/third_party/deqp/src",
+    "/../../sdcard/chromium_tests_root/third_party/angle/third_party/VK-GL-CTS/src",
+    "/../../third_party/VK-GL-CTS/src",
+    "/../../third_party/angle/third_party/VK-GL-CTS/src",
 };
 
 const char *gTestExpectationsSearchPaths[] = {
@@ -96,9 +92,10 @@ constexpr APIInfo kEGLDisplayAPIs[] = {
     {"angle-d3d11", GPUTestConfig::kAPID3D11},
     {"angle-gl", GPUTestConfig::kAPIGLDesktop},
     {"angle-gles", GPUTestConfig::kAPIGLES},
+    {"angle-metal", GPUTestConfig::kAPIMetal},
     {"angle-null", GPUTestConfig::kAPIUnknown},
-    {"angle-vulkan", GPUTestConfig::kAPIVulkan},
     {"angle-swiftshader", GPUTestConfig::kAPISwiftShader},
+    {"angle-vulkan", GPUTestConfig::kAPIVulkan},
 };
 
 constexpr char kdEQPEGLString[]  = "--deqp-egl-display-type=";
@@ -268,6 +265,19 @@ void dEQPCaseList::initialize()
 
     GPUTestConfig testConfig = GPUTestConfig(api);
 
+#if !defined(ANGLE_PLATFORM_ANDROID)
+    // Note: These prints mess up parsing of test list when running on Android.
+    std::cout << "Using test config with:" << std::endl;
+    for (uint32_t condition : testConfig.getConditions())
+    {
+        const char *name = GetConditionName(condition);
+        if (name != nullptr)
+        {
+            std::cout << "  " << name << std::endl;
+        }
+    }
+#endif
+
     if (!mTestExpectationsParser.loadTestExpectationsFromFile(testConfig,
                                                               testExpectationsPath.value()))
     {
@@ -384,13 +394,13 @@ class dEQPTest : public testing::TestWithParam<size_t>
 
             if (!testSucceeded)
             {
-                gUnexpectedFailed.push_back(caseInfo.mDEQPName);
+                sUnexpectedFailed.push_back(caseInfo.mDEQPName);
             }
         }
         else if (testSucceeded)
         {
             std::cout << "Test expected to fail but passed!" << std::endl;
-            gUnexpectedPasses.push_back(caseInfo.mDEQPName);
+            sUnexpectedPasses.push_back(caseInfo.mDEQPName);
         }
     }
 
@@ -430,21 +440,21 @@ class dEQPTest : public testing::TestWithParam<size_t>
         std::cout << GetTestStatLine("Exception", std::to_string(sTestExceptionCount));
         std::cout << GetTestStatLine("Crashed", std::to_string(crashedCount));
 
-        if (!gUnexpectedPasses.empty())
+        if (!sUnexpectedPasses.empty())
         {
             std::cout << GetTestStatLine("Unexpected Passed Count",
-                                         std::to_string(gUnexpectedPasses.size()));
-            for (const std::string &testName : gUnexpectedPasses)
+                                         std::to_string(sUnexpectedPasses.size()));
+            for (const std::string &testName : sUnexpectedPasses)
             {
                 std::cout << GetTestStatLine("Unexpected Passed Tests", testName);
             }
         }
 
-        if (!gUnexpectedFailed.empty())
+        if (!sUnexpectedFailed.empty())
         {
             std::cout << GetTestStatLine("Unexpected Failed Count",
-                                         std::to_string(gUnexpectedFailed.size()));
-            for (const std::string &testName : gUnexpectedFailed)
+                                         std::to_string(sUnexpectedFailed.size()));
+            for (const std::string &testName : sUnexpectedFailed)
             {
                 std::cout << GetTestStatLine("Unexpected Failed Tests", testName);
             }
@@ -457,6 +467,9 @@ class dEQPTest : public testing::TestWithParam<size_t>
     static uint32_t sTestExceptionCount;
     static uint32_t sNotSupportedTestCount;
     static uint32_t sSkippedTestCount;
+
+    static std::vector<std::string> sUnexpectedFailed;
+    static std::vector<std::string> sUnexpectedPasses;
 };
 
 template <size_t TestModuleIndex>
@@ -471,6 +484,10 @@ template <size_t TestModuleIndex>
 uint32_t dEQPTest<TestModuleIndex>::sNotSupportedTestCount = 0;
 template <size_t TestModuleIndex>
 uint32_t dEQPTest<TestModuleIndex>::sSkippedTestCount = 0;
+template <size_t TestModuleIndex>
+std::vector<std::string> dEQPTest<TestModuleIndex>::sUnexpectedFailed;
+template <size_t TestModuleIndex>
+std::vector<std::string> dEQPTest<TestModuleIndex>::sUnexpectedPasses;
 
 // static
 template <size_t TestModuleIndex>
@@ -482,8 +499,8 @@ void dEQPTest<TestModuleIndex>::SetUpTestCase()
     sTestExceptionCount    = 0;
     sTestCount             = 0;
     sSkippedTestCount      = 0;
-    gUnexpectedPasses.clear();
-    gUnexpectedFailed.clear();
+    sUnexpectedPasses.clear();
+    sUnexpectedFailed.clear();
 
     std::vector<const char *> argv;
 
@@ -499,6 +516,12 @@ void dEQPTest<TestModuleIndex>::SetUpTestCase()
     const char *targetConfigName = gEGLConfigName;
     std::string configArgString  = std::string(gdEQPEGLConfigNameString) + targetConfigName;
     argv.push_back(configArgString.c_str());
+
+    // Hide SwiftShader window to prevent a race with Xvfb causing hangs on test bots
+    if (gInitAPI && gInitAPI->second == GPUTestConfig::kAPISwiftShader)
+    {
+        argv.push_back("--deqp-visibility=hidden");
+    }
 
     // Init the platform.
     if (!deqp_libtester_init_platform(static_cast<int>(argv.size()), argv.data(),

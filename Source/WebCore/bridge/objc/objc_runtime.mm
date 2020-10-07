@@ -34,6 +34,8 @@
 #import "runtime_array.h"
 #import "runtime_object.h"
 #import <JavaScriptCore/Error.h>
+#import <JavaScriptCore/IsoSubspacePerVM.h>
+#import <JavaScriptCore/JSDestructibleObjectHeapCellType.h>
 #import <JavaScriptCore/JSGlobalObject.h>
 #import <JavaScriptCore/JSLock.h>
 #import <wtf/RetainPtr.h>
@@ -244,7 +246,9 @@ bool ObjcFallbackObjectImp::put(JSCell*, JSGlobalObject*, PropertyName, JSValue,
     return false;
 }
 
-static EncodedJSValue JSC_HOST_CALL callObjCFallbackObject(JSGlobalObject* lexicalGlobalObject, CallFrame* callFrame)
+static JSC_DECLARE_HOST_FUNCTION(callObjCFallbackObject);
+
+JSC_DEFINE_HOST_FUNCTION(callObjCFallbackObject, (JSGlobalObject* lexicalGlobalObject, CallFrame* callFrame))
 {
     JSC::VM& vm = lexicalGlobalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -259,7 +263,7 @@ static EncodedJSValue JSC_HOST_CALL callObjCFallbackObject(JSGlobalObject* lexic
     ObjcInstance* objcInstance = runtimeObject->getInternalObjCInstance();
 
     if (!objcInstance)
-        return JSValue::encode(RuntimeObject::throwInvalidAccessError(lexicalGlobalObject, scope));
+        return JSValue::encode(throwRuntimeObjectInvalidAccessError(lexicalGlobalObject, scope));
     
     objcInstance->begin();
 
@@ -278,17 +282,21 @@ static EncodedJSValue JSC_HOST_CALL callObjCFallbackObject(JSGlobalObject* lexic
     return JSValue::encode(result);
 }
 
-CallType ObjcFallbackObjectImp::getCallData(JSCell* cell, CallData& callData)
+CallData ObjcFallbackObjectImp::getCallData(JSCell* cell)
 {
+    CallData callData;
+
     ObjcFallbackObjectImp* thisObject = jsCast<ObjcFallbackObjectImp*>(cell);
     id targetObject = thisObject->_instance->getObject();
-    if (![targetObject respondsToSelector:@selector(invokeUndefinedMethodFromWebScript:withArguments:)])
-        return CallType::None;
-    callData.native.function = callObjCFallbackObject;
-    return CallType::Host;
+    if ([targetObject respondsToSelector:@selector(invokeUndefinedMethodFromWebScript:withArguments:)]) {
+        callData.type = CallData::Type::Native;
+        callData.native.function = callObjCFallbackObject;
+    }
+
+    return callData;
 }
 
-bool ObjcFallbackObjectImp::deleteProperty(JSCell*, JSGlobalObject*, PropertyName)
+bool ObjcFallbackObjectImp::deleteProperty(JSCell*, JSGlobalObject*, PropertyName, DeletePropertySlot&)
 {
     return false;
 }
@@ -308,6 +316,12 @@ bool ObjcFallbackObjectImp::toBoolean(JSGlobalObject*) const
         return true;
     
     return false;
+}
+
+JSC::IsoSubspace* ObjcFallbackObjectImp::subspaceForImpl(JSC::VM& vm)
+{
+    static NeverDestroyed<JSC::IsoSubspacePerVM> perVM([] (JSC::VM& vm) { return ISO_SUBSPACE_PARAMETERS(vm.destructibleObjectHeapCellType.get(), ObjcFallbackObjectImp); });
+    return &perVM.get().forVM(vm);
 }
 
 }

@@ -45,9 +45,11 @@
 @interface LocalPasteboard : NSPasteboard {
     RetainPtr<id> _owner;
     RetainPtr<NSString> _pasteboardName;
+    RetainPtr<NSArray<NSPasteboardItem *>> _cachedPasteboardItems;
     NSInteger _changeCount;
 
     ListHashSet<RetainPtr<CFStringRef>, WTF::RetainPtrObjectHash<CFStringRef>> _types;
+    ListHashSet<RetainPtr<CFStringRef>, WTF::RetainPtrObjectHash<CFStringRef>> _originalTypes;
     HashMap<RetainPtr<CFStringRef>, RetainPtr<CFDataRef>, WTF::RetainPtrObjectHash<CFStringRef>, WTF::RetainPtrObjectHashTraits<CFStringRef>> _data;
 }
 
@@ -85,7 +87,7 @@ static NSMutableDictionary *localPasteboards;
 // of the usual WebScriptObject that is passed around
 - (NSInteger)declareType:(NSString *)type owner:(id)newOwner
 {
-    return [self declareTypes:[NSArray arrayWithObject:type] owner:newOwner];
+    return [self declareTypes:@[type] owner:newOwner];
 }
 
 @end
@@ -120,8 +122,7 @@ static NSMutableDictionary *localPasteboards;
 
 - (NSInteger)declareTypes:(NSArray *)newTypes owner:(id)newOwner
 {
-    _types.clear();
-    _data.clear();
+    [self _clearContentsWithoutUpdatingChangeCount];
 
     [self _addTypesWithoutUpdatingChangeCount:newTypes owner:newOwner];
     return ++_changeCount;
@@ -142,6 +143,20 @@ static RetainPtr<CFStringRef> toUTI(NSString *type)
     return adoptCF(UTTypeCreatePreferredIdentifierForTag(kUTTagClassNSPboardType, (__bridge CFStringRef)type, nullptr));
 }
 
+- (void)_clearContentsWithoutUpdatingChangeCount
+{
+    _cachedPasteboardItems = nil;
+    _types.clear();
+    _originalTypes.clear();
+    _data.clear();
+}
+
+- (NSInteger)clearContents
+{
+    [self _clearContentsWithoutUpdatingChangeCount];
+    return ++_changeCount;
+}
+
 - (NSInteger)addTypes:(NSArray<NSPasteboardType> *)newTypes owner:(id)newOwner
 {
     auto previousOwner = _owner;
@@ -155,8 +170,10 @@ static RetainPtr<CFStringRef> toUTI(NSString *type)
 {
     _owner = newOwner;
 
-    for (NSString *type in newTypes)
+    for (NSString *type in newTypes) {
         _types.add(toUTI(type));
+        _originalTypes.add((__bridge CFStringRef)type);
+    }
 }
 
 - (NSInteger)changeCount
@@ -226,10 +243,11 @@ static RetainPtr<CFStringRef> toUTI(NSString *type)
 
 - (BOOL)writeObjects:(NSArray<id <NSPasteboardWriting>> *)objects
 {
+    auto items = adoptNS([[NSMutableArray<NSPasteboardItem *> alloc] initWithCapacity:objects.count]);
     for (id <NSPasteboardWriting> object in objects) {
+        ASSERT([object isKindOfClass:NSPasteboardItem.class]);
+        [items addObject:(NSPasteboardItem *)object];
         for (NSString *type in [object writableTypesForPasteboard:self]) {
-            ASSERT(UTTypeIsDeclared((__bridge CFStringRef)type) || UTTypeIsDynamic((__bridge CFStringRef)type));
-
             [self addTypes:@[ type ] owner:self];
 
             id propertyList = [object pasteboardPropertyListForType:type];
@@ -240,18 +258,29 @@ static RetainPtr<CFStringRef> toUTI(NSString *type)
         }
     }
 
+    _cachedPasteboardItems = items.get();
     return YES;
 }
 
 - (NSArray<NSPasteboardItem *> *)pasteboardItems
 {
+    if (_cachedPasteboardItems)
+        return _cachedPasteboardItems.get();
+
     auto item = adoptNS([[NSPasteboardItem alloc] init]);
+    for (auto& type : _originalTypes) {
+        if (!_data.contains(toUTI((__bridge NSString *)type.get())))
+            [_owner pasteboard:self provideDataForType:(__bridge NSString *)type.get()];
+    }
+
     for (const auto& typeAndData : _data) {
         NSData *data = (__bridge NSData *)typeAndData.value.get();
         NSString *type = (__bridge NSString *)typeAndData.key.get();
         [item setData:data forType:[NSPasteboard _modernPasteboardType:type]];
     }
-    return @[ item.get() ];
+
+    _cachedPasteboardItems = @[ item.get() ];
+    return _cachedPasteboardItems.get();
 }
 
 @end

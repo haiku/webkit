@@ -6,12 +6,6 @@ if (${WTF_PLATFORM_WIN_CAIRO})
     list(APPEND wrapper_DEFINITIONS WIN_CAIRO)
 endif ()
 
-set(webcore_DEFINITIONS
-    STATICALLY_LINKED_WITH_PAL=1
-    WEBCORE_EXPORT=
-    WEBCORE_TESTSUPPORT_EXPORT=
-)
-
 set(test_main_SOURCES
     win/main.cpp
 )
@@ -38,24 +32,29 @@ list(APPEND TestWebCore_SOURCES
 
     win/TestWebCoreStubs.cpp
 )
-list(APPEND TestWebCore_DEFINITIONS ${webcore_DEFINITIONS})
+list(APPEND TestWebCore_DEFINITIONS
+    STATICALLY_LINKED_WITH_PAL=1
+    STATICALLY_LINKED_WITH_WebCore=1
+)
 
 list(APPEND TestWebCore_LIBRARIES
+    $<TARGET_OBJECTS:WebCore>
     Crypt32
     D2d1
     Dwrite
-    dxguid
     Iphlpapi
     Psapi
     Shlwapi
     Usp10
     WindowsCodecs
+    dxguid
 )
 
 if (${WTF_PLATFORM_WIN_CAIRO})
     list(APPEND TestWebCore_LIBRARIES
-        ${CAIRO_LIBRARIES}
-        ${OPENSSL_LIBRARIES}
+        Cairo::Cairo
+        MediaFoundation
+        OpenSSL::SSL
         mfuuid
         strmiids
         vcruntime
@@ -73,10 +72,10 @@ else ()
         CFNetwork${DEBUG_SUFFIX}
         CoreGraphics${DEBUG_SUFFIX}
         CoreText${DEBUG_SUFFIX}
+        LibXslt::LibExslt
         QuartzCore${DEBUG_SUFFIX}
         WebKitQuartzCoreAdditions${DEBUG_SUFFIX}
         libdispatch${DEBUG_SUFFIX}
-        libexslt${DEBUG_SUFFIX}
     )
 endif ()
 
@@ -104,8 +103,6 @@ if (ENABLE_WEBKIT_LEGACY)
         win/HostWindow.cpp
     )
 
-    list(APPEND TestWebKitLegacy_DEFINITIONS ${webcore_DEFINITIONS})
-
     list(APPEND TestWebKitLegacy_LIBRARIES
         WebKit::WTF
     )
@@ -124,11 +121,7 @@ endif ()
 
 # TestWebKit
 if (ENABLE_WEBKIT)
-    add_dependencies(TestWebKitAPIBase WebKitFrameworkHeaders)
-    add_dependencies(TestWebKitAPIInjectedBundle WebKitFrameworkHeaders)
-
     target_sources(TestWebKitAPIInjectedBundle PRIVATE
-        win/InjectedBundleControllerWin.cpp
         win/PlatformUtilitiesWin.cpp
         win/UtilitiesWin.cpp
     )
@@ -146,12 +139,6 @@ if (ENABLE_WEBKIT)
             Tests/WebKit/curl/Certificates.cpp
         )
     endif ()
-
-    list(APPEND TestWebKit_DEFINITIONS ${webcore_DEFINITIONS})
-
-    list(APPEND TestWebKit_DEPENDENCIES
-        WebKitFrameworkHeaders
-    )
 
     WEBKIT_WRAP_EXECUTABLE(TestWebKit
         SOURCES ${TOOLS_DIR}/win/DLLLauncher/DLLLauncherMain.cpp

@@ -55,6 +55,8 @@ std::ostream& operator<<(std::ostream& os, MarkedText::Type type)
         return os << "SpellingError";
     case MarkedText::TextMatch:
         return os << "TextMatch";
+    case MarkedText::Highlight:
+        return os << "Highlight";
     case MarkedText::Unmarked:
         return os << "Unmarked";
     }
@@ -88,7 +90,7 @@ TEST(MarkedText, SubdivideSimple)
 
 TEST(MarkedText, SubdivideSpellingAndGrammarSimple)
 {
-    RenderedDocumentMarker grammarErrorMarker { DocumentMarker { DocumentMarker::Grammar, 7, 8 } };
+    RenderedDocumentMarker grammarErrorMarker { DocumentMarker { DocumentMarker::Grammar, { 7, 8 } } };
     Vector<MarkedText> expectedMarkedTexts {
         MarkedText { grammarErrorMarker.startOffset(), grammarErrorMarker.endOffset(), MarkedText::GrammarError, &grammarErrorMarker },
         MarkedText { 22, 32, MarkedText::SpellingError },

@@ -33,6 +33,7 @@
 #include "AffineTransform.h"
 #include "Color.h"
 #include "DisplayListRecorder.h"
+#include "Gradient.h"
 #include "ImageBuffer.h"
 #include "NotImplemented.h"
 #include "Path.h"
@@ -60,7 +61,7 @@ public:
     struct CustomGraphicsState {
         CustomGraphicsState()
             : previous(0)
-            , imageInterpolationQuality(InterpolationDefault)
+            , imageInterpolationQuality(InterpolationQuality::Default)
             , globalAlpha(1.0f)
         {
         }
@@ -173,22 +174,45 @@ void GraphicsContext::drawRect(const FloatRect& rect, float borderThickness)
     if (m_state.fillPattern)
         notImplemented();
     else if (m_state.fillGradient) {
-		m_state.fillGradient->fill(*this, rect);
-    } else if (fillColor().alpha())
+        m_state.fillGradient->fill(*this, rect);
+    } else
         m_data->view()->FillRect(rect);
 
     // TODO: Support gradients
-    if (strokeStyle() != NoStroke && borderThickness > 0.0f && strokeColor().alpha())
+    if (strokeStyle() != NoStroke && borderThickness > 0.0f && strokeColor().isVisible())
     {
         m_data->view()->SetPenSize(borderThickness);
         m_data->view()->StrokeRect(rect, m_data->m_strokeStyle);
     }
 }
 
+void GraphicsContext::drawNativeImage(const NativeImagePtr& image, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& options)
+{
+    if (paintingDisabled())
+        return;
+
+    save();
+    setCompositeOperation(options.compositeOperator());
+
+    // Test using example site at
+    // http://www.meyerweb.com/eric/css/edge/complexspiral/demo.html
+    platformContext()->SetDrawingMode(B_OP_ALPHA);
+
+    uint32 flags = 0;
+
+    // TODO handle more things from options (blend mode, etc)
+    if (options.interpolationQuality() > InterpolationQuality::Low)
+        flags |= B_FILTER_BITMAP_BILINEAR;
+
+    m_data->view()->DrawBitmapAsync(image.get(), BRect(srcRect), BRect(destRect), flags);
+
+    restore();
+}
+
 // This is only used to draw borders.
 void GraphicsContext::drawLine(const FloatPoint& point1, const FloatPoint& point2)
 {
-    if (paintingDisabled() || strokeStyle() == NoStroke || strokeThickness() <= 0.0f || !strokeColor().alpha())
+    if (paintingDisabled() || strokeStyle() == NoStroke || !strokeColor().isVisible())
         return;
     m_data->view()->StrokeLine(point1, point2, m_data->m_strokeStyle);
 }
@@ -199,25 +223,25 @@ void GraphicsContext::drawEllipse(const FloatRect& rect)
     if (paintingDisabled())
         return;
 
-    if (m_state.fillPattern || m_state.fillGradient || fillColor().alpha()) {
+    if (m_state.fillPattern || m_state.fillGradient || fillColor().isVisible()) {
 //        TODO: What's this shadow business?
         if (m_state.fillPattern)
             notImplemented();
         else if (m_state.fillGradient) {
-            BGradient* gradient = m_state.fillGradient->createPlatformGradient(1);
-            m_data->view()->FillEllipse(rect, *gradient);
+            const BGradient& gradient = m_state.fillGradient->getHaikuGradient();
+            m_data->view()->FillEllipse(rect, gradient);
         } else
             m_data->view()->FillEllipse(rect);
     }
 
     // TODO: Support gradients
-    if (strokeStyle() != NoStroke && strokeThickness() > 0.0f && strokeColor().alpha())
+    if (strokeStyle() != NoStroke && strokeThickness() > 0.0f && strokeColor().isVisible())
         m_data->view()->StrokeEllipse(rect, m_data->m_strokeStyle);
 }
 
 void GraphicsContext::strokeRect(const FloatRect& rect, float width)
 {
-    if (paintingDisabled() || strokeStyle() == NoStroke || width <= 0.0f || !strokeColor().alpha())
+    if (paintingDisabled() || strokeStyle() == NoStroke || width <= 0.0f || !strokeColor().isVisible())
         return;
 
     float oldSize = m_data->view()->PenSize();
@@ -242,7 +266,7 @@ void GraphicsContext::strokePath(const Path& path)
         notImplemented();
 //      BGradient* gradient = m_state.strokeGradient->platformGradient();
 //      m_data->view()->StrokeShape(m_data->shape(), *gradient);
-    } else if(strokeColor().alpha()) {
+    } else if (strokeColor().isVisible()) {
         drawing_mode mode = m_data->view()->DrawingMode();
         if (m_data->view()->HighColor().alpha < 255)
             m_data->view()->SetDrawingMode(B_OP_ALPHA);
@@ -285,7 +309,7 @@ void GraphicsContext::fillRect(const FloatRect& rect)
 
 void GraphicsContext::platformFillRoundedRect(const FloatRoundedRect& roundRect, const Color& color)
 {
-    if (paintingDisabled() || !color.alpha())
+    if (paintingDisabled() || !color.isVisible())
         return;
 
     const FloatRect& rect = roundRect.rect();
@@ -364,9 +388,9 @@ void GraphicsContext::fillPath(const Path& path)
         notImplemented();
     else if (m_state.fillGradient) {
         view->SetDrawingMode(B_OP_ALPHA);
-        BGradient* gradient = m_state.fillGradient->createPlatformGradient(1);
-        view->FillShape(path.platformPath(), *gradient);
-    } else if (fillColor().alpha()) {
+        const BGradient& gradient = m_state.fillGradient->getHaikuGradient();
+        view->FillShape(path.platformPath(), gradient);
+    } else {
         if (view->HighColor().alpha < 255)
             view->SetDrawingMode(B_OP_ALPHA);
 
@@ -425,7 +449,7 @@ void GraphicsContext::clipToImageBuffer(ImageBuffer& buffer, const FloatRect& de
     if (paintingDisabled())
         return;
 
-    NativeImagePtr surface = buffer.m_data.m_bitmap;
+    NativeImagePtr surface = buffer.copyNativeImage(DontCopyBackingStore);
     BPicture picture;
     BView* view = platformContext();
 
@@ -452,7 +476,7 @@ void GraphicsContext::clipToImageBuffer(ImageBuffer& buffer, const FloatRect& de
 
 
 void GraphicsContext::drawPattern(Image& image, const FloatRect& destRect,
-    const FloatRect& tileRect, const AffineTransform& patternTransform,
+    const FloatRect& tileRect, const AffineTransform&,
     const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions&)
 {
     if (paintingDisabled())
@@ -486,19 +510,13 @@ void GraphicsContext::drawPattern(Image& image, const FloatRect& destRect,
         platformContext()->SetDrawingMode(B_OP_COPY);
 
     clip(enclosingIntRect(destRect));
-    float currentW = phase.x();
-    BRect bTileRect(tileRect);
-    // FIXME app_server doesn't support B_TILE_BITMAP in DrawBitmap calls. This
-    // would be much faster (#11196)
-    while (currentW < destRect.x() + destRect.width()) {
-        float currentH = phase.y();
-        while (currentH < destRect.y() + destRect.height()) {
-            BRect bDstRect(currentW, currentH, currentW + width - 1, currentH + height - 1);
-            platformContext()->DrawBitmapAsync(pixels.get(), bTileRect, bDstRect);
-            currentH += height;
-        }
-        currentW += width;
-    }
+    float phaseOffsetX = destRect.x() - phase.x();
+    float phaseOffsetY = destRect.y() - phase.y();
+    // x mod w, y mod h
+    phaseOffsetX -= std::trunc(phaseOffsetX / tileRect.width()) * tileRect.width();
+    phaseOffsetY -= std::trunc(phaseOffsetY / tileRect.height()) * tileRect.height();
+    platformContext()->DrawTiledBitmapAsync(
+        pixels.get(), destRect, BPoint(phaseOffsetX, phaseOffsetY));
     restore();
 }
 
@@ -526,7 +544,7 @@ void GraphicsContext::clipOut(const FloatRect& rect)
 
 void GraphicsContext::drawFocusRing(const Path& path, float width, float /*offset*/, const Color& color)
 {
-    if (paintingDisabled() || width <= 0 || color.alpha() == 0)
+    if (paintingDisabled() || width <= 0 || !color.isVisible())
         return;
 
     // GTK forces this to 2, we use 1. A focus ring several pixels thick doesn't
@@ -542,7 +560,7 @@ void GraphicsContext::drawFocusRing(const Path& path, float width, float /*offse
 
 void GraphicsContext::drawFocusRing(const Vector<FloatRect>& rects, float width, float /* offset */, const Color& color)
 {
-    if (paintingDisabled() || width <= 0 || color.alpha() == 0)
+    if (paintingDisabled() || width <= 0 || !color.isVisible())
         return;
 
     unsigned rectCount = rects.size();
@@ -635,7 +653,7 @@ void GraphicsContext::clearRect(const FloatRect& rect)
     if (paintingDisabled())
         return;
 
-	m_data->view()->PushState();
+    m_data->view()->PushState();
     m_data->view()->SetHighColor(0, 0, 0, 0);
     m_data->view()->SetDrawingMode(B_OP_COPY);
     m_data->view()->FillRect(rect);
@@ -714,39 +732,51 @@ void GraphicsContext::setPlatformCompositeOperation(CompositeOperator op, BlendM
     if (paintingDisabled())
         return;
 
-    drawing_mode mode = B_OP_COPY;
+    drawing_mode mode = B_OP_ALPHA;
+    alpha_function blending_mode = B_ALPHA_COMPOSITE;
     switch (op) {
-    case CompositeClear:
-    case CompositeCopy:
-        // Use the default above
+    case CompositeOperator::SourceOver:
+        blending_mode = B_ALPHA_COMPOSITE_SOURCE_OVER;
         break;
-    case CompositeSourceOver:
-        mode = B_OP_ALPHA;
+    case CompositeOperator::PlusLighter:
+        blending_mode = B_ALPHA_COMPOSITE_LIGHTEN;
         break;
-    case CompositePlusLighter:
-        mode = B_OP_ADD;
+    case CompositeOperator::Difference:
+        blending_mode = B_ALPHA_COMPOSITE_DIFFERENCE;
         break;
-    case CompositeDifference:
-    case CompositePlusDarker:
-        mode = B_OP_SUBTRACT;
+    case CompositeOperator::PlusDarker:
+        blending_mode = B_ALPHA_COMPOSITE_DARKEN;
         break;
-    case CompositeDestinationOut:
-        mode = B_OP_ERASE;
+    case CompositeOperator::Clear:
+        blending_mode = B_ALPHA_COMPOSITE_CLEAR;
         break;
-    case CompositeSourceAtop:
-        // Draw source only where destination isn't transparent
-    case CompositeSourceIn:
-        // Like B_OP_ALPHA, but don't touch destination alpha channel
-    case CompositeSourceOut:
-        // Erase everything, draw source only where destination was transparent
-    case CompositeDestinationOver:
-        // Draw source only where destination is transparent
-    case CompositeDestinationAtop:
-        // Draw source only where destination is transparent, erase where source is transparent
-    case CompositeDestinationIn:
-        // Mask destination with source alpha channel. Don't use source colors.
-    case CompositeXOR:
-        // Draw source where destination is transparent, erase intersection of source and dest.
+    case CompositeOperator::DestinationOut:
+        blending_mode = B_ALPHA_COMPOSITE_DESTINATION_OUT;
+        break;
+    case CompositeOperator::SourceAtop:
+        blending_mode = B_ALPHA_COMPOSITE_SOURCE_ATOP;
+        break;
+    case CompositeOperator::SourceIn:
+        blending_mode = B_ALPHA_COMPOSITE_SOURCE_IN;
+        break;
+    case CompositeOperator::SourceOut:
+        blending_mode = B_ALPHA_COMPOSITE_SOURCE_OUT;
+        break;
+    case CompositeOperator::DestinationOver:
+        blending_mode = B_ALPHA_COMPOSITE_DESTINATION_OVER;
+        break;
+    case CompositeOperator::DestinationAtop:
+        blending_mode = B_ALPHA_COMPOSITE_DESTINATION_ATOP;
+        break;
+    case CompositeOperator::DestinationIn:
+        blending_mode = B_ALPHA_COMPOSITE_DESTINATION_IN;
+        break;
+    case CompositeOperator::XOR:
+        blending_mode = B_ALPHA_COMPOSITE_XOR;
+        break;
+    case CompositeOperator::Copy:
+        mode = B_OP_COPY;
+        break;
     default:
         fprintf(stderr, "GraphicsContext::setCompositeOperation: Unsupported composite operation %s\n",
                 compositeOperatorName(op, blend).utf8().data());
@@ -754,7 +784,7 @@ void GraphicsContext::setPlatformCompositeOperation(CompositeOperator op, BlendM
     m_data->view()->SetDrawingMode(mode);
 
     if (mode == B_OP_ALPHA)
-        m_data->view()->SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_COMPOSITE);
+        m_data->view()->SetBlendingMode(B_PIXEL_ALPHA, blending_mode);
 }
 
 AffineTransform GraphicsContext::getCTM(IncludeDeviceScale) const
@@ -773,7 +803,7 @@ void GraphicsContext::translate(float x, float y)
     if (paintingDisabled() || (x == 0.f && y == 0.f))
         return;
 
-	m_data->view()->TranslateBy(x, y);
+    m_data->view()->TranslateBy(x, y);
 }
 
 void GraphicsContext::rotate(float radians)
@@ -781,7 +811,7 @@ void GraphicsContext::rotate(float radians)
     if (paintingDisabled() || radians == 0.f)
         return;
 
-	m_data->view()->RotateBy(radians);
+    m_data->view()->RotateBy(radians);
 }
 
 void GraphicsContext::scale(const FloatSize& size)

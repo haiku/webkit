@@ -28,16 +28,20 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
-#include "DisplayBox.h"
+#ifndef NDEBUG
+#include "BlockFormattingState.h"
 #include "InlineFormattingState.h"
 #include "InlineTextBox.h"
 #include "LayoutBox.h"
-#include "LayoutContainer.h"
+#include "LayoutBoxGeometry.h"
+#include "LayoutContainerBox.h"
 #include "LayoutContext.h"
 #include "LayoutTreeBuilder.h"
 #include "RenderBox.h"
 #include "RenderInline.h"
 #include "RenderLineBreak.h"
+#include "RenderTableCell.h"
+#include "RenderTableSection.h"
 #include "RenderView.h"
 #include <wtf/text/TextStream.h>
 
@@ -53,9 +57,9 @@ static bool areEssentiallyEqual(LayoutUnit a, LayoutUnit b)
     return abs(a.rawValue() - b.rawValue()) <= epsilon;
 }
 
-static bool areEssentiallyEqual(float a, LayoutUnit b)
+static bool areEssentiallyEqual(float a, InlineLayoutUnit b)
 {
-    return areEssentiallyEqual(LayoutUnit { a }, b);
+    return areEssentiallyEqual(LayoutUnit { a }, LayoutUnit { b });
 }
 
 static bool areEssentiallyEqual(LayoutRect a, LayoutRect b)
@@ -66,67 +70,22 @@ static bool areEssentiallyEqual(LayoutRect a, LayoutRect b)
         && areEssentiallyEqual(a.height(), b.height());
 }
 
-static bool outputMismatchingSimpleLineInformationIfNeeded(TextStream& stream, const LayoutState& layoutState, const RenderBlockFlow& blockFlow, const Container& inlineFormattingRoot)
+static bool checkForMatchingNonTextRuns(const LineRun& lineRun, const WebCore::InlineBox& inlineBox)
 {
-    auto* lineLayoutData = blockFlow.simpleLineLayout();
-    if (!lineLayoutData) {
-        ASSERT_NOT_REACHED();
-        return true;
-    }
-
-    auto& inlineFormattingState = layoutState.establishedFormattingState(inlineFormattingRoot);
-    ASSERT(is<InlineFormattingState>(inlineFormattingState));
-    auto& inlineRunList = downcast<InlineFormattingState>(inlineFormattingState).inlineRuns();
-
-    if (inlineRunList.size() != lineLayoutData->runCount()) {
-        stream << "Mismatching number of runs: simple runs(" << lineLayoutData->runCount() << ") inline runs(" << inlineRunList.size() << ")";
-        stream.nextLine();
-        return true;
-    }
-
-    auto mismatched = false;
-    for (unsigned i = 0; i < lineLayoutData->runCount(); ++i) {
-        auto& simpleRun = lineLayoutData->runAt(i);
-        auto& inlineRun = *inlineRunList[i];
-
-        auto matchingRuns = areEssentiallyEqual(simpleRun.logicalLeft, inlineRun.logicalLeft()) && areEssentiallyEqual(simpleRun.logicalRight, inlineRun.logicalRight());
-        if (matchingRuns && inlineRun.textContext()) {
-            matchingRuns = simpleRun.start == inlineRun.textContext()->start() && simpleRun.end == inlineRun.textContext()->end();
-            // SLL handles strings in a more concatenated format <div>foo<br>bar</div> -> foo -> 0,3 bar -> 3,6 vs. 0,3 and 0,3
-            if (!matchingRuns)
-                matchingRuns = (simpleRun.end - simpleRun.start) == (inlineRun.textContext()->end() - inlineRun.textContext()->start()); 
-        }
-        if (matchingRuns)
-            continue;
-
-        stream << "Mismatching: simple run(" << simpleRun.start << ", " << simpleRun.end << ") (" << simpleRun.logicalLeft << ", " << simpleRun.logicalRight << ")";
-        stream << " inline run";
-        if (inlineRun.textContext())
-            stream << " (" << inlineRun.textContext()->start() << ", " << inlineRun.textContext()->end() << ")";
-        stream << " (" << inlineRun.logicalLeft() << ", " << inlineRun.logicalTop() << ") (" << inlineRun.logicalWidth() << "x" << inlineRun.logicalHeight() << ")";
-        stream.nextLine();
-        mismatched = true;
-    }
-    return mismatched;
-}
-
-static bool checkForMatchingNonTextRuns(const Display::Run& inlineRun, const WebCore::InlineBox& inlineBox)
-{
-    return areEssentiallyEqual(inlineBox.logicalLeft(), inlineRun.logicalLeft())
-        && areEssentiallyEqual(inlineBox.logicalRight(), inlineRun.logicalRight())
-        && areEssentiallyEqual(inlineBox.logicalTop(), inlineRun.logicalTop())
-        && areEssentiallyEqual(inlineBox.logicalBottom(), inlineRun.logicalBottom());
+    return areEssentiallyEqual(inlineBox.left(), lineRun.logicalLeft())
+        && areEssentiallyEqual(inlineBox.right(), lineRun.logicalRight())
+        && areEssentiallyEqual(inlineBox.top(), lineRun.logicalTop())
+        && areEssentiallyEqual(inlineBox.bottom(), lineRun.logicalBottom());
 }
 
 
-static bool checkForMatchingTextRuns(const Display::Run& inlineRun, const InlineTextBox& inlineTextBox)
+static bool checkForMatchingTextRuns(const LineRun& lineRun, const WebCore::InlineTextBox& inlineTextBox)
 {
-    return areEssentiallyEqual(inlineTextBox.logicalLeft(), inlineRun.logicalLeft())
-        && areEssentiallyEqual(inlineTextBox.logicalRight(), inlineRun.logicalRight())
-        && areEssentiallyEqual(inlineTextBox.logicalTop(), inlineRun.logicalTop())
-        && areEssentiallyEqual(inlineTextBox.logicalBottom(), inlineRun.logicalBottom())
-        && inlineTextBox.start() == inlineRun.textContext()->start()
-        && inlineTextBox.end() == inlineRun.textContext()->end();
+    return areEssentiallyEqual(inlineTextBox.left(), lineRun.logicalLeft())
+        && areEssentiallyEqual(inlineTextBox.right(), lineRun.logicalRight())
+        && areEssentiallyEqual(inlineTextBox.top(), lineRun.logicalTop())
+        && areEssentiallyEqual(inlineTextBox.bottom(), lineRun.logicalBottom())
+        && (inlineTextBox.isLineBreak() || (inlineTextBox.start() == lineRun.text()->start() && inlineTextBox.end() == lineRun.text()->end()));
 }
 
 static void collectFlowBoxSubtree(const InlineFlowBox& flowbox, Vector<WebCore::InlineBox*>& inlineBoxes)
@@ -154,12 +113,10 @@ static void collectInlineBoxes(const RenderBlockFlow& root, Vector<WebCore::Inli
     }
 }
 
-static bool outputMismatchingComplexLineInformationIfNeeded(TextStream& stream, const LayoutState& layoutState, const RenderBlockFlow& blockFlow, const Container& inlineFormattingRoot)
+static bool outputMismatchingComplexLineInformationIfNeeded(TextStream& stream, const LayoutState& layoutState, const RenderBlockFlow& blockFlow, const ContainerBox& inlineFormattingRoot)
 {
     auto& inlineFormattingState = layoutState.establishedFormattingState(inlineFormattingRoot);
-    ASSERT(is<InlineFormattingState>(inlineFormattingState));
-    auto& inlineRunList = downcast<InlineFormattingState>(inlineFormattingState).inlineRuns();
-
+    auto& lineRuns = downcast<InlineFormattingState>(inlineFormattingState).lineRuns();
     // Collect inlineboxes.
     Vector<WebCore::InlineBox*> inlineBoxes;
     collectInlineBoxes(blockFlow, inlineBoxes);
@@ -167,16 +124,16 @@ static bool outputMismatchingComplexLineInformationIfNeeded(TextStream& stream, 
     auto mismatched = false;
     unsigned runIndex = 0;
 
-    if (inlineBoxes.size() != inlineRunList.size()) {
-        stream << "Warning: mismatching number of runs: inlineboxes(" << inlineBoxes.size() << ") vs. inline runs(" << inlineRunList.size() << ")";
+    if (inlineBoxes.size() != lineRuns.size()) {
+        stream << "Warning: mismatching number of runs: inlineboxes(" << inlineBoxes.size() << ") vs. inline runs(" << lineRuns.size() << ")";
         stream.nextLine();
     }
 
-    for (unsigned inlineBoxIndex = 0; inlineBoxIndex < inlineBoxes.size() && runIndex < inlineRunList.size(); ++inlineBoxIndex) {
-        auto& inlineRun = *inlineRunList[runIndex];
+    for (unsigned inlineBoxIndex = 0; inlineBoxIndex < inlineBoxes.size() && runIndex < lineRuns.size(); ++inlineBoxIndex) {
+        auto& lineRun = lineRuns[runIndex];
         auto* inlineBox = inlineBoxes[inlineBoxIndex];
-        auto* inlineTextBox = is<InlineTextBox>(inlineBox) ? downcast<InlineTextBox>(inlineBox) : nullptr;
-        bool matchingRuns = inlineTextBox ? checkForMatchingTextRuns(inlineRun, *inlineTextBox) : matchingRuns = checkForMatchingNonTextRuns(inlineRun, *inlineBox);
+        auto* inlineTextBox = is<WebCore::InlineTextBox>(inlineBox) ? downcast<WebCore::InlineTextBox>(inlineBox) : nullptr;
+        bool matchingRuns = inlineTextBox ? checkForMatchingTextRuns(lineRun, *inlineTextBox) : checkForMatchingNonTextRuns(lineRun, *inlineBox);
 
         if (!matchingRuns) {
             
@@ -194,9 +151,9 @@ static bool outputMismatchingComplexLineInformationIfNeeded(TextStream& stream, 
             stream << " (" << inlineBox->logicalLeft() << ", " << inlineBox->logicalTop() << ") (" << inlineBox->logicalWidth() << "x" << inlineBox->logicalHeight() << ")";
 
             stream << " inline run";
-            if (inlineRun.textContext())
-                stream << " (" << inlineRun.textContext()->start() << ", " << inlineRun.textContext()->end() << ")";
-            stream << " (" << inlineRun.logicalLeft() << ", " << inlineRun.logicalTop() << ") (" << inlineRun.logicalWidth() << "x" << inlineRun.logicalHeight() << ")";
+            if (lineRun.text())
+                stream << " (" << lineRun.text()->start() << ", " << lineRun.text()->end() << ")";
+            stream << " (" << lineRun.logicalLeft() << ", " << lineRun.logicalTop() << ") (" << lineRun.logicalWidth() << "x" << lineRun.logicalHeight() << ")";
             stream.nextLine();
             mismatched = true;
         }
@@ -205,7 +162,7 @@ static bool outputMismatchingComplexLineInformationIfNeeded(TextStream& stream, 
     return mismatched;
 }
 
-static bool outputMismatchingBlockBoxInformationIfNeeded(TextStream& stream, const LayoutState& context, const RenderBox& renderer, const Box& layoutBox)
+static bool outputMismatchingBlockBoxInformationIfNeeded(TextStream& stream, const LayoutState& layoutState, const RenderBox& renderer, const Box& layoutBox)
 {
     bool firstMismatchingRect = true;
     auto outputRect = [&] (const String& prefix, const LayoutRect& rendererRect, const LayoutRect& layoutRect) {
@@ -220,55 +177,104 @@ static bool outputMismatchingBlockBoxInformationIfNeeded(TextStream& stream, con
         stream.nextLine();
     };
 
-    auto renderBoxLikeMarginBox = [](auto& displayBox) {
-        // Produce a RenderBox matching margin box.
-        auto borderBox = displayBox.borderBox();
+    auto renderBoxLikeMarginBox = [&] (const auto& boxGeometry) {
+        if (layoutBox.isInitialContainingBlock())
+            return boxGeometry.logicalRect();
 
-        return Display::Rect {
-            borderBox.top() - displayBox.nonCollapsedMarginBefore(),
-            borderBox.left() - displayBox.computedMarginStart().valueOr(0),
-            displayBox.computedMarginStart().valueOr(0) + borderBox.width() + displayBox.computedMarginEnd().valueOr(0),
-            displayBox.nonCollapsedMarginBefore() + borderBox.height() + displayBox.nonCollapsedMarginAfter()
+        // Produce a RenderBox matching margin box.
+        auto containingBlockWidth = layoutState.geometryForBox(layoutBox.containingBlock()).contentBoxWidth();
+        auto marginStart = LayoutUnit { };
+        auto& marginStartStyle = layoutBox.style().marginStart();
+        if (marginStartStyle.isFixed() || marginStartStyle.isPercent() || marginStartStyle.isCalculated())
+            marginStart = valueForLength(marginStartStyle, containingBlockWidth);
+
+        auto marginEnd = LayoutUnit { };
+        auto& marginEndStyle = layoutBox.style().marginEnd();
+        if (marginEndStyle.isFixed() || marginEndStyle.isPercent() || marginEndStyle.isCalculated())
+            marginEnd = valueForLength(marginEndStyle, containingBlockWidth);
+
+        auto marginBefore = boxGeometry.marginBefore();
+        auto marginAfter = boxGeometry.marginAfter();
+        if (layoutBox.formattingContextRoot().establishesBlockFormattingContext()) {
+            auto& formattingState = downcast<BlockFormattingState>(layoutState.formattingStateForBox(layoutBox));
+            auto verticalMargin = formattingState.usedVerticalMargin(layoutBox);
+            marginBefore = verticalMargin.nonCollapsedValues.before;
+            marginAfter = verticalMargin.nonCollapsedValues.after;
+        }
+        auto borderBox = boxGeometry.borderBox();
+        return Rect {
+            borderBox.top() - marginBefore,
+            borderBox.left() - marginStart,
+            marginStart + borderBox.width() + marginEnd,
+            marginBefore + borderBox.height() + marginAfter
         };
     };
 
-    auto& displayBox = context.displayBoxForLayoutBox(layoutBox);
-
-    auto frameRect = renderer.frameRect();
     // rendering does not offset for relative positioned boxes.
+    auto frameRect = renderer.frameRect();
     if (renderer.isInFlowPositioned())
         frameRect.move(renderer.offsetForInFlowPosition());
 
-    if (!areEssentiallyEqual(frameRect, displayBox.rect())) {
-        outputRect("frameBox", renderer.frameRect(), displayBox.rect());
+    auto boxGeometry = BoxGeometry { layoutState.geometryForBox(layoutBox) };
+    if (layoutBox.isTableBox()) {
+        // When the <table> is out-of-flow positioned, the wrapper table box has the offset
+        // while the actual table box is static, inflow.
+        auto& tableWrapperBoxGeometry = layoutState.geometryForBox(layoutBox.containingBlock());
+        boxGeometry.moveBy(tableWrapperBoxGeometry.logicalTopLeft());
+        // Table wrapper box has the margin values for the table.
+        boxGeometry.setHorizontalMargin(tableWrapperBoxGeometry.horizontalMargin());
+        boxGeometry.setVerticalMargin(tableWrapperBoxGeometry.verticalMargin());
+    }
+
+    if (is<RenderTableRow>(renderer) || is<RenderTableSection>(renderer)) {
+        // Table rows and tbody have 0 width for some reason when border collapsing is on.
+        if (is<RenderTableRow>(renderer) && downcast<RenderTableRow>(renderer).table()->collapseBorders())
+            return false;
+        // Section borders are either collapsed or ignored. However they may produce negative padding boxes.
+        if (is<RenderTableSection>(renderer) && (downcast<RenderTableSection>(renderer).table()->collapseBorders() || renderer.style().hasBorder()))
+            return false;
+    }
+    if (!areEssentiallyEqual(frameRect, boxGeometry.logicalRect())) {
+        outputRect("frameBox", renderer.frameRect(), boxGeometry.logicalRect());
         return true;
     }
 
-    if (!areEssentiallyEqual(renderer.borderBoxRect(), displayBox.borderBox())) {
-        outputRect("borderBox", renderer.borderBoxRect(), displayBox.borderBox());
+    if (!areEssentiallyEqual(renderer.borderBoxRect(), boxGeometry.borderBox())) {
+        outputRect("borderBox", renderer.borderBoxRect(), boxGeometry.borderBox());
         return true;
     }
 
-    if (!areEssentiallyEqual(renderer.paddingBoxRect(), displayBox.paddingBox())) {
-        outputRect("paddingBox", renderer.paddingBoxRect(), displayBox.paddingBox());
+    // When the table row border overflows the row, padding box becomes negative and content box is incorrect.
+    auto shouldCheckPaddingAndContentBox = !is<RenderTableRow>(renderer) || renderer.paddingBoxRect().width() >= 0;
+    if (shouldCheckPaddingAndContentBox && !areEssentiallyEqual(renderer.paddingBoxRect(), boxGeometry.paddingBox())) {
+        outputRect("paddingBox", renderer.paddingBoxRect(), boxGeometry.paddingBox());
         return true;
     }
 
-    if (!areEssentiallyEqual(renderer.contentBoxRect(), displayBox.contentBox())) {
-        outputRect("contentBox", renderer.contentBoxRect(), displayBox.contentBox());
+    auto shouldCheckContentBox = [&] {
+        if (!shouldCheckPaddingAndContentBox)
+            return false;
+        // FIXME: Figure out why trunk/rendering comes back with odd values for <tbody> and <td> content box.
+        if (is<RenderTableCell>(renderer) || is<RenderTableSection>(renderer))
+            return false;
+        // Tables have 0 content box size for some reason when border collapsing is on.
+        return !is<RenderTable>(renderer) || !downcast<RenderTable>(renderer).collapseBorders();
+    }();
+    if (shouldCheckContentBox && !areEssentiallyEqual(renderer.contentBoxRect(), boxGeometry.contentBox())) {
+        outputRect("contentBox", renderer.contentBoxRect(), boxGeometry.contentBox());
         return true;
     }
 
-    if (!areEssentiallyEqual(renderer.marginBoxRect(), renderBoxLikeMarginBox(displayBox))) {
+    if (!areEssentiallyEqual(renderer.marginBoxRect(), renderBoxLikeMarginBox(boxGeometry))) {
         // In certain cases, like out-of-flow boxes with margin auto, marginBoxRect() returns 0. It's clearly incorrect,
         // so let's check the individual margin values instead (and at this point we know that all other boxes match).
-        auto marginsMatch = displayBox.marginBefore() == renderer.marginBefore()
-            && displayBox.marginAfter() == renderer.marginAfter()
-            && displayBox.marginStart() == renderer.marginStart()
-            && displayBox.marginEnd() == renderer.marginEnd();
+        auto marginsMatch = boxGeometry.marginBefore() == renderer.marginBefore()
+            && boxGeometry.marginAfter() == renderer.marginAfter()
+            && boxGeometry.marginStart() == renderer.marginStart()
+            && boxGeometry.marginEnd() == renderer.marginEnd();
 
         if (!marginsMatch) {
-            outputRect("marginBox", renderer.marginBoxRect(), renderBoxLikeMarginBox(displayBox));
+            outputRect("marginBox", renderer.marginBoxRect(), renderBoxLikeMarginBox(boxGeometry));
             return true;
         }
     }
@@ -280,15 +286,15 @@ static bool verifyAndOutputSubtree(TextStream& stream, const LayoutState& contex
 {
     // Rendering code does not have the concept of table wrapper box. Skip it by verifying the first child(table box) instead. 
     if (layoutBox.isTableWrapperBox())
-        return verifyAndOutputSubtree(stream, context, renderer, *downcast<Container>(layoutBox).firstChild()); 
+        return verifyAndOutputSubtree(stream, context, renderer, *downcast<ContainerBox>(layoutBox).firstChild()); 
 
     auto mismtachingGeometry = outputMismatchingBlockBoxInformationIfNeeded(stream, context, renderer, layoutBox);
 
-    if (!is<Container>(layoutBox))
+    if (!is<ContainerBox>(layoutBox))
         return mismtachingGeometry;
 
-    auto& container = downcast<Container>(layoutBox);
-    auto* childLayoutBox = container.firstChild();
+    auto& containerBox = downcast<ContainerBox>(layoutBox);
+    auto* childLayoutBox = containerBox.firstChild();
     auto* childRenderer = renderer.firstChild();
 
     while (childRenderer) {
@@ -310,8 +316,8 @@ static bool verifyAndOutputSubtree(TextStream& stream, const LayoutState& contex
                 return true;
 
             auto& blockFlow = downcast<RenderBlockFlow>(*childRenderer);
-            auto& formattingRoot = downcast<Container>(*childLayoutBox);
-            mismtachingGeometry |= blockFlow.lineLayoutPath() == RenderBlockFlow::SimpleLinesPath ? outputMismatchingSimpleLineInformationIfNeeded(stream, context, blockFlow, formattingRoot) : outputMismatchingComplexLineInformationIfNeeded(stream, context, blockFlow, formattingRoot);
+            auto& formattingRoot = downcast<ContainerBox>(*childLayoutBox);
+            mismtachingGeometry |= outputMismatchingComplexLineInformationIfNeeded(stream, context, blockFlow, formattingRoot);
         } else {
             auto mismatchingSubtreeGeometry = verifyAndOutputSubtree(stream, context, downcast<RenderBox>(*childRenderer), *childLayoutBox);
             mismtachingGeometry |= mismatchingSubtreeGeometry;
@@ -324,15 +330,15 @@ static bool verifyAndOutputSubtree(TextStream& stream, const LayoutState& contex
     return mismtachingGeometry;
 }
 
-void LayoutContext::verifyAndOutputMismatchingLayoutTree(const LayoutState& layoutState, const RenderView& renderView)
+void LayoutContext::verifyAndOutputMismatchingLayoutTree(const LayoutState& layoutState, const RenderView& rootRenderer)
 {
     TextStream stream;
     auto& layoutRoot = layoutState.root();
-    auto mismatchingGeometry = verifyAndOutputSubtree(stream, layoutState, renderView, layoutRoot);
+    auto mismatchingGeometry = verifyAndOutputSubtree(stream, layoutState, rootRenderer, layoutRoot);
     if (!mismatchingGeometry)
         return;
 #if ENABLE(TREE_DEBUGGING)
-    showRenderTree(&renderView);
+    showRenderTree(&rootRenderer);
     showLayoutTree(layoutRoot, &layoutState);
 #endif
     WTFLogAlways("%s", stream.release().utf8().data());
@@ -341,5 +347,7 @@ void LayoutContext::verifyAndOutputMismatchingLayoutTree(const LayoutState& layo
 
 }
 }
+
+#endif
 
 #endif

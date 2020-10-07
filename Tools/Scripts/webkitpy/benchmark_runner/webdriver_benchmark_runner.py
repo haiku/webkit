@@ -3,7 +3,7 @@
 import json
 import logging
 
-from benchmark_runner import BenchmarkRunner
+from webkitpy.benchmark_runner.benchmark_runner import BenchmarkRunner
 
 
 _log = logging.getLogger(__name__)
@@ -17,7 +17,6 @@ class WebDriverBenchmarkRunner(BenchmarkRunner):
         return result
 
     def _run_one_test(self, web_root, test_file):
-        import webkitpy.thirdparty.autoinstalled.selenium
         from selenium.webdriver.support.ui import WebDriverWait
         result = None
         try:

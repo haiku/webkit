@@ -27,7 +27,6 @@
 #include "LineWidth.h"
 #include "RenderBlock.h"
 #include "RenderLineBoxList.h"
-#include "SimpleLineLayout.h"
 #include "TrailingObjects.h"
 #include <memory>
 
@@ -36,6 +35,12 @@ namespace WebCore {
 class LineBreaker;
 class RenderMultiColumnFlow;
 class RenderRubyRun;
+
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+namespace LayoutIntegration {
+class LineLayout;
+}
+#endif
 
 #if ENABLE(TEXT_AUTOSIZING)
 enum LineCount {
@@ -72,8 +77,8 @@ protected:
 
     void dirtyLinesFromChangedChild(RenderObject& child) final
     {
-        if (m_complexLineLayout)
-            m_complexLineLayout->lineBoxes().dirtyLinesFromChangedChild(*this, child);
+        if (complexLineLayout())
+            complexLineLayout()->lineBoxes().dirtyLinesFromChangedChild(*this, child);
     }
 
     void paintColumnRules(PaintInfo&, const LayoutPoint&) override;
@@ -332,19 +337,19 @@ public:
 
     LayoutPoint flipFloatForWritingModeForChild(const FloatingObject&, const LayoutPoint&) const;
 
-    RootInlineBox* firstRootBox() const { return m_complexLineLayout ? m_complexLineLayout->firstRootBox() : nullptr; }
-    RootInlineBox* lastRootBox() const { return m_complexLineLayout ? m_complexLineLayout->lastRootBox() : nullptr; }
+    RootInlineBox* firstRootBox() const { return complexLineLayout() ? complexLineLayout()->firstRootBox() : nullptr; }
+    RootInlineBox* lastRootBox() const { return complexLineLayout() ? complexLineLayout()->lastRootBox() : nullptr; }
 
     bool hasLines() const;
     void invalidateLineLayoutPath() final;
 
-    enum LineLayoutPath { UndeterminedPath = 0, SimpleLinesPath, LineBoxesPath, ForceLineBoxesPath };
+    enum LineLayoutPath { UndeterminedPath = 0, LineBoxesPath, LayoutFormattingContextPath, ForceLineBoxesPath };
     LineLayoutPath lineLayoutPath() const { return static_cast<LineLayoutPath>(renderBlockFlowLineLayoutPath()); }
     void setLineLayoutPath(LineLayoutPath path) { setRenderBlockFlowLineLayoutPath(path); }
 
     // Helper methods for computing line counts and heights for line counts.
     RootInlineBox* lineAtIndex(int) const;
-    int lineCount(const RootInlineBox* = nullptr, bool* = nullptr) const;
+    int lineCount() const;
     int heightForLineCount(int);
     void clearTruncation();
 
@@ -353,8 +358,13 @@ public:
 
     bool containsNonZeroBidiLevel() const;
 
-    const SimpleLineLayout::Layout* simpleLineLayout() const;
-    void deleteLineBoxesBeforeSimpleLineLayout();
+    const ComplexLineLayout* complexLineLayout() const;
+    ComplexLineLayout* complexLineLayout();
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+    const LayoutIntegration::LineLayout* layoutFormattingContextLineLayout() const;
+    LayoutIntegration::LineLayout* layoutFormattingContextLineLayout();
+#endif
+
     void ensureLineBoxes();
     void generateLineBoxTree();
 
@@ -389,8 +399,12 @@ public:
     void updateMinimumPageHeight(LayoutUnit offset, LayoutUnit minHeight);
 
     void addFloatsToNewParent(RenderBlockFlow& toBlockFlow) const;
+    
+    LayoutUnit endPaddingWidthForCaret() const;
 
 protected:
+    bool shouldResetLogicalHeightBeforeLayout() const override { return true; }
+
     void computeIntrinsicLogicalWidths(LayoutUnit& minLogicalWidth, LayoutUnit& maxLogicalWidth) const override;
     
     bool pushToNextPageWithMinimumLogicalHeight(LayoutUnit& adjustment, LayoutUnit logicalOffset, LayoutUnit minimumLogicalHeight) const;
@@ -521,13 +535,17 @@ private:
     void addFocusRingRectsForInlineChildren(Vector<LayoutRect>& rects, const LayoutPoint& additionalOffset, const RenderLayerModelObject*) override;
 
 public:
-    ComplexLineLayout* complexLineLayout() { return m_complexLineLayout.get(); }
-
     virtual Optional<TextAlignMode> overrideTextAlignmentForLine(bool /* endsWithSoftBreak */) const { return { }; }
     virtual void adjustInlineDirectionLineBounds(int /* expansionOpportunityCount */, float& /* logicalLeft */, float& /* logicalWidth */) const { }
 
 private:
-    void layoutSimpleLines(bool relayoutChildren, LayoutUnit& repaintLogicalTop, LayoutUnit& repaintLogicalBottom);
+    bool hasLineLayout() const;
+    bool hasComplexLineLayout() const;
+
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+    bool hasLayoutFormattingContextLineLayout() const;
+    void layoutLFCLines(bool relayoutChildren, LayoutUnit& repaintLogicalTop, LayoutUnit& repaintLogicalBottom);
+#endif
 
     void adjustIntrinsicLogicalWidthsForColumns(LayoutUnit& minLogicalWidth, LayoutUnit& maxLogicalWidth) const;
     void computeInlinePreferredLogicalWidths(LayoutUnit& minLogicalWidth, LayoutUnit& maxLogicalWidth) const;
@@ -537,7 +555,7 @@ private:
     int m_widthForTextAutosizing;
     unsigned m_lineCountForTextAutosizing : 2;
 #endif
-    void setSelectionState(SelectionState) final;
+    void setSelectionState(HighlightState) final;
 
 public:
     // FIXME-BLOCKFLOW: These can be made protected again once all callers have been moved here.
@@ -565,19 +583,62 @@ protected:
     std::unique_ptr<FloatingObjects> m_floatingObjects;
     std::unique_ptr<RenderBlockFlowRareData> m_rareBlockFlowData;
 
-    // FIXME: Only one of these should be needed at any given time.
-    std::unique_ptr<ComplexLineLayout> m_complexLineLayout;
-    RefPtr<SimpleLineLayout::Layout> m_simpleLineLayout;
+private:
+    Variant<
+        WTF::Monostate,
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+        std::unique_ptr<LayoutIntegration::LineLayout>,
+#endif
+        std::unique_ptr<ComplexLineLayout>
+    > m_lineLayout;
 
     friend class LineBreaker;
     friend class LineWidth; // Needs to know FloatingObject
     friend class ComplexLineLayout;
 };
 
-inline const SimpleLineLayout::Layout* RenderBlockFlow::simpleLineLayout() const
+inline bool RenderBlockFlow::hasLineLayout() const
 {
-    ASSERT(lineLayoutPath() == SimpleLinesPath || !m_simpleLineLayout);
-    return m_simpleLineLayout.get();
+    return !WTF::holds_alternative<WTF::Monostate>(m_lineLayout);
+}
+
+inline bool RenderBlockFlow::hasComplexLineLayout() const
+{
+    return WTF::holds_alternative<std::unique_ptr<ComplexLineLayout>>(m_lineLayout);
+}
+
+inline const ComplexLineLayout* RenderBlockFlow::complexLineLayout() const
+{
+    return hasComplexLineLayout() ? WTF::get<std::unique_ptr<ComplexLineLayout>>(m_lineLayout).get() : nullptr;
+}
+
+inline ComplexLineLayout* RenderBlockFlow::complexLineLayout()
+{
+    return hasComplexLineLayout() ? WTF::get<std::unique_ptr<ComplexLineLayout>>(m_lineLayout).get() : nullptr;
+}
+
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+inline bool RenderBlockFlow::hasLayoutFormattingContextLineLayout() const
+{
+    return WTF::holds_alternative<std::unique_ptr<LayoutIntegration::LineLayout>>(m_lineLayout);
+}
+
+inline const LayoutIntegration::LineLayout* RenderBlockFlow::layoutFormattingContextLineLayout() const
+{
+    return hasLayoutFormattingContextLineLayout() ? WTF::get<std::unique_ptr<LayoutIntegration::LineLayout>>(m_lineLayout).get() : nullptr;
+}
+
+inline LayoutIntegration::LineLayout* RenderBlockFlow::layoutFormattingContextLineLayout()
+{
+    return hasLayoutFormattingContextLineLayout() ? WTF::get<std::unique_ptr<LayoutIntegration::LineLayout>>(m_lineLayout).get() : nullptr;
+}
+#endif
+
+inline LayoutUnit RenderBlockFlow::endPaddingWidthForCaret() const
+{
+    if (element() && element()->isRootEditableElement() && hasOverflowClip() && style().isLeftToRightDirection() && !paddingEnd())
+        return caretWidth;
+    return { };
 }
 
 } // namespace WebCore

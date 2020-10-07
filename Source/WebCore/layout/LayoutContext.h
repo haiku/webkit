@@ -29,19 +29,18 @@
 
 #include <wtf/IsoMalloc.h>
 #include <wtf/OptionSet.h>
-#include <wtf/WeakHashSet.h>
 
 namespace WebCore {
 
 class GraphicsContext;
 class IntRect;
+class LayoutSize;
 class RenderView;
 
 namespace Layout {
 
-enum class StyleDiff;
-class Box;
-class Container;
+class ContainerBox;
+class InvalidationState;
 class LayoutState;
 class FormattingContext;
 
@@ -50,40 +49,28 @@ class FormattingContext;
 // Note, while the initial containing block is entry point for the initial layout, it does not necessarily need to be the entry point of any
 // subsequent layouts (subtree layout). A non-initial, subtree layout could be initiated on multiple formatting contexts.
 // Each formatting context has an entry point for layout, which potenitally means multiple entry points per layout frame.
-// LayoutState holds the formatting states. They cache formatting context specific data to enable performant incremental layouts.
 class LayoutContext {
     WTF_MAKE_ISO_ALLOCATED(LayoutContext);
 public:
-    // FIXME: These are temporary entry points for LFC layout.
-    static std::unique_ptr<LayoutState> runLayoutAndVerify(const RenderView&);
-    static void paint(const LayoutState&, GraphicsContext&, const IntRect& dirtyRect);
-
     LayoutContext(LayoutState&);
-    void layout();
 
-    enum class UpdateType {
-        Overflow = 1 << 0,
-        Position = 1 << 1,
-        Size     = 1 << 2
-    };
-    static constexpr OptionSet<UpdateType> updateAll() { return { UpdateType::Overflow, UpdateType::Position, UpdateType::Size }; }
-    void markNeedsUpdate(const Box&, OptionSet<UpdateType> = updateAll());
-    bool needsUpdate(const Box&) const;
+    void layout(const LayoutSize& rootContentBoxSize, InvalidationState&);
+    void layoutWithPreparedRootGeometry(InvalidationState&);
 
-    void styleChanged(const Box&, StyleDiff);
+    static std::unique_ptr<FormattingContext> createFormattingContext(const ContainerBox& formattingContextRoot, LayoutState&);
 
-    static std::unique_ptr<FormattingContext> createFormattingContext(const Container& formattingContextRoot, LayoutState&);
-
-private:
-    void layoutFormattingContextSubtree(const Container&);
-    LayoutState& layoutState() { return m_layoutState; }
-
+    // FIXME: This is temporary. 
+    static void paint(const LayoutState&, GraphicsContext&, const IntRect& dirtyRect);
+#ifndef NDEBUG
     // For testing purposes only
     static void verifyAndOutputMismatchingLayoutTree(const LayoutState&, const RenderView&);
-    static void runLayout(LayoutState&);
+#endif
+
+private:
+    void layoutFormattingContextSubtree(const ContainerBox&, InvalidationState&);
+    LayoutState& layoutState() { return m_layoutState; }
 
     LayoutState& m_layoutState;
-    WeakHashSet<const Container> m_formattingContextRootListForLayout;
 };
 
 }

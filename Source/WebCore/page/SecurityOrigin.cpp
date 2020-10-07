@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2007-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,12 +46,19 @@
 
 namespace WebCore {
 
+constexpr unsigned maximumURLSize = 0x04000000;
+
 static bool schemeRequiresHost(const URL& url)
 {
     // We expect URLs with these schemes to have authority components. If the
     // URL lacks an authority component, we get concerned and mark the origin
     // as unique.
     return url.protocolIsInHTTPFamily() || url.protocolIs("ftp");
+}
+
+bool SecurityOrigin::shouldIgnoreHost(const URL& url)
+{
+    return url.protocolIsData() || url.protocolIsAbout() || url.protocolIsJavaScript() || url.protocolIs("file");
 }
 
 bool SecurityOrigin::shouldUseInnerURL(const URL& url)
@@ -167,7 +174,7 @@ SecurityOrigin::SecurityOrigin()
     : m_data { emptyString(), emptyString(), WTF::nullopt }
     , m_domain { emptyString() }
     , m_isUnique { true }
-    , m_isPotentiallyTrustworthy { true }
+    , m_isPotentiallyTrustworthy { false }
 {
 }
 
@@ -316,7 +323,7 @@ bool SecurityOrigin::canRequest(const URL& url) const
     if (isSameSchemeHostPort(targetOrigin.get()))
         return true;
 
-    if (SecurityPolicy::isAccessWhiteListed(this, &targetOrigin.get()))
+    if (SecurityPolicy::isAccessAllowed(*this, targetOrigin.get(), url))
         return true;
 
     return false;
@@ -358,7 +365,10 @@ bool SecurityOrigin::canDisplay(const URL& url) const
     if (m_universalAccess)
         return true;
 
-#if !PLATFORM(IOS_FAMILY)
+    if (url.pathEnd() > maximumURLSize)
+        return false;
+    
+#if !PLATFORM(IOS_FAMILY) && !ENABLE(BUBBLEWRAP_SANDBOX)
     if (m_data.protocol == "file" && url.isLocalFile() && !FileSystem::filesHaveSameVolume(m_filePath, url.fileSystemPath()))
         return false;
 #endif
@@ -372,7 +382,7 @@ bool SecurityOrigin::canDisplay(const URL& url) const
         return canRequest(url);
 
     if (LegacySchemeRegistry::shouldTreatURLSchemeAsDisplayIsolated(protocol))
-        return equalIgnoringASCIICase(m_data.protocol, protocol) || SecurityPolicy::isAccessToURLWhiteListed(this, url);
+        return equalIgnoringASCIICase(m_data.protocol, protocol) || SecurityPolicy::isAccessAllowed(*this, url);
 
     if (!SecurityPolicy::restrictAccessToLocal())
         return true;
@@ -381,7 +391,7 @@ bool SecurityOrigin::canDisplay(const URL& url) const
         return true;
 
     if (LegacySchemeRegistry::shouldTreatURLSchemeAsLocal(protocol))
-        return canLoadLocalResources() || SecurityPolicy::isAccessToURLWhiteListed(this, url);
+        return canLoadLocalResources() || SecurityPolicy::isAccessAllowed(*this, url);
 
     return true;
 }

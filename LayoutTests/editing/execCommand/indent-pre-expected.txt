@@ -1,7 +1,7 @@
-CONSOLE MESSAGE: line 44: Wrong node selected.
-CONSOLE MESSAGE: line 46: Wrong anchor offset: 8 instead of 0
-CONSOLE MESSAGE: line 41: Wrong end node type: [object HTMLBRElement]
-CONSOLE MESSAGE: line 44: Wrong node selected.
+CONSOLE MESSAGE: Wrong node selected.
+CONSOLE MESSAGE: Wrong anchor offset: 8 instead of 0
+CONSOLE MESSAGE: Wrong end node type: [object HTMLBRElement]
+CONSOLE MESSAGE: Wrong node selected.
 | <html>
 |   <head>
 |   <body>
@@ -159,7 +159,7 @@ setSelection(pre);
 execMoveSelectionForwardByLineCommand();
 execExtendSelectionForwardByLineCommand();
 execExtendSelectionForwardByLineCommand();
-// FIXME: This is wrong.  The pre tags get copied when they shouldn't be. 
+// FIXME: This is wrong.  The pre tags get copied when they shouldn't be.
 // See https://bugs.webkit.org/show_bug.cgi?id=42009
 document.execCommand("indent");
 document.getElementById("results").innerText = "PASSED (did not crash)";

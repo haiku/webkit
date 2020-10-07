@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2005-2020 Apple Inc. All rights reserved.
  *           (C) 2007 Graham Dennis (graham.dennis@gmail.com)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,7 @@
 #import "ObjCPluginFunction.h"
 #import "PixelDumpSupport.h"
 #import "PolicyDelegate.h"
+#import "PoseAsClass.h"
 #import "ResourceLoadDelegate.h"
 #import "TestOptions.h"
 #import "TestRunner.h"
@@ -65,7 +66,6 @@
 #import <WebKit/DOMElement.h>
 #import <WebKit/DOMExtensions.h>
 #import <WebKit/DOMRange.h>
-#import <WebKit/WKCrashReporter.h>
 #import <WebKit/WKRetainPtr.h>
 #import <WebKit/WKString.h>
 #import <WebKit/WKStringCF.h>
@@ -89,15 +89,18 @@
 #import <WebKit/WebPreferencesPrivate.h>
 #import <WebKit/WebResourceLoadDelegate.h>
 #import <WebKit/WebStorageManagerPrivate.h>
+#import <WebKit/WebView.h>
 #import <WebKit/WebViewPrivate.h>
 #import <getopt.h>
+#import <objc/runtime.h>
 #import <wtf/Assertions.h>
 #import <wtf/FastMalloc.h>
-#import <wtf/ObjCRuntimeExtras.h>
 #import <wtf/ProcessPrivilege.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/Threading.h>
 #import <wtf/UniqueArray.h>
+#import <wtf/cocoa/CrashReporter.h>
+#import <wtf/cocoa/VectorCocoa.h>
 #import <wtf/text/StringBuilder.h>
 #import <wtf/text/WTFString.h>
 
@@ -237,62 +240,12 @@ DumpRenderTreeWebScrollView *gWebScrollView = nil;
 DumpRenderTreeWindow *gDrtWindow = nil;
 #endif
 
-#ifdef __OBJC2__
-static void swizzleAllMethods(Class imposter, Class original)
-{
-    unsigned int imposterMethodCount;
-    Method* imposterMethods = class_copyMethodList(imposter, &imposterMethodCount);
-
-    unsigned int originalMethodCount;
-    Method* originalMethods = class_copyMethodList(original, &originalMethodCount);
-
-    for (unsigned int i = 0; i < imposterMethodCount; i++) {
-        SEL imposterMethodName = method_getName(imposterMethods[i]);
-
-        // Attempt to add the method to the original class.  If it fails, the method already exists and we should
-        // instead exchange the implementations.
-        if (class_addMethod(original, imposterMethodName, method_getImplementation(imposterMethods[i]), method_getTypeEncoding(imposterMethods[i])))
-            continue;
-
-        unsigned int j = 0;
-        for (; j < originalMethodCount; j++) {
-            SEL originalMethodName = method_getName(originalMethods[j]);
-            if (sel_isEqual(imposterMethodName, originalMethodName))
-                break;
-        }
-
-        // If class_addMethod failed above then the method must exist on the original class.
-        ASSERT(j < originalMethodCount);
-        method_exchangeImplementations(imposterMethods[i], originalMethods[j]);
-    }
-
-    free(imposterMethods);
-    free(originalMethods);
-}
-#endif
-
-static void poseAsClass(const char* imposter, const char* original)
-{
-    Class imposterClass = objc_getClass(imposter);
-    Class originalClass = objc_getClass(original);
-
-#ifndef __OBJC2__
-    class_poseAs(imposterClass, originalClass);
-#else
-
-    // Swizzle instance methods
-    swizzleAllMethods(imposterClass, originalClass);
-    // and then class methods
-    swizzleAllMethods(object_getClass(imposterClass), object_getClass(originalClass));
-#endif
-}
-
 void setPersistentUserStyleSheetLocation(CFStringRef url)
 {
     persistentUserStyleSheetLocation = url;
 }
 
-static bool shouldIgnoreWebCoreNodeLeaks(const string& URLString)
+static bool shouldIgnoreWebCoreNodeLeaks(const string& urlString)
 {
     static char* const ignoreSet[] = {
         // Keeping this infrastructure around in case we ever need it again.
@@ -302,8 +255,8 @@ static bool shouldIgnoreWebCoreNodeLeaks(const string& URLString)
     for (int i = 0; i < ignoreSetCount; i++) {
         // FIXME: ignore case
         string curIgnore(ignoreSet[i]);
-        // Match at the end of the URLString
-        if (!URLString.compare(URLString.length() - curIgnore.length(), curIgnore.length(), curIgnore))
+        // Match at the end of the urlString.
+        if (!urlString.compare(urlString.length() - curIgnore.length(), curIgnore.length(), curIgnore))
             return true;
     }
     return false;
@@ -444,7 +397,7 @@ static NSSet *allowedFontFamilySet()
     return fontFamilySet;
 }
 
-static NSArray *fontWhitelist()
+static NSArray *fontAllowList()
 {
     static NSArray *availableFonts;
     if (availableFonts)
@@ -508,31 +461,28 @@ static void activateSystemCoreWebFonts()
 
 static void activateTestingFonts()
 {
-    static const char* fontFileNames[] = {
-        "AHEM____.TTF",
-        "WebKitWeightWatcher100.ttf",
-        "WebKitWeightWatcher200.ttf",
-        "WebKitWeightWatcher300.ttf",
-        "WebKitWeightWatcher400.ttf",
-        "WebKitWeightWatcher500.ttf",
-        "WebKitWeightWatcher600.ttf",
-        "WebKitWeightWatcher700.ttf",
-        "WebKitWeightWatcher800.ttf",
-        "WebKitWeightWatcher900.ttf",
-        "FontWithFeatures.ttf",
-        "FontWithFeatures.otf",
-        0
+    constexpr NSString *fontFileNames[] = {
+        @"AHEM____.TTF",
+        @"WebKitWeightWatcher100.ttf",
+        @"WebKitWeightWatcher200.ttf",
+        @"WebKitWeightWatcher300.ttf",
+        @"WebKitWeightWatcher400.ttf",
+        @"WebKitWeightWatcher500.ttf",
+        @"WebKitWeightWatcher600.ttf",
+        @"WebKitWeightWatcher700.ttf",
+        @"WebKitWeightWatcher800.ttf",
+        @"WebKitWeightWatcher900.ttf",
+        @"FontWithFeatures.ttf",
+        @"FontWithFeatures.otf",
     };
 
-    NSMutableArray *fontURLs = [NSMutableArray array];
     NSURL *resourcesDirectory = [NSURL URLWithString:@"DumpRenderTree.resources" relativeToURL:[[NSBundle mainBundle] executableURL]];
-    for (unsigned i = 0; fontFileNames[i]; ++i) {
-        NSURL *fontURL = [resourcesDirectory URLByAppendingPathComponent:[NSString stringWithUTF8String:fontFileNames[i]] isDirectory:NO];
-        [fontURLs addObject:[fontURL absoluteURL]];
-    }
+    auto fontURLs = createNSArray(fontFileNames, [&] (NSString *name) {
+        return [resourcesDirectory URLByAppendingPathComponent:name isDirectory:NO].absoluteURL;
+    });
 
-    CFArrayRef errors = 0;
-    if (!CTFontManagerRegisterFontsForURLs((CFArrayRef)fontURLs, kCTFontManagerScopeProcess, &errors)) {
+    CFArrayRef errors = nullptr;
+    if (!CTFontManagerRegisterFontsForURLs((CFArrayRef)fontURLs.get(), kCTFontManagerScopeProcess, &errors)) {
         NSLog(@"Failed to activate fonts: %@", errors);
         CFRelease(errors);
         exit(1);
@@ -544,7 +494,9 @@ static void adjustFonts()
     activateSystemCoreWebFonts();
     activateTestingFonts();
 }
+
 #else
+
 static void activateFontIOS(const uint8_t* fontData, unsigned long length, std::string sectionName)
 {
     CGDataProviderRef data = CGDataProviderCreateWithData(nullptr, fontData, length, nullptr);
@@ -734,7 +686,7 @@ WebView *createWebViewAndOffscreenWindow()
 
 #if PLATFORM(MAC)
     [webView setWindowOcclusionDetectionEnabled:NO];
-    [WebView _setFontWhitelist:fontWhitelist()];
+    [WebView _setFontAllowList:fontAllowList()];
 #endif
 
 #if !PLATFORM(IOS_FAMILY)
@@ -857,16 +809,20 @@ static void enableExperimentalFeatures(WebPreferences* preferences)
 {
     // FIXME: SpringTimingFunction
     [preferences setGamepadsEnabled:YES];
+    [preferences setHighlightAPIEnabled:YES];
     [preferences setLinkPreloadEnabled:YES];
     [preferences setMediaPreloadingEnabled:YES];
     // FIXME: InputEvents
     [preferences setFetchAPIKeepAliveEnabled:YES];
-    [preferences setWebAnimationsEnabled:YES];
+    [preferences setWebAnimationsCompositeOperationsEnabled:YES];
+    [preferences setWebAnimationsMutableTimelinesEnabled:YES];
+    [preferences setCSSCustomPropertiesAndValuesEnabled:YES];
     [preferences setWebGL2Enabled:YES];
     // FIXME: AsyncFrameScrollingEnabled
     [preferences setCacheAPIEnabled:NO];
     [preferences setReadableByteStreamAPIEnabled:YES];
     [preferences setWritableStreamAPIEnabled:YES];
+    [preferences setTransformStreamAPIEnabled:YES];
     preferences.encryptedMediaAPIEnabled = YES;
     [preferences setAccessibilityObjectModelEnabled:YES];
     [preferences setAriaReflectionEnabled:YES];
@@ -879,7 +835,10 @@ static void enableExperimentalFeatures(WebPreferences* preferences)
     [preferences setMediaRecorderEnabled:YES];
     [preferences setReferrerPolicyAttributeEnabled:YES];
     [preferences setLinkPreloadResponsiveImagesEnabled:YES];
-    [preferences setCSSShadowPartsEnabled:YES];
+    [preferences setAspectRatioOfImgFromWidthAndHeightEnabled:YES];
+    [preferences setCSSOMViewSmoothScrollingEnabled:YES];
+    [preferences setCSSIndividualTransformPropertiesEnabled:YES];
+    [preferences setAudioWorkletEnabled:YES];
 }
 
 // Called before each test.
@@ -972,11 +931,9 @@ static void resetWebPreferencesToConsistentValues()
 #endif
 
     [preferences setWebAudioEnabled:YES];
+    [preferences setModernUnprefixedWebAudioEnabled:YES];
     [preferences setMediaSourceEnabled:YES];
     [preferences setSourceBufferChangeTypeEnabled:YES];
-
-    [preferences setShadowDOMEnabled:YES];
-    [preferences setCustomElementsEnabled:YES];
 
     [preferences setDataTransferItemsEnabled:YES];
     [preferences setCustomPasteboardDataEnabled:YES];
@@ -996,13 +953,13 @@ static void resetWebPreferencesToConsistentValues()
     [preferences setLargeImageAsyncDecodingEnabled:NO];
 
     [preferences setModernMediaControlsEnabled:YES];
-    [preferences setResourceTimingEnabled:YES];
-    [preferences setUserTimingEnabled:YES];
 
     [preferences setCacheAPIEnabled:NO];
     preferences.mediaCapabilitiesEnabled = YES;
 
     preferences.selectionAcrossShadowBoundariesEnabled = YES;
+
+    [preferences setWebSQLEnabled:YES];
 
     [WebPreferences _clearNetworkLoaderSession];
     [WebPreferences _setCurrentNetworkLoaderSessionCookieAcceptPolicy:NSHTTPCookieAcceptPolicyOnlyFromMainDocumentDomain];
@@ -1017,21 +974,25 @@ static void setWebPreferencesForTestOptions(const TestOptions& options)
     preferences.menuItemElementEnabled = options.enableMenuItemElement;
     preferences.keygenElementEnabled = options.enableKeygenElement;
     preferences.modernMediaControlsEnabled = options.enableModernMediaControls;
-    preferences.isSecureContextAttributeEnabled = options.enableIsSecureContextAttribute;
     preferences.inspectorAdditionsEnabled = options.enableInspectorAdditions;
     preferences.allowCrossOriginSubresourcesToAskForCredentials = options.allowCrossOriginSubresourcesToAskForCredentials;
-    preferences.webAnimationsCSSIntegrationEnabled = options.enableWebAnimationsCSSIntegration;
     preferences.colorFilterEnabled = options.enableColorFilter;
     preferences.selectionAcrossShadowBoundariesEnabled = options.enableSelectionAcrossShadowBoundaries;
     preferences.webGPUEnabled = options.enableWebGPU;
     preferences.CSSLogicalEnabled = options.enableCSSLogical;
+    preferences.lineHeightUnitsEnabled = options.enableLineHeightUnits;
     preferences.adClickAttributionEnabled = options.adClickAttributionEnabled;
     preferences.resizeObserverEnabled = options.enableResizeObserver;
+    preferences.CSSOMViewSmoothScrollingEnabled = options.enableCSSOMViewSmoothScrolling;
     preferences.coreMathMLEnabled = options.enableCoreMathML;
     preferences.requestIdleCallbackEnabled = options.enableRequestIdleCallback;
     preferences.asyncClipboardAPIEnabled = options.enableAsyncClipboardAPI;
     preferences.privateBrowsingEnabled = options.useEphemeralSession;
     preferences.usesPageCache = options.enableBackForwardCache;
+    preferences.layoutFormattingContextIntegrationEnabled = options.layoutFormattingContextIntegrationEnabled;
+    preferences.aspectRatioOfImgFromWidthAndHeightEnabled = options.enableAspectRatioOfImgFromWidthAndHeight;
+    preferences.allowTopNavigationToDataURLs = options.allowTopNavigationToDataURLs;
+    preferences.contactPickerAPIEnabled = options.enableContactPickerAPI;
 }
 
 // Called once on DumpRenderTree startup.
@@ -1167,7 +1128,7 @@ static void addTestPluginsToPluginSearchPath(const char* executablePath)
 {
 #if !PLATFORM(IOS_FAMILY)
     NSString *pwd = [[NSString stringWithUTF8String:executablePath] stringByDeletingLastPathComponent];
-    [WebPluginDatabase setAdditionalWebPlugInPaths:[NSArray arrayWithObject:pwd]];
+    [WebPluginDatabase setAdditionalWebPlugInPaths:@[pwd]];
     [[WebPluginDatabase sharedDatabase] refresh];
 #endif
 }
@@ -1429,6 +1390,7 @@ int DumpRenderTreeMain(int argc, const char *argv[])
 
     WTF::setProcessPrivileges(allPrivileges());
     WebCore::NetworkStorageSession::permitProcessToUseCookieAPI(true);
+    WebCoreTestSupport::setLinkedOnOrAfterEverythingForTesting();
 
 #if PLATFORM(IOS_FAMILY)
     _UIApplicationLoadWebKit();
@@ -1555,6 +1517,10 @@ static NSString *dumpFramesAsText(WebFrame *frame)
         }
     }
 
+    // To keep things tidy, strip all trailing spaces: they are not a meaningful part of dumpAsText test output.
+    [result replaceOccurrencesOfString:@" +\n" withString:@"\n" options:NSRegularExpressionSearch range:NSMakeRange(0, result.length)];
+    [result replaceOccurrencesOfString:@" +$" withString:@"" options:NSRegularExpressionSearch range:NSMakeRange(0, result.length)];
+
     return result;
 }
 
@@ -1629,14 +1595,14 @@ static void dumpBackForwardListForWebView(WebView *view)
 }
 
 #if !PLATFORM(IOS_FAMILY)
-static void changeWindowScaleIfNeeded(const char* testPathOrUR)
+static void changeWindowScaleIfNeeded(const char* testPathOrURL)
 {
-    WTF::String localPathOrUrl = String(testPathOrUR);
+    auto localPathOrURL = String(testPathOrURL);
     float currentScaleFactor = [[[mainFrame webView] window] backingScaleFactor];
     float requiredScaleFactor = 1;
-    if (localPathOrUrl.containsIgnoringASCIICase("/hidpi-3x-"))
+    if (localPathOrURL.containsIgnoringASCIICase("/hidpi-3x-"))
         requiredScaleFactor = 3;
-    else if (localPathOrUrl.containsIgnoringASCIICase("/hidpi-"))
+    else if (localPathOrURL.containsIgnoringASCIICase("/hidpi-"))
         requiredScaleFactor = 2;
     if (currentScaleFactor == requiredScaleFactor)
         return;
@@ -1694,7 +1660,7 @@ static void invalidateAnyPreviousWaitToDumpWatchdog()
     if (waitToDumpWatchdog) {
         CFRunLoopTimerInvalidate(waitToDumpWatchdog);
         CFRelease(waitToDumpWatchdog);
-        waitToDumpWatchdog = 0;
+        waitToDumpWatchdog = NULL;
     }
 }
 
@@ -1719,6 +1685,7 @@ static void updateDisplay()
     [gDrtWindow layoutTilesNow];
     [webView _flushCompositingChanges];
 #else
+    [webView _forceRepaintForTesting];
     if ([webView _isUsingAcceleratedCompositing])
         [webView display];
     else
@@ -1859,7 +1826,8 @@ static void setJSCOptions(const TestOptions& options)
     }
 }
 
-static void resetWebViewToConsistentStateBeforeTesting(const TestOptions& options)
+enum class ResetTime { BeforeTest, AfterTest };
+static void resetWebViewToConsistentState(const TestOptions& options, ResetTime resetTime)
 {
     setJSCOptions(options);
 
@@ -1900,7 +1868,7 @@ static void resetWebViewToConsistentStateBeforeTesting(const TestOptions& option
 #endif
 
     TestRunner::setSerializeHTTPLoads(false);
-    TestRunner::setAllowsAnySSLCertificate(false);
+    TestRunner::setAllowsAnySSLCertificate(true);
 
     setlocale(LC_ALL, "");
 
@@ -1909,7 +1877,10 @@ static void resetWebViewToConsistentStateBeforeTesting(const TestOptions& option
     // In the case that a test using the chrome input field failed, be sure to clean up for the next test.
     gTestRunner->removeChromeInputField();
 
-    WebCoreTestSupport::resetInternalsObject([mainFrame globalContext]);
+    // We do not do this before running the test since it may eagerly create the global JS context
+    // if we have not loaded anything yet.
+    if (resetTime == ResetTime::AfterTest)
+        WebCoreTestSupport::resetInternalsObject([mainFrame globalContext]);
 
 #if !PLATFORM(IOS_FAMILY)
     if (WebCore::Frame* frame = [webView _mainCoreFrame])
@@ -1927,14 +1898,14 @@ static void resetWebViewToConsistentStateBeforeTesting(const TestOptions& option
 
     [WebView _setUsesTestModeFocusRingColor:YES];
 #endif
-    [WebView _resetOriginAccessWhitelists];
+    [WebView _resetOriginAccessAllowLists];
 
     [[MockGeolocationProvider shared] stopTimer];
     [[MockWebNotificationProvider shared] reset];
 
 #if !PLATFORM(IOS_FAMILY)
     // Clear the contents of the general pasteboard
-    [[NSPasteboard generalPasteboard] declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
+    [[NSPasteboard generalPasteboard] declareTypes:@[NSStringPboardType] owner:nil];
 #endif
 
     WebCoreTestSupport::setAdditionalSupportedImageTypesForTesting(options.additionalSupportedImageTypes.c_str());
@@ -2014,8 +1985,8 @@ static void runTest(const string& inputLine)
     if (!testPath)
         testPath = [url absoluteString];
 
-    NSString *informationString = [@"CRASHING TEST: " stringByAppendingString:testPath];
-    WebKit::setCrashReportApplicationSpecificInformation((__bridge CFStringRef)informationString);
+    auto message = makeString("CRASHING TEST: ", testPath.UTF8String);
+    WTF::setCrashLogMessage(message.utf8().data());
 
     TestOptions options { [url isFileURL] ? [url fileSystemRepresentation] : pathOrURL, command.absolutePath };
 
@@ -2033,7 +2004,7 @@ static void runTest(const string& inputLine)
     gTestRunner->setCustomTimeout(command.timeout);
     gTestRunner->setDumpJSConsoleLogInStdErr(command.dumpJSConsoleLogInStdErr || options.dumpJSConsoleLogInStdErr);
 
-    resetWebViewToConsistentStateBeforeTesting(options);
+    resetWebViewToConsistentState(options, ResetTime::BeforeTest);
 
 #if !PLATFORM(IOS_FAMILY)
     changeWindowScaleIfNeeded(testURL);
@@ -2153,7 +2124,7 @@ static void runTest(const string& inputLine)
             }
         }
 
-        resetWebViewToConsistentStateBeforeTesting(options);
+        resetWebViewToConsistentState(options, ResetTime::AfterTest);
 
         // Loading an empty request synchronously replaces the document with a blank one, which is necessary
         // to stop timers, WebSockets and other activity that could otherwise spill output into next test's results.

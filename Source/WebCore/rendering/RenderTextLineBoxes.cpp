@@ -32,6 +32,7 @@
 #include "RenderStyle.h"
 #include "RenderView.h"
 #include "RootInlineBox.h"
+#include "VisiblePosition.h"
 
 namespace WebCore {
 
@@ -200,7 +201,7 @@ static bool lineDirectionPointFitsInBox(int pointLineDirection, const InlineText
     if (!box.nextLeafOnLineIgnoringLineBreak()) {
         // box is last on line
         // and the x coordinate is to the right of the last text box right edge
-        // generate VisiblePosition, use UPSTREAM affinity if possible
+        // generate VisiblePosition, use Affinity::Upstream affinity if possible
         shouldAffinityBeDownstream = UpstreamIfPositionIsNotAtStart;
         return true;
     }
@@ -210,16 +211,16 @@ static bool lineDirectionPointFitsInBox(int pointLineDirection, const InlineText
 
 static VisiblePosition createVisiblePositionForBox(const InlineBox& box, int offset, ShouldAffinityBeDownstream shouldAffinityBeDownstream)
 {
-    EAffinity affinity = VP_DEFAULT_AFFINITY;
+    auto affinity = VisiblePosition::defaultAffinity;
     switch (shouldAffinityBeDownstream) {
     case AlwaysDownstream:
-        affinity = DOWNSTREAM;
+        affinity = Affinity::Downstream;
         break;
     case AlwaysUpstream:
-        affinity = VP_UPSTREAM_IF_POSSIBLE;
+        affinity = Affinity::Upstream;
         break;
     case UpstreamIfPositionIsNotAtStart:
-        affinity = offset > box.caretMinOffset() ? VP_UPSTREAM_IF_POSSIBLE : DOWNSTREAM;
+        affinity = offset > box.caretMinOffset() ? Affinity::Upstream : Affinity::Downstream;
         break;
     }
     return box.renderer().createVisiblePosition(offset, affinity);
@@ -300,7 +301,7 @@ static VisiblePosition createVisiblePositionAfterAdjustingOffsetForBiDi(const In
 VisiblePosition RenderTextLineBoxes::positionForPoint(const RenderText& renderer, const LayoutPoint& point) const
 {
     if (!m_first || !renderer.text().length())
-        return renderer.createVisiblePosition(0, DOWNSTREAM);
+        return renderer.createVisiblePosition(0, Affinity::Downstream);
 
     LayoutUnit pointLineDirection = m_first->isHorizontal() ? point.x() : point.y();
     LayoutUnit pointBlockDirection = m_first->isHorizontal() ? point.y() : point.x();
@@ -312,7 +313,7 @@ VisiblePosition RenderTextLineBoxes::positionForPoint(const RenderText& renderer
             box = box->nextTextBox();
 
         auto& rootBox = box->root();
-        LayoutUnit top = std::min(rootBox.selectionTop(), rootBox.lineTop());
+        LayoutUnit top = std::min(rootBox.selectionTop(RootInlineBox::ForHitTesting::Yes), rootBox.lineTop());
         if (pointBlockDirection > top || (!blocksAreFlipped && pointBlockDirection == top)) {
             LayoutUnit bottom = rootBox.selectionBottom();
             if (rootBox.nextRootBox())
@@ -323,7 +324,7 @@ VisiblePosition RenderTextLineBoxes::positionForPoint(const RenderText& renderer
 #if PLATFORM(IOS_FAMILY)
                 if (pointLineDirection != box->logicalLeft() && point.x() < box->x() + box->logicalWidth()) {
                     int half = box->x() + box->logicalWidth() / 2;
-                    EAffinity affinity = point.x() < half ? DOWNSTREAM : VP_UPSTREAM_IF_POSSIBLE;
+                    auto affinity = point.x() < half ? Affinity::Downstream : Affinity::Upstream;
                     return renderer.createVisiblePosition(box->offsetForPosition(pointLineDirection) + box->start(), affinity);
                 }
 #endif
@@ -339,25 +340,25 @@ VisiblePosition RenderTextLineBoxes::positionForPoint(const RenderText& renderer
         lineDirectionPointFitsInBox(pointLineDirection, *lastBox, shouldAffinityBeDownstream);
         return createVisiblePositionAfterAdjustingOffsetForBiDi(*lastBox, lastBox->offsetForPosition(pointLineDirection) + lastBox->start(), shouldAffinityBeDownstream);
     }
-    return renderer.createVisiblePosition(0, DOWNSTREAM);
+    return renderer.createVisiblePosition(0, Affinity::Downstream);
 }
 
-void RenderTextLineBoxes::setSelectionState(RenderText& renderer, RenderObject::SelectionState state)
+void RenderTextLineBoxes::setSelectionState(RenderText& renderer, RenderObject::HighlightState state)
 {
-    if (state == RenderObject::SelectionInside || state == RenderObject::SelectionNone) {
+    if (state == RenderObject::HighlightState::Inside || state == RenderObject::HighlightState::None) {
         for (auto* box = m_first; box; box = box->nextTextBox())
-            box->root().setHasSelectedChildren(state == RenderObject::SelectionInside);
+            box->root().setHasSelectedChildren(state == RenderObject::HighlightState::Inside);
         return;
     }
 
-    auto start = renderer.view().selection().startPosition();
-    auto end = renderer.view().selection().endPosition();
-    if (state == RenderObject::SelectionStart) {
+    auto start = renderer.view().selection().startOffset();
+    auto end = renderer.view().selection().endOffset();
+    if (state == RenderObject::HighlightState::Start) {
         end = renderer.text().length();
         // to handle selection from end of text to end of line
         if (start && start == end)
             start = end - 1;
-    } else if (state == RenderObject::SelectionEnd)
+    } else if (state == RenderObject::HighlightState::End)
         start = 0;
 
     for (auto* box = m_first; box; box = box->nextTextBox()) {
@@ -429,56 +430,12 @@ static FloatRect localQuadForTextBox(const InlineTextBox& box, unsigned start, u
     return boxSelectionRect;
 }
 
-Vector<IntRect> RenderTextLineBoxes::absoluteRectsForRange(const RenderText& renderer, unsigned start, unsigned end, bool useSelectionHeight, bool* wasFixed) const
+Vector<FloatQuad> RenderTextLineBoxes::absoluteQuadsForRange(const RenderText& renderer, unsigned start, unsigned end, bool useSelectionHeight, bool ignoreEmptyTextSelections, bool* wasFixed) const
 {
-    Vector<IntRect> rects;
+    Vector<FloatQuad> quads;
     for (auto* box = m_first; box; box = box->nextTextBox()) {
-        if (start <= box->start() && box->end() <= end) {
-            FloatRect boundaries = box->calculateBoundaries();
-            if (useSelectionHeight) {
-                LayoutRect selectionRect = box->localSelectionRect(start, end);
-                if (box->isHorizontal()) {
-                    boundaries.setHeight(selectionRect.height());
-                    boundaries.setY(selectionRect.y());
-                } else {
-                    boundaries.setWidth(selectionRect.width());
-                    boundaries.setX(selectionRect.x());
-                }
-            }
-            rects.append(renderer.localToAbsoluteQuad(boundaries, UseTransforms, wasFixed).enclosingBoundingBox());
+        if (ignoreEmptyTextSelections && !box->isSelected(start, end))
             continue;
-        }
-        FloatRect rect = localQuadForTextBox(*box, start, end, useSelectionHeight);
-        if (!rect.isZero())
-            rects.append(renderer.localToAbsoluteQuad(rect, UseTransforms, wasFixed).enclosingBoundingBox());
-    }
-    return rects;
-}
-
-Vector<FloatQuad> RenderTextLineBoxes::absoluteQuads(const RenderText& renderer, bool* wasFixed, ClippingOption option) const
-{
-    Vector<FloatQuad> quads;
-    for (auto* box = m_first; box; box = box->nextTextBox()) {
-        FloatRect boundaries = box->calculateBoundaries();
-
-        // Shorten the width of this text box if it ends in an ellipsis.
-        // FIXME: ellipsisRectForBox should switch to return FloatRect soon with the subpixellayout branch.
-        IntRect ellipsisRect = (option == ClipToEllipsis) ? ellipsisRectForBox(*box, 0, renderer.text().length()) : IntRect();
-        if (!ellipsisRect.isEmpty()) {
-            if (renderer.style().isHorizontalWritingMode())
-                boundaries.setWidth(ellipsisRect.maxX() - boundaries.x());
-            else
-                boundaries.setHeight(ellipsisRect.maxY() - boundaries.y());
-        }
-        quads.append(renderer.localToAbsoluteQuad(boundaries, UseTransforms, wasFixed));
-    }
-    return quads;
-}
-
-Vector<FloatQuad> RenderTextLineBoxes::absoluteQuadsForRange(const RenderText& renderer, unsigned start, unsigned end, bool useSelectionHeight, bool* wasFixed) const
-{
-    Vector<FloatQuad> quads;
-    for (auto* box = m_first; box; box = box->nextTextBox()) {
         if (start <= box->start() && box->end() <= end) {
             FloatRect boundaries = box->calculateBoundaries();
             if (useSelectionHeight) {
@@ -497,6 +454,31 @@ Vector<FloatQuad> RenderTextLineBoxes::absoluteQuadsForRange(const RenderText& r
         FloatRect rect = localQuadForTextBox(*box, start, end, useSelectionHeight);
         if (!rect.isZero())
             quads.append(renderer.localToAbsoluteQuad(rect, UseTransforms, wasFixed));
+    }
+    return quads;
+}
+
+Vector<IntRect> RenderTextLineBoxes::absoluteRectsForRange(const RenderText& renderer, unsigned start, unsigned end, bool useSelectionHeight, bool* wasFixed) const
+{
+    return absoluteQuadsForRange(renderer, start, end, useSelectionHeight, false /* ignoreEmptyTextSelections */, wasFixed).map([](auto& quad) { return quad.enclosingBoundingBox(); });
+}
+
+Vector<FloatQuad> RenderTextLineBoxes::absoluteQuads(const RenderText& renderer, bool* wasFixed, ClippingOption option) const
+{
+    Vector<FloatQuad> quads;
+    for (auto* box = m_first; box; box = box->nextTextBox()) {
+        FloatRect boundaries = box->calculateBoundaries();
+
+        // Shorten the width of this text box if it ends in an ellipsis.
+        // FIXME: ellipsisRectForBox should switch to return FloatRect soon with the subpixellayout branch.
+        IntRect ellipsisRect = (option == ClipToEllipsis) ? ellipsisRectForBox(*box, 0, renderer.text().length()) : IntRect();
+        if (!ellipsisRect.isEmpty()) {
+            if (renderer.style().isHorizontalWritingMode())
+                boundaries.setWidth(ellipsisRect.maxX() - boundaries.x());
+            else
+                boundaries.setHeight(ellipsisRect.maxY() - boundaries.y());
+        }
+        quads.append(renderer.localToAbsoluteQuad(boundaries, UseTransforms, wasFixed));
     }
     return quads;
 }
@@ -568,11 +550,13 @@ bool RenderTextLineBoxes::dirtyRange(RenderText& renderer, unsigned start, unsig
         firstRootBox->markDirty();
         dirtiedLines = true;
     }
+
     for (auto* current = firstRootBox; current && current != lastRootBox; current = current->nextRootBox()) {
-        if (current->lineBreakObj() == &renderer && current->lineBreakPos() > end)
+        auto lineBreakPos = current->lineBreakPos();
+        if (current->lineBreakObj() == &renderer && (lineBreakPos > end || (start != end && lineBreakPos == end)))
             current->setLineBreakPos(current->lineBreakPos() + lengthDelta);
     }
-    
+
     // If the text node is empty, dirty the line where new text will be inserted.
     if (!m_first && renderer.parent()) {
         renderer.parent()->dirtyLinesFromChangedChild(renderer);
@@ -583,7 +567,7 @@ bool RenderTextLineBoxes::dirtyRange(RenderText& renderer, unsigned start, unsig
 
 inline void RenderTextLineBoxes::checkConsistency() const
 {
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
 #ifdef CHECK_CONSISTENCY
     const InlineTextBox* prev = nullptr;
     for (auto* child = m_first; child; child = child->nextTextBox()) {
@@ -593,10 +577,10 @@ inline void RenderTextLineBoxes::checkConsistency() const
     }
     ASSERT(prev == m_last);
 #endif
-#endif
+#endif // ASSERT_ENABLED
 }
 
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
 RenderTextLineBoxes::~RenderTextLineBoxes()
 {
     ASSERT(!m_first);

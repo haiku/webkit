@@ -16,9 +16,6 @@
 #include <limits>
 #include <string>
 
-#include "rtc_base/checks.h"
-#include "rtc_base/numerics/safe_conversions.h"
-
 namespace webrtc {
 
 // Video timing timestamps in ms counted from capture_time_ms of a frame.
@@ -32,24 +29,11 @@ struct VideoSendTiming {
     kInvalid = std::numeric_limits<uint8_t>::max()  // Invalid, ignore!
   };
 
-  // Offsets of the fields in the RTP header extension, counting from the first
-  // byte after the one-byte header.
-  static constexpr uint8_t kFlagsOffset = 0;
-  static constexpr uint8_t kEncodeStartDeltaOffset = 1;
-  static constexpr uint8_t kEncodeFinishDeltaOffset = 3;
-  static constexpr uint8_t kPacketizationFinishDeltaOffset = 5;
-  static constexpr uint8_t kPacerExitDeltaOffset = 7;
-  static constexpr uint8_t kNetworkTimestampDeltaOffset = 9;
-  static constexpr uint8_t kNetwork2TimestampDeltaOffset = 11;
-
   // Returns |time_ms - base_ms| capped at max 16-bit value.
   // Used to fill this data structure as per
   // https://webrtc.org/experiments/rtp-hdrext/video-timing/ extension stores
   // 16-bit deltas of timestamps from packet capture time.
-  static uint16_t GetDeltaCappedMs(int64_t base_ms, int64_t time_ms) {
-    RTC_DCHECK_GE(time_ms, base_ms);
-    return rtc::saturated_cast<uint16_t>(time_ms - base_ms);
-  }
+  static uint16_t GetDeltaCappedMs(int64_t base_ms, int64_t time_ms);
 
   uint16_t encode_start_delta_ms;
   uint16_t encode_finish_delta_ms;

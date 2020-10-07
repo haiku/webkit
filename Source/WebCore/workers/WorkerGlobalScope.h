@@ -32,20 +32,21 @@
 #include "ImageBitmap.h"
 #include "ScriptExecutionContext.h"
 #include "Supplementable.h"
+#include "WorkerOrWorkletGlobalScope.h"
 #include <wtf/URL.h>
 #include "WorkerCacheStorageConnection.h"
-#include "WorkerEventQueue.h"
 #include "WorkerMessagePortChannelProvider.h"
 #include "WorkerScriptController.h"
+#include "WorkerThread.h"
 #include <JavaScriptCore/ConsoleMessage.h>
 #include <memory>
 
 namespace WebCore {
 
-class AbstractEventLoop;
+class CSSValuePool;
 class ContentSecurityPolicyResponseHeaders;
 class Crypto;
-class MicrotaskQueue;
+class EventLoopTaskGroup;
 class Performance;
 class ScheduledAction;
 class WorkerEventLoop;
@@ -53,13 +54,13 @@ class WorkerInspectorController;
 class WorkerLocation;
 class WorkerNavigator;
 class WorkerSWClientConnection;
-class WorkerThread;
+struct WorkerParameters;
 
 namespace IDBClient {
 class IDBConnectionProxy;
 }
 
-class WorkerGlobalScope : public RefCounted<WorkerGlobalScope>, public Supplementable<WorkerGlobalScope>, public ScriptExecutionContext, public EventTargetWithInlineData, public Base64Utilities {
+class WorkerGlobalScope : public RefCounted<WorkerGlobalScope>, public Supplementable<WorkerGlobalScope>, public EventTargetWithInlineData, public Base64Utilities, public WorkerOrWorkletGlobalScope {
     WTF_MAKE_ISO_ALLOCATED(WorkerGlobalScope);
 public:
     virtual ~WorkerGlobalScope();
@@ -67,14 +68,16 @@ public:
     virtual bool isDedicatedWorkerGlobalScope() const { return false; }
     virtual bool isServiceWorkerGlobalScope() const { return false; }
 
-    AbstractEventLoop& eventLoop() final;
+    EventLoopTaskGroup& eventLoop() final;
 
     const URL& url() const final { return m_url; }
-    String origin() const final;
+    String origin() const;
     const String& identifier() const { return m_identifier; }
 
 #if ENABLE(INDEXED_DATABASE)
     IDBClient::IDBConnectionProxy* idbConnectionProxy() final;
+    void suspend();
+    void resume();
 #endif
 
     WorkerCacheStorageConnection& cacheStorageConnection();
@@ -83,12 +86,10 @@ public:
     WorkerSWClientConnection& swClientConnection();
 #endif
 
-    WorkerScriptController* script() { return m_script.get(); }
+    WorkerScriptController* script() final { return m_script.get(); }
     void clearScript() { m_script = nullptr; }
 
     WorkerInspectorController& inspectorController() const { return *m_inspectorController; }
-
-    MicrotaskQueue& microtaskQueue() const { return *m_microtaskQueue; }
 
     WorkerThread& thread() const { return m_thread; }
 
@@ -119,9 +120,11 @@ public:
     using RefCounted::ref;
     using RefCounted::deref;
 
-    bool isClosing() { return m_closing; }
+    bool isClosing() const final { return m_closing; }
 
     void addConsoleMessage(std::unique_ptr<Inspector::ConsoleMessage>&&) final;
+
+    SecurityOrigin& topOrigin() const final { return m_topOrigin.get(); }
 
     Crypto& crypto();
     Performance& performance() const;
@@ -133,10 +136,16 @@ public:
     void createImageBitmap(ImageBitmap::Source&&, ImageBitmapOptions&&, ImageBitmap::Promise&&);
     void createImageBitmap(ImageBitmap::Source&&, int sx, int sy, int sw, int sh, ImageBitmapOptions&&, ImageBitmap::Promise&&);
 
-    unsigned long createUniqueIdentifier() { return m_uniqueIdentifier++; }
+    CSSValuePool& cssValuePool();
+
+    ReferrerPolicy referrerPolicy() const final;
+
+    bool requestAnimationFrameEnabled() const { return m_requestAnimationFrameEnabled; }
+    bool acceleratedCompositingEnabled() const { return m_acceleratedCompositingEnabled; }
+    bool webGLEnabled() const { return m_webGLEnabled; }
 
 protected:
-    WorkerGlobalScope(const URL&, Ref<SecurityOrigin>&&, const String& identifier, const String& userAgent, bool isOnline, WorkerThread&, bool shouldBypassMainWorldContentSecurityPolicy, Ref<SecurityOrigin>&& topOrigin, MonotonicTime timeOrigin, IDBClient::IDBConnectionProxy*, SocketProvider*);
+    WorkerGlobalScope(const WorkerParameters&, Ref<SecurityOrigin>&&, WorkerThread&, Ref<SecurityOrigin>&& topOrigin, IDBClient::IDBConnectionProxy*, SocketProvider*);
 
     void applyContentSecurityPolicyResponseHeaders(const ContentSecurityPolicyResponseHeaders&);
 
@@ -155,20 +164,19 @@ private:
     void addConsoleMessage(MessageSource, MessageLevel, const String& message, unsigned long requestIdentifier) final;
 
     bool isWorkerGlobalScope() const final { return true; }
+    WorkerThread* workerOrWorkletThread() final { return &m_thread; }
 
     ScriptExecutionContext* scriptExecutionContext() const final { return const_cast<WorkerGlobalScope*>(this); }
-    URL completeURL(const String&) const final;
+    URL completeURL(const String&, ForceUTF8 = ForceUTF8::No) const final;
     String userAgent(const URL&) const final;
     void disableEval(const String& errorMessage) final;
     void disableWebAssembly(const String& errorMessage) final;
     EventTarget* errorEventTarget() final;
-    WorkerEventQueue& eventQueue() const final;
     String resourceRequestIdentifier() const final { return m_identifier; }
     SocketProvider* socketProvider() final;
 
     bool shouldBypassMainWorldContentSecurityPolicy() const final { return m_shouldBypassMainWorldContentSecurityPolicy; }
     bool isJSExecutionForbidden() const final;
-    SecurityOrigin& topOrigin() const final { return m_topOrigin.get(); }
 
 #if ENABLE(WEB_CRYPTO)
     bool wrapCryptoKey(const Vector<uint8_t>& key, Vector<uint8_t>& wrappedKey) final;
@@ -189,15 +197,13 @@ private:
     WorkerThread& m_thread;
     std::unique_ptr<WorkerScriptController> m_script;
     std::unique_ptr<WorkerInspectorController> m_inspectorController;
-    std::unique_ptr<MicrotaskQueue> m_microtaskQueue;
 
     bool m_closing { false };
     bool m_isOnline;
     bool m_shouldBypassMainWorldContentSecurityPolicy;
 
     RefPtr<WorkerEventLoop> m_eventLoop;
-
-    mutable WorkerEventQueue m_eventQueue;
+    std::unique_ptr<EventLoopTaskGroup> m_defaultTaskGroup;
 
     Ref<SecurityOrigin> m_topOrigin;
 
@@ -212,10 +218,14 @@ private:
 
     RefPtr<WorkerCacheStorageConnection> m_cacheStorageConnection;
     std::unique_ptr<WorkerMessagePortChannelProvider> m_messagePortChannelProvider;
-    unsigned long m_uniqueIdentifier { 1 };
 #if ENABLE(SERVICE_WORKER)
     RefPtr<WorkerSWClientConnection> m_swClientConnection;
 #endif
+    std::unique_ptr<CSSValuePool> m_cssValuePool;
+    ReferrerPolicy m_referrerPolicy;
+    bool m_requestAnimationFrameEnabled;
+    bool m_acceleratedCompositingEnabled;
+    bool m_webGLEnabled;
 };
 
 } // namespace WebCore

@@ -55,6 +55,8 @@ namespace WebCore {
 
 static inline bool canReferToParentFrameEncoding(const Frame* frame, const Frame* parentFrame) 
 {
+    if (is<XMLDocument>(frame->document()))
+        return false;
     return parentFrame && parentFrame->document()->securityOrigin().canAccess(frame->document()->securityOrigin());
 }
     
@@ -143,7 +145,7 @@ bool DocumentWriter::begin(const URL& urlReference, bool dispatch, Document* own
     // and we may also need to inherit its Content Security Policy below.
     RefPtr<Document> existingDocument = m_frame->document();
 
-    WTF::Function<void()> handleDOMWindowCreation = [this, document = document.copyRef(), url] {
+    WTF::Function<void()> handleDOMWindowCreation = [this, document, url] {
         if (m_frame->loader().stateMachine().isDisplayingInitialEmptyDocument() && m_frame->document()->isSecureTransitionTo(url))
             document->takeDOMWindowFrom(*m_frame->document());
         else

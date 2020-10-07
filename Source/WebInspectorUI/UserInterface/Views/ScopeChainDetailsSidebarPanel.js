@@ -124,6 +124,11 @@ WI.ScopeChainDetailsSidebarPanel = class ScopeChainDetailsSidebarPanel extends W
 
     layout()
     {
+        super.layout();
+
+        if (this.layoutReason !== WI.View.LayoutReason.Dirty)
+            return;
+
         let callFrame = this._callFrame;
 
         Promise.all([this._generateWatchExpressionsSection(), this._generateCallFramesSection()]).then(function(sections) {
@@ -453,7 +458,7 @@ WI.ScopeChainDetailsSidebarPanel = class ScopeChainDetailsSidebarPanel extends W
         if (objectTreeElement.parent !== objectTreeElement.treeOutline)
             return;
 
-        contextMenu.appendItem(WI.UIString("Remove Watch Expression"), () => {
+        contextMenu.appendItem(WI.UIString("Delete Watch Expression"), () => {
             let expression = objectTreeElement.property.name;
             this._removeWatchExpression(expression);
         });

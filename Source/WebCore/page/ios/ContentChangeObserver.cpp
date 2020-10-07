@@ -223,7 +223,7 @@ void ContentChangeObserver::didAddTransition(const Element& element, const Anima
         return;
     if (!transition.isDurationSet() || !transition.isPropertySet())
         return;
-    if (!isObservedPropertyForTransition(transition.property()))
+    if (!isObservedPropertyForTransition(transition.property().id))
         return;
     auto transitionEnd = Seconds { transition.duration() + std::max<double>(0, transition.isDelaySet() ? transition.delay() : 0) };
     if (transitionEnd > maximumDelayForTransitions)
@@ -470,6 +470,12 @@ void ContentChangeObserver::mouseMovedDidFinish()
     setMouseMovedEventIsBeingDispatched(false);
 }
 
+void ContentChangeObserver::willNotProceedWithFixedObservationTimeWindow()
+{
+    ASSERT(!isMouseMovedEventBeingDispatched());
+    adjustObservedState(Event::WillNotProceedWithFixedObservationTimeWindow);
+}
+
 void ContentChangeObserver::setShouldObserveNextStyleRecalc(bool shouldObserve)
 {
     if (shouldObserve)
@@ -558,6 +564,10 @@ void ContentChangeObserver::adjustObservedState(Event event)
             return;
         }
         if (event == Event::EndedFixedObservationTimeWindow) {
+            notifyClientIfNeeded();
+            return;
+        }
+        if (event == Event::WillNotProceedWithFixedObservationTimeWindow) {
             notifyClientIfNeeded();
             return;
         }

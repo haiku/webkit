@@ -1,5 +1,3 @@
-//@ skip if $architecture == "mips"
-
 typedArrays = [Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array];
 
 function assert(cond) {
@@ -44,9 +42,9 @@ function foo() {
         let a = new constructor(10);
         Object.defineProperty(a, 0, makeDescriptor(false, false, true, true));
         assert(a[0] === 1);
-        assertThrows(() => Object.defineProperty(a, 0, makeDescriptor(false, false, true, false), "TypeError: Attempting to store non-enumerable or non-writable indexed property on a typed array."));
-        assertThrows(() => Object.defineProperty(a, 0, makeDescriptor(false, false, false, false), "TypeError: Attempting to store non-enumerable or non-writable indexed property on a typed array."));
-        assertThrows(() => Object.defineProperty(a, 0, makeDescriptor(false, false, false, true), "TypeError: Attempting to store non-enumerable or non-writable indexed property on a typed array."));
+        assertThrows(() => Object.defineProperty(a, 0, makeDescriptor(false, false, true, false), "TypeError: Attempting to store non-enumerable indexed property on a typed array."));
+        assertThrows(() => Object.defineProperty(a, 0, makeDescriptor(false, false, false, false), "TypeError: Attempting to store non-enumerable indexed property on a typed array."));
+        assertThrows(() => Object.defineProperty(a, 0, makeDescriptor(false, false, false, true), "TypeError: Attempting to store non-writable indexed property on a typed array."));
 
         test(a, false, true, "TypeError: Attempting to configure non-configurable property.");
         for (c of bools) {

@@ -38,7 +38,7 @@ WebHitTestResultData::WebHitTestResultData()
 {
 }
 
-WebHitTestResultData::WebHitTestResultData(const WebCore::HitTestResult& hitTestResult)
+WebHitTestResultData::WebHitTestResultData(const WebCore::HitTestResult& hitTestResult, const String& toolTipText)
     : absoluteImageURL(hitTestResult.absoluteImageURL().string())
     , absolutePDFURL(hitTestResult.absolutePDFURL().string())
     , absoluteLinkURL(hitTestResult.absoluteLinkURL().string())
@@ -48,13 +48,16 @@ WebHitTestResultData::WebHitTestResultData(const WebCore::HitTestResult& hitTest
     , linkSuggestedFilename(hitTestResult.linkSuggestedFilename())
     , isContentEditable(hitTestResult.isContentEditable())
     , elementBoundingBox(elementBoundingBoxInWindowCoordinates(hitTestResult))
-    , isScrollbar(hitTestResult.scrollbar())
+    , isScrollbar(IsScrollbar::No)
     , isSelected(hitTestResult.isSelected())
     , isTextNode(hitTestResult.innerNode() && hitTestResult.innerNode()->isTextNode())
     , isOverTextInsideFormControlElement(hitTestResult.isOverTextInsideFormControlElement())
     , isDownloadableMedia(hitTestResult.isDownloadableMedia())
+    , toolTipText(toolTipText)
     , imageSize(0)
 {
+    if (auto* scrollbar = hitTestResult.scrollbar())
+        isScrollbar = scrollbar->orientation() == HorizontalScrollbar ? IsScrollbar::Horizontal : IsScrollbar::Vertical;
 }
 
 WebHitTestResultData::WebHitTestResultData(const WebCore::HitTestResult& hitTestResult, bool includeImage)
@@ -67,13 +70,16 @@ WebHitTestResultData::WebHitTestResultData(const WebCore::HitTestResult& hitTest
     , linkSuggestedFilename(hitTestResult.linkSuggestedFilename())
     , isContentEditable(hitTestResult.isContentEditable())
     , elementBoundingBox(elementBoundingBoxInWindowCoordinates(hitTestResult))
-    , isScrollbar(hitTestResult.scrollbar())
+    , isScrollbar(IsScrollbar::No)
     , isSelected(hitTestResult.isSelected())
     , isTextNode(hitTestResult.innerNode() && hitTestResult.innerNode()->isTextNode())
     , isOverTextInsideFormControlElement(hitTestResult.isOverTextInsideFormControlElement())
     , isDownloadableMedia(hitTestResult.isDownloadableMedia())
     , imageSize(0)
 {
+    if (auto* scrollbar = hitTestResult.scrollbar())
+        isScrollbar = scrollbar->orientation() == HorizontalScrollbar ? IsScrollbar::Horizontal : IsScrollbar::Vertical;
+
     if (!includeImage)
         return;
 
@@ -108,13 +114,14 @@ void WebHitTestResultData::encode(IPC::Encoder& encoder) const
     encoder << isOverTextInsideFormControlElement;
     encoder << isDownloadableMedia;
     encoder << lookupText;
+    encoder << toolTipText;
     encoder << dictionaryPopupInfo;
 
     WebKit::SharedMemory::Handle imageHandle;
     if (imageSharedMemory && imageSharedMemory->data())
         imageSharedMemory->createHandle(imageHandle, WebKit::SharedMemory::Protection::ReadOnly);
-    encoder << imageHandle;
-    encoder << imageSize;
+
+    encoder << WebKit::SharedMemory::IPCHandle { WTFMove(imageHandle), imageSize };
 
     bool hasLinkTextIndicator = linkTextIndicator;
     encoder << hasLinkTextIndicator;
@@ -141,18 +148,25 @@ bool WebHitTestResultData::decode(IPC::Decoder& decoder, WebHitTestResultData& h
         || !decoder.decode(hitTestResultData.isOverTextInsideFormControlElement)
         || !decoder.decode(hitTestResultData.isDownloadableMedia)
         || !decoder.decode(hitTestResultData.lookupText)
+        || !decoder.decode(hitTestResultData.toolTipText)
         || !decoder.decode(hitTestResultData.dictionaryPopupInfo))
         return false;
 
-    WebKit::SharedMemory::Handle imageHandle;
+    WebKit::SharedMemory::IPCHandle imageHandle;
     if (!decoder.decode(imageHandle))
         return false;
 
-    if (!imageHandle.isNull())
-        hitTestResultData.imageSharedMemory = WebKit::SharedMemory::map(imageHandle, WebKit::SharedMemory::Protection::ReadOnly);
-
-    if (!decoder.decode(hitTestResultData.imageSize))
-        return false;
+    hitTestResultData.imageSize = imageHandle.dataSize;
+    if (imageHandle.handle.isNull()) {
+        if (hitTestResultData.imageSize)
+            return false;
+    } else {
+        hitTestResultData.imageSharedMemory = WebKit::SharedMemory::map(imageHandle.handle, WebKit::SharedMemory::Protection::ReadOnly);
+        if (!hitTestResultData.imageSharedMemory)
+            return false;
+        if (!hitTestResultData.imageSize)
+            return false;
+    }
 
     bool hasLinkTextIndicator;
     if (!decoder.decode(hasLinkTextIndicator))

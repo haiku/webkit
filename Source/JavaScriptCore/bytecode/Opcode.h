@@ -36,6 +36,7 @@
 #include <string.h>
 
 #include <wtf/Assertions.h>
+#include <wtf/MathExtras.h>
 
 namespace JSC {
 
@@ -53,7 +54,6 @@ namespace JSC {
     )
 
 
-const int maxOpcodeLength = 40;
 #if ENABLE(C_LOOP)
 const int numOpcodeIDs = NUMBER_OF_BYTECODE_IDS + NUMBER_OF_CLOOP_BYTECODE_HELPER_IDS + NUMBER_OF_BYTECODE_HELPER_IDS;
 #else
@@ -88,6 +88,11 @@ extern const unsigned wasmOpcodeLengths[];
     FOR_EACH_WASM_ID(OPCODE_ID_LENGTHS);
 #undef OPCODE_ID_LENGTHS
 
+static constexpr unsigned maxJSOpcodeLength = /* Opcode */ 1 + /* Wide32 Opcode */ 1 + /* Operands */ (MAX_LENGTH_OF_BYTECODE_IDS - 1) * 4;
+static constexpr unsigned maxWasmOpcodeLength = /* Opcode */ 1 + /* Wide32 Opcode */ 1 + /* Operands */ (MAX_LENGTH_OF_WASM_IDS - 1) * 4;
+static constexpr unsigned maxOpcodeLength = std::max(maxJSOpcodeLength, maxWasmOpcodeLength);
+static constexpr unsigned bitWidthForMaxOpcodeLength = WTF::getMSBSetConstexpr(maxOpcodeLength) + 1;
+
 #define FOR_EACH_OPCODE_WITH_VALUE_PROFILE(macro) \
     macro(OpCallVarargs) \
     macro(OpTailCallVarargs) \
@@ -100,8 +105,10 @@ extern const unsigned wasmOpcodeLengths[];
     macro(OpTryGetById) \
     macro(OpGetByIdDirect) \
     macro(OpGetByValWithThis) \
+    macro(OpGetPrototypeOf) \
     macro(OpGetFromArguments) \
     macro(OpToNumber) \
+    macro(OpToNumeric) \
     macro(OpToObject) \
     macro(OpGetArgument) \
     macro(OpGetInternalField) \
@@ -142,6 +149,9 @@ extern const unsigned wasmOpcodeLengths[];
     macro(OpTailCall) \
     macro(OpCallEval) \
     macro(OpConstruct) \
+    macro(OpIteratorOpen) \
+    macro(OpIteratorNext) \
+
 
 IGNORE_WARNINGS_BEGIN("type-limits")
 

@@ -43,10 +43,18 @@ class AbstractDOMWindow;
 class AbstractFrame;
 
 class JSWindowProxy final : public JSC::JSProxy {
-    using Base = JSC::JSProxy;
 public:
-    static JSWindowProxy& create(JSC::VM&, AbstractDOMWindow&, DOMWrapperWorld&);
+    using Base = JSC::JSProxy;
+    static constexpr bool needsDestruction = true;
     static void destroy(JSCell*);
+
+    template<typename CellType, JSC::SubspaceAccess>
+    static JSC::IsoSubspace* subspaceFor(JSC::VM& vm)
+    {
+        return subspaceForImpl(vm);
+    }
+
+    static JSWindowProxy& create(JSC::VM&, AbstractDOMWindow&, DOMWrapperWorld&);
 
     DECLARE_INFO;
 
@@ -66,6 +74,7 @@ public:
 private:
     JSWindowProxy(JSC::VM&, JSC::Structure&, DOMWrapperWorld&);
     void finishCreation(JSC::VM&, AbstractDOMWindow&);
+    static JSC::IsoSubspace* subspaceForImpl(JSC::VM&);
 
     Ref<DOMWrapperWorld> m_world;
 };

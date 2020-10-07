@@ -108,7 +108,7 @@ rect: style.getPropertyValue(column-span) : none
 rect: style.getPropertyCSSValue(column-span) : [object CSSPrimitiveValue]
 rect: style.getPropertyValue(column-width) : auto
 rect: style.getPropertyCSSValue(column-width) : [object CSSPrimitiveValue]
-rect: style.getPropertyValue(content) : 
+rect: style.getPropertyValue(content) :
 rect: style.getPropertyCSSValue(content) : [object CSSValueList]
 rect: style.getPropertyValue(counter-increment) : none
 rect: style.getPropertyCSSValue(counter-increment) : [object CSSPrimitiveValue]
@@ -464,14 +464,6 @@ rect: style.getPropertyValue(-webkit-margin-after-collapse) : collapse
 rect: style.getPropertyCSSValue(-webkit-margin-after-collapse) : [object CSSPrimitiveValue]
 rect: style.getPropertyValue(-webkit-margin-before-collapse) : collapse
 rect: style.getPropertyCSSValue(-webkit-margin-before-collapse) : [object CSSPrimitiveValue]
-rect: style.getPropertyValue(-webkit-marquee-direction) : auto
-rect: style.getPropertyCSSValue(-webkit-marquee-direction) : [object CSSPrimitiveValue]
-rect: style.getPropertyValue(-webkit-marquee-increment) : 6px
-rect: style.getPropertyCSSValue(-webkit-marquee-increment) : [object CSSPrimitiveValue]
-rect: style.getPropertyValue(-webkit-marquee-repetition) : infinite
-rect: style.getPropertyCSSValue(-webkit-marquee-repetition) : [object CSSPrimitiveValue]
-rect: style.getPropertyValue(-webkit-marquee-style) : scroll
-rect: style.getPropertyCSSValue(-webkit-marquee-style) : [object CSSPrimitiveValue]
 rect: style.getPropertyValue(-webkit-mask-box-image) : none
 rect: style.getPropertyCSSValue(-webkit-mask-box-image) : [object CSSPrimitiveValue]
 rect: style.getPropertyValue(-webkit-mask-box-image-outset) : 0px
@@ -638,7 +630,7 @@ g: style.getPropertyValue(column-span) : none
 g: style.getPropertyCSSValue(column-span) : [object CSSPrimitiveValue]
 g: style.getPropertyValue(column-width) : auto
 g: style.getPropertyCSSValue(column-width) : [object CSSPrimitiveValue]
-g: style.getPropertyValue(content) : 
+g: style.getPropertyValue(content) :
 g: style.getPropertyCSSValue(content) : [object CSSValueList]
 g: style.getPropertyValue(counter-increment) : none
 g: style.getPropertyCSSValue(counter-increment) : [object CSSPrimitiveValue]
@@ -994,14 +986,6 @@ g: style.getPropertyValue(-webkit-margin-after-collapse) : collapse
 g: style.getPropertyCSSValue(-webkit-margin-after-collapse) : [object CSSPrimitiveValue]
 g: style.getPropertyValue(-webkit-margin-before-collapse) : collapse
 g: style.getPropertyCSSValue(-webkit-margin-before-collapse) : [object CSSPrimitiveValue]
-g: style.getPropertyValue(-webkit-marquee-direction) : auto
-g: style.getPropertyCSSValue(-webkit-marquee-direction) : [object CSSPrimitiveValue]
-g: style.getPropertyValue(-webkit-marquee-increment) : 6px
-g: style.getPropertyCSSValue(-webkit-marquee-increment) : [object CSSPrimitiveValue]
-g: style.getPropertyValue(-webkit-marquee-repetition) : infinite
-g: style.getPropertyCSSValue(-webkit-marquee-repetition) : [object CSSPrimitiveValue]
-g: style.getPropertyValue(-webkit-marquee-style) : scroll
-g: style.getPropertyCSSValue(-webkit-marquee-style) : [object CSSPrimitiveValue]
 g: style.getPropertyValue(-webkit-mask-box-image) : none
 g: style.getPropertyCSSValue(-webkit-mask-box-image) : [object CSSPrimitiveValue]
 g: style.getPropertyValue(-webkit-mask-box-image-outset) : 0px

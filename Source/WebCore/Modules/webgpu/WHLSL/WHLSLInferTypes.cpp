@@ -26,7 +26,7 @@
 #include "config.h"
 #include "WHLSLInferTypes.h"
 
-#if ENABLE(WEBGPU)
+#if ENABLE(WHLSL_COMPILER)
 
 #include "WHLSLArrayReferenceType.h"
 #include "WHLSLArrayType.h"
@@ -50,7 +50,7 @@ static bool matches(const AST::Type& unifyThis, const AST::Type& unifyOther)
         return true;
 
     if (is<AST::NamedType>(unifyThis) && is<AST::NamedType>(unifyOther)) {
-#if !ASSERT_DISABLED
+#if ASSERT_ENABLED
         auto& namedThis = downcast<AST::NamedType>(unifyThis);
         auto& namedOther = downcast<AST::NamedType>(unifyOther);
         ASSERT(!is<AST::TypeDefinition>(namedThis) && !is<AST::TypeDefinition>(namedOther));
@@ -224,4 +224,4 @@ bool inferTypesForCall(AST::FunctionDeclaration& possibleFunction, Vector<std::r
 
 } // namespace WebCore
 
-#endif // ENABLE(WEBGPU)
+#endif // ENABLE(WHLSL_COMPILER)

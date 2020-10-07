@@ -26,15 +26,16 @@
 #include "WebKitWebContextPrivate.h"
 #include "WebKitWebViewPrivate.h"
 #include "WebsiteDataStore.h"
+#include <WebCore/UserAgent.h>
 #include <wtf/glib/GRefPtr.h>
 #include <wtf/text/CString.h>
 
 using namespace WebCore;
 using namespace WebKit;
 
-class DownloadClient final : public API::DownloadClient {
+class LegacyDownloadClient final : public API::DownloadClient {
 public:
-    explicit DownloadClient(WebKitWebContext* webContext)
+    explicit LegacyDownloadClient(WebKitWebContext* webContext)
         : m_webContext(webContext)
     {
     }
@@ -45,6 +46,17 @@ private:
         GRefPtr<WebKitDownload> download = webkitWebContextGetOrCreateDownload(&downloadProxy);
         webkitDownloadStarted(download.get());
         webkitWebContextDownloadStarted(m_webContext, download.get());
+    }
+
+    void willSendRequest(DownloadProxy& downloadProxy, ResourceRequest&& request, const ResourceResponse&, CompletionHandler<void(ResourceRequest&&)>&& completionHandler) override
+    {
+        if (!request.hasHTTPHeaderField(HTTPHeaderName::UserAgent)) {
+            GRefPtr<WebKitDownload> download = webkitWebContextGetOrCreateDownload(&downloadProxy);
+            auto* webView = webkit_download_get_web_view(download.get());
+            request.setHTTPUserAgent(webView ? webkitWebViewGetPage(webView).userAgentForURL(request.url()) : WebPageProxy::standardUserAgent());
+        }
+
+        completionHandler(WTFMove(request));
     }
 
     void didReceiveAuthenticationChallenge(DownloadProxy& downloadProxy, AuthenticationChallengeProxy& authenticationChallenge) override
@@ -68,7 +80,7 @@ private:
         webkitDownloadSetResponse(download.get(), response.get());
     }
 
-    void didReceiveData(DownloadProxy& downloadProxy, uint64_t length) override
+    void didReceiveData(DownloadProxy& downloadProxy, uint64_t length, uint64_t, uint64_t) override
     {
         GRefPtr<WebKitDownload> download = webkitWebContextGetOrCreateDownload(&downloadProxy);
         webkitDownloadNotifyProgress(download.get(), length);
@@ -118,5 +130,5 @@ private:
 
 void attachDownloadClientToContext(WebKitWebContext* webContext)
 {
-    webkitWebContextGetProcessPool(webContext).setDownloadClient(makeUniqueRef<DownloadClient>(webContext));
+    webkitWebContextGetProcessPool(webContext).setLegacyDownloadClient(adoptRef(*new LegacyDownloadClient(webContext)));
 }

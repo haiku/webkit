@@ -79,12 +79,13 @@ ALL PROPERTIES:
     reduce
     reduceRight
     map
-    entries
     keys
+    entries
     find
     findIndex
     includes
     copyWithin
+    item
     constructor
     Symbol(Symbol.iterator)
     Symbol(Symbol.unscopables)
@@ -132,12 +133,13 @@ OWN PROPERTIES:
     reduce
     reduceRight
     map
-    entries
     keys
+    entries
     find
     findIndex
     includes
     copyWithin
+    item
     constructor
     Symbol(Symbol.iterator)
     Symbol(Symbol.unscopables)
@@ -170,12 +172,13 @@ DISPLAYABLE PROPERTIES:
     reduce
     reduceRight
     map
-    entries
     keys
+    entries
     find
     findIndex
     includes
     copyWithin
+    item
     constructor
     Symbol(Symbol.iterator)
     Symbol(Symbol.unscopables)
@@ -208,12 +211,13 @@ ALL PROPERTIES:
     reduce
     reduceRight
     map
-    entries
     keys
+    entries
     find
     findIndex
     includes
     copyWithin
+    item
     constructor
     Symbol(Symbol.iterator)
     Symbol(Symbol.unscopables)
@@ -277,6 +281,7 @@ ALL PROPERTIES:
     CAPTURING_PHASE
     AT_TARGET
     BUBBLING_PHASE
+    Symbol(Symbol.toStringTag)
     toString
     toLocaleString
     valueOf
@@ -407,8 +412,8 @@ description: function unboundFunction() {
 }
 
 OWN PROPERTIES:
-    name
     length
+    name
     __proto__
     targetFunction
     boundThis
@@ -520,6 +525,7 @@ ALL PROPERTIES:
     item
     namedItem
     Symbol(Symbol.iterator)
+    Symbol(Symbol.toStringTag)
     toString
     toLocaleString
     valueOf

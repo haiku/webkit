@@ -127,7 +127,7 @@ void ChromeClientHaiku::focusedFrameChanged(Frame*)
     notImplemented();
 }
 
-Page* ChromeClientHaiku::createWindow(Frame& /*frame*/, const FrameLoadRequest& /*request*/, const WindowFeatures& features, const NavigationAction& /*action*/)
+Page* ChromeClientHaiku::createWindow(Frame& /*frame*/, const WindowFeatures& features, const NavigationAction& /*action*/)
 {
 	// FIXME: I believe the frame is important for cloning session information.
 	// From looking through the Chromium port code, it is passed to the
@@ -307,19 +307,15 @@ void ChromeClientHaiku::invalidateContentsAndRootView(const IntRect& rect)
     m_webPage->draw(BRect(rect));
 }
 
-void ChromeClientHaiku::invalidateContentsForSlowScroll(const IntRect&)
+void ChromeClientHaiku::invalidateContentsForSlowScroll(const IntRect& rect)
 {
-	// We can ignore this, since we implement fast scrolling.
+	m_webPage->draw(BRect(rect));
 }
 
 void ChromeClientHaiku::scroll(const IntSize& scrollDelta,
                                const IntRect& rectToScroll,
                                const IntRect& clipRect)
 {
-    if (!m_webView->IsComposited()) {
-        m_webPage->scroll(scrollDelta.width(), scrollDelta.height(),
-            rectToScroll, clipRect);
-    }
 }
 
 #if USE(TILED_BACKING_STORE)
@@ -369,7 +365,7 @@ void ChromeClientHaiku::scrollRectIntoView(const IntRect&) const
     // NOTE: Used for example to make the view scroll with the mouse when selecting.
 }
 
-void ChromeClientHaiku::mouseDidMoveOverElement(const HitTestResult& result, unsigned /*modifierFlags*/)
+void ChromeClientHaiku::mouseDidMoveOverElement(const WebCore::HitTestResult& result, unsigned int, const WTF::String& tip, WebCore::TextDirection)
 {
     TextDirection dir;
     if (result.absoluteLinkURL() != lastHoverURL
@@ -380,10 +376,7 @@ void ChromeClientHaiku::mouseDidMoveOverElement(const HitTestResult& result, uns
         lastHoverContent = result.textContent();
         m_webPage->linkHovered(lastHoverURL.string(), lastHoverTitle, lastHoverContent);
     }
-}
 
-void ChromeClientHaiku::setToolTip(const String& tip, TextDirection)
-{
 	if (!m_webView->LockLooper())
 		return;
 
@@ -513,7 +506,7 @@ void ChromeClientHaiku::setNeedsOneShotDrawingSynchronization()
     notImplemented();
 }
 
-void ChromeClientHaiku::scheduleCompositingLayerFlush()
+void ChromeClientHaiku::scheduleRenderingUpdate()
 {
     // Don't do anything if the view isn't ready yet.
     if (!m_webView->LockLooper())
@@ -531,6 +524,12 @@ WebCore::IntPoint ChromeClientHaiku::accessibilityScreenToRootView(WebCore::IntP
 WebCore::IntRect ChromeClientHaiku::rootViewToAccessibilityScreen(WebCore::IntRect const& rect) const
 {
 	return rect;
+}
+
+
+std::unique_ptr<WebCore::DateTimeChooser> ChromeClientHaiku::createDateTimeChooser(WebCore::DateTimeChooserClient& client)
+{
+    return std::make_unique<DateTimeChooserHaiku>(&client);
 }
 
 } // namespace WebCore

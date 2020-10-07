@@ -57,6 +57,7 @@ namespace WebCore {
 
         void cancel() override;
         virtual void setDefersLoading(bool);
+        void computeIsDone() final;
 
         friend CrossOriginPreflightChecker;
         friend class InspectorInstrumentation;
@@ -86,7 +87,7 @@ namespace WebCore {
         void redirectReceived(CachedResource&, ResourceRequest&&, const ResourceResponse&, CompletionHandler<void(ResourceRequest&&)>&&) override;
         void finishedTimingForWorkerLoad(CachedResource&, const ResourceTiming&) override;
         void finishedTimingForWorkerLoad(const ResourceTiming&);
-        void notifyFinished(CachedResource&) override;
+        void notifyFinished(CachedResource&, const NetworkLoadMetrics&) override;
 
         void didReceiveResponse(unsigned long identifier, const ResourceResponse&);
         void didReceiveData(unsigned long identifier, const char* data, int dataLength);
@@ -123,6 +124,7 @@ namespace WebCore {
         ThreadableLoaderClient* m_client;
         Document& m_document;
         ThreadableLoaderOptions m_options;
+        bool m_responsesCanBeOpaque { true };
         RefPtr<SecurityOrigin> m_origin;
         String m_referrer;
         bool m_sameOriginRequest;

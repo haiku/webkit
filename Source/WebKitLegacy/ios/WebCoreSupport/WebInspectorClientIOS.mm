@@ -123,11 +123,13 @@ WebInspectorFrontendClient::WebInspectorFrontendClient(WebView* inspectedWebView
 
 void WebInspectorFrontendClient::attachAvailabilityChanged(bool) { }
 void WebInspectorFrontendClient::frontendLoaded() { }
-String WebInspectorFrontendClient::localizedStringsURL() { return String(); }
+String WebInspectorFrontendClient::localizedStringsURL() const { return String(); }
 void WebInspectorFrontendClient::bringToFront() { }
 void WebInspectorFrontendClient::closeWindow() { }
 void WebInspectorFrontendClient::reopen() { }
 void WebInspectorFrontendClient::resetState() { }
+void WebInspectorFrontendClient::setForcedAppearance(InspectorFrontendClient::Appearance) { }
+bool WebInspectorFrontendClient::supportsDockSide(DockSide) { return false; }
 void WebInspectorFrontendClient::attachWindow(DockSide) { }
 void WebInspectorFrontendClient::detachWindow() { }
 void WebInspectorFrontendClient::setAttachedWindowHeight(unsigned) { }

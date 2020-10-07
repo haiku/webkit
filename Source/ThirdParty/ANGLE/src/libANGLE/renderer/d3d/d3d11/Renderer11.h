@@ -341,6 +341,7 @@ class Renderer11 : public RendererD3D
     angle::Result getSamplerState(const gl::Context *context,
                                   const gl::SamplerState &samplerState,
                                   ID3D11SamplerState **outSamplerState);
+    UINT getSampleDescQuality(GLuint supportedSamples) const;
 
     Blit11 *getBlitter() { return mBlit; }
     Clear11 *getClearer() { return mClear; }
@@ -350,6 +351,7 @@ class Renderer11 : public RendererD3D
     bool supportsFastCopyBufferToTexture(GLenum internalFormat) const override;
     angle::Result fastCopyBufferToTexture(const gl::Context *context,
                                           const gl::PixelUnpackState &unpack,
+                                          gl::Buffer *unpackBuffer,
                                           unsigned int offset,
                                           RenderTargetD3D *destRenderTarget,
                                           GLenum destinationFormat,
@@ -372,6 +374,7 @@ class Renderer11 : public RendererD3D
                                          const gl::VertexBinding &binding,
                                          size_t count,
                                          GLsizei instances,
+                                         GLuint baseInstance,
                                          unsigned int *bytesRequiredOut) const override;
 
     angle::Result readFromAttachment(const gl::Context *context,

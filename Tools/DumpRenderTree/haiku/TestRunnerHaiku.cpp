@@ -196,12 +196,12 @@ void TestRunner::setScrollbarPolicy(JSStringRef, JSStringRef)
     notImplemented();
 }
 
-void TestRunner::addOriginAccessWhitelistEntry(JSStringRef sourceOrigin, JSStringRef protocol, JSStringRef host, bool includeSubdomains)
+void TestRunner::addOriginAccessAllowListEntry(JSStringRef sourceOrigin, JSStringRef protocol, JSStringRef host, bool includeSubdomains)
 {
     notImplemented();
 }
 
-void TestRunner::removeOriginAccessWhitelistEntry(JSStringRef sourceOrigin, JSStringRef protocol, JSStringRef host, bool includeSubdomains)
+void TestRunner::removeOriginAccessAllowListEntry(JSStringRef sourceOrigin, JSStringRef protocol, JSStringRef host, bool includeSubdomains)
 {
     notImplemented();
 }
@@ -636,11 +636,6 @@ unsigned TestRunner::imageCountInGeneralPasteboard() const
 void TestRunner::setSpellCheckerLoggingEnabled(bool enabled)
 {
     printf("ERROR: TestRunner::setSpellCheckerLoggingEnabled() not implemented\n");
-}
-
-void TestRunner::setSpellCheckerResults(JSContextRef, JSObjectRef)
-{
-    fprintf(testResult, "ERROR: TestRunner::setSpellCheckerResults() not implemented\n");
 }
 
 void TestRunner::resetPageVisibility()

@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
-import itertools
 import logging
 import os
 import subprocess
 import time
 
-from osx_browser_driver import OSXBrowserDriver
+from webkitpy.benchmark_runner.browser_driver.osx_browser_driver import OSXBrowserDriver
 from webkitpy.benchmark_runner.utils import force_remove
 
 
@@ -32,7 +31,7 @@ class OSXSafariDriver(OSXBrowserDriver):
             safari_app_in_build_path = os.path.join(browser_build_absolute_path, 'Safari.app/Contents/MacOS/Safari')
             has_safari_app = os.path.exists(safari_app_in_build_path)
             content_in_path = os.listdir(browser_build_absolute_path)
-            contains_frameworks = any(itertools.imap(lambda entry: entry.endswith('.framework'), os.listdir(browser_build_absolute_path)))
+            contains_frameworks = any(map(lambda entry: entry.endswith('.framework'), os.listdir(browser_build_absolute_path)))
 
             if has_safari_app:
                 args = [safari_app_in_build_path]
@@ -72,7 +71,6 @@ class OSXSafariDriver(OSXBrowserDriver):
         subprocess.Popen(['open', '-a', args[0], url])
 
     def launch_driver(self, url, options, browser_build_path):
-        import webkitpy.thirdparty.autoinstalled.selenium
         from selenium import webdriver
         driver = webdriver.Safari(quiet=False)
         self._launch_webdriver(url=url, driver=driver)

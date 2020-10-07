@@ -32,6 +32,7 @@
 #import "WebFrameInternal.h"
 #import "WebScriptDebugDelegate.h"
 #import "WebViewInternal.h"
+#import <JavaScriptCore/Breakpoint.h>
 #import <JavaScriptCore/DebuggerCallFrame.h>
 #import <JavaScriptCore/JSGlobalObject.h>
 #import <JavaScriptCore/SourceProvider.h>
@@ -54,14 +55,6 @@ static NSString *toNSString(JSC::SourceProvider* sourceProvider)
     return sourceString;
 }
 
-// Convert String to NSURL.
-static NSURL *toNSURL(const String& s)
-{
-    if (s.isEmpty())
-        return nil;
-    return URL({ }, s);
-}
-
 static WebFrame *toWebFrame(JSC::JSGlobalObject* globalObject)
 {
     WebCore::JSDOMWindow* window = static_cast<WebCore::JSDOMWindow*>(globalObject);
@@ -73,7 +66,7 @@ WebScriptDebugger::WebScriptDebugger(JSC::JSGlobalObject* globalObject)
     , m_callingDelegate(false)
     , m_globalObject(globalObject->vm(), globalObject)
 {
-    setPauseOnExceptionsState(PauseOnAllExceptions);
+    setPauseOnAllExceptionsBreakpoint(JSC::Breakpoint::create(JSC::noBreakpointID));
     deactivateBreakpoints();
     attach(globalObject);
 }
@@ -87,7 +80,7 @@ void WebScriptDebugger::sourceParsed(JSC::JSGlobalObject* lexicalGlobalObject, J
     m_callingDelegate = true;
 
     NSString *nsSource = toNSString(sourceProvider);
-    NSURL *nsURL = toNSURL(sourceProvider->url());
+    NSURL *nsURL = sourceProvider->sourceOrigin().url();
     int firstLine = sourceProvider->startPosition().m_line.oneBasedInt();
 
     JSC::VM& vm = lexicalGlobalObject->vm();
@@ -104,7 +97,7 @@ void WebScriptDebugger::sourceParsed(JSC::JSGlobalObject* lexicalGlobalObject, J
         }
     } else {
         NSString* nsErrorMessage = nsStringNilIfEmpty(errorMsg);
-        NSDictionary *info = [[NSDictionary alloc] initWithObjectsAndKeys:nsErrorMessage, WebScriptErrorDescriptionKey, [NSNumber numberWithUnsignedInt:errorLine], WebScriptErrorLineNumberKey, nil];
+        NSDictionary *info = [[NSDictionary alloc] initWithObjectsAndKeys:nsErrorMessage, WebScriptErrorDescriptionKey, @(errorLine), WebScriptErrorLineNumberKey, nil];
         NSError *error = [[NSError alloc] initWithDomain:WebScriptErrorDomain code:WebScriptGeneralErrorCode userInfo:info];
 
         if (implementations->failedToParseSourceFunc)

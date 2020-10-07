@@ -102,6 +102,9 @@
     if (!_handleEditingReplacement)
         return;
 
+    if (!items.count)
+        return;
+
     Vector<String> types;
     IPC::DataReference dataReference;
 
@@ -129,7 +132,7 @@
     }
 
     // FIXME: We should adopt replaceSelectionWithAttributedString instead of bouncing through the (fake) pasteboard.
-    _menuProxy->page().replaceSelectionWithPasteboardData(types, dataReference);
+    _menuProxy->page()->replaceSelectionWithPasteboardData(types, dataReference);
 }
 
 - (NSWindow *)sharingService:(NSSharingService *)sharingService sourceWindowForShareItems:(NSArray *)items sharingContentScope:(NSSharingContentScope *)sharingContentScope
@@ -140,4 +143,3 @@
 @end
 
 #endif // ENABLE(SERVICE_CONTROLS)
-

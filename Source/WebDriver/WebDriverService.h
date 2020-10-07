@@ -45,6 +45,7 @@ public:
 
     int run(int argc, char** argv);
 
+    static void platformInit();
     static bool platformCompareBrowserVersions(const String&, const String&);
 
 private:
@@ -75,6 +76,7 @@ private:
     void closeWindow(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
     void switchToWindow(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
     void getWindowHandles(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
+    void newWindow(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
     void switchToFrame(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
     void switchToParentFrame(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
     void getWindowRect(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
@@ -99,6 +101,7 @@ private:
     void elementClick(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
     void elementClear(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
     void elementSendKeys(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
+    void getPageSource(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
     void executeScript(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
     void executeAsyncScript(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
     void getAllCookies(RefPtr<JSON::Object>&&, Function<void (CommandResult&&)>&&);
@@ -120,8 +123,9 @@ private:
     RefPtr<JSON::Object> validatedCapabilities(const JSON::Object&) const;
     RefPtr<JSON::Object> mergeCapabilities(const JSON::Object&, const JSON::Object&) const;
     RefPtr<JSON::Object> matchCapabilities(const JSON::Object&) const;
-    bool platformValidateCapability(const String&, const RefPtr<JSON::Value>&) const;
-    bool platformMatchCapability(const String&, const RefPtr<JSON::Value>&) const;
+    bool platformValidateCapability(const String&, const Ref<JSON::Value>&) const;
+    bool platformMatchCapability(const String&, const Ref<JSON::Value>&) const;
+    bool platformSupportProxyType(const String&) const;
     void parseCapabilities(const JSON::Object& desiredCapabilities, Capabilities&) const;
     void platformParseCapabilities(const JSON::Object& desiredCapabilities, Capabilities&) const;
     void connectToBrowser(Vector<Capabilities>&&, Function<void (CommandResult&&)>&&);
@@ -133,6 +137,11 @@ private:
 
     HTTPServer m_server;
     RefPtr<Session> m_session;
+
+#if USE(INSPECTOR_SOCKET_SERVER)
+    String m_targetAddress;
+    uint16_t m_targetPort { 0 };
+#endif
 };
 
 } // namespace WebDriver

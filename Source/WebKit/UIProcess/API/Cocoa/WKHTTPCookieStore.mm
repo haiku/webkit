@@ -26,22 +26,22 @@
 #import "config.h"
 #import "WKHTTPCookieStoreInternal.h"
 
-#import "HTTPCookieAcceptPolicy.h"
 #import <WebCore/Cookie.h>
+#import <WebCore/HTTPCookieAcceptPolicy.h>
+#import <WebCore/HTTPCookieAcceptPolicyCocoa.h>
 #import <pal/spi/cf/CFNetworkSPI.h>
+#import <wtf/BlockPtr.h>
 #import <wtf/HashMap.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/URL.h>
 #import <wtf/WeakObjCPtr.h>
+#import <wtf/cocoa/VectorCocoa.h>
 
 static NSArray<NSHTTPCookie *> *coreCookiesToNSCookies(const Vector<WebCore::Cookie>& coreCookies)
 {
-    NSMutableArray<NSHTTPCookie *> *nsCookies = [NSMutableArray arrayWithCapacity:coreCookies.size()];
-
-    for (auto& cookie : coreCookies)
-        [nsCookies addObject:(NSHTTPCookie *)cookie];
-
-    return nsCookies;
+    return createNSArray(coreCookies, [] (auto& cookie) -> NSHTTPCookie * {
+        return cookie;
+    }).autorelease();
 }
 
 class WKHTTPCookieStoreObserver : public API::HTTPCookieStore::Observer {
@@ -126,6 +126,31 @@ private:
 - (API::Object&)_apiObject
 {
     return *_cookieStore;
+}
+
+@end
+
+@implementation WKHTTPCookieStore (WKPrivate)
+
+- (void)_getCookiesForURL:(NSURL *)url completionHandler:(void (^)(NSArray<NSHTTPCookie *> *))completionHandler
+{
+    _cookieStore->cookiesForURL(url, [handler = makeBlockPtr(completionHandler)] (const Vector<WebCore::Cookie>& cookies) {
+        handler.get()(coreCookiesToNSCookies(cookies));
+    });
+}
+
+- (void)_setCookieAcceptPolicy:(NSHTTPCookieAcceptPolicy)policy completionHandler:(void (^)())completionHandler
+{
+    _cookieStore->setHTTPCookieAcceptPolicy(WebCore::toHTTPCookieAcceptPolicy(policy), [completionHandler = makeBlockPtr(completionHandler)] {
+        completionHandler.get()();
+    });
+}
+
+- (void)_flushCookiesToDiskWithCompletionHandler:(void(^)(void))completionHandler
+{
+    _cookieStore->flushCookies([completionHandler = makeBlockPtr(completionHandler)]() {
+        completionHandler();
+    });
 }
 
 @end

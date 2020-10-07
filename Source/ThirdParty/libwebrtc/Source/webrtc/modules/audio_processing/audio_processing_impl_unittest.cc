@@ -10,17 +10,22 @@
 
 #include "modules/audio_processing/audio_processing_impl.h"
 
+#include <memory>
+
+#include "api/scoped_refptr.h"
 #include "modules/audio_processing/include/audio_processing.h"
+#include "modules/audio_processing/test/echo_control_mock.h"
 #include "modules/audio_processing/test/test_utils.h"
-#include "rtc_base/refcountedobject.h"
-#include "rtc_base/scoped_ref_ptr.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/ref_counted_object.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
-using ::testing::Invoke;
-
 namespace webrtc {
 namespace {
+
+using ::testing::Invoke;
+using ::testing::NotNull;
 
 class MockInitialize : public AudioProcessingImpl {
  public:
@@ -34,6 +39,30 @@ class MockInitialize : public AudioProcessingImpl {
 
   MOCK_CONST_METHOD0(AddRef, void());
   MOCK_CONST_METHOD0(Release, rtc::RefCountReleaseStatus());
+};
+
+// Creates MockEchoControl instances and provides a raw pointer access to
+// the next created one. The raw pointer is meant to be used with gmock.
+// Returning a pointer of the next created MockEchoControl instance is necessary
+// for the following reasons: (i) gmock expectations must be set before any call
+// occurs, (ii) APM is initialized the first time that
+// AudioProcessingImpl::ProcessStream() is called and the initialization leads
+// to the creation of a new EchoControl object.
+class MockEchoControlFactory : public EchoControlFactory {
+ public:
+  MockEchoControlFactory() : next_mock_(std::make_unique<MockEchoControl>()) {}
+  // Returns a pointer to the next MockEchoControl that this factory creates.
+  MockEchoControl* GetNext() const { return next_mock_.get(); }
+  std::unique_ptr<EchoControl> Create(int sample_rate_hz,
+                                      int num_render_channels,
+                                      int num_capture_channels) override {
+    std::unique_ptr<EchoControl> mock = std::move(next_mock_);
+    next_mock_ = std::make_unique<MockEchoControl>();
+    return mock;
+  }
+
+ private:
+  std::unique_ptr<MockEchoControl> next_mock_;
 };
 
 void InitializeAudioFrame(size_t input_rate,
@@ -100,12 +129,12 @@ class TestRenderPreProcessor : public CustomProcessing {
   void Initialize(int sample_rate_hz, int num_channels) override {}
   void Process(AudioBuffer* audio) override {
     for (size_t k = 0; k < audio->num_channels(); ++k) {
-      rtc::ArrayView<float> channel_view(audio->channels_f()[k],
+      rtc::ArrayView<float> channel_view(audio->channels()[k],
                                          audio->num_frames());
       std::transform(channel_view.begin(), channel_view.end(),
                      channel_view.begin(), ProcessSample);
     }
-  };
+  }
   std::string ToString() const override { return "TestRenderPreProcessor"; }
   void SetRuntimeSetting(AudioProcessing::RuntimeSetting setting) override {}
   // Modifies a sample. This member is used in Process() to modify a frame and
@@ -183,6 +212,151 @@ TEST(AudioProcessingImplTest, UpdateCapturePreGainRuntimeSetting) {
       << "Frame should be amplified.";
 }
 
+TEST(AudioProcessingImplTest,
+     EchoControllerObservesPreAmplifierEchoPathGainChange) {
+  // Tests that the echo controller observes an echo path gain change when the
+  // pre-amplifier submodule changes the gain.
+  auto echo_control_factory = std::make_unique<MockEchoControlFactory>();
+  const auto* echo_control_factory_ptr = echo_control_factory.get();
+
+  std::unique_ptr<AudioProcessing> apm(
+      AudioProcessingBuilder()
+          .SetEchoControlFactory(std::move(echo_control_factory))
+          .Create());
+  // Disable AGC.
+  webrtc::AudioProcessing::Config apm_config;
+  apm_config.gain_controller1.enabled = false;
+  apm_config.gain_controller2.enabled = false;
+  apm_config.pre_amplifier.enabled = true;
+  apm_config.pre_amplifier.fixed_gain_factor = 1.f;
+  apm->ApplyConfig(apm_config);
+
+  AudioFrame frame;
+  constexpr int16_t kAudioLevel = 10000;
+  constexpr size_t kSampleRateHz = 48000;
+  constexpr size_t kNumChannels = 2;
+  InitializeAudioFrame(kSampleRateHz, kNumChannels, &frame);
+  FillFixedFrame(kAudioLevel, &frame);
+
+  MockEchoControl* echo_control_mock = echo_control_factory_ptr->GetNext();
+
+  EXPECT_CALL(*echo_control_mock, AnalyzeCapture(testing::_)).Times(1);
+  EXPECT_CALL(*echo_control_mock,
+              ProcessCapture(NotNull(), testing::_, /*echo_path_change=*/false))
+      .Times(1);
+  apm->ProcessStream(&frame);
+
+  EXPECT_CALL(*echo_control_mock, AnalyzeCapture(testing::_)).Times(1);
+  EXPECT_CALL(*echo_control_mock,
+              ProcessCapture(NotNull(), testing::_, /*echo_path_change=*/true))
+      .Times(1);
+  apm->SetRuntimeSetting(
+      AudioProcessing::RuntimeSetting::CreateCapturePreGain(2.f));
+  apm->ProcessStream(&frame);
+}
+
+TEST(AudioProcessingImplTest,
+     EchoControllerObservesAnalogAgc1EchoPathGainChange) {
+  // Tests that the echo controller observes an echo path gain change when the
+  // AGC1 analog adaptive submodule changes the analog gain.
+  auto echo_control_factory = std::make_unique<MockEchoControlFactory>();
+  const auto* echo_control_factory_ptr = echo_control_factory.get();
+
+  std::unique_ptr<AudioProcessing> apm(
+      AudioProcessingBuilder()
+          .SetEchoControlFactory(std::move(echo_control_factory))
+          .Create());
+  webrtc::AudioProcessing::Config apm_config;
+  // Enable AGC1.
+  apm_config.gain_controller1.enabled = true;
+  apm_config.gain_controller1.mode =
+      AudioProcessing::Config::GainController1::kAdaptiveAnalog;
+  apm_config.gain_controller2.enabled = false;
+  apm_config.pre_amplifier.enabled = false;
+  apm->ApplyConfig(apm_config);
+
+  AudioFrame frame;
+  constexpr int16_t kAudioLevel = 1000;
+  constexpr size_t kSampleRateHz = 48000;
+  constexpr size_t kNumChannels = 2;
+  InitializeAudioFrame(kSampleRateHz, kNumChannels, &frame);
+  FillFixedFrame(kAudioLevel, &frame);
+
+  MockEchoControl* echo_control_mock = echo_control_factory_ptr->GetNext();
+
+  const int initial_analog_gain = apm->recommended_stream_analog_level();
+  EXPECT_CALL(*echo_control_mock, AnalyzeCapture(testing::_)).Times(1);
+  EXPECT_CALL(*echo_control_mock, ProcessCapture(NotNull(), testing::_, false))
+      .Times(1);
+  apm->ProcessStream(&frame);
+
+  // Force an analog gain change if it did not happen.
+  if (initial_analog_gain == apm->recommended_stream_analog_level()) {
+    apm->set_stream_analog_level(initial_analog_gain + 1);
+  }
+
+  EXPECT_CALL(*echo_control_mock, AnalyzeCapture(testing::_)).Times(1);
+  EXPECT_CALL(*echo_control_mock, ProcessCapture(NotNull(), testing::_, true))
+      .Times(1);
+  apm->ProcessStream(&frame);
+}
+
+TEST(AudioProcessingImplTest, EchoControllerObservesPlayoutVolumeChange) {
+  // Tests that the echo controller observes an echo path gain change when a
+  // playout volume change is reported.
+  auto echo_control_factory = std::make_unique<MockEchoControlFactory>();
+  const auto* echo_control_factory_ptr = echo_control_factory.get();
+
+  std::unique_ptr<AudioProcessing> apm(
+      AudioProcessingBuilder()
+          .SetEchoControlFactory(std::move(echo_control_factory))
+          .Create());
+  // Disable AGC.
+  webrtc::AudioProcessing::Config apm_config;
+  apm_config.gain_controller1.enabled = false;
+  apm_config.gain_controller2.enabled = false;
+  apm->ApplyConfig(apm_config);
+
+  AudioFrame frame;
+  constexpr int16_t kAudioLevel = 10000;
+  constexpr size_t kSampleRateHz = 48000;
+  constexpr size_t kNumChannels = 2;
+  InitializeAudioFrame(kSampleRateHz, kNumChannels, &frame);
+  FillFixedFrame(kAudioLevel, &frame);
+
+  MockEchoControl* echo_control_mock = echo_control_factory_ptr->GetNext();
+
+  EXPECT_CALL(*echo_control_mock, AnalyzeCapture(testing::_)).Times(1);
+  EXPECT_CALL(*echo_control_mock,
+              ProcessCapture(NotNull(), testing::_, /*echo_path_change=*/false))
+      .Times(1);
+  apm->ProcessStream(&frame);
+
+  EXPECT_CALL(*echo_control_mock, AnalyzeCapture(testing::_)).Times(1);
+  EXPECT_CALL(*echo_control_mock,
+              ProcessCapture(NotNull(), testing::_, /*echo_path_change=*/false))
+      .Times(1);
+  apm->SetRuntimeSetting(
+      AudioProcessing::RuntimeSetting::CreatePlayoutVolumeChange(50));
+  apm->ProcessStream(&frame);
+
+  EXPECT_CALL(*echo_control_mock, AnalyzeCapture(testing::_)).Times(1);
+  EXPECT_CALL(*echo_control_mock,
+              ProcessCapture(NotNull(), testing::_, /*echo_path_change=*/false))
+      .Times(1);
+  apm->SetRuntimeSetting(
+      AudioProcessing::RuntimeSetting::CreatePlayoutVolumeChange(50));
+  apm->ProcessStream(&frame);
+
+  EXPECT_CALL(*echo_control_mock, AnalyzeCapture(testing::_)).Times(1);
+  EXPECT_CALL(*echo_control_mock,
+              ProcessCapture(NotNull(), testing::_, /*echo_path_change=*/true))
+      .Times(1);
+  apm->SetRuntimeSetting(
+      AudioProcessing::RuntimeSetting::CreatePlayoutVolumeChange(100));
+  apm->ProcessStream(&frame);
+}
+
 TEST(AudioProcessingImplTest, RenderPreProcessorBeforeEchoDetector) {
   // Make sure that signal changes caused by a render pre-processing sub-module
   // take place before any echo detector analysis.
@@ -204,6 +378,15 @@ TEST(AudioProcessingImplTest, RenderPreProcessorBeforeEchoDetector) {
   constexpr int16_t kAudioLevel = 1000;
   constexpr int kSampleRateHz = 16000;
   constexpr size_t kNumChannels = 1;
+  // Explicitly initialize APM to ensure no render frames are discarded.
+  const ProcessingConfig processing_config = {{
+      {kSampleRateHz, kNumChannels, /*has_keyboard=*/false},
+      {kSampleRateHz, kNumChannels, /*has_keyboard=*/false},
+      {kSampleRateHz, kNumChannels, /*has_keyboard=*/false},
+      {kSampleRateHz, kNumChannels, /*has_keyboard=*/false},
+  }};
+  apm->Initialize(processing_config);
+
   AudioFrame frame;
   InitializeAudioFrame(kSampleRateHz, kNumChannels, &frame);
 

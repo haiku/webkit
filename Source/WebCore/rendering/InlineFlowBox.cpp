@@ -451,7 +451,7 @@ bool InlineFlowBox::requiresIdeographicBaseline(const GlyphOverflowAndFallbackFo
         return false;
 
     const RenderStyle& lineStyle = this->lineStyle();
-    if (lineStyle.fontDescription().nonCJKGlyphOrientation() == NonCJKGlyphOrientation::Upright
+    if (lineStyle.fontDescription().orientation() == FontOrientation::Vertical
         || lineStyle.fontCascade().primaryFont().hasVerticalGlyphs())
         return true;
 
@@ -1141,7 +1141,7 @@ bool InlineFlowBox::nodeAtPoint(const HitTestRequest& request, HitTestResult& re
 
     if (locationInContainer.intersects(rect)) {
         renderer().updateHitTestResult(result, flipForWritingMode(locationInContainer.point() - toLayoutSize(accumulatedOffset))); // Don't add in m_x or m_y here, we want coords in the containing block's space.
-        if (result.addNodeToListBasedTestResult(renderer().element(), request, locationInContainer, rect) == HitTestProgress::Stop)
+        if (result.addNodeToListBasedTestResult(renderer().nodeForHitTest(), request, locationInContainer, rect) == HitTestProgress::Stop)
             return true;
     }
 
@@ -1367,7 +1367,7 @@ void InlineFlowBox::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint&
     LayoutRect paintRect = LayoutRect(adjustedPaintoffset, frameRect.size());
     // Shadow comes first and is behind the background and border.
     if (!renderer().boxShadowShouldBeAppliedToBackground(adjustedPaintoffset, BackgroundBleedNone, this))
-        paintBoxShadow(paintInfo, lineStyle, Normal, paintRect);
+        paintBoxShadow(paintInfo, lineStyle, ShadowStyle::Normal, paintRect);
 
     auto color = lineStyle.visitedDependentColor(CSSPropertyBackgroundColor);
     auto compositeOp = renderer().document().compositeOperatorForBackgroundColor(color, renderer());
@@ -1375,7 +1375,7 @@ void InlineFlowBox::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint&
     color = lineStyle.colorByApplyingColorFilter(color);
 
     paintFillLayers(paintInfo, color, lineStyle.backgroundLayers(), paintRect, compositeOp);
-    paintBoxShadow(paintInfo, lineStyle, Inset, paintRect);
+    paintBoxShadow(paintInfo, lineStyle, ShadowStyle::Inset, paintRect);
 
     // :first-line cannot be used to put borders on a line. Always paint borders with our
     // non-first-line style.
@@ -1438,16 +1438,16 @@ void InlineFlowBox::paintMask(PaintInfo& paintInfo, const LayoutPoint& paintOffs
     bool pushTransparencyLayer = false;
     bool compositedMask = renderer().hasLayer() && renderer().layer()->hasCompositedMask();
     bool flattenCompositingLayers = renderer().view().frameView().paintBehavior().contains(PaintBehavior::FlattenCompositingLayers);
-    CompositeOperator compositeOp = CompositeSourceOver;
+    CompositeOperator compositeOp = CompositeOperator::SourceOver;
     if (!compositedMask || flattenCompositingLayers) {
         if ((maskBoxImage && renderer().style().maskLayers().hasImage()) || renderer().style().maskLayers().next())
             pushTransparencyLayer = true;
         
-        compositeOp = CompositeDestinationIn;
+        compositeOp = CompositeOperator::DestinationIn;
         if (pushTransparencyLayer) {
-            paintInfo.context().setCompositeOperation(CompositeDestinationIn);
+            paintInfo.context().setCompositeOperation(CompositeOperator::DestinationIn);
             paintInfo.context().beginTransparencyLayer(1.0f);
-            compositeOp = CompositeSourceOver;
+            compositeOp = CompositeOperator::SourceOver;
         }
     }
 
@@ -1505,9 +1505,9 @@ InlineBox* InlineFlowBox::lastLeafDescendant() const
     return leaf;
 }
 
-RenderObject::SelectionState InlineFlowBox::selectionState()
+RenderObject::HighlightState InlineFlowBox::selectionState()
 {
-    return RenderObject::SelectionNone;
+    return RenderObject::HighlightState::None;
 }
 
 bool InlineFlowBox::canAccommodateEllipsis(bool ltr, int blockEdge, int ellipsisWidth) const

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Apple Inc. All rights reserved.
+ * Copyright (C) 2016-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -54,15 +54,19 @@
 - (void)synchronouslyGoForward;
 - (void)synchronouslyLoadHTMLString:(NSString *)html;
 - (void)synchronouslyLoadHTMLString:(NSString *)html baseURL:(NSURL *)url;
+- (void)synchronouslyLoadHTMLString:(NSString *)html preferences:(WKWebpagePreferences *)preferences;
 - (void)synchronouslyLoadRequest:(NSURLRequest *)request;
 - (void)synchronouslyLoadTestPageNamed:(NSString *)pageName;
 - (BOOL)_synchronouslyExecuteEditCommand:(NSString *)command argument:(NSString *)argument;
 - (void)expectElementTagsInOrder:(NSArray<NSString *> *)tagNames;
 - (void)expectElementCount:(NSInteger)count querySelector:(NSString *)querySelector;
 - (void)expectElementTag:(NSString *)tagName toComeBefore:(NSString *)otherTagName;
+- (BOOL)evaluateMediaQuery:(NSString *)query;
 - (NSString *)stringByEvaluatingJavaScript:(NSString *)script;
 - (id)objectByEvaluatingJavaScriptWithUserGesture:(NSString *)script;
 - (id)objectByEvaluatingJavaScript:(NSString *)script;
+- (id)objectByCallingAsyncFunction:(NSString *)script withArguments:(NSDictionary *)arguments error:(NSError **)errorOut;
+- (unsigned)waitUntilClientWidthIs:(unsigned)expectedClientWidth;
 @end
 
 @interface TestMessageHandler : NSObject <WKScriptMessageHandler>
@@ -72,17 +76,25 @@
 @interface TestWKWebView : WKWebView
 - (instancetype)initWithFrame:(CGRect)frame configuration:(WKWebViewConfiguration *)configuration processPoolConfiguration:(_WKProcessPoolConfiguration *)processPoolConfiguration;
 - (instancetype)initWithFrame:(CGRect)frame configuration:(WKWebViewConfiguration *)configuration addToWindow:(BOOL)addToWindow;
+- (void)synchronouslyLoadHTMLStringAndWaitUntilAllImmediateChildFramesPaint:(NSString *)html;
 - (void)clearMessageHandlers:(NSArray *)messageNames;
 - (void)performAfterReceivingMessage:(NSString *)message action:(dispatch_block_t)action;
 - (void)waitForMessage:(NSString *)message;
+
+// This function waits until a DOM load event is fired.
+// FIXME: Rename this function to better describe what "after loading" means.
 - (void)performAfterLoading:(dispatch_block_t)actions;
+
 - (void)waitForNextPresentationUpdate;
+- (void)waitUntilActivityStateUpdateDone;
 - (void)forceDarkMode;
 - (NSString *)stylePropertyAtSelectionStart:(NSString *)propertyName;
 - (NSString *)stylePropertyAtSelectionEnd:(NSString *)propertyName;
 - (void)collapseToStart;
 - (void)collapseToEnd;
 - (void)addToTestWindow;
+- (BOOL)selectionRangeHasStartOffset:(int)start endOffset:(int)end;
+- (void)clickOnElementID:(NSString *)elementID;
 @end
 
 #if PLATFORM(IOS_FAMILY)
@@ -111,14 +123,19 @@
 @interface TestWKWebView (MacOnly)
 // Simulates clicking with a pressure-sensitive device, if possible.
 - (void)mouseDownAtPoint:(NSPoint)pointInWindow simulatePressure:(BOOL)simulatePressure;
+- (void)mouseDownAtPoint:(NSPoint)pointInWindow simulatePressure:(BOOL)simulatePressure withFlags:(NSEventModifierFlags)flags eventType:(NSEventType)eventType;
 - (void)mouseDragToPoint:(NSPoint)pointInWindow;
 - (void)mouseEnterAtPoint:(NSPoint)pointInWindow;
 - (void)mouseUpAtPoint:(NSPoint)pointInWindow;
+- (void)mouseUpAtPoint:(NSPoint)pointInWindow withFlags:(NSEventModifierFlags)flags eventType:(NSEventType)eventType;
 - (void)mouseMoveToPoint:(NSPoint)pointInWindow withFlags:(NSEventModifierFlags)flags;
 - (void)sendClicksAtPoint:(NSPoint)pointInWindow numberOfClicks:(NSUInteger)numberOfClicks;
 - (void)sendClickAtPoint:(NSPoint)pointInWindow;
 - (NSWindow *)hostWindow;
 - (void)typeCharacter:(char)character;
+- (void)waitForPendingMouseEvents;
+- (void)setEventTimestampOffset:(NSTimeInterval)offset;
+@property (nonatomic, readonly) NSTimeInterval eventTimestamp;
 @end
 #endif
 

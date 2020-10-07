@@ -27,198 +27,188 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
-#include "DisplayRun.h"
 #include "InlineItem.h"
-#include "InlineLineBox.h"
+#include "InlineLineRun.h"
 #include "InlineTextItem.h"
-#include <wtf/IsoMalloc.h>
 
 namespace WebCore {
 namespace Layout {
 
 class InlineFormattingContext;
+class InlineSoftLineBreakItem;
 
 class Line {
-    WTF_MAKE_ISO_ALLOCATED(Line);
 public:
-    struct InitialConstraints {
-        LayoutPoint logicalTopLeft;
-        LayoutUnit availableLogicalWidth;
-        bool lineIsConstrainedByFloat { false };
-        struct HeightAndBaseline {
-            LayoutUnit height;
-            LayoutUnit baselineOffset;
-            Optional<LineBox::Baseline> strut;
-        };
-        Optional<HeightAndBaseline> heightAndBaseline;
-    };
-    enum class SkipAlignment { No, Yes };
-    Line(const InlineFormattingContext&, const InitialConstraints&, Optional<TextAlignMode>, SkipAlignment);
+    Line(const InlineFormattingContext&);
+    ~Line();
 
-    void append(const InlineItem&, LayoutUnit logicalWidth);
-    bool hasContent() const { return !isVisuallyEmpty(); }
-    LayoutUnit availableWidth() const { return logicalWidth() - contentLogicalWidth(); }
+    void initialize(InlineLayoutUnit horizontalConstraint);
 
-    LayoutUnit trailingTrimmableWidth() const;
+    void append(const InlineItem&, InlineLayoutUnit logicalWidth);
 
-    const LineBox& lineBox() const { return m_lineBox; }
-    void moveLogicalLeft(LayoutUnit);
-    void moveLogicalRight(LayoutUnit);
+    bool isVisuallyEmpty() const { return m_isVisuallyEmpty; }
+
+    InlineLayoutUnit horizontalConstraint() const { return m_horizontalConstraint; }
+    InlineLayoutUnit contentLogicalWidth() const { return m_contentLogicalWidth; }
+    InlineLayoutUnit availableWidth() const { return horizontalConstraint() - contentLogicalWidth(); }
+
+    InlineLayoutUnit trimmableTrailingWidth() const { return m_trimmableTrailingContent.width(); }
+    bool isTrailingRunFullyTrimmable() const { return m_trimmableTrailingContent.isTrailingRunFullyTrimmable(); }
+
+    Optional<InlineLayoutUnit> trailingSoftHyphenWidth() const { return m_trailingSoftHyphenWidth; }
+    void addTrailingHyphen(InlineLayoutUnit hyphenLogicalWidth);
+
+    void moveLogicalLeft(InlineLayoutUnit);
+    void moveLogicalRight(InlineLayoutUnit);
+
+    void removeCollapsibleContent();
+    void applyRunExpansion();
 
     struct Run {
-        WTF_MAKE_STRUCT_FAST_ALLOCATED;
-        Run(const InlineItem&, const Display::Run&);
-
-        const Display::Run& displayRun() const { return m_displayRun; }
-        const Box& layoutBox() const { return m_layoutBox; }
-
-        const Display::Rect& logicalRect() const { return m_displayRun.logicalRect(); }
-        bool isCollapsedToZeroAdvanceWidth() const;
-        bool isCollapsed() const { return m_isCollapsed; }
-
         bool isText() const { return m_type == InlineItem::Type::Text; }
         bool isBox() const { return m_type == InlineItem::Type::Box; }
-        bool isForcedLineBreak() const { return m_type == InlineItem::Type::ForcedLineBreak; }
+        bool isLineBreak() const { return isHardLineBreak() || isSoftLineBreak(); }
+        bool isSoftLineBreak() const  { return m_type == InlineItem::Type::SoftLineBreak; }
+        bool isHardLineBreak() const { return m_type == InlineItem::Type::HardLineBreak; }
+        bool isWordBreakOpportunity() const { return m_type == InlineItem::Type::WordBreakOpportunity; }
         bool isContainerStart() const { return m_type == InlineItem::Type::ContainerStart; }
         bool isContainerEnd() const { return m_type == InlineItem::Type::ContainerEnd; }
 
+        const Box& layoutBox() const { return *m_layoutBox; }
+        const RenderStyle& style() const { return m_layoutBox->style(); }
+        const Optional<LineRun::Text>& textContent() const { return m_textContent; }
+
+        InlineLayoutUnit logicalWidth() const { return m_logicalWidth; }
+        InlineLayoutUnit logicalLeft() const { return m_logicalLeft; }
+        InlineLayoutUnit logicalRight() const { return logicalLeft() + logicalWidth(); }
+
+        const LineRun::Expansion& expansion() const { return m_expansion; }
+        bool hasExpansionOpportunity() const { return m_expansionOpportunityCount; }
+        ExpansionBehavior expansionBehavior() const;
+        unsigned expansionOpportunityCount() const { return m_expansionOpportunityCount; }
+
+        bool hasTrailingWhitespace() const { return m_trailingWhitespaceType != TrailingWhitespace::None; }
+        InlineLayoutUnit trailingWhitespaceWidth() const { return m_trailingWhitespaceWidth; }
+
     private:
         friend class Line;
-        void adjustLogicalTop(LayoutUnit logicalTop) { m_displayRun.setLogicalTop(logicalTop); }
-        void moveVertically(LayoutUnit offset) { m_displayRun.moveVertically(offset); }
-        void moveHorizontally(LayoutUnit offset) { m_displayRun.moveHorizontally(offset); }
 
-        void expand(const Run&);
+        Run(const InlineTextItem&, InlineLayoutUnit logicalLeft, InlineLayoutUnit logicalWidth);
+        Run(const InlineSoftLineBreakItem&, InlineLayoutUnit logicalLeft);
+        Run(const InlineItem&, InlineLayoutUnit logicalLeft, InlineLayoutUnit logicalWidth);
 
-        void setIsCollapsed();
-        void setCollapsesToZeroAdvanceWidth();
+        void expand(const InlineTextItem&, InlineLayoutUnit logicalWidth);
+        void moveHorizontally(InlineLayoutUnit offset) { m_logicalLeft += offset; }
+        void shrinkHorizontally(InlineLayoutUnit width) { m_logicalWidth -= width; }
+        void setExpansionBehavior(ExpansionBehavior);
+        void setHorizontalExpansion(InlineLayoutUnit logicalExpansion);
+        void setNeedsHyphen(InlineLayoutUnit hyphenLogicalWidth);
 
-        void setHasExpansionOpportunity(ExpansionBehavior);
-        bool hasExpansionOpportunity() const { return m_expansionOpportunityCount.hasValue(); }
-        Optional<ExpansionBehavior> expansionBehavior() const;
-        Optional<unsigned> expansionOpportunityCount() const { return m_expansionOpportunityCount; }
-        void adjustExpansionBehavior(ExpansionBehavior);
-        void setComputedHorizontalExpansion(LayoutUnit logicalExpansion);
+        enum class TrailingWhitespace {
+            None,
+            NotCollapsible,
+            Collapsible,
+            Collapsed
+        };
+        bool hasCollapsibleTrailingWhitespace() const { return m_trailingWhitespaceType == TrailingWhitespace::Collapsible || hasCollapsedTrailingWhitespace(); }
+        bool hasCollapsedTrailingWhitespace() const { return m_trailingWhitespaceType == TrailingWhitespace::Collapsed; }
+        TrailingWhitespace trailingWhitespaceType(const InlineTextItem&) const;
+        void removeTrailingWhitespace();
+        void visuallyCollapseTrailingWhitespace();
 
-        bool isCollapsible() const { return m_isCollapsible; }
-        bool hasTrailingCollapsedContent() const { return m_hasTrailingCollapsedContent; }
-        bool isWhitespace() const { return m_isWhitespace; }
+        bool hasTrailingLetterSpacing() const;
+        InlineLayoutUnit trailingLetterSpacing() const;
+        void removeTrailingLetterSpacing();
 
-        const Box& m_layoutBox;
-        Display::Run m_displayRun;
-        const InlineItem::Type m_type;
-        bool m_isWhitespace { false };
-        bool m_isCollapsible { false };
-        bool m_isCollapsed { false };
-        bool m_collapsedToZeroAdvanceWidth { false };
-        bool m_hasTrailingCollapsedContent { false };
-        Optional<unsigned> m_expansionOpportunityCount;
+        InlineItem::Type m_type { InlineItem::Type::Text };
+        const Box* m_layoutBox { nullptr };
+        InlineLayoutUnit m_logicalLeft { 0 };
+        InlineLayoutUnit m_logicalWidth { 0 };
+        TrailingWhitespace m_trailingWhitespaceType { TrailingWhitespace::None };
+        InlineLayoutUnit m_trailingWhitespaceWidth { 0 };
+        Optional<LineRun::Text> m_textContent;
+        LineRun::Expansion m_expansion;
+        unsigned m_expansionOpportunityCount { 0 };
     };
-    using RunList = Vector<std::unique_ptr<Run>>;
-    enum class IsLastLineWithInlineContent { No, Yes };
-    RunList close(IsLastLineWithInlineContent = IsLastLineWithInlineContent::No);
-
-    static LineBox::Baseline halfLeadingMetrics(const FontMetrics&, LayoutUnit lineLogicalHeight);
+    using RunList = Vector<Run, 10>;
+    const RunList& runs() const { return m_runs; }
 
 private:
-    LayoutUnit logicalTop() const { return m_lineBox.logicalTop(); }
-    LayoutUnit logicalBottom() const { return m_lineBox.logicalBottom(); }
+    InlineLayoutUnit contentLogicalRight() const { return m_lineLogicalLeft + m_contentLogicalWidth; }
 
-    LayoutUnit logicalLeft() const { return m_lineBox.logicalLeft(); }
-    LayoutUnit logicalRight() const { return logicalLeft() + logicalWidth(); }
-
-    LayoutUnit logicalWidth() const { return m_lineLogicalWidth; }
-    LayoutUnit logicalHeight() const { return m_lineBox.logicalHeight(); }
-
-    LayoutUnit contentLogicalWidth() const { return m_lineBox.logicalWidth(); }
-    LayoutUnit contentLogicalRight() const { return m_lineBox.logicalRight(); }
-    LayoutUnit baselineOffset() const { return m_lineBox.baselineOffset(); }
-
-    void appendNonBreakableSpace(const InlineItem&, const Display::Rect& logicalRect);
-    void appendTextContent(const InlineTextItem&, LayoutUnit logicalWidth);
-    void appendNonReplacedInlineBox(const InlineItem&, LayoutUnit logicalWidth);
-    void appendReplacedInlineBox(const InlineItem&, LayoutUnit logicalWidth);
-    void appendInlineContainerStart(const InlineItem&, LayoutUnit logicalWidth);
-    void appendInlineContainerEnd(const InlineItem&, LayoutUnit logicalWidth);
+    void appendNonBreakableSpace(const InlineItem&, InlineLayoutUnit logicalLeft, InlineLayoutUnit logicalWidth);
+    void appendTextContent(const InlineTextItem&, InlineLayoutUnit logicalWidth);
+    void appendNonReplacedInlineBox(const InlineItem&, InlineLayoutUnit logicalWidth);
+    void appendReplacedInlineBox(const InlineItem&, InlineLayoutUnit logicalWidth);
+    void appendInlineContainerStart(const InlineItem&, InlineLayoutUnit logicalWidth);
+    void appendInlineContainerEnd(const InlineItem&, InlineLayoutUnit logicalWidth);
     void appendLineBreak(const InlineItem&);
+    void appendWordBreakOpportunity(const InlineItem&);
 
     void removeTrailingTrimmableContent();
-    void alignContentHorizontally(IsLastLineWithInlineContent);
-    void alignContentVertically();
+    void visuallyCollapsePreWrapOverflowContent();
 
-    void adjustBaselineAndLineHeight(const InlineItem&);
-    LayoutUnit inlineItemContentHeight(const InlineItem&) const;
-    bool isVisuallyEmpty() const;
+    bool isRunVisuallyNonEmpty(const Run&) const;
+    const InlineFormattingContext& formattingContext() const;
 
-    bool isTextAlignJustify() const { return m_horizontalAlignment == TextAlignMode::Justify; };
-    void justifyRuns();
+    struct TrimmableTrailingContent {
+        TrimmableTrailingContent(RunList&);
 
-    LayoutState& layoutState() const;
-    const InlineFormattingContext& formattingContext() const; 
+        void addFullyTrimmableContent(size_t runIndex, InlineLayoutUnit trimmableWidth);
+        void addPartiallyTrimmableContent(size_t runIndex, InlineLayoutUnit trimmableWidth);
+        InlineLayoutUnit remove();
+        InlineLayoutUnit removePartiallyTrimmableContent();
+
+        InlineLayoutUnit width() const { return m_fullyTrimmableWidth + m_partiallyTrimmableWidth; }
+        bool isEmpty() const { return !m_firstRunIndex.hasValue(); }
+        bool isTrailingRunFullyTrimmable() const { return m_hasFullyTrimmableContent; }
+        bool isTrailingRunPartiallyTrimmable() const { return m_partiallyTrimmableWidth; }
+
+        void reset();
+
+    private:
+        RunList& m_runs;
+        Optional<size_t> m_firstRunIndex;
+        bool m_hasFullyTrimmableContent { false };
+        InlineLayoutUnit m_fullyTrimmableWidth { 0 };
+        InlineLayoutUnit m_partiallyTrimmableWidth { 0 };
+    };
 
     const InlineFormattingContext& m_inlineFormattingContext;
-    RunList m_runList;
-    ListHashSet<Run*> m_trimmableContent;
-
-    Optional<LineBox::Baseline> m_initialStrut;
-    LayoutUnit m_lineLogicalWidth;
-    Optional<TextAlignMode> m_horizontalAlignment;
-    bool m_skipAlignment { false };
-    LineBox m_lineBox;
+    RunList m_runs;
+    TrimmableTrailingContent m_trimmableTrailingContent;
+    InlineLayoutUnit m_lineLogicalLeft { 0 };
+    InlineLayoutUnit m_horizontalConstraint { 0 };
+    InlineLayoutUnit m_contentLogicalWidth { 0 };
+    Optional<InlineLayoutUnit> m_trailingSoftHyphenWidth { 0 };
+    bool m_isVisuallyEmpty { true };
+    Optional<bool> m_lineIsVisuallyEmptyBeforeTrimmableTrailingContent;
 };
 
-inline void Line::Run::setIsCollapsed()
+inline void Line::TrimmableTrailingContent::reset()
 {
-    ASSERT(isWhitespace());
-    m_isCollapsed = true;
-    m_hasTrailingCollapsedContent = true;
+    m_hasFullyTrimmableContent = false;
+    m_firstRunIndex = { };
+    m_fullyTrimmableWidth = { };
+    m_partiallyTrimmableWidth = { };
 }
 
-inline bool Line::Run::isCollapsedToZeroAdvanceWidth() const
+inline Line::Run::TrailingWhitespace Line::Run::trailingWhitespaceType(const InlineTextItem& inlineTextItem) const
 {
-    ASSERT(!m_collapsedToZeroAdvanceWidth || !m_displayRun.logicalWidth());
-    return m_collapsedToZeroAdvanceWidth;
+    if (!inlineTextItem.isWhitespace())
+        return TrailingWhitespace::None;
+    if (!inlineTextItem.isCollapsible())
+        return TrailingWhitespace::NotCollapsible;
+    if (inlineTextItem.length() == 1)
+        return TrailingWhitespace::Collapsible;
+    return TrailingWhitespace::Collapsed;
 }
 
-inline void Line::Run::setCollapsesToZeroAdvanceWidth()
+inline void Line::Run::setNeedsHyphen(InlineLayoutUnit hyphenLogicalWidth)
 {
-    setIsCollapsed();
-    m_collapsedToZeroAdvanceWidth = true;
-    m_displayRun.setLogicalWidth({ });
-    m_expansionOpportunityCount = { };
-    m_displayRun.textContext()->resetExpansion();
-}
-
-inline Optional<ExpansionBehavior> Line::Run::expansionBehavior() const
-{
-    ASSERT(isText());
-    if (auto expansionContext = m_displayRun.textContext()->expansion())
-        return expansionContext->behavior;
-    return { };
-}
-
-inline void Line::Run::setHasExpansionOpportunity(ExpansionBehavior expansionBehavior)
-{
-    ASSERT(isText());
-    ASSERT(!hasExpansionOpportunity());
-    m_expansionOpportunityCount = 1;
-    m_displayRun.textContext()->setExpansion({ expansionBehavior, { } });
-}
-
-inline void Line::Run::adjustExpansionBehavior(ExpansionBehavior expansionBehavior)
-{
-    ASSERT(isText());
-    ASSERT(hasExpansionOpportunity());
-    m_displayRun.textContext()->setExpansion({ expansionBehavior, m_displayRun.textContext()->expansion()->horizontalExpansion });
-}
-
-inline void Line::Run::setComputedHorizontalExpansion(LayoutUnit logicalExpansion)
-{
-    ASSERT(isText());
-    ASSERT(hasExpansionOpportunity());
-    ASSERT(m_displayRun.textContext()->expansion());
-    m_displayRun.expandHorizontally(logicalExpansion);
-    m_displayRun.textContext()->setExpansion({ m_displayRun.textContext()->expansion()->behavior, logicalExpansion });
+    ASSERT(m_textContent);
+    m_textContent->setNeedsHyphen();
+    m_logicalWidth += hyphenLogicalWidth;
 }
 
 }

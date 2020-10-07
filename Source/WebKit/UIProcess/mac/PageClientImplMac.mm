@@ -48,9 +48,11 @@
 #import "WKStringCF.h"
 #import "WKViewInternal.h"
 #import "WKWebViewInternal.h"
+#import "WKWebViewPrivateForTestingMac.h"
 #import "WebColorPickerMac.h"
 #import "WebContextMenuProxyMac.h"
 #import "WebDataListSuggestionsDropdownMac.h"
+#import "WebDateTimePickerMac.h"
 #import "WebEditCommandProxy.h"
 #import "WebPageProxy.h"
 #import "WebPopupMenuProxyMac.h"
@@ -61,6 +63,7 @@
 #import "_WKThumbnailView.h"
 #import <WebCore/AlternativeTextUIController.h>
 #import <WebCore/BitmapImage.h>
+#import <WebCore/ColorMac.h>
 #import <WebCore/Cursor.h>
 #import <WebCore/DictionaryLookup.h>
 #import <WebCore/DragItem.h>
@@ -77,16 +80,14 @@
 #import <WebCore/TextUndoInsertionMarkupMac.h>
 #import <WebCore/ValidationBubble.h>
 #import <WebCore/WebCoreCALayerExtras.h>
+#import <pal/spi/mac/NSApplicationSPI.h>
 #import <wtf/ProcessPrivilege.h>
+#import <wtf/RetainPtr.h>
 #import <wtf/text/CString.h>
 #import <wtf/text/WTFString.h>
 
-#if USE(DICTATION_ALTERNATIVES)
-#import <AppKit/NSTextAlternatives.h>
-#endif
-
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
-#include <WebCore/WebMediaSessionManager.h>
+#import <WebCore/WebMediaSessionManager.h>
 #endif
 
 static NSString * const kAXLoadCompleteNotification = @"AXLoadComplete";
@@ -102,20 +103,16 @@ static NSString * const kAXLoadCompleteNotification = @"AXLoadComplete";
 #endif
 
 namespace WebKit {
+
 using namespace WebCore;
 
-PageClientImpl::PageClientImpl(NSView* view, WKWebView *webView)
+PageClientImpl::PageClientImpl(NSView *view, WKWebView *webView)
     : PageClientImplCocoa(webView)
     , m_view(view)
-#if USE(DICTATION_ALTERNATIVES)
-    , m_alternativeTextUIController(makeUnique<AlternativeTextUIController>())
-#endif
 {
 }
 
-PageClientImpl::~PageClientImpl()
-{
-}
+PageClientImpl::~PageClientImpl() = default;
 
 void PageClientImpl::setImpl(WebViewImpl& impl)
 {
@@ -164,7 +161,7 @@ bool PageClientImpl::isViewWindowActive()
 {
     ASSERT(hasProcessPrivilege(ProcessPrivilege::CanCommunicateWithWindowServer));
     NSWindow *activeViewWindow = activeWindow();
-    return activeViewWindow.isKeyWindow || [NSApp keyWindow] == activeViewWindow;
+    return activeViewWindow.isKeyWindow || (activeViewWindow && [NSApp keyWindow] == activeViewWindow);
 }
 
 bool PageClientImpl::isViewFocused()
@@ -265,9 +262,7 @@ void PageClientImpl::processDidExit()
 void PageClientImpl::pageClosed()
 {
     m_impl->pageClosed();
-#if USE(DICTATION_ALTERNATIVES)
-    m_alternativeTextUIController->clear();
-#endif
+    PageClientImplCocoa::pageClosed();
 }
 
 void PageClientImpl::didRelaunchProcess()
@@ -285,7 +280,7 @@ void PageClientImpl::toolTipChanged(const String& oldToolTip, const String& newT
     m_impl->toolTipChanged(oldToolTip, newToolTip);
 }
 
-void PageClientImpl::didCommitLoadForMainFrame(const String& mimeType, bool useCustomContentProvider)
+void PageClientImpl::didCommitLoadForMainFrame(const String&, bool)
 {
     m_impl->updateSupportsArbitraryLayoutModes();
     m_impl->dismissContentRelativeChildWindowsWithAnimation(true);
@@ -349,12 +344,34 @@ void PageClientImpl::registerEditCommand(Ref<WebEditCommandProxy>&& command, Und
     m_impl->registerEditCommand(WTFMove(command), undoOrRedo);
 }
 
-#if USE(INSERTION_UNDO_GROUPING)
 void PageClientImpl::registerInsertionUndoGrouping()
 {
     registerInsertionUndoGroupingWithUndoManager([m_view undoManager]);
 }
-#endif
+
+#if ENABLE(UI_PROCESS_PDF_HUD)
+
+void PageClientImpl::createPDFHUD(PDFPluginIdentifier identifier, const WebCore::IntRect& rect)
+{
+    m_impl->createPDFHUD(identifier, rect);
+}
+
+void PageClientImpl::updatePDFHUDLocation(PDFPluginIdentifier identifier, const WebCore::IntRect& rect)
+{
+    m_impl->updatePDFHUDLocation(identifier, rect);
+}
+
+void PageClientImpl::removePDFHUD(PDFPluginIdentifier identifier)
+{
+    m_impl->removePDFHUD(identifier);
+}
+
+void PageClientImpl::removeAllPDFHUDs()
+{
+    m_impl->removeAllPDFHUDs();
+}
+
+#endif // ENABLE(UI_PROCESS_PDF_HUD)
 
 void PageClientImpl::clearAllEditCommands()
 {
@@ -484,6 +501,13 @@ RefPtr<WebDataListSuggestionsDropdown> PageClientImpl::createDataListSuggestions
 }
 #endif
 
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+RefPtr<WebDateTimePicker> PageClientImpl::createDateTimePicker(WebPageProxy& page)
+{
+    return WebDateTimePickerMac::create(page, m_view);
+}
+#endif
+
 Ref<ValidationBubble> PageClientImpl::createValidationBubble(const String& message, const ValidationBubble::Settings& settings)
 {
     return ValidationBubble::create(m_view, message, settings);
@@ -538,6 +562,14 @@ void PageClientImpl::enterAcceleratedCompositingMode(const LayerTreeContext& lay
     ASSERT(!layerTreeContext.isEmpty());
 
     CALayer *renderLayer = [CALayer _web_renderLayerWithContextID:layerTreeContext.contextID];
+    m_impl->enterAcceleratedCompositingWithRootLayer(renderLayer);
+}
+
+void PageClientImpl::didFirstLayerFlush(const LayerTreeContext& layerTreeContext)
+{
+    ASSERT(!layerTreeContext.isEmpty());
+
+    CALayer *renderLayer = [CALayer _web_renderLayerWithContextID:layerTreeContext.contextID];
     m_impl->setAcceleratedCompositingRootLayer(renderLayer);
 }
 
@@ -564,7 +596,7 @@ CALayer *PageClientImpl::acceleratedCompositingRootLayer() const
     return m_impl->acceleratedCompositingRootLayer();
 }
 
-RefPtr<ViewSnapshot> PageClientImpl::takeViewSnapshot()
+RefPtr<ViewSnapshot> PageClientImpl::takeViewSnapshot(Optional<WebCore::IntRect>&&)
 {
     return m_impl->takeViewSnapshot();
 }
@@ -682,18 +714,7 @@ bool PageClientImpl::executeSavedCommandBySelector(const String& selectorString)
     return m_impl->executeSavedCommandBySelector(NSSelectorFromString(selectorString));
 }
 
-#if USE(DICTATION_ALTERNATIVES)
-uint64_t PageClientImpl::addDictationAlternatives(const RetainPtr<NSTextAlternatives>& alternatives)
-{
-    return m_alternativeTextUIController->addAlternatives(alternatives);
-}
-
-void PageClientImpl::removeDictationAlternatives(uint64_t dictationContext)
-{
-    m_alternativeTextUIController->removeAlternatives(dictationContext);
-}
-
-void PageClientImpl::showDictationAlternativeUI(const WebCore::FloatRect& boundingBoxOfDictatedText, uint64_t dictationContext)
+void PageClientImpl::showDictationAlternativeUI(const WebCore::FloatRect& boundingBoxOfDictatedText, WebCore::DictationContext dictationContext)
 {
     if (!isViewVisible() || !isViewInWindow())
         return;
@@ -701,12 +722,6 @@ void PageClientImpl::showDictationAlternativeUI(const WebCore::FloatRect& boundi
         m_impl->handleAcceptedAlternativeText(acceptedAlternative);
     });
 }
-
-Vector<String> PageClientImpl::dictationAlternatives(uint64_t dictationContext)
-{
-    return m_alternativeTextUIController->alternativesForContext(dictationContext);
-}
-#endif
 
 void PageClientImpl::setEditableElementIsFocused(bool editableElementIsFocused)
 {
@@ -807,18 +822,18 @@ void PageClientImpl::didFirstVisuallyNonEmptyLayoutForMainFrame()
         gestureController->didFirstVisuallyNonEmptyLayoutForMainFrame();
 }
 
-void PageClientImpl::didFinishLoadForMainFrame()
+void PageClientImpl::didFinishNavigation(API::Navigation* navigation)
 {
     if (auto gestureController = m_impl->gestureController())
-        gestureController->didFinishLoadForMainFrame();
+        gestureController->didFinishNavigation(navigation);
 
     NSAccessibilityPostNotification(NSAccessibilityUnignoredAncestor(m_view), kAXLoadCompleteNotification);
 }
 
-void PageClientImpl::didFailLoadForMainFrame()
+void PageClientImpl::didFailNavigation(API::Navigation* navigation)
 {
     if (auto gestureController = m_impl->gestureController())
-        gestureController->didFailLoadForMainFrame();
+        gestureController->didFailNavigation(navigation);
 
     NSAccessibilityPostNotification(NSAccessibilityUnignoredAncestor(m_view), kAXLoadCompleteNotification);
 }
@@ -918,11 +933,6 @@ _WKRemoteObjectRegistry *PageClientImpl::remoteObjectRegistry()
     return m_impl->remoteObjectRegistry();
 }
 
-void PageClientImpl::didFinishProcessingAllPendingMouseEvents()
-{
-    m_impl->didFinishProcessingAllPendingMouseEvents();
-}
-
 void PageClientImpl::didRestoreScrollPosition()
 {
     m_impl->didRestoreScrollPosition();
@@ -959,6 +969,13 @@ void PageClientImpl::requestDOMPasteAccess(const WebCore::IntRect& elementRect, 
 {
     m_impl->requestDOMPasteAccess(elementRect, originIdentifier, WTFMove(completion));
 }
+
+#if HAVE(APP_ACCENT_COLORS)
+WebCore::Color PageClientImpl::accentColor()
+{
+    return WebCore::colorFromNSColor([NSApp _effectiveAccentColor]);
+}
+#endif
 
 } // namespace WebKit
 

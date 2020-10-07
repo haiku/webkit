@@ -44,7 +44,9 @@ class CallLinkInfo;
 
 namespace Wasm {
 
+class BBQCallee;
 class CodeBlock;
+class EmbedderEntrypointCallee;
 
 class BBQPlan final : public EntryPlan {
 public:
@@ -54,23 +56,38 @@ public:
 
     BBQPlan(Context*, Ref<ModuleInformation>, uint32_t functionIndex, CodeBlock*, CompletionTask&&);
 
-    void work(CompilationEffort) override;
-    void initializeCallees(const CalleeInitializer&) override;
+    bool hasWork() const final
+    {
+        if (m_asyncWork == AsyncWork::Validation)
+            return m_state < State::Validated;
+        return m_state < State::Compiled;
+    }
 
-protected:
-    bool prepareImpl() override;
-    void compileFunction(uint32_t functionIndex) override;
-    void didCompleteCompilation(const AbstractLocker&) override;
+    void work(CompilationEffort) final;
+
+    using CalleeInitializer = Function<void(uint32_t, RefPtr<EmbedderEntrypointCallee>&&, Ref<BBQCallee>&&)>;
+    void initializeCallees(const CalleeInitializer&);
+
+    bool didReceiveFunctionData(unsigned, const FunctionData&) final;
+
+    bool parseAndValidateModule()
+    {
+        return Base::parseAndValidateModule(m_source.data(), m_source.size());
+    }
 
 private:
+    bool prepareImpl() final;
+    void compileFunction(uint32_t functionIndex) final;
+    void didCompleteCompilation(const AbstractLocker&) final;
+
     std::unique_ptr<InternalFunction> compileFunction(uint32_t functionIndex, CompilationContext&, Vector<UnlinkedWasmToWasmCall>&, TierUpCount*);
 
     Vector<std::unique_ptr<InternalFunction>> m_wasmInternalFunctions;
-    HashMap<uint32_t, std::unique_ptr<InternalFunction>, typename DefaultHash<uint32_t>::Hash, WTF::UnsignedWithZeroKeyHashTraits<uint32_t>> m_embedderToWasmInternalFunctions;
+    HashMap<uint32_t, std::unique_ptr<InternalFunction>, DefaultHash<uint32_t>, WTF::UnsignedWithZeroKeyHashTraits<uint32_t>> m_embedderToWasmInternalFunctions;
     Vector<CompilationContext> m_compilationContexts;
     Vector<std::unique_ptr<TierUpCount>> m_tierUpCounts;
 
-    CodeBlock* m_codeBlock { nullptr };
+    RefPtr<CodeBlock> m_codeBlock { nullptr };
     uint32_t m_functionIndex;
 };
 

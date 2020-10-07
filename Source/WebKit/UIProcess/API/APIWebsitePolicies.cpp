@@ -26,22 +26,13 @@
 #include "config.h"
 #include "APIWebsitePolicies.h"
 
+#include "WebUserContentControllerProxy.h"
 #include "WebsiteDataStore.h"
 #include "WebsitePoliciesData.h"
 
 namespace API {
 
 WebsitePolicies::WebsitePolicies() = default;
-
-WebsitePolicies::WebsitePolicies(bool contentBlockersEnabled, OptionSet<WebKit::WebsiteAutoplayQuirk> allowedAutoplayQuirks, WebKit::WebsiteAutoplayPolicy autoplayPolicy, Vector<WebCore::HTTPHeaderField>&& legacyCustomHeaderFields, Vector<WebCore::CustomHeaderFields>&& customHeaderFields, WebKit::WebsitePopUpPolicy popUpPolicy, RefPtr<WebKit::WebsiteDataStore>&& websiteDataStore)
-    : m_contentBlockersEnabled(contentBlockersEnabled)
-    , m_allowedAutoplayQuirks(allowedAutoplayQuirks)
-    , m_autoplayPolicy(autoplayPolicy)
-    , m_legacyCustomHeaderFields(WTFMove(legacyCustomHeaderFields))
-    , m_customHeaderFields(WTFMove(customHeaderFields))
-    , m_popUpPolicy(popUpPolicy)
-    , m_websiteDataStore(WTFMove(websiteDataStore))
-{ }
 
 Ref<WebsitePolicies> WebsitePolicies::copy() const
 {
@@ -55,7 +46,7 @@ Ref<WebsitePolicies> WebsitePolicies::copy() const
     policies->setPopUpPolicy(m_popUpPolicy);
     policies->setWebsiteDataStore(m_websiteDataStore.get());
     policies->setCustomUserAgent(m_customUserAgent);
-    policies->setCustomJavaScriptUserAgentAsSiteSpecificQuirks(m_customJavaScriptUserAgentAsSiteSpecificQuirks);
+    policies->setCustomUserAgentAsSiteSpecificQuirks(m_customUserAgentAsSiteSpecificQuirks);
     policies->setCustomNavigatorPlatform(m_customNavigatorPlatform);
     policies->setPreferredContentMode(m_preferredContentMode);
     policies->setMetaViewportPolicy(m_metaViewportPolicy);
@@ -63,6 +54,9 @@ Ref<WebsitePolicies> WebsitePolicies::copy() const
     policies->setSimulatedMouseEventsDispatchPolicy(m_simulatedMouseEventsDispatchPolicy);
     policies->setLegacyOverflowScrollingTouchPolicy(m_legacyOverflowScrollingTouchPolicy);
     policies->setAllowContentChangeObserverQuirk(m_allowContentChangeObserverQuirk);
+    policies->setWebsiteDataStore(m_websiteDataStore.get());
+    policies->setUserContentController(m_userContentController.get());
+    policies->setIdempotentModeAutosizingOnlyHonorsPercentages(m_idempotentModeAutosizingOnlyHonorsPercentages);
     
     Vector<WebCore::HTTPHeaderField> legacyCustomHeaderFields;
     legacyCustomHeaderFields.reserveInitialCapacity(m_legacyCustomHeaderFields.size());
@@ -77,6 +71,7 @@ Ref<WebsitePolicies> WebsitePolicies::copy() const
     policies->setCustomHeaderFields(WTFMove(customHeaderFields));
     policies->setAllowSiteSpecificQuirksToOverrideContentMode(m_allowSiteSpecificQuirksToOverrideContentMode);
     policies->setApplicationNameForDesktopUserAgent(m_applicationNameForDesktopUserAgent);
+    policies->setMouseEventPolicy(m_mouseEventPolicy);
     return policies;
 }
 
@@ -87,6 +82,11 @@ WebsitePolicies::~WebsitePolicies()
 void WebsitePolicies::setWebsiteDataStore(RefPtr<WebKit::WebsiteDataStore>&& websiteDataStore)
 {
     m_websiteDataStore = WTFMove(websiteDataStore);
+}
+
+void WebsitePolicies::setUserContentController(RefPtr<WebKit::WebUserContentControllerProxy>&& controller)
+{
+    m_userContentController = WTFMove(controller);
 }
 
 WebKit::WebsitePoliciesData WebsitePolicies::data()
@@ -108,15 +108,17 @@ WebKit::WebsitePoliciesData WebsitePolicies::data()
 #endif
         WTFMove(customHeaderFields),
         popUpPolicy(),
-        m_websiteDataStore ? Optional<WebKit::WebsiteDataStoreParameters> { m_websiteDataStore->parameters() } : WTF::nullopt,
         m_customUserAgent,
-        m_customJavaScriptUserAgentAsSiteSpecificQuirks,
+        m_customUserAgentAsSiteSpecificQuirks,
         m_customNavigatorPlatform,
         m_metaViewportPolicy,
         m_mediaSourcePolicy,
         m_simulatedMouseEventsDispatchPolicy,
         m_legacyOverflowScrollingTouchPolicy,
         m_allowContentChangeObserverQuirk,
+        m_allowsContentJavaScript,
+        m_mouseEventPolicy,
+        m_idempotentModeAutosizingOnlyHonorsPercentages
     };
 }
 

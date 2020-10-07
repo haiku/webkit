@@ -27,11 +27,14 @@ types [
     :BasicBlockLocation,
     :BoundLabel,
     :DebugHookType,
-    :ErrorType,
+    :ECMAMode,
+    :ErrorTypeWithExtension,
     :GetByIdMode,
     :GetByIdModeMetadata,
+    :GetByValHistory,
     :GetPutInfo,
     :IndexingType,
+    :IterationModeMetadata,
     :JSCell,
     :JSGlobalLexicalEnvironment,
     :JSGlobalObject,
@@ -41,7 +44,9 @@ types [
     :JSType,
     :JSValue,
     :LLIntCallLinkInfo,
+    :ResultType,
     :OperandTypes,
+    :PrivateFieldPutKind,
     :ProfileTypeBytecodeFlag,
     :PropertyOffset,
     :PutByIdFlags,
@@ -57,16 +62,13 @@ types [
     :WatchpointSet,
 
     :ValueProfile,
-    :ValueProfileAndOperandBuffer,
-    :ArithProfile,
+    :ValueProfileAndVirtualRegisterBuffer,
+    :UnaryArithProfile,
+    :BinaryArithProfile,
     :ArrayProfile,
     :ArrayAllocationProfile,
     :ObjectAllocationProfile,
 ]
-
-namespace :Special do
-    types [ :Pointer ]
-end
 
 templates [
     :WriteBarrier,
@@ -105,6 +107,11 @@ op :create_scoped_arguments,
     }
 
 op :create_cloned_arguments,
+    args: {
+        dst: VirtualRegister,
+    }
+
+op :create_arguments_butterfly,
     args: {
         dst: VirtualRegister,
     }
@@ -170,6 +177,7 @@ op :argument_count,
 op :to_this,
     args: {
         srcDst: VirtualRegister,
+        ecmaMode: ECMAMode,
     },
     metadata: {
         cachedStructureID: StructureID,
@@ -283,10 +291,7 @@ op_group :ProfiledBinaryOp,
         operandTypes: OperandTypes,
     },
     metadata: {
-        arithProfile: ArithProfile
-    },
-    metadata_initializers: {
-        arithProfile: :operandTypes
+        arithProfile: BinaryArithProfile
     }
 
 op_group :ValueProfiledBinaryOp,
@@ -322,27 +327,32 @@ op_group :UnaryOp,
         :to_string,
         :unsigned,
         :is_empty,
-        :is_undefined,
+        :typeof_is_undefined,
+        :typeof_is_object,
+        :typeof_is_function,
         :is_undefined_or_null,
         :is_boolean,
         :is_number,
+        :is_big_int,
         :is_object,
-        :is_object_or_null,
-        :is_function,
+        :is_callable,
+        :is_constructor,
     ],
     args: {
         dst: VirtualRegister,
         operand: VirtualRegister,
     }
 
-op :inc,
+op_group :UnaryInPlaceProfiledOp,
+    [
+        :inc,
+        :dec,
+    ],
     args: {
         srcDst: VirtualRegister,
-    }
-
-op :dec,
-    args: {
-        srcDst: VirtualRegister,
+    },
+    metadata: {
+        arithProfile: UnaryArithProfile
     }
 
 op :to_object,
@@ -355,7 +365,11 @@ op :to_object,
         profile: ValueProfile,
     }
 
-op :to_number,
+op_group :ValueProfiledUnaryOp,
+    [
+        :to_number,
+        :to_numeric,
+    ],
     args: {
         dst: VirtualRegister,
         operand: VirtualRegister,
@@ -368,13 +382,10 @@ op :negate,
     args: {
         dst: VirtualRegister,
         operand: VirtualRegister,
-        operandTypes: OperandTypes,
+        resultType: ResultType,
     },
     metadata: {
-        arithProfile: ArithProfile,
-    },
-    metadata_initializers: {
-        arithProfile: :operandTypes
+        arithProfile: UnaryArithProfile,
     }
 
 op :not,
@@ -488,6 +499,15 @@ op :get_by_id_direct,
         offset: unsigned,
     }
 
+op :get_prototype_of,
+    args: {
+        dst: VirtualRegister,
+        value: VirtualRegister,
+    },
+    metadata: {
+        profile: ValueProfile,
+    }
+
 op :try_get_by_id,
     args: {
         dst: VirtualRegister,
@@ -518,6 +538,7 @@ op :put_by_id_with_this,
         thisValue: VirtualRegister,
         property: unsigned,
         value: VirtualRegister,
+        ecmaMode: ECMAMode,
     }
 
 op :del_by_id,
@@ -525,6 +546,7 @@ op :del_by_id,
         dst: VirtualRegister,
         base: VirtualRegister,
         property: unsigned,
+        ecmaMode: ECMAMode,
     }
 
 op :get_by_val,
@@ -536,6 +558,34 @@ op :get_by_val,
     metadata: {
         profile: ValueProfile,
         arrayProfile: ArrayProfile,
+        seenIdentifiers: GetByValHistory,
+    }
+
+op :get_private_name,
+    args: {
+        dst: VirtualRegister,
+        base: VirtualRegister,
+        property: VirtualRegister,
+    },
+    metadata: {
+        profile: ValueProfile,
+        structureID: StructureID,
+        offset: unsigned,
+        property: WriteBarrier[JSCell],
+    }
+
+op :put_private_name,
+    args: {
+        base: VirtualRegister,
+        property: VirtualRegister,
+        value: VirtualRegister,
+        putKind: PrivateFieldPutKind,
+    },
+    metadata: {
+        oldStructureID: StructureID,
+        property: WriteBarrier[JSCell],
+        offset: unsigned,
+        newStructureID: StructureID,
     }
 
 op :put_by_val,
@@ -543,6 +593,7 @@ op :put_by_val,
         base: VirtualRegister,
         property: VirtualRegister,
         value: VirtualRegister,
+        ecmaMode: ECMAMode,
     },
     metadata: {
         arrayProfile: ArrayProfile,
@@ -554,6 +605,7 @@ op :put_by_val_with_this,
         thisValue: VirtualRegister,
         property: VirtualRegister,
         value: VirtualRegister,
+        ecmaMode: ECMAMode,
     }
 
 op :put_by_val_direct,
@@ -561,6 +613,7 @@ op :put_by_val_direct,
         base: VirtualRegister,
         property: VirtualRegister,
         value: VirtualRegister,
+        ecmaMode: ECMAMode,
     },
     metadata: {
         arrayProfile: ArrayProfile,
@@ -571,6 +624,7 @@ op :del_by_val,
         dst: VirtualRegister,
         base: VirtualRegister,
         property: VirtualRegister,
+        ecmaMode: ECMAMode,
     }
 
 op :put_getter_by_id,
@@ -675,7 +729,7 @@ op :jnundefined_or_null,
 op :jneq_ptr,
     args: {
         value: VirtualRegister,
-        specialPointer: Special::Pointer,
+        specialPointer: VirtualRegister,
         targetLabel: BoundLabel,
     },
     metadata: {
@@ -773,6 +827,7 @@ op :call_eval,
         callee: VirtualRegister,
         argc: unsigned,
         argv: unsigned,
+        ecmaMode: ECMAMode,
     },
     metadata: {
         callLinkInfo: LLIntCallLinkInfo,
@@ -791,6 +846,13 @@ op :call_varargs,
     metadata: {
         arrayProfile: ArrayProfile,
         profile: ValueProfile,
+    },
+    tmps: {
+        argCountIncludingThis: unsigned,
+    },
+    checkpoints: {
+        determiningArgCount: nil,
+        makeCall: nil,
     }
 
 op :tail_call_varargs,
@@ -805,6 +867,13 @@ op :tail_call_varargs,
     metadata: {
         arrayProfile: ArrayProfile,
         profile: ValueProfile,
+    },
+    tmps: {
+        argCountIncludingThis: unsigned
+    },
+    checkpoints: {
+        determiningArgCount: nil,
+        makeCall: nil,
     }
 
 op :tail_call_forward_arguments,
@@ -845,6 +914,13 @@ op :construct_varargs,
     metadata: {
         arrayProfile: ArrayProfile,
         profile: ValueProfile,
+    },
+    tmps: {
+        argCountIncludingThis: unsigned
+    },
+    checkpoints: {
+        determiningArgCount: nil,
+        makeCall: nil,
     }
 
 op :ret,
@@ -860,6 +936,12 @@ op :strcat,
     }
 
 op :to_primitive,
+    args: {
+        dst: VirtualRegister,
+        src: VirtualRegister,
+    }
+
+op :to_property_key,
     args: {
         dst: VirtualRegister,
         src: VirtualRegister,
@@ -992,7 +1074,7 @@ op :catch,
         thrownValue: VirtualRegister,
     },
     metadata: {
-        buffer: ValueProfileAndOperandBuffer.*,
+        buffer: ValueProfileAndVirtualRegisterBuffer.*,
     }
 
 op :throw,
@@ -1003,7 +1085,7 @@ op :throw,
 op :throw_static_error,
     args: {
         message: VirtualRegister,
-        errorType: ErrorType,
+        errorType: ErrorTypeWithExtension,
     }
 
 op :debug,
@@ -1054,6 +1136,22 @@ op :has_indexed_property,
     }
 
 op :has_structure_property,
+    args: {
+        dst: VirtualRegister,
+        base: VirtualRegister,
+        property: VirtualRegister,
+        enumerator: VirtualRegister,
+    }
+
+op :has_own_structure_property,
+    args: {
+        dst: VirtualRegister,
+        base: VirtualRegister,
+        property: VirtualRegister,
+        enumerator: VirtualRegister,
+    }
+
+op :in_structure_property,
     args: {
         dst: VirtualRegister,
         base: VirtualRegister,
@@ -1121,6 +1219,60 @@ op :get_rest_length,
         numParametersToSkip: unsigned,
     }
 
+# Semantically, this is iterator = symbolIterator.@call(iterable); next = iterator.next;
+# where symbolIterator the result of iterable[Symbol.iterator] (which is done in a different bytecode).
+# For builtin iterators, however, this has special behavior where next becomes the empty value, which
+# indicates that we are in a known iteration mode to op_iterator_next.
+op :iterator_open,
+    args: {
+        iterator: VirtualRegister,
+        next: VirtualRegister,
+        symbolIterator: VirtualRegister,
+        iterable: VirtualRegister,
+        stackOffset: unsigned,
+    },
+    metadata: {
+        iterationMetadata: IterationModeMetadata,
+        iterableProfile: ValueProfile,
+        callLinkInfo: LLIntCallLinkInfo,
+        iteratorProfile: ValueProfile,
+        modeMetadata: GetByIdModeMetadata,
+        nextProfile: ValueProfile,
+    },
+    checkpoints: {
+        symbolCall: nil,
+        getNext: nil,
+    }
+
+# Semantically, this is nextResult = next.@call(iterator); done = nextResult.done; value = done ? undefined : nextResult.value;
+op :iterator_next,
+    args: {
+        done: VirtualRegister,
+        value: VirtualRegister,
+        iterable: VirtualRegister,
+        next: VirtualRegister,
+        iterator: VirtualRegister,
+        stackOffset: unsigned,
+    },
+    metadata: {
+        iterationMetadata: IterationModeMetadata,
+        iterableProfile: ArrayProfile,
+        callLinkInfo: LLIntCallLinkInfo,
+        nextResultProfile: ValueProfile,
+        doneModeMetadata: GetByIdModeMetadata,
+        doneProfile: ValueProfile,
+        valueModeMetadata: GetByIdModeMetadata,
+        valueProfile: ValueProfile,
+    },
+    tmps: {
+        nextResult: JSValue,
+    },
+    checkpoints: {
+        computeNext: nil,
+        getDone: nil,
+        getValue: nil,
+    }
+
 op :yield,
     args: {
         generator: VirtualRegister,
@@ -1178,7 +1330,6 @@ begin_section :CLoopHelpers,
     macro_name_component: :CLOOP_BYTECODE_HELPER
 
 op :llint_entry
-op :getHostCallReturnValue
 op :llint_return_to_host
 op :llint_vm_entry_to_javascript
 op :llint_vm_entry_to_native
@@ -1216,6 +1367,18 @@ op :llint_cloop_did_return_from_js_31
 op :llint_cloop_did_return_from_js_32
 op :llint_cloop_did_return_from_js_33
 op :llint_cloop_did_return_from_js_34
+op :llint_cloop_did_return_from_js_35
+op :llint_cloop_did_return_from_js_36
+op :llint_cloop_did_return_from_js_37
+op :llint_cloop_did_return_from_js_38
+op :llint_cloop_did_return_from_js_39
+op :llint_cloop_did_return_from_js_40
+op :llint_cloop_did_return_from_js_41
+op :llint_cloop_did_return_from_js_42
+op :llint_cloop_did_return_from_js_43
+op :llint_cloop_did_return_from_js_44
+op :llint_cloop_did_return_from_js_45
+op :llint_cloop_did_return_from_js_46
 
 end_section :CLoopHelpers
 
@@ -1238,7 +1401,11 @@ op :llint_native_call_trampoline
 op :llint_native_construct_trampoline
 op :llint_internal_function_call_trampoline
 op :llint_internal_function_construct_trampoline
-op :handleUncaughtException
+op :checkpoint_osr_exit_from_inlined_call_trampoline
+op :checkpoint_osr_exit_trampoline
+op :fuzzer_return_early_from_loop_hint
+op :llint_get_host_call_return_value
+op :llint_handle_uncaught_exception
 op :op_call_return_location
 op :op_construct_return_location
 op :op_call_varargs_slow_return_location
@@ -1247,6 +1414,8 @@ op :op_get_by_id_return_location
 op :op_get_by_val_return_location
 op :op_put_by_id_return_location
 op :op_put_by_val_return_location
+op :op_iterator_open_return_location
+op :op_iterator_next_return_location
 op :wasm_function_prologue
 op :wasm_function_prologue_no_tls
 
@@ -1295,22 +1464,25 @@ op :jmp,
         targetLabel: WasmBoundLabel,
     }
 
-op :ret,
-    args: {
-        stackOffset: unsigned,
-    }
+op :ret
 
 op :switch,
     args: {
         scrutinee: VirtualRegister,
         tableIndex: unsigned,
-        defaultTarget: WasmBoundLabel,
     }
 
 # Wasm specific bytecodes
 
 op :unreachable
 op :ret_void
+
+op :drop_keep,
+    args: {
+        startOffset: unsigned,
+        dropCount: unsigned,
+        keepCount: unsigned,
+    }
 
 op :ref_is_null,
     args: {
@@ -1337,6 +1509,24 @@ op :set_global,
     }
 
 op :set_global_ref,
+    args: {
+        globalIndex: unsigned,
+        value: VirtualRegister,
+    }
+
+op :get_global_portable_binding,
+    args: {
+        dst: VirtualRegister,
+        globalIndex: unsigned,
+    }
+
+op :set_global_portable_binding,
+    args: {
+        globalIndex: unsigned,
+        value: VirtualRegister,
+    }
+
+op :set_global_ref_portable_binding,
     args: {
         globalIndex: unsigned,
         value: VirtualRegister,

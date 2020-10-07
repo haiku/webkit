@@ -23,21 +23,23 @@
 
 #pragma once
 
-#include "DataRef.h"
 #include "RenderStyleConstants.h"
 #include "SVGRenderStyleDefs.h"
 #include "WindRule.h"
+#include <wtf/DataRef.h>
 
 namespace WebCore {
 
+DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(SVGRenderStyle);
 class SVGRenderStyle : public RefCounted<SVGRenderStyle> {
+    WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(SVGRenderStyle);
 public:
     static Ref<SVGRenderStyle> createDefaultStyle();
     static Ref<SVGRenderStyle> create() { return adoptRef(*new SVGRenderStyle); }
     Ref<SVGRenderStyle> copy() const;
     ~SVGRenderStyle();
 
-    bool inheritedNotEqual(const SVGRenderStyle&) const;
+    bool inheritedEqual(const SVGRenderStyle&) const;
     void inheritFrom(const SVGRenderStyle&);
     void copyNonInheritedFrom(const SVGRenderStyle&);
 
@@ -71,10 +73,10 @@ public:
     static String initialStrokePaintUri() { return String(); }
     static Vector<SVGLengthValue> initialStrokeDashArray() { return { }; }
     static float initialStopOpacity() { return 1; }
-    static Color initialStopColor() { return Color(0, 0, 0); }
+    static Color initialStopColor() { return Color::black; }
     static float initialFloodOpacity() { return 1; }
-    static Color initialFloodColor() { return Color(0, 0, 0); }
-    static Color initialLightingColor() { return Color(255, 255, 255); }
+    static Color initialFloodColor() { return Color::black; }
+    static Color initialLightingColor() { return Color::white; }
     static ShadowData* initialShadow() { return nullptr; }
     static String initialMaskerResource() { return String(); }
     static String initialMarkerStartResource() { return String(); }

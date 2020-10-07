@@ -28,6 +28,7 @@
 #if ENABLE(WEBASSEMBLY)
 
 #include "ExecutionCounter.h"
+#include "InstructionStream.h"
 #include "Options.h"
 #include <wtf/HashMap.h>
 
@@ -50,7 +51,10 @@ public:
 
     void optimizeAfterWarmUp()
     {
-        setNewThreshold(Options::thresholdForOMGOptimizeAfterWarmUp(), nullptr);
+        if (Options::wasmLLIntTiersUpToBBQ())
+            setNewThreshold(Options::thresholdForBBQOptimizeAfterWarmUp(), nullptr);
+        else
+            setNewThreshold(Options::thresholdForOMGOptimizeAfterWarmUp(), nullptr);
     }
 
     bool checkIfOptimizationThresholdReached()
@@ -60,7 +64,10 @@ public:
 
     void optimizeSoon()
     {
-        setNewThreshold(Options::thresholdForOMGOptimizeSoon(), nullptr);
+        if (Options::wasmLLIntTiersUpToBBQ())
+            setNewThreshold(Options::thresholdForBBQOptimizeSoon(), nullptr);
+        else
+            setNewThreshold(Options::thresholdForOMGOptimizeSoon(), nullptr);
     }
 
     struct OSREntryData {

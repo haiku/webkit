@@ -9,11 +9,9 @@
  */
 
 #include "rtc_base/cpu_time.h"
-#include <algorithm>
-#include <memory>
+
 #include "rtc_base/platform_thread.h"
-#include "rtc_base/timeutils.h"
-#include "system_wrappers/include/cpu_info.h"
+#include "rtc_base/time_utils.h"
 #include "system_wrappers/include/sleep.h"
 #include "test/gtest.h"
 
@@ -28,11 +26,11 @@
 
 namespace {
 const int kAllowedErrorMillisecs = 30;
-const int kProcessingTimeMillisecs = 300;
+const int kProcessingTimeMillisecs = 500;
 const int kWorkingThreads = 2;
 
 // Consumes approximately kProcessingTimeMillisecs of CPU time in single thread.
-bool WorkingFunction(void* counter_pointer) {
+void WorkingFunction(void* counter_pointer) {
   int64_t* counter = reinterpret_cast<int64_t*>(counter_pointer);
   *counter = 0;
   int64_t stop_cpu_time =
@@ -41,7 +39,6 @@ bool WorkingFunction(void* counter_pointer) {
   while (rtc::GetThreadCpuTimeNanos() < stop_cpu_time) {
     (*counter)++;
   }
-  return false;
 }
 }  // namespace
 
@@ -80,10 +77,11 @@ TEST(CpuTimeTest, MAYBE_TEST(TwoThreads)) {
       GetProcessCpuTimeNanos() - process_start_time_nanos;
   int64_t thread_duration_nanos =
       GetThreadCpuTimeNanos() - thread_start_time_nanos;
-  // This thread did almost nothing.
+  // This thread did almost nothing. Definetly less work than kProcessingTime.
   // Therefore GetThreadCpuTime is not a wall clock.
   EXPECT_LE(thread_duration_nanos,
-            kAllowedErrorMillisecs * kNumNanosecsPerMillisec);
+            (kProcessingTimeMillisecs - kAllowedErrorMillisecs) *
+                kNumNanosecsPerMillisec);
   // Total process time is at least twice working threads' CPU time.
   // Therefore process and thread times are correctly related.
   EXPECT_GE(process_duration_nanos,
@@ -100,7 +98,8 @@ TEST(CpuTimeTest, MAYBE_TEST(Sleeping)) {
   // Sleeping should not introduce any additional CPU time.
   // Therefore GetProcessCpuTime is not a wall clock.
   EXPECT_LE(process_duration_nanos,
-            kWorkingThreads * kAllowedErrorMillisecs * kNumNanosecsPerMillisec);
+            (kProcessingTimeMillisecs - kAllowedErrorMillisecs) *
+                kNumNanosecsPerMillisec);
 }
 
 }  // namespace rtc

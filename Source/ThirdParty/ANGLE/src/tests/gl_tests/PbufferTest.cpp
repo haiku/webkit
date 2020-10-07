@@ -95,15 +95,18 @@ class PbufferTest : public ANGLETest
     {
         glDeleteProgram(mTextureProgram);
 
-        EGLWindow *window = getEGLWindow();
-        eglDestroySurface(window->getDisplay(), mPbuffer);
+        if (mPbuffer)
+        {
+            EGLWindow *window = getEGLWindow();
+            eglDestroySurface(window->getDisplay(), mPbuffer);
+        }
     }
 
     GLuint mTextureProgram;
     GLint mTextureUniformLocation;
 
     const size_t mPbufferSize = 32;
-    EGLSurface mPbuffer;
+    EGLSurface mPbuffer       = EGL_NO_SURFACE;
     bool mSupportsPbuffers;
     bool mSupportsBindTexImage;
 };
@@ -122,7 +125,7 @@ TEST_P(PbufferTest, Clearing)
     glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     ASSERT_GL_NO_ERROR();
-    EXPECT_PIXEL_EQ(getWindowWidth() / 2, getWindowHeight() / 2, 0, 0, 255, 255);
+    EXPECT_PIXEL_COLOR_EQ(getWindowWidth() / 2, getWindowHeight() / 2, GLColor::blue);
 
     // Apply the Pbuffer and clear it to purple and verify
     eglMakeCurrent(window->getDisplay(), mPbuffer, mPbuffer, window->getContext());
@@ -159,8 +162,8 @@ TEST_P(PbufferTest, BindTexImage)
     glClear(GL_COLOR_BUFFER_BIT);
     ASSERT_GL_NO_ERROR();
 
-    EXPECT_PIXEL_EQ(static_cast<GLint>(mPbufferSize) / 2, static_cast<GLint>(mPbufferSize) / 2, 255,
-                    0, 255, 255);
+    EXPECT_PIXEL_COLOR_EQ(static_cast<GLint>(mPbufferSize) / 2,
+                          static_cast<GLint>(mPbufferSize) / 2, GLColor::magenta);
 
     // Apply the window surface
     window->makeCurrent();
@@ -202,6 +205,7 @@ TEST_P(PbufferTest, TextureSizeReset)
 {
     ANGLE_SKIP_TEST_IF(!mSupportsPbuffers);
     ANGLE_SKIP_TEST_IF(!mSupportsBindTexImage);
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     GLTexture texture;
     glBindTexture(GL_TEXTURE_2D, texture);
@@ -301,9 +305,4 @@ TEST_P(PbufferTest, BindTexImageAndRedefineTexture)
     glDeleteTextures(1, &texture);
 }
 
-ANGLE_INSTANTIATE_TEST(PbufferTest,
-                       ES2_D3D9(),
-                       ES2_D3D11(),
-                       ES2_OPENGL(),
-                       ES2_OPENGLES(),
-                       ES2_VULKAN());
+ANGLE_INSTANTIATE_TEST_ES2(PbufferTest);

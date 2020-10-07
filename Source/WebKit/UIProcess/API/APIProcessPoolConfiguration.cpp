@@ -55,13 +55,9 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::copy()
     copy->m_overrideLanguages = this->m_overrideLanguages;
     copy->m_alwaysRunsAtBackgroundPriority = this->m_alwaysRunsAtBackgroundPriority;
     copy->m_shouldTakeUIBackgroundAssertion = this->m_shouldTakeUIBackgroundAssertion;
-    copy->m_shouldCaptureAudioInUIProcess = this->m_shouldCaptureAudioInUIProcess;
     copy->m_shouldCaptureDisplayInUIProcess = this->m_shouldCaptureDisplayInUIProcess;
     copy->m_shouldConfigureJSCForTesting = this->m_shouldConfigureJSCForTesting;
     copy->m_isJITEnabled = this->m_isJITEnabled;
-#if PLATFORM(IOS_FAMILY)
-    copy->m_ctDataConnectionServiceType = this->m_ctDataConnectionServiceType;
-#endif
     copy->m_presentingApplicationPID = this->m_presentingApplicationPID;
     copy->m_processSwapsOnNavigationFromClient = this->m_processSwapsOnNavigationFromClient;
     copy->m_processSwapsOnNavigationFromExperimentalFeatures = this->m_processSwapsOnNavigationFromExperimentalFeatures;
@@ -72,7 +68,14 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::copy()
     copy->m_usesBackForwardCache = this->m_usesBackForwardCache;
     copy->m_customWebContentServiceBundleIdentifier = this->m_customWebContentServiceBundleIdentifier;
     copy->m_usesSingleWebProcess = m_usesSingleWebProcess;
-
+#if PLATFORM(GTK) && !USE(GTK4)
+    copy->m_useSystemAppearanceForScrollbars = m_useSystemAppearanceForScrollbars;
+#endif
+#if PLATFORM(PLAYSTATION)
+    copy->m_webProcessPath = this->m_webProcessPath;
+    copy->m_networkProcessPath = this->m_networkProcessPath;
+    copy->m_userId = this->m_userId;
+#endif
     return copy;
 }
 

@@ -12,16 +12,25 @@ adds the first use.
 ## **Allowed**
 
 * `absl::InlinedVector`
-* `absl::make_unique` and `absl::WrapUnique`
+* `absl::WrapUnique`
 * `absl::optional` and related stuff from `absl/types/optional.h`.
 * `absl::string_view`
-* The functions in `absl/strings/ascii.h` and `absl/strings/match.h`
+* The functions in `absl/strings/ascii.h`, `absl/strings/match.h`,
+  and `absl/strings/str_replace.h`.
 * `absl::is_trivially_copy_constructible`,
   `absl::is_trivially_copy_assignable`, and
   `absl::is_trivially_destructible` from `absl/meta/type_traits.h`.
 * `absl::variant` and related stuff from `absl/types/variant.h`.
+* The functions in `absl/algorithm/algorithm.h` and
+  `absl/algorithm/container.h`.
+* The macros in `absl/base/attributes.h`, `absl/base/config.h` and
+  `absl/base/macros.h`.
 
 ## **Disallowed**
+
+### `absl::make_unique`
+
+*Use `std::make_unique` instead.*
 
 ### `absl::Mutex`
 
@@ -31,7 +40,7 @@ Chromium has a ban on new static initializers, and `absl::Mutex` uses
 one. To make `absl::Mutex` available, we would need to nicely ask the
 Abseil team to remove that initializer (like they already did for a
 spinlock initializer). Additionally, `absl::Mutex` handles time in a
-way that may not be compaible with the rest of WebRTC.
+way that may not be compatible with the rest of WebRTC.
 
 ### `absl::Span`
 
@@ -45,9 +54,9 @@ and avoid `absl::Span` until C++20 is finalized and the Abseil team
 has decided if they will change `absl::Span` to match.
 [Bug](https://bugs.webrtc.org/9214).
 
-### `absl::StrCat` and `absl::StrAppend`
+### `absl::StrCat`, `absl::StrAppend`, `absl::StrJoin`, `absl::StrSplit`
 
-*Use `rtc::SimpleStringBuilder` instead.*
+*Use `rtc::SimpleStringBuilder` to build strings.*
 
 These are optimized for speed, not binary size. Even `StrCat` calls
 with a modest number of arguments can easily add several hundred bytes

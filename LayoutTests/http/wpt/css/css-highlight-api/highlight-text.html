@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Multiple custom highlight pseudo elements.</title>
+    <link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/#creating-highlights">
+    <link rel="match" href="highlight-text-expected.html">
+    <meta name="assert" content="Multiple highlights should be able to be specified.">
+        <style>
+        ::highlight(example-highlight1) {
+            background-color: yellow;
+            color:green;
+        }
+        ::highlight(example-highlight2) {
+            background-color: blue;
+            color:red;
+        }
+        ::highlight(example-highlight3) {
+            background-color: purple;
+            color:pink;
+        }
+        </style>
+</head>
+<body>
+    <span id="text1">One two three</span>
+
+    <script>
+        let textElement = document.getElementById('text1');
+        let highlightRangeGroup1 = new HighlightRangeGroup(new StaticRange({startContainer: textElement.childNodes[0], startOffset: 1, endContainer: textElement.childNodes[0], endOffset: 2}));
+
+        let highlightRangeGroup2 = new HighlightRangeGroup(new StaticRange({startContainer: textElement.childNodes[0], startOffset: 3, endContainer: textElement.childNodes[0], endOffset: 4}));
+        highlightRangeGroup2.add(new StaticRange({startContainer: textElement.childNodes[0], startOffset: 5, endContainer: textElement.childNodes[0], endOffset: 6}));
+
+        let highlightRangeGroup3 = new HighlightRangeGroup(new StaticRange({startContainer: textElement.childNodes[0], startOffset: 7, endContainer: textElement.childNodes[0], endOffset: 8}));
+        highlightRangeGroup3.add(new StaticRange({startContainer: textElement.childNodes[0], startOffset: 9, endContainer: textElement.childNodes[0], endOffset: 10}));
+        highlightRangeGroup3.add(new StaticRange({startContainer: textElement.childNodes[0], startOffset: 12, endContainer: textElement.childNodes[0], endOffset: 13}));
+        
+
+        CSS.highlights.set("example-highlight1", highlightRangeGroup1);
+        CSS.highlights.set("example-highlight2", highlightRangeGroup2);
+        CSS.highlights.set("example-highlight3", highlightRangeGroup3);
+    </script>
+</body>
+</html>

@@ -40,9 +40,7 @@ inline JSFunction* JSFunction::createWithInvalidatedReallocationWatchpoint(
 
 inline JSFunction::JSFunction(VM& vm, FunctionExecutable* executable, JSScope* scope, Structure* structure)
     : Base(vm, scope, structure)
-    , m_executable(vm, this, executable)
-    , m_rareData()
-    , m_globalObject(vm, this, structure->globalObject())
+    , m_executableOrRareData(bitwise_cast<uintptr_t>(executable))
 {
     assertTypeInfoFlagInvariants();
 }
@@ -50,13 +48,13 @@ inline JSFunction::JSFunction(VM& vm, FunctionExecutable* executable, JSScope* s
 inline FunctionExecutable* JSFunction::jsExecutable() const
 {
     ASSERT(!isHostFunctionNonInline());
-    return static_cast<FunctionExecutable*>(m_executable.get());
+    return static_cast<FunctionExecutable*>(executable());
 }
 
 inline bool JSFunction::isHostFunction() const
 {
-    ASSERT(m_executable);
-    return m_executable->isHostFunction();
+    ASSERT(executable());
+    return executable()->isHostFunction();
 }
 
 inline Intrinsic JSFunction::intrinsic() const
@@ -67,11 +65,6 @@ inline Intrinsic JSFunction::intrinsic() const
 inline bool JSFunction::isBuiltinFunction() const
 {
     return !isHostFunction() && jsExecutable()->isBuiltinFunction();
-}
-
-inline bool JSFunction::isAnonymousBuiltinFunction() const
-{
-    return !isHostFunction() && jsExecutable()->isAnonymousBuiltinFunction();
 }
 
 inline bool JSFunction::isHostOrBuiltinFunction() const
@@ -87,13 +80,13 @@ inline bool JSFunction::isClassConstructorFunction() const
 inline TaggedNativeFunction JSFunction::nativeFunction()
 {
     ASSERT(isHostFunctionNonInline());
-    return static_cast<NativeExecutable*>(m_executable.get())->function();
+    return static_cast<NativeExecutable*>(executable())->function();
 }
 
 inline TaggedNativeFunction JSFunction::nativeConstructor()
 {
     ASSERT(isHostFunctionNonInline());
-    return static_cast<NativeExecutable*>(m_executable.get())->constructor();
+    return static_cast<NativeExecutable*>(executable())->constructor();
 }
 
 inline bool isHostFunction(JSValue value, TaggedNativeFunction nativeFunction)
@@ -106,16 +99,30 @@ inline bool isHostFunction(JSValue value, TaggedNativeFunction nativeFunction)
 
 inline bool JSFunction::hasReifiedLength() const
 {
-    return m_rareData ? m_rareData->hasReifiedLength() : false;
+    if (FunctionRareData* rareData = this->rareData())
+        return rareData->hasReifiedLength();
+    return false;
 }
 
 inline bool JSFunction::hasReifiedName() const
 {
-    if (m_rareData)
-        return m_rareData->hasReifiedName();
-    if (isAnonymousBuiltinFunction())
-        return true;
+    if (FunctionRareData* rareData = this->rareData())
+        return rareData->hasReifiedName();
     return false;
+}
+
+inline bool JSFunction::canAssumeNameAndLengthAreOriginal(VM&)
+{
+    if (isHostFunction())
+        return false;
+    FunctionRareData* rareData = this->rareData();
+    if (!rareData)
+        return true;
+    if (rareData->hasModifiedNameForNonHostFunction())
+        return false;
+    if (rareData->hasModifiedLengthForNonHostFunction())
+        return false;
+    return true;
 }
 
 inline bool JSFunction::canUseAllocationProfile()
@@ -141,11 +148,12 @@ inline bool JSFunction::canUseAllocationProfile()
 inline FunctionRareData* JSFunction::ensureRareDataAndAllocationProfile(JSGlobalObject* globalObject, unsigned inlineCapacity)
 {
     ASSERT(canUseAllocationProfile());
-    if (UNLIKELY(!m_rareData))
+    FunctionRareData* rareData = this->rareData();
+    if (!rareData)
         return allocateAndInitializeRareData(globalObject, inlineCapacity);
-    if (UNLIKELY(!m_rareData->isObjectAllocationProfileInitialized()))
+    if (UNLIKELY(!rareData->isObjectAllocationProfileInitialized()))
         return initializeRareData(globalObject, inlineCapacity);
-    return m_rareData.get();
+    return rareData;
 }
 
 } // namespace JSC

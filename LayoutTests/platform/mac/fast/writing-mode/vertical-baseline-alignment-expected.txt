@@ -14,8 +14,8 @@ layer at (548,0) size 252x600
           RenderText {#text} at (55,0) size 55x294
             text run at (55,0) width 294: "MORE TEXT. "
           RenderInline {SPAN} at (0,0) size 14x164
-            RenderText {#text} at (87,293) size 14x164
-              text run at (87,293) width 164: "SHOULD NOT BE CENTERED."
+            RenderText {#text} at (76,293) size 14x164
+              text run at (76,293) width 164: "SHOULD NOT BE CENTERED."
           RenderText {#text} at (0,0) size 0x0
       RenderBlock {P} at (134,0) size 70x584
         RenderInline {SPAN} at (0,0) size 28x467

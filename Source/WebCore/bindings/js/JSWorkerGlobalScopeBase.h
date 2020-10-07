@@ -48,8 +48,12 @@ class JSServiceWorkerGlobalScope;
 #endif
 
 class JSWorkerGlobalScopeBase : public JSDOMGlobalObject {
-    typedef JSDOMGlobalObject Base;
 public:
+    using Base = JSDOMGlobalObject;
+
+    template<typename, JSC::SubspaceAccess>
+    static void subspaceFor(JSC::VM&) { RELEASE_ASSERT_NOT_REACHED(); }
+
     static void destroy(JSC::JSCell*);
 
     DECLARE_INFO;
@@ -69,7 +73,7 @@ public:
     static bool shouldInterruptScript(const JSC::JSGlobalObject*);
     static bool shouldInterruptScriptBeforeTimeout(const JSC::JSGlobalObject*);
     static JSC::RuntimeFlags javaScriptRuntimeFlags(const JSC::JSGlobalObject*);
-    static void queueTaskToEventLoop(JSC::JSGlobalObject&, Ref<JSC::Microtask>&&);
+    static void queueMicrotaskToEventLoop(JSC::JSGlobalObject&, Ref<JSC::Microtask>&&);
 
     void clearDOMGuardedObjects();
 

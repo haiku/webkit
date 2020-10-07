@@ -34,6 +34,7 @@
 #import <WebCore/CSSPrimitiveValue.h>
 #import <WebCore/CSSPropertyNames.h>
 #import <WebCore/ColorMac.h>
+#import <WebCore/ColorSerialization.h>
 #import <WebCore/HTMLElement.h>
 #import <WebCore/HTMLNames.h>
 #import <WebCore/HTMLOptionElement.h>
@@ -54,7 +55,7 @@ void PDFPluginChoiceAnnotation::updateGeometry()
     PDFPluginAnnotation::updateGeometry();
 
     StyledElement* styledElement = static_cast<StyledElement*>(element());
-    styledElement->setInlineStyleProperty(CSSPropertyFontSize, choiceAnnotation().font.pointSize * pdfLayerController().contentScaleFactor, CSSPrimitiveValue::CSS_PX);
+    styledElement->setInlineStyleProperty(CSSPropertyFontSize, choiceAnnotation().font.pointSize * pdfLayerController().contentScaleFactor, CSSUnitType::CSS_PX);
 }
 
 void PDFPluginChoiceAnnotation::commit()
@@ -76,7 +77,7 @@ Ref<Element> PDFPluginChoiceAnnotation::createAnnotationElement()
     auto& styledElement = downcast<StyledElement>(element.get());
 
     // FIXME: Match font weight and style as well?
-    styledElement.setInlineStyleProperty(CSSPropertyColor, colorFromNSColor(choiceAnnotation.fontColor).serialized());
+    styledElement.setInlineStyleProperty(CSSPropertyColor, serializationForHTML(colorFromNSColor(choiceAnnotation.fontColor)));
     styledElement.setInlineStyleProperty(CSSPropertyFontFamily, choiceAnnotation.font.familyName);
 
     NSArray *choices = choiceAnnotation.choices;

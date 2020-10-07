@@ -51,11 +51,12 @@ class HTMLImageElement;
 class HTMLVideoElement;
 class ImageBitmap;
 class ImageData;
+#if ENABLE(OFFSCREEN_CANVAS)
+class OffscreenCanvas;
+#endif
 #if ENABLE(CSS_TYPED_OM)
 class TypedOMCSSImageValue;
 #endif
-
-typedef String ErrorString;
 
 class InspectorCanvas final : public RefCounted<InspectorCanvas> {
 public:
@@ -104,7 +105,7 @@ public:
     Ref<Inspector::Protocol::Canvas::Canvas> buildObjectForCanvas(bool captureBacktrace);
     Ref<Inspector::Protocol::Recording::Recording> releaseObjectForRecording();
 
-    String getCanvasContentAsDataURL(ErrorString&);
+    String getCanvasContentAsDataURL(Inspector::Protocol::ErrorString&);
 
 private:
     InspectorCanvas(CanvasRenderingContext&);
@@ -129,6 +130,9 @@ private:
         RefPtr<TypedOMCSSImageValue>,
 #endif
         Inspector::ScriptCallFrame,
+#if ENABLE(OFFSCREEN_CANVAS)
+        RefPtr<OffscreenCanvas>,
+#endif
         String
     >;
 

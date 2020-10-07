@@ -46,12 +46,11 @@ public:
         return Structure::create(vm, globalObject, prototype, TypeInfo(InternalFunctionType, StructureFlags), info());
     }
 
-protected:
-    void finishCreation(VM&, DatePrototype*);
-
 private:
     DateConstructor(VM&, Structure*);
+    void finishCreation(VM&, DatePrototype*);
 };
+STATIC_ASSERT_ISO_SUBSPACE_SHARABLE(DateConstructor, InternalFunction);
 
 JSObject* constructDate(JSGlobalObject*, JSValue newTarget, const ArgList&);
 JSValue dateNowImpl();

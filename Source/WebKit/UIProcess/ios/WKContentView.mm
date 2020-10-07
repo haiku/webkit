@@ -31,6 +31,7 @@
 #import "APIPageConfiguration.h"
 #import "AccessibilityIOS.h"
 #import "FullscreenClient.h"
+#import "GPUProcessProxy.h"
 #import "InputViewUpdateDeferrer.h"
 #import "Logging.h"
 #import "PageClientImplIOS.h"
@@ -38,14 +39,13 @@
 #import "RemoteLayerTreeDrawingAreaProxy.h"
 #import "SmartMagnificationController.h"
 #import "UIKitSPI.h"
-#import "VersionChecks.h"
 #import "WKBrowsingContextControllerInternal.h"
 #import "WKBrowsingContextGroupPrivate.h"
 #import "WKInspectorHighlightView.h"
 #import "WKPreferencesInternal.h"
 #import "WKProcessGroupPrivate.h"
 #import "WKWebViewConfiguration.h"
-#import "WKWebViewInternal.h"
+#import "WKWebViewIOS.h"
 #import "WebFrameProxy.h"
 #import "WebKit2Initialize.h"
 #import "WebPageGroup.h"
@@ -62,10 +62,13 @@
 #import <WebCore/Quirks.h>
 #import <WebCore/RuntimeApplicationChecks.h>
 #import <WebCore/VelocityData.h>
+#import <WebCore/VersionChecks.h>
 #import <objc/message.h>
+#import <pal/spi/cocoa/NSAccessibilitySPI.h>
 #import <pal/spi/cocoa/QuartzCoreSPI.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/text/TextStream.h>
+#import "AppKitSoftLink.h"
 
 
 @interface WKInspectorIndicationView : UIView
@@ -132,6 +135,7 @@
 
 #if HAVE(VISIBILITY_PROPAGATION_VIEW)
     RetainPtr<_UILayerHostView> _visibilityPropagationView;
+    RetainPtr<_UILayerHostView> _visibilityPropagationViewForGPUProcess;
 #endif
 
     WebCore::HistoricalVelocityData _historicalKinematicData;
@@ -165,9 +169,10 @@ static NSArray *keyCommandsPlaceholderHackForEvernote(id self, SEL _cmd)
     _page->setIntrinsicDeviceScaleFactor(WebCore::screenScaleFactor([UIScreen mainScreen]));
     _page->setUseFixedLayout(true);
     _page->setDelegatesScrolling(true);
+    _page->setScreenIsBeingCaptured([[[self window] screen] isCaptured]);
 
 #if ENABLE(FULLSCREEN_API)
-    _page->setFullscreenClient(makeUnique<WebKit::FullscreenClient>(_webView));
+    _page->setFullscreenClient(makeUnique<WebKit::FullscreenClient>(self.webView));
 #endif
 
     WebKit::WebProcessPool::statistics().wkViewCount++;
@@ -185,8 +190,8 @@ static NSArray *keyCommandsPlaceholderHackForEvernote(id self, SEL _cmd)
     [self addSubview:_fixedClippingView.get()];
     [_fixedClippingView addSubview:_rootContentView.get()];
 
-    if (!linkedOnOrAfter(WebKit::SDKVersion::FirstWithLazyGestureRecognizerInstallation))
-        [self setupInteraction];
+    if (!linkedOnOrAfter(WebCore::SDKVersion::FirstWithLazyGestureRecognizerInstallation))
+        [self setUpInteraction];
     [self setUserInteractionEnabled:YES];
 
     self.layer.hitTestsAsOpaque = YES;
@@ -197,13 +202,17 @@ static NSArray *keyCommandsPlaceholderHackForEvernote(id self, SEL _cmd)
 
 #if HAVE(VISIBILITY_PROPAGATION_VIEW)
     [self _setupVisibilityPropagationView];
+    [self _setupVisibilityPropagationViewForGPUProcess];
 #endif
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_applicationWillResignActive:) name:UIApplicationWillResignActiveNotification object:[UIApplication sharedApplication]];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_applicationDidBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:[UIApplication sharedApplication]];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_applicationDidEnterBackground:) name:UIApplicationDidEnterBackgroundNotification object:[UIApplication sharedApplication]];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_applicationWillEnterForeground:) name:UIApplicationWillEnterForegroundNotification object:[UIApplication sharedApplication]];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_screenCapturedDidChange:) name:UIScreenCapturedDidChangeNotification object:[UIScreen mainScreen]];
 
 #if USE(UIKIT_KEYBOARD_ADDITIONS)
-    if (WebCore::IOSApplication::isEvernote() && !linkedOnOrAfter(WebKit::SDKVersion::FirstWhereWKContentViewDoesNotOverrideKeyCommands))
+    if (WebCore::IOSApplication::isEvernote() && !linkedOnOrAfter(WebCore::SDKVersion::FirstWhereWKContentViewDoesNotOverrideKeyCommands))
         class_addMethod(self.class, @selector(keyCommands), reinterpret_cast<IMP>(&keyCommandsPlaceholderHackForEvernote), method_getTypeEncoding(class_getInstanceMethod(self.class, @selector(keyCommands))));
 #endif
 
@@ -221,18 +230,50 @@ static NSArray *keyCommandsPlaceholderHackForEvernote(id self, SEL _cmd)
     ASSERT(!_visibilityPropagationView);
     // Propagate the view's visibility state to the WebContent process so that it is marked as "Foreground Running" when necessary.
     _visibilityPropagationView = adoptNS([[_UILayerHostView alloc] initWithFrame:CGRectZero pid:processIdentifier contextID:contextID]);
-    RELEASE_LOG(Process, "Created visibility propagation view %p for WebContent process with PID %d", _visibilityPropagationView.get(), processIdentifier);
+    RELEASE_LOG(Process, "Created visibility propagation view %p (contextID: %u) for WebContent process with PID %d", _visibilityPropagationView.get(), contextID, processIdentifier);
     [self addSubview:_visibilityPropagationView.get()];
+}
+
+- (void)_setupVisibilityPropagationViewForGPUProcess
+{
+    if (!WebKit::GPUProcessProxy::singletonIfCreated())
+        return;
+    auto processIdentifier = WebKit::GPUProcessProxy::singleton().processIdentifier();
+    auto contextID = WebKit::GPUProcessProxy::singleton().contextIDForVisibilityPropagation();
+    if (!processIdentifier || !contextID)
+        return;
+
+    if (_visibilityPropagationViewForGPUProcess)
+        return;
+
+    // Propagate the view's visibility state to the GPU process so that it is marked as "Foreground Running" when necessary.
+    _visibilityPropagationViewForGPUProcess = adoptNS([[_UILayerHostView alloc] initWithFrame:CGRectZero pid:processIdentifier contextID:contextID]);
+    RELEASE_LOG(Process, "Created visibility propagation view %p (contextID: %u) for GPU process with PID %d", _visibilityPropagationViewForGPUProcess.get(), contextID, processIdentifier);
+    [self addSubview:_visibilityPropagationViewForGPUProcess.get()];
 }
 
 - (void)_removeVisibilityPropagationView
 {
+    if (!_visibilityPropagationView)
+        return;
+
+    RELEASE_LOG(Process, "Removing visibility propagation view %p", _visibilityPropagationView.get());
     [_visibilityPropagationView removeFromSuperview];
     _visibilityPropagationView = nullptr;
 }
+
+- (void)_removeVisibilityPropagationViewForGPUProcess
+{
+    if (!_visibilityPropagationViewForGPUProcess)
+        return;
+
+    RELEASE_LOG(Process, "Removing visibility propagation view %p", _visibilityPropagationViewForGPUProcess.get());
+    [_visibilityPropagationViewForGPUProcess removeFromSuperview];
+    _visibilityPropagationViewForGPUProcess = nullptr;
+}
 #endif
 
-- (instancetype)initWithFrame:(CGRect)frame processPool:(WebKit::WebProcessPool&)processPool configuration:(Ref<API::PageConfiguration>&&)configuration webView:(WKWebView *)webView
+- (instancetype)initWithFrame:(CGRect)frame processPool:(NakedRef<WebKit::WebProcessPool>)processPool configuration:(Ref<API::PageConfiguration>&&)configuration webView:(WKWebView *)webView
 {
     if (!(self = [super initWithFrame:frame webView:webView]))
         return nil;
@@ -247,7 +288,7 @@ static NSArray *keyCommandsPlaceholderHackForEvernote(id self, SEL _cmd)
 
 - (void)dealloc
 {
-    [self cleanupInteraction];
+    [self cleanUpInteraction];
 
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 
@@ -261,6 +302,11 @@ static NSArray *keyCommandsPlaceholderHackForEvernote(id self, SEL _cmd)
 - (WebKit::WebPageProxy*)page
 {
     return _page.get();
+}
+
+- (WKWebView *)webView
+{
+    return _webView.getAutoreleased();
 }
 
 - (void)willMoveToWindow:(UIWindow *)newWindow
@@ -285,7 +331,7 @@ static NSArray *keyCommandsPlaceholderHackForEvernote(id self, SEL _cmd)
     [super didMoveToWindow];
 
     if (self.window)
-        [self setupInteraction];
+        [self setUpInteraction];
 }
 
 ALLOW_DEPRECATED_DECLARATIONS_BEGIN
@@ -362,7 +408,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     if (!_needsDeferredEndScrollingSelectionUpdate)
         return;
 
-    [_textSelectionAssistant deactivateSelection];
+    [_textInteractionAssistant deactivateSelection];
 }
 
 static WebCore::FloatBoxExtent floatBoxExtent(UIEdgeInsets insets)
@@ -390,6 +436,7 @@ static WebCore::FloatBoxExtent floatBoxExtent(UIEdgeInsets insets)
     inStableState:(BOOL)isStableState
     isChangingObscuredInsetsInteractively:(BOOL)isChangingObscuredInsetsInteractively
     enclosedInScrollableAncestorView:(BOOL)enclosedInScrollableAncestorView
+    sendEvenIfUnchanged:(BOOL)sendEvenIfUnchanged
 {
     auto drawingArea = _page->drawingArea();
     if (!drawingArea)
@@ -405,7 +452,7 @@ static WebCore::FloatBoxExtent floatBoxExtent(UIEdgeInsets insets)
     }
 
     CGRect unobscuredContentRectRespectingInputViewBounds = [self _computeUnobscuredContentRectRespectingInputViewBounds:unobscuredContentRect inputViewBounds:inputViewBounds];
-    WebCore::FloatRect fixedPositionRectForLayout = _page->computeCustomFixedPositionRect(unobscuredContentRect, unobscuredContentRectRespectingInputViewBounds, _page->customFixedPositionRect(), zoomScale, WebCore::FrameView::LayoutViewportConstraint::ConstrainedToDocumentRect);
+    WebCore::FloatRect fixedPositionRectForLayout = _page->computeLayoutViewportRect(unobscuredContentRect, unobscuredContentRectRespectingInputViewBounds, _page->layoutViewportRect(), zoomScale, WebCore::FrameView::LayoutViewportConstraint::ConstrainedToDocumentRect);
 
     WebKit::VisibleContentRectUpdateInfo visibleContentRectUpdateInfo(
         visibleContentRect,
@@ -420,7 +467,7 @@ static WebCore::FloatBoxExtent floatBoxExtent(UIEdgeInsets insets)
         isStableState,
         _sizeChangedSinceLastVisibleContentRectUpdate,
         isChangingObscuredInsetsInteractively,
-        _webView._allowsViewportShrinkToFit,
+        self.webView._allowsViewportShrinkToFit,
         enclosedInScrollableAncestorView,
         velocityData,
         downcast<WebKit::RemoteLayerTreeDrawingAreaProxy>(*drawingArea).lastCommittedLayerTreeTransactionID());
@@ -429,7 +476,7 @@ static WebCore::FloatBoxExtent floatBoxExtent(UIEdgeInsets insets)
 
     bool wasStableState = _page->inStableState();
 
-    _page->updateVisibleContentRects(visibleContentRectUpdateInfo);
+    _page->updateVisibleContentRects(visibleContentRectUpdateInfo, sendEvenIfUnchanged);
 
     auto layoutViewport = _page->unconstrainedLayoutViewportRect();
     _page->adjustLayersForLayoutViewport(layoutViewport);
@@ -478,11 +525,7 @@ static WebCore::FloatBoxExtent floatBoxExtent(UIEdgeInsets insets)
 
 - (UIInterfaceOrientation)interfaceOrientation
 {
-#if HAVE(UISCENE)
     return self.window.windowScene.interfaceOrientation;
-#else
-    return UIApp.interfaceOrientation;
-#endif
 }
 
 #pragma mark Internal
@@ -516,6 +559,25 @@ static void storeAccessibilityRemoteConnectionInformation(id element, pid_t pid,
     objc_setAssociatedObject(element, (void*)[@"ax-machport" hash], @(sendPort), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
+
+- (void)_updateRemoteAccessibilityRegistration:(BOOL)registerProcess
+{
+#if PLATFORM(MACCATALYST)
+    pid_t pid = 0;
+    if (registerProcess)
+        pid = _page->process().processIdentifier();
+    else
+        pid = [objc_getAssociatedObject(self, (void*)[@"ax-pid" hash]) intValue];
+    if (!pid)
+        return;
+
+    if (registerProcess)
+        [WebKit::getNSAccessibilityRemoteUIElementClass() registerRemoteUIProcessIdentifier:pid];
+    else
+        [WebKit::getNSAccessibilityRemoteUIElementClass() unregisterRemoteUIProcessIdentifier:pid];
+#endif
+}
+
 - (void)_accessibilityRegisterUIProcessTokens
 {
     auto uuid = [NSUUID UUID];
@@ -523,6 +585,7 @@ static void storeAccessibilityRemoteConnectionInformation(id element, pid_t pid,
 
     // Store information about the WebProcess that can later be retrieved by the iOS Accessibility runtime.
     if (_page->process().state() == WebKit::WebProcessProxy::State::Running) {
+        [self _updateRemoteAccessibilityRegistration:YES];
         IPC::Connection* connection = _page->process().connection();
         storeAccessibilityRemoteConnectionInformation(self, _page->process().processIdentifier(), connection->identifier().port, uuid);
 
@@ -545,7 +608,8 @@ static void storeAccessibilityRemoteConnectionInformation(id element, pid_t pid,
 
 - (void)_processDidExit
 {
-    [self cleanupInteraction];
+    [self _updateRemoteAccessibilityRegistration:NO];
+    [self cleanUpInteraction];
 
     [self setShowingInspectorIndication:NO];
     [self _hideInspectorHighlight];
@@ -557,6 +621,13 @@ static void storeAccessibilityRemoteConnectionInformation(id element, pid_t pid,
     _isPrintingToPDF = NO;
 }
 
+#if ENABLE(GPU_PROCESS)
+- (void)_gpuProcessCrashed
+{
+    [self _removeVisibilityPropagationViewForGPUProcess];
+}
+#endif
+
 - (void)_processWillSwap
 {
     // FIXME: Should we do something differently?
@@ -566,7 +637,7 @@ static void storeAccessibilityRemoteConnectionInformation(id element, pid_t pid,
 - (void)_didRelaunchProcess
 {
     [self _accessibilityRegisterUIProcessTokens];
-    [self setupInteraction];
+    [self setUpInteraction];
 #if HAVE(VISIBILITY_PROPAGATION_VIEW)
     [self _setupVisibilityPropagationView];
 #endif
@@ -576,6 +647,11 @@ static void storeAccessibilityRemoteConnectionInformation(id element, pid_t pid,
 - (void)_processDidCreateContextForVisibilityPropagation
 {
     [self _setupVisibilityPropagationView];
+}
+
+- (void)_gpuProcessDidCreateContextForVisibilityPropagation
+{
+    [self _setupVisibilityPropagationViewForGPUProcess];
 }
 #endif
 
@@ -595,14 +671,14 @@ static void storeAccessibilityRemoteConnectionInformation(id element, pid_t pid,
 
     if (_interactionViewsContainerView) {
         WebCore::FloatPoint scaledOrigin = layerTreeTransaction.scrollOrigin();
-        float scale = [[_webView scrollView] zoomScale];
+        float scale = self.webView.scrollView.zoomScale;
         scaledOrigin.scale(scale);
         [_interactionViewsContainerView setFrame:CGRectMake(scaledOrigin.x(), scaledOrigin.y(), 0, 0)];
     }
     
     if (boundsChanged) {
-        // FIXME: factor computeCustomFixedPositionRect() into something that gives us this rect.
-        WebCore::FloatRect fixedPositionRect = _page->computeCustomFixedPositionRect(_page->unobscuredContentRect(), _page->unobscuredContentRectRespectingInputViewBounds(), _page->customFixedPositionRect(), [[_webView scrollView] zoomScale]);
+        // FIXME: factor computeLayoutViewportRect() into something that gives us this rect.
+        WebCore::FloatRect fixedPositionRect = _page->computeLayoutViewportRect(_page->unobscuredContentRect(), _page->unobscuredContentRectRespectingInputViewBounds(), _page->layoutViewportRect(), self.webView.scrollView.zoomScale);
         [self updateFixedClippingView:fixedPositionRect];
 
         // We need to push the new content bounds to the webview to update fixed position rects.
@@ -686,6 +762,23 @@ static void storeAccessibilityRemoteConnectionInformation(id element, pid_t pid,
     _page->applicationDidBecomeActive();
 }
 
+- (void)_applicationDidEnterBackground:(NSNotification*)notification
+{
+    if (!self.window)
+        _page->applicationDidEnterBackgroundForMedia();
+}
+
+- (void)_applicationWillEnterForeground:(NSNotification*)notification
+{
+    if (!self.window)
+        _page->applicationWillEnterForegroundForMedia();
+}
+
+- (void)_screenCapturedDidChange:(NSNotification *)notification
+{
+    _page->setScreenIsBeingCaptured([[[self window] screen] isCaptured]);
+}
+
 @end
 
 #pragma mark Printing
@@ -702,7 +795,7 @@ static void storeAccessibilityRemoteConnectionInformation(id element, pid_t pid,
 
     WebCore::FrameIdentifier frameID;
     if (_WKFrameHandle *handle = printFormatter.frameToPrint)
-        frameID = WebCore::frameIdentifierFromID(handle._frameID);
+        frameID = handle->_frameHandle->frameID();
     else if (auto mainFrame = _page->mainFrame())
         frameID = mainFrame->frameID();
     else

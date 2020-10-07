@@ -25,8 +25,10 @@
 
 #include "AudioChannel.h"
 #include "AudioSourceProvider.h"
-#include "GRefPtrGStreamer.h"
+#include "AudioUtilities.h"
+#include "GStreamerCommon.h"
 #include "Logging.h"
+#include "WebKitAudioSinkGStreamer.h"
 #include "WebKitWebAudioSourceGStreamer.h"
 #include <gst/audio/gstaudiobasesink.h>
 #include <gst/gst.h>
@@ -34,10 +36,6 @@
 #include <wtf/glib/RunLoopSourcePriority.h>
 
 namespace WebCore {
-
-// Size of the AudioBus for playback. The webkitwebaudiosrc element
-// needs to handle this number of frames per cycle as well.
-const unsigned framesToPull = 128;
 
 gboolean messageCallback(GstBus*, GstMessage* message, AudioDestinationGStreamer* destination)
 {
@@ -50,7 +48,7 @@ static void autoAudioSinkChildAddedCallback(GstChildProxy*, GObject* object, gch
         g_object_set(GST_AUDIO_BASE_SINK(object), "buffer-time", static_cast<gint64>(100000), nullptr);
 }
 
-std::unique_ptr<AudioDestination> AudioDestination::create(AudioIOCallback& callback, const String&, unsigned numberOfInputChannels, unsigned numberOfOutputChannels, float sampleRate)
+Ref<AudioDestination> AudioDestination::create(AudioIOCallback& callback, const String&, unsigned numberOfInputChannels, unsigned numberOfOutputChannels, float sampleRate)
 {
     // FIXME: make use of inputDeviceId as appropriate.
 
@@ -62,7 +60,7 @@ std::unique_ptr<AudioDestination> AudioDestination::create(AudioIOCallback& call
     if (numberOfOutputChannels != 2)
         LOG(Media, "AudioDestination::create(%u, %u, %f) - unhandled output channels", numberOfInputChannels, numberOfOutputChannels, sampleRate);
 
-    return makeUnique<AudioDestinationGStreamer>(callback, sampleRate);
+    return adoptRef(*new AudioDestinationGStreamer(callback, sampleRate));
 }
 
 float AudioDestination::hardwareSampleRate()
@@ -79,7 +77,7 @@ unsigned long AudioDestination::maxChannelCount()
 
 AudioDestinationGStreamer::AudioDestinationGStreamer(AudioIOCallback& callback, float sampleRate)
     : m_callback(callback)
-    , m_renderBus(AudioBus::create(2, framesToPull, false))
+    , m_renderBus(AudioBus::create(2, AudioUtilities::renderQuantumSize, false))
     , m_sampleRate(sampleRate)
     , m_isPlaying(false)
 {
@@ -93,31 +91,35 @@ AudioDestinationGStreamer::AudioDestinationGStreamer(AudioIOCallback& callback, 
                                                                             "rate", sampleRate,
                                                                             "bus", m_renderBus.get(),
                                                                             "provider", &m_callback,
-                                                                            "frames", framesToPull, nullptr));
+                                                                            "frames", AudioUtilities::renderQuantumSize, nullptr));
 
-    GRefPtr<GstElement> audioSink = gst_element_factory_make("autoaudiosink", nullptr);
+    GRefPtr<GstElement> audioSink = createPlatformAudioSink();
     m_audioSinkAvailable = audioSink;
     if (!audioSink) {
-        LOG_ERROR("Failed to create GStreamer autoaudiosink element");
+        LOG_ERROR("Failed to create GStreamer audio sink element");
         return;
     }
 
-    g_signal_connect(audioSink.get(), "child-added", G_CALLBACK(autoAudioSinkChildAddedCallback), nullptr);
+    // Probe platform early on for a working audio output device. This is not needed for the WebKit
+    // custom audio sink because it doesn't rely on autoaudiosink.
+    if (!WEBKIT_IS_AUDIO_SINK(audioSink.get())) {
+        g_signal_connect(audioSink.get(), "child-added", G_CALLBACK(autoAudioSinkChildAddedCallback), nullptr);
 
-    // Autoaudiosink does the real sink detection in the GST_STATE_NULL->READY transition
-    // so it's best to roll it to READY as soon as possible to ensure the underlying platform
-    // audiosink was loaded correctly.
-    GstStateChangeReturn stateChangeReturn = gst_element_set_state(audioSink.get(), GST_STATE_READY);
-    if (stateChangeReturn == GST_STATE_CHANGE_FAILURE) {
-        LOG_ERROR("Failed to change autoaudiosink element state");
-        gst_element_set_state(audioSink.get(), GST_STATE_NULL);
-        m_audioSinkAvailable = false;
-        return;
+        // Autoaudiosink does the real sink detection in the GST_STATE_NULL->READY transition
+        // so it's best to roll it to READY as soon as possible to ensure the underlying platform
+        // audiosink was loaded correctly.
+        GstStateChangeReturn stateChangeReturn = gst_element_set_state(audioSink.get(), GST_STATE_READY);
+        if (stateChangeReturn == GST_STATE_CHANGE_FAILURE) {
+            LOG_ERROR("Failed to change autoaudiosink element state");
+            gst_element_set_state(audioSink.get(), GST_STATE_NULL);
+            m_audioSinkAvailable = false;
+            return;
+        }
     }
 
     GstElement* audioConvert = gst_element_factory_make("audioconvert", nullptr);
     GstElement* audioResample = gst_element_factory_make("audioresample", nullptr);
-    gst_bin_add_many(GST_BIN(m_pipeline), webkitAudioSrc, audioConvert, audioResample, audioSink.get(), nullptr);
+    gst_bin_add_many(GST_BIN_CAST(m_pipeline), webkitAudioSrc, audioConvert, audioResample, audioSink.get(), nullptr);
 
     // Link src pads from webkitAudioSrc to audioConvert ! audioResample ! autoaudiosink.
     gst_element_link_pads_full(webkitAudioSrc, "src", audioConvert, "sink", GST_PAD_LINK_CHECK_NOTHING);
@@ -134,6 +136,11 @@ AudioDestinationGStreamer::~AudioDestinationGStreamer()
 
     gst_element_set_state(m_pipeline, GST_STATE_NULL);
     gst_object_unref(m_pipeline);
+}
+
+unsigned AudioDestinationGStreamer::framesPerBuffer() const
+{
+    return AudioUtilities::renderQuantumSize;
 }
 
 gboolean AudioDestinationGStreamer::handleMessage(GstMessage* message)
@@ -158,7 +165,7 @@ gboolean AudioDestinationGStreamer::handleMessage(GstMessage* message)
     return TRUE;
 }
 
-void AudioDestinationGStreamer::start()
+void AudioDestinationGStreamer::start(Function<void(Function<void()>&&)>&&)
 {
     ASSERT(m_audioSinkAvailable);
     if (!m_audioSinkAvailable)

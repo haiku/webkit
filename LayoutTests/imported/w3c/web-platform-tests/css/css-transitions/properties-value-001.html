@@ -5,8 +5,8 @@
         <title>CSS Transitions Test: Intermediate Property Values</title>
         <meta name="timeout" content="long">
         <meta name="assert" content="Test checks that value ranges between start and end while transitioning">
-        <link rel="help" title="2. Transitions" href="http://www.w3.org/TR/css3-transitions/#transitions">
-        <link rel="help" title="7.1. Properties from CSS" href="http://www.w3.org/TR/css3-transitions/#animatable-css">
+        <link rel="help" href="http://www.w3.org/TR/css3-transitions/#transitions">
+        <link rel="help" href="https://drafts.csswg.org/web-animations-1/#animation-type">
         <link rel="author" title="Rodney Rehm" href="http://rodneyrehm.de/en/">
         <meta name="flags" content="dom">
 
@@ -30,9 +30,9 @@
         </style>
     </head>
     <body>
-        <!--  required by testharnessreport.js  -->
+        <!-- required by testharnessreport.js -->
         <div id="log"></div>
-        <!--  elements used for testing  -->
+        <!-- elements used for testing -->
         <div id="fixture" class="fixture">
             <div class="container">
                 <div class="transition">Text sample</div>
@@ -40,10 +40,10 @@
         </div>
         <div id="offscreen"></div>
 
-        <!-- 
+        <!--
             SEE ./support/README.md for an abstract explanation of the test procedure
             http://test.csswg.org/source/contributors/rodneyrehm/submitted/css3-transitions/README.md
-         -->
+        -->
 
         <script>
             // this test takes its time, give it a minute to run

@@ -24,7 +24,7 @@
 
 #if ENABLE(APPLE_PAY)
 
-messages -> WebPaymentCoordinatorProxy {
+messages -> WebPaymentCoordinatorProxy NotRefCounted {
 
     CanMakePayments() -> (bool result) Synchronous
     CanMakePaymentsWithActiveCard(String merchantIdentifier, String domainName) -> (bool canMakePayments) Async
@@ -38,6 +38,10 @@ messages -> WebPaymentCoordinatorProxy {
     CompletePaymentSession(Optional<WebCore::PaymentAuthorizationResult> result)
     AbortPaymentSession()
     CancelPaymentSession()
+
+    GetSetupFeatures(WebKit::PaymentSetupConfiguration configuration) -> (WebKit::PaymentSetupFeatures features) Async
+    BeginApplePaySetup(WebKit::PaymentSetupConfiguration configuration, WebKit::PaymentSetupFeatures features) -> (bool result) Async
+    EndApplePaySetup()
 }
 
 #endif

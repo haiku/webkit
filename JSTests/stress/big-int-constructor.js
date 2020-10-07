@@ -1,5 +1,3 @@
-//@ runBigIntEnabled
-
 function assert(a) {
     if (!a)
         throw new Error("Bad assertion");
@@ -247,7 +245,6 @@ assertThrowTypeError(undefined);
 assertThrowTypeError(Symbol("a"));
 assertThrowRangeError(0.5);
 assertThrowRangeError(-.5);
-assertThrowRangeError(9007199254740992);
 assertThrowRangeError(Infinity);
 assertThrowRangeError(-Infinity);
 assertThrowRangeError(NaN);

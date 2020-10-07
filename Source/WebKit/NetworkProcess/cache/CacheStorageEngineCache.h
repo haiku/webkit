@@ -30,6 +30,10 @@
 #include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
 
+namespace WebCore {
+struct RetrieveRecordsOptions;
+}
+
 namespace WebKit {
 
 namespace CacheStorage {
@@ -66,7 +70,7 @@ public:
     const String& uniqueName() const { return m_uniqueName; }
     bool isActive() const { return m_state != State::Uninitialized; }
 
-    void retrieveRecords(const URL&, WebCore::DOMCacheEngine::RecordsCallback&&);
+    void retrieveRecords(const WebCore::RetrieveRecordsOptions&, WebCore::DOMCacheEngine::RecordsCallback&&);
     WebCore::DOMCacheEngine::CacheInfo info() const { return { m_identifier, m_name }; }
 
     void put(Vector<WebCore::DOMCacheEngine::Record>&&, WebCore::DOMCacheEngine::RecordIdentifiersCallback&&);
@@ -92,6 +96,8 @@ public:
         WebCore::DOMCacheEngine::Record record;
     };
     static Optional<DecodedRecord> decodeRecordHeader(const NetworkCache::Storage::Record&);
+
+    bool hasPendingOpeningCallbacks() const { return !m_pendingOpeningCallbacks.isEmpty(); }
 
 private:
     Vector<RecordInformation>* recordsFromURL(const URL&);

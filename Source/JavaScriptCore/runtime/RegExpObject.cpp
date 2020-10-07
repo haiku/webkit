@@ -21,13 +21,6 @@
 #include "config.h"
 #include "RegExpObject.h"
 
-#include "Error.h"
-#include "ExceptionHelpers.h"
-#include "JSArray.h"
-#include "JSGlobalObject.h"
-#include "JSString.h"
-#include "Lookup.h"
-#include "JSCInlines.h"
 #include "RegExpObjectInlines.h"
 
 namespace JSC {
@@ -35,6 +28,9 @@ namespace JSC {
 STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(RegExpObject);
 
 const ClassInfo RegExpObject::s_info = { "RegExp", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(RegExpObject) };
+
+JSC_DECLARE_CUSTOM_SETTER(regExpObjectSetLastIndexStrict);
+JSC_DECLARE_CUSTOM_SETTER(regExpObjectSetLastIndexNonStrict);
 
 RegExpObject::RegExpObject(VM& vm, Structure* structure, RegExp* regExp)
     : JSNonFinalObject(vm, structure)
@@ -71,12 +67,12 @@ bool RegExpObject::getOwnPropertySlot(JSObject* object, JSGlobalObject* globalOb
     return Base::getOwnPropertySlot(object, globalObject, propertyName, slot);
 }
 
-bool RegExpObject::deleteProperty(JSCell* cell, JSGlobalObject* globalObject, PropertyName propertyName)
+bool RegExpObject::deleteProperty(JSCell* cell, JSGlobalObject* globalObject, PropertyName propertyName, DeletePropertySlot& slot)
 {
     VM& vm = globalObject->vm();
     if (propertyName == vm.propertyNames->lastIndex)
         return false;
-    return Base::deleteProperty(cell, globalObject, propertyName);
+    return Base::deleteProperty(cell, globalObject, propertyName, slot);
 }
 
 void RegExpObject::getOwnNonIndexPropertyNames(JSObject* object, JSGlobalObject* globalObject, PropertyNameArray& propertyNames, EnumerationMode mode)
@@ -139,12 +135,12 @@ bool RegExpObject::defineOwnProperty(JSObject* object, JSGlobalObject* globalObj
     RELEASE_AND_RETURN(scope, Base::defineOwnProperty(object, globalObject, propertyName, descriptor, shouldThrow));
 }
 
-static bool regExpObjectSetLastIndexStrict(JSGlobalObject* globalObject, EncodedJSValue thisValue, EncodedJSValue value)
+JSC_DEFINE_CUSTOM_SETTER(regExpObjectSetLastIndexStrict, (JSGlobalObject* globalObject, EncodedJSValue thisValue, EncodedJSValue value))
 {
     return jsCast<RegExpObject*>(JSValue::decode(thisValue))->setLastIndex(globalObject, JSValue::decode(value), true);
 }
 
-static bool regExpObjectSetLastIndexNonStrict(JSGlobalObject* globalObject, EncodedJSValue thisValue, EncodedJSValue value)
+JSC_DEFINE_CUSTOM_SETTER(regExpObjectSetLastIndexNonStrict, (JSGlobalObject* globalObject, EncodedJSValue thisValue, EncodedJSValue value))
 {
     return jsCast<RegExpObject*>(JSValue::decode(thisValue))->setLastIndex(globalObject, JSValue::decode(value), false);
 }
@@ -165,6 +161,11 @@ bool RegExpObject::put(JSCell* cell, JSGlobalObject* globalObject, PropertyName 
         return result;
     }
     return Base::put(cell, globalObject, propertyName, value, slot);
+}
+
+String RegExpObject::toStringName(const JSObject*, JSGlobalObject*)
+{
+    return "RegExp"_s;
 }
 
 JSValue RegExpObject::exec(JSGlobalObject* globalObject, JSString* string)

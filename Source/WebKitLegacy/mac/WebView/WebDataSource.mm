@@ -55,12 +55,14 @@
 #import <WebCore/MIMETypeRegistry.h>
 #import <WebCore/ResourceRequest.h>
 #import <WebCore/SharedBuffer.h>
+#import <WebCore/WebCoreJITOperations.h>
 #import <WebCore/WebCoreObjCExtras.h>
 #import <WebCore/WebCoreURLResponse.h>
 #import <WebKitLegacy/DOMHTML.h>
 #import <WebKitLegacy/DOMPrivate.h>
 #import <wtf/Assertions.h>
 #import <wtf/MainThread.h>
+#import <wtf/NakedPtr.h>
 #import <wtf/RefPtr.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/RunLoop.h>
@@ -152,8 +154,9 @@ void addTypesFromClass(NSMutableDictionary *allTypes, Class objCClass, NSArray *
 {
     if (self == [WebDataSource class]) {
 #if !PLATFORM(IOS_FAMILY)
-        JSC::initializeThreading();
-        RunLoop::initializeMainRunLoop();
+        JSC::initialize();
+        WTF::initializeMainThread();
+        WebCore::populateJITOperations();
 #endif
     }
 }
@@ -394,7 +397,7 @@ void addTypesFromClass(NSMutableDictionary *allTypes, Class objCClass, NSArray *
 #endif
 }
 
-- (WebCore::DocumentLoader*)_documentLoader
+- (NakedPtr<WebCore::DocumentLoader>)_documentLoader
 {
     return toPrivate(_private)->loader.ptr();
 }
@@ -547,13 +550,9 @@ void addTypesFromClass(NSMutableDictionary *allTypes, Class objCClass, NSArray *
 
 - (NSArray *)subresources
 {
-    auto coreSubresources = toPrivate(_private)->loader->subresources();
-    auto subresources = adoptNS([[NSMutableArray alloc] initWithCapacity:coreSubresources.size()]);
-    for (auto& coreSubresource : coreSubresources) {
-        if (auto resource = adoptNS([[WebResource alloc] _initWithCoreResource:coreSubresource.copyRef()]))
-            [subresources addObject:resource.get()];
-    }
-    return subresources.autorelease();
+    return createNSArray(toPrivate(_private)->loader->subresources(), [] (auto& resource) {
+        return adoptNS([[WebResource alloc] _initWithCoreResource:resource.copyRef()]);
+    }).autorelease();
 }
 
 - (WebResource *)subresourceForURL:(NSURL *)URL
@@ -564,7 +563,7 @@ void addTypesFromClass(NSMutableDictionary *allTypes, Class objCClass, NSArray *
 
 - (void)addSubresource:(WebResource *)subresource
 {    
-    toPrivate(_private)->loader->addArchiveResource([subresource _coreResource]);
+    toPrivate(_private)->loader->addArchiveResource([subresource _coreResource].get());
 }
 
 @end

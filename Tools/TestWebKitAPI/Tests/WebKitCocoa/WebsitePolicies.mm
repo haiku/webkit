@@ -23,10 +23,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
+#import "config.h"
 
 #import "PlatformUtilities.h"
 #import "TestNavigationDelegate.h"
+#import "TestUIDelegate.h"
 #import "TestWKWebView.h"
 #import <WebKit/WKMutableDictionary.h>
 #import <WebKit/WKNavigationDelegatePrivate.h>
@@ -38,12 +39,12 @@
 #import <WebKit/WKURLSchemeTaskPrivate.h>
 #import <WebKit/WKUserContentControllerPrivate.h>
 #import <WebKit/WKWebViewPrivate.h>
+#import <WebKit/WKWebpagePreferencesPrivate.h>
 #import <WebKit/WKWebsiteDataStorePrivate.h>
 #import <WebKit/WKWebsitePolicies.h>
 #import <WebKit/_WKCustomHeaderFields.h>
 #import <WebKit/_WKUserContentExtensionStorePrivate.h>
 #import <WebKit/_WKWebsiteDataStoreConfiguration.h>
-#import <WebKit/_WKWebsitePolicies.h>
 #import <wtf/Function.h>
 #import <wtf/HashMap.h>
 #import <wtf/MainThread.h>
@@ -63,10 +64,8 @@ static bool doneCompiling;
 static bool receivedAlert;
 static bool finishedNavigation;
 
-#if PLATFORM(MAC)
 static Optional<_WKAutoplayEvent> receivedAutoplayEvent;
 static Optional<_WKAutoplayEventFlags> receivedAutoplayEventFlags;
-#endif
 
 static size_t alertCount;
 
@@ -104,9 +103,9 @@ static size_t alertCount;
     completionHandler();
 }
 
-- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *))decisionHandler
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction preferences:(WKWebpagePreferences *)preferences decisionHandler:(void (^)(WKNavigationActionPolicy, WKWebpagePreferences *))decisionHandler
 {
-    _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
+    WKWebpagePreferences *websitePolicies = [[[WKWebpagePreferences alloc] init] autorelease];
     switch (alertCount) {
     case 0:
         // Verify the content blockers behave correctly with the default behavior.
@@ -114,11 +113,11 @@ static size_t alertCount;
     case 1:
         {
             // Verify disabling content blockers works correctly.
-            websitePolicies.contentBlockersEnabled = false;
+            websitePolicies._contentBlockersEnabled = false;
             
             // Verify calling the decisionHandler asynchronously works correctly.
             auto decisionHandlerCopy = Block_copy(decisionHandler);
-            callOnMainThread([decisionHandlerCopy, websitePolicies = RetainPtr<_WKWebsitePolicies>(websitePolicies)] {
+            callOnMainThread([decisionHandlerCopy, websitePolicies = retainPtr(websitePolicies)] {
                 decisionHandlerCopy(WKNavigationActionPolicyAllow, websitePolicies.get());
                 Block_release(decisionHandlerCopy);
             });
@@ -126,7 +125,7 @@ static size_t alertCount;
         return;
     case 2:
         // Verify enabling content blockers has no effect when reloading without content blockers.
-        websitePolicies.contentBlockersEnabled = true;
+        websitePolicies._contentBlockersEnabled = true;
         break;
     default:
         EXPECT_TRUE(false);
@@ -136,7 +135,7 @@ static size_t alertCount;
 
 @end
 
-TEST(WebKit, WebsitePoliciesContentBlockersEnabled)
+TEST(WebpagePreferences, WebsitePoliciesContentBlockersEnabled)
 {
     [[_WKUserContentExtensionStore defaultStore] _removeAllContentExtensions];
 
@@ -174,7 +173,7 @@ TEST(WebKit, WebsitePoliciesContentBlockersEnabled)
     [[_WKUserContentExtensionStore defaultStore] _removeAllContentExtensions];
 }
 
-@interface AutoplayPoliciesDelegate : NSObject <WKNavigationDelegate, WKUIDelegatePrivate>
+@interface AutoplayPoliciesDelegate : TestNavigationDelegate <WKNavigationDelegate, WKUIDelegatePrivate>
 @property (nonatomic, copy) _WKWebsiteAutoplayPolicy(^autoplayPolicyForURL)(NSURL *);
 @property (nonatomic, copy) _WKWebsiteAutoplayQuirk(^allowedAutoplayQuirksForURL)(NSURL *);
 @end
@@ -188,23 +187,21 @@ TEST(WebKit, WebsitePoliciesContentBlockersEnabled)
     decisionHandler(WKNavigationActionPolicyAllow);
 }
 
-- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *))decisionHandler
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction preferences:(WKWebpagePreferences *)preferences decisionHandler:(void (^)(WKNavigationActionPolicy, WKWebpagePreferences *))decisionHandler
 {
-    _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
+    WKWebpagePreferences *websitePolicies = [[[WKWebpagePreferences alloc] init] autorelease];
     if (_allowedAutoplayQuirksForURL)
-        websitePolicies.allowedAutoplayQuirks = _allowedAutoplayQuirksForURL(navigationAction.request.URL);
+        websitePolicies._allowedAutoplayQuirks = _allowedAutoplayQuirksForURL(navigationAction.request.URL);
     if (_autoplayPolicyForURL)
-        websitePolicies.autoplayPolicy = _autoplayPolicyForURL(navigationAction.request.URL);
+        websitePolicies._autoplayPolicy = _autoplayPolicyForURL(navigationAction.request.URL);
     decisionHandler(WKNavigationActionPolicyAllow, websitePolicies);
 }
 
-#if PLATFORM(MAC)
 - (void)_webView:(WKWebView *)webView handleAutoplayEvent:(_WKAutoplayEvent)event withFlags:(_WKAutoplayEventFlags)flags
 {
     receivedAutoplayEventFlags = flags;
     receivedAutoplayEvent = event;
 }
-#endif
 
 @end
 
@@ -222,52 +219,49 @@ TEST(WebKit, WebsitePoliciesContentBlockersEnabled)
     decisionHandler(WKNavigationActionPolicyAllow);
 }
 
-- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *))decisionHandler
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction preferences:(WKWebpagePreferences *)preferences decisionHandler:(void (^)(WKNavigationActionPolicy, WKWebpagePreferences *))decisionHandler
 {
     dispatch_async(dispatch_get_main_queue(), ^{
-        _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
+        WKWebpagePreferences *websitePolicies = [[[WKWebpagePreferences alloc] init] autorelease];
         if (_allowedAutoplayQuirksForURL)
-            websitePolicies.allowedAutoplayQuirks = _allowedAutoplayQuirksForURL(navigationAction.request.URL);
+            websitePolicies._allowedAutoplayQuirks = _allowedAutoplayQuirksForURL(navigationAction.request.URL);
         if (_autoplayPolicyForURL)
-            websitePolicies.autoplayPolicy = _autoplayPolicyForURL(navigationAction.request.URL);
+            websitePolicies._autoplayPolicy = _autoplayPolicyForURL(navigationAction.request.URL);
         decisionHandler(WKNavigationActionPolicyAllow, websitePolicies);
     });
 }
 
-#if PLATFORM(MAC)
 - (void)_webView:(WKWebView *)webView handleAutoplayEvent:(_WKAutoplayEvent)event withFlags:(_WKAutoplayEventFlags)flags
 {
     receivedAutoplayEventFlags = flags;
     receivedAutoplayEvent = event;
 }
-#endif
 
 @end
 
 @interface WebsitePoliciesNavigationDelegate : TestNavigationDelegate <WKNavigationDelegatePrivate>
-@property (nonatomic, copy) void (^decidePolicyForNavigationActionWithWebsitePolicies)(WKNavigationAction *, id <NSSecureCoding>, void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *));
+@property (nonatomic, copy) void (^decidePolicyForNavigationActionWithWebsitePolicies)(WKNavigationAction *, WKWebpagePreferences *, void (^)(WKNavigationActionPolicy, WKWebpagePreferences *));
 @end
 
 @implementation WebsitePoliciesNavigationDelegate
 
-IGNORE_WARNINGS_BEGIN("deprecated-implementations")
-- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction userInfo:(id <NSSecureCoding>)userInfo decisionHandler:(void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *))decisionHandler
-IGNORE_WARNINGS_END
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction preferences:(WKWebpagePreferences *)preferences decisionHandler:(void (^)(WKNavigationActionPolicy, WKWebpagePreferences *))decisionHandler
 {
     if (_decidePolicyForNavigationActionWithWebsitePolicies)
-        _decidePolicyForNavigationActionWithWebsitePolicies(navigationAction, userInfo, decisionHandler);
+        _decidePolicyForNavigationActionWithWebsitePolicies(navigationAction, preferences, decisionHandler);
     else
         decisionHandler(WKNavigationActionPolicyAllow, nil);
 }
 
 @end
 
-TEST(WebKit, WebsitePoliciesAutoplayEnabled)
+TEST(WebpagePreferences, WebsitePoliciesAutoplayEnabled)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
 
 #if PLATFORM(IOS_FAMILY)
-    [configuration setAllowsInlineMediaPlayback:YES];
+    configuration.get().allowsInlineMediaPlayback = YES;
+    configuration.get()._inlineMediaPlaybackRequiresPlaysInlineAttribute = NO;
 #endif
 
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
@@ -310,9 +304,9 @@ TEST(WebKit, WebsitePoliciesAutoplayEnabled)
     [webView waitForMessage:@"did-not-play"];
 
     // Test updating website policies.
-    _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
-    websitePolicies.autoplayPolicy = _WKWebsiteAutoplayPolicyAllow;
-    [webView _updateWebsitePolicies:websitePolicies];
+    WKWebpagePreferences *websitePolicies = [[[WKWebpagePreferences alloc] init] autorelease];
+    websitePolicies._autoplayPolicy = _WKWebsiteAutoplayPolicyAllow;
+    [webView _updateWebpagePreferences:websitePolicies];
     [webView stringByEvaluatingJavaScript:@"playVideo()"];
     [webView waitForMessage:@"autoplayed"];
 
@@ -356,14 +350,14 @@ TEST(WebKit, WebsitePoliciesAutoplayEnabled)
     [webView waitForMessage:@"did-not-play"];
 }
 
-#if PLATFORM(MAC)
-static void runUntilReceivesAutoplayEvent(WKAutoplayEvent event)
+static void runUntilReceivesAutoplayEvent(_WKAutoplayEvent event)
 {
     while (!receivedAutoplayEvent || *receivedAutoplayEvent != event)
         CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.1, true);
 }
 
-TEST(WebKit, WebsitePoliciesPlayAfterPreventedAutoplay)
+#if PLATFORM(MAC)
+TEST(WebpagePreferences, WebsitePoliciesPlayAfterPreventedAutoplay)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 336, 276) configuration:configuration.get()]);
@@ -381,13 +375,13 @@ TEST(WebKit, WebsitePoliciesPlayAfterPreventedAutoplay)
     NSURLRequest *jsPlayRequest = [NSURLRequest requestWithURL:[[NSBundle mainBundle] URLForResource:@"js-play-with-controls" withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"]];
     [webView loadRequest:jsPlayRequest];
     [webView waitForMessage:@"loaded"];
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventDidPreventFromAutoplaying);
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventDidPreventFromAutoplaying);
 
     [webView mouseDownAtPoint:playButtonClickPoint simulatePressure:NO];
     [webView mouseUpAtPoint:playButtonClickPoint];
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventDidPlayMediaWithUserGesture);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsHasAudio);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsPlaybackWasPrevented);
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventDidPlayMediaWithUserGesture);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsHasAudio);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsPlaybackWasPrevented);
 
     receivedAutoplayEvent = WTF::nullopt;
     [webView loadHTMLString:@"" baseURL:nil];
@@ -395,14 +389,14 @@ TEST(WebKit, WebsitePoliciesPlayAfterPreventedAutoplay)
     NSURLRequest *autoplayRequest = [NSURLRequest requestWithURL:[[NSBundle mainBundle] URLForResource:@"autoplay-with-controls" withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"]];
     [webView loadRequest:autoplayRequest];
     [webView waitForMessage:@"loaded"];
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventDidPreventFromAutoplaying);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsHasAudio);
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventDidPreventFromAutoplaying);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsHasAudio);
 
     [webView mouseDownAtPoint:playButtonClickPoint simulatePressure:NO];
     [webView mouseUpAtPoint:playButtonClickPoint];
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventDidPlayMediaWithUserGesture);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsHasAudio);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsPlaybackWasPrevented);
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventDidPlayMediaWithUserGesture);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsHasAudio);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsPlaybackWasPrevented);
 
     receivedAutoplayEvent = WTF::nullopt;
     [webView loadHTMLString:@"" baseURL:nil];
@@ -425,18 +419,24 @@ TEST(WebKit, WebsitePoliciesPlayAfterPreventedAutoplay)
     NSURLRequest *autoplayMutedRequest = [NSURLRequest requestWithURL:[[NSBundle mainBundle] URLForResource:@"autoplay-muted-with-controls" withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"]];
     [webView loadRequest:autoplayMutedRequest];
     [webView waitForMessage:@"loaded"];
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventDidPreventFromAutoplaying);
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventDidPreventFromAutoplaying);
 
     [webView mouseDownAtPoint:playButtonClickPoint simulatePressure:NO];
     [webView mouseUpAtPoint:playButtonClickPoint];
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventDidPlayMediaWithUserGesture);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsHasAudio);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsPlaybackWasPrevented);
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventDidPlayMediaWithUserGesture);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsHasAudio);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsPlaybackWasPrevented);
 }
+#endif
 
-TEST(WebKit, WebsitePoliciesPlayingWithUserGesture)
+TEST(WebpagePreferences, WebsitePoliciesPlayingWithUserGesture)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+#if PLATFORM(IOS_FAMILY)
+    configuration.get().allowsInlineMediaPlayback = YES;
+    configuration.get()._inlineMediaPlaybackRequiresPlaysInlineAttribute = NO;
+#endif
+
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
 
     auto delegate = adoptNS([[AutoplayPoliciesDelegate alloc] init]);
@@ -448,34 +448,51 @@ TEST(WebKit, WebsitePoliciesPlayingWithUserGesture)
 
     receivedAutoplayEvent = WTF::nullopt;
 
+#if PLATFORM(MAC)
     NSPoint playButtonClickPoint = NSMakePoint(20, 580);
+#endif
 
     NSURLRequest *request = [NSURLRequest requestWithURL:[[NSBundle mainBundle] URLForResource:@"audio-with-play-button" withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"]];
     [webView loadRequest:request];
     [webView waitForMessage:@"loaded"];
+
+#if PLATFORM(MAC)
     [webView mouseDownAtPoint:playButtonClickPoint simulatePressure:NO];
     [webView mouseUpAtPoint:playButtonClickPoint];
+#else
+    [webView clickOnElementID:@"playButton"];
+#endif
 
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventDidPlayMediaWithUserGesture);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsHasAudio);
-    ASSERT_FALSE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsMediaIsMainContent);
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventDidPlayMediaWithUserGesture);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsHasAudio);
+    ASSERT_FALSE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsMediaIsMainContent);
 
     receivedAutoplayEvent = WTF::nullopt;
 
     request = [NSURLRequest requestWithURL:[[NSBundle mainBundle] URLForResource:@"video-with-play-button" withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"]];
     [webView loadRequest:request];
     [webView waitForMessage:@"loaded"];
+
+#if PLATFORM(MAC)
     [webView mouseDownAtPoint:playButtonClickPoint simulatePressure:NO];
     [webView mouseUpAtPoint:playButtonClickPoint];
+#else
+    [webView clickOnElementID:@"playButton"];
+#endif
 
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventDidPlayMediaWithUserGesture);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsHasAudio);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsMediaIsMainContent);
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventDidPlayMediaWithUserGesture);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsHasAudio);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsMediaIsMainContent);
 }
 
-TEST(WebKit, WebsitePoliciesPlayingWithoutInterference)
+TEST(WebpagePreferences, WebsitePoliciesPlayingWithoutInterference)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+#if PLATFORM(IOS_FAMILY)
+    configuration.get().allowsInlineMediaPlayback = YES;
+    configuration.get()._inlineMediaPlaybackRequiresPlaysInlineAttribute = NO;
+#endif
+
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 336, 276) configuration:configuration.get()]);
 
     auto delegate = adoptNS([[AutoplayPoliciesDelegate alloc] init]);
@@ -488,13 +505,18 @@ TEST(WebKit, WebsitePoliciesPlayingWithoutInterference)
     receivedAutoplayEvent = WTF::nullopt;
     NSURLRequest *jsPlayRequest = [NSURLRequest requestWithURL:[[NSBundle mainBundle] URLForResource:@"js-autoplay-audio" withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"]];
     [webView loadRequest:jsPlayRequest];
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventDidAutoplayMediaPastThresholdWithoutUserInterference);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsHasAudio);
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventDidAutoplayMediaPastThresholdWithoutUserInterference);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsHasAudio);
 }
 
-TEST(WebKit, WebsitePoliciesUserInterferenceWithPlaying)
+TEST(WebpagePreferences, WebsitePoliciesUserInterferenceWithPlaying)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+#if PLATFORM(IOS_FAMILY)
+    configuration.get().allowsInlineMediaPlayback = YES;
+    configuration.get()._inlineMediaPlaybackRequiresPlaysInlineAttribute = NO;
+#endif
+
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 336, 276) configuration:configuration.get()]);
 
     auto delegate = adoptNS([[AutoplayPoliciesDelegate alloc] init]);
@@ -510,43 +532,94 @@ TEST(WebKit, WebsitePoliciesUserInterferenceWithPlaying)
     [webView waitForMessage:@"playing"];
     ASSERT_TRUE(receivedAutoplayEvent == WTF::nullopt);
 
-    WKPageSetMuted([webView _pageForTesting], kWKMediaAudioMuted);
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventUserDidInterfereWithPlayback);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsHasAudio);
+    WKPageSetMuted([webView _pageForTesting], _WKMediaAudioMuted);
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventUserDidInterfereWithPlayback);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsHasAudio);
 
     receivedAutoplayEvent = WTF::nullopt;
     [webView loadRequest:jsPlayRequest];
     [webView waitForMessage:@"playing"];
     ASSERT_TRUE(receivedAutoplayEvent == WTF::nullopt);
 
+#if PLATFORM(MAC)
     const NSPoint muteButtonClickPoint = NSMakePoint(80, 256);
     [webView mouseDownAtPoint:muteButtonClickPoint simulatePressure:NO];
     [webView mouseUpAtPoint:muteButtonClickPoint];
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventUserDidInterfereWithPlayback);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsHasAudio);
+#else
+    [webView clickOnElementID:@"muteButton"];
+#endif
+
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventUserDidInterfereWithPlayback);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsHasAudio);
 
     receivedAutoplayEvent = WTF::nullopt;
     [webView loadRequest:jsPlayRequest];
     [webView waitForMessage:@"playing"];
     ASSERT_TRUE(receivedAutoplayEvent == WTF::nullopt);
 
+#if PLATFORM(MAC)
     const NSPoint playButtonClickPoint = NSMakePoint(20, 256);
     [webView mouseDownAtPoint:playButtonClickPoint simulatePressure:NO];
     [webView mouseUpAtPoint:playButtonClickPoint];
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventUserDidInterfereWithPlayback);
-    ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsHasAudio);
+#else
+    [webView clickOnElementID:@"playButton"];
+#endif
+
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventUserDidInterfereWithPlayback);
+    ASSERT_TRUE(*receivedAutoplayEventFlags & _WKAutoplayEventFlagsHasAudio);
 }
 
-TEST(WebKit, WebsitePoliciesWithBridgingCast)
+#if PLATFORM(MAC)
+TEST(WebpagePreferences, WebsitePoliciesPerDocumentAutoplayBehaviorMediaLoading)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+
+    auto delegate = adoptNS([[AutoplayPoliciesDelegate alloc] init]);
+    [webView setNavigationDelegate:delegate.get()];
+
+    __block bool receivedLoadedEvent = false;
+    __block bool receivedSuspendEvent = false;
+
+    [webView performAfterReceivingMessage:@"loadeddata" action:^{ receivedLoadedEvent = true; }];
+    [webView performAfterReceivingMessage:@"suspend" action:^{ receivedSuspendEvent = true; }];
+
+    [delegate setAutoplayPolicyForURL:^(NSURL *) {
+        return _WKWebsiteAutoplayPolicyDeny;
+    }];
+
+    [webView loadTestPageNamed:@"media-loading"];
+
+    TestWebKitAPI::Util::run(&receivedSuspendEvent);
+    EXPECT_FALSE(receivedLoadedEvent);
+
+    [webView loadHTMLString:@"" baseURL:nil];
+    [delegate waitForDidFinishNavigation];
+
+    [webView setNavigationDelegate:delegate.get()];
+
+    receivedLoadedEvent = false;
+    receivedSuspendEvent = false;
+
+    [delegate setAutoplayPolicyForURL:^(NSURL *) {
+        return _WKWebsiteAutoplayPolicyAllow;
+    }];
+
+    [webView loadTestPageNamed:@"media-loading"];
+
+    TestWebKitAPI::Util::run(&receivedLoadedEvent);
+}
+
+TEST(WebpagePreferences, WebsitePoliciesWithBridgingCast)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 336, 276) configuration:configuration.get()]);
     auto delegate = adoptNS([[WebsitePoliciesNavigationDelegate alloc] init]);
 
     __block bool didInvokeDecisionHandler = false;
-    [delegate setDecidePolicyForNavigationActionWithWebsitePolicies:^(WKNavigationAction *, id <NSSecureCoding>, void (^decisionHandler)(WKNavigationActionPolicy, _WKWebsitePolicies *)) {
+    [delegate setDecidePolicyForNavigationActionWithWebsitePolicies:^(WKNavigationAction *, WKWebpagePreferences *, void (^decisionHandler)(WKNavigationActionPolicy, WKWebpagePreferences *)) {
         auto policies = adoptWK(WKWebsitePoliciesCreate());
-        decisionHandler(WKNavigationActionPolicyAllow, (__bridge _WKWebsitePolicies *)policies.get());
+        decisionHandler(WKNavigationActionPolicyAllow, (__bridge WKWebpagePreferences *)policies.get());
         didInvokeDecisionHandler = true;
     }];
 
@@ -556,17 +629,17 @@ TEST(WebKit, WebsitePoliciesWithBridgingCast)
     EXPECT_TRUE(didInvokeDecisionHandler);
 }
 
-TEST(WebKit, WebsitePoliciesWithUnexpectedType)
+TEST(WebpagePreferences, WebsitePoliciesWithUnexpectedType)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 336, 276) configuration:configuration.get()]);
     auto delegate = adoptNS([[WebsitePoliciesNavigationDelegate alloc] init]);
 
     __block bool didCatchException = false;
-    [delegate setDecidePolicyForNavigationActionWithWebsitePolicies:^(WKNavigationAction *, id <NSSecureCoding>, void (^decisionHandler)(WKNavigationActionPolicy, _WKWebsitePolicies *)) {
+    [delegate setDecidePolicyForNavigationActionWithWebsitePolicies:^(WKNavigationAction *, WKWebpagePreferences *, void (^decisionHandler)(WKNavigationActionPolicy, WKWebpagePreferences *)) {
         @try {
             id fakePolicies = @"Hello";
-            decisionHandler(WKNavigationActionPolicyAllow, (_WKWebsitePolicies *)fakePolicies);
+            decisionHandler(WKNavigationActionPolicyAllow, (WKWebpagePreferences *)fakePolicies);
         } @catch (NSException *exception) {
             didCatchException = true;
         }
@@ -656,7 +729,7 @@ struct ParsedRange {
 
 @end
 
-TEST(WebKit, WebsitePoliciesDuringRedirect)
+TEST(WebpagePreferences, WebsitePoliciesDuringRedirect)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
     auto videoData = adoptNS([[NSData alloc] initWithContentsOfURL:[[NSBundle mainBundle] URLForResource:@"test" withExtension:@"mp4" subdirectory:@"TestWebKitAPI.resources"]]);
@@ -675,10 +748,16 @@ TEST(WebKit, WebsitePoliciesDuringRedirect)
     [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"test:///should-redirect"]]];
     [webView waitForMessage:@"autoplayed"];
 }
+#endif // PLATFORM(MAC)
 
-TEST(WebKit, WebsitePoliciesUpdates)
+TEST(WebpagePreferences, WebsitePoliciesUpdates)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+#if PLATFORM(IOS_FAMILY)
+    configuration.get().allowsInlineMediaPlayback = YES;
+    configuration.get()._inlineMediaPlaybackRequiresPlaysInlineAttribute = NO;
+#endif
+
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
     auto delegate = adoptNS([[AutoplayPoliciesDelegate alloc] init]);
     [webView setNavigationDelegate:delegate.get()];
@@ -692,9 +771,9 @@ TEST(WebKit, WebsitePoliciesUpdates)
     [webView loadRequest:requestWithAudio];
     [webView waitForMessage:@"did-not-play"];
 
-    _WKWebsitePolicies *policies = [[[_WKWebsitePolicies alloc] init] autorelease];
-    policies.autoplayPolicy = _WKWebsiteAutoplayPolicyAllow;
-    [webView _updateWebsitePolicies:policies];
+    WKWebpagePreferences *policies = [[[WKWebpagePreferences alloc] init] autorelease];
+    policies._autoplayPolicy = _WKWebsiteAutoplayPolicyAllow;
+    [webView _updateWebpagePreferences:policies];
 
     // Now that we updated our policies, a script should be able to autoplay media.
     [webView stringByEvaluatingJavaScript:@"playVideo()"];
@@ -702,17 +781,18 @@ TEST(WebKit, WebsitePoliciesUpdates)
 
     [webView stringByEvaluatingJavaScript:@"pauseVideo()"];
 
-    policies = [[[_WKWebsitePolicies alloc] init] autorelease];
-    policies.autoplayPolicy = _WKWebsiteAutoplayPolicyDeny;
-    [webView _updateWebsitePolicies:policies];
+    WKWebpagePreferences *preferences = [[[WKWebpagePreferences alloc] init] autorelease];
+    preferences._autoplayPolicy = _WKWebsiteAutoplayPolicyDeny;
+    [webView _updateWebpagePreferences:preferences];
 
     // A script should no longer be able to autoplay media.
     receivedAutoplayEvent = WTF::nullopt;
     [webView stringByEvaluatingJavaScript:@"playVideo()"];
-    runUntilReceivesAutoplayEvent(kWKAutoplayEventDidPreventFromAutoplaying);
+    runUntilReceivesAutoplayEvent(_WKAutoplayEventDidPreventFromAutoplaying);
 }
 
-TEST(WebKit, WebsitePoliciesArbitraryUserGestureQuirk)
+#if PLATFORM(MAC)
+TEST(WebpagePreferences, WebsitePoliciesArbitraryUserGestureQuirk)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
@@ -745,7 +825,7 @@ TEST(WebKit, WebsitePoliciesArbitraryUserGestureQuirk)
     [webView waitForMessage:@"autoplayed"];
 }
 
-TEST(WebKit, WebsitePoliciesAutoplayQuirks)
+TEST(WebpagePreferences, WebsitePoliciesAutoplayQuirks)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
@@ -803,7 +883,7 @@ TEST(WebKit, WebsitePoliciesAutoplayQuirks)
     [webView waitForMessage:@"playing"];
 }
 
-TEST(WebKit, WebsitePoliciesPerDocumentAutoplayBehaviorQuirks)
+TEST(WebpagePreferences, WebsitePoliciesPerDocumentAutoplayBehaviorQuirks)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
@@ -865,18 +945,20 @@ TEST(WebKit, WebsitePoliciesPerDocumentAutoplayBehaviorQuirks)
     [webView _evaluateJavaScriptWithoutUserGesture:@"playVideo('video2')" completionHandler:nil];
     [webView waitForMessage:@"did-not-play-video2"];
 }
+#endif
 
-TEST(WebKit, WebsitePoliciesAutoplayQuirksAsyncPolicyDelegate)
+TEST(WebpagePreferences, WebsitePoliciesAutoplayQuirksAsyncPolicyDelegate)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+#if PLATFORM(IOS_FAMILY)
+    configuration.get().allowsInlineMediaPlayback = YES;
+    configuration.get()._inlineMediaPlaybackRequiresPlaysInlineAttribute = NO;
+#endif
+    [configuration preferences]._needsSiteSpecificQuirks = YES;
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
 
     auto delegate = adoptNS([[AsyncAutoplayPoliciesDelegate alloc] init]);
     [webView setNavigationDelegate:delegate.get()];
-
-    WKRetainPtr<WKPreferencesRef> preferences = adoptWK(WKPreferencesCreate());
-    WKPreferencesSetNeedsSiteSpecificQuirks(preferences.get(), true);
-    WKPageGroupSetPreferences(WKPageGetPageGroup([webView _pageForTesting]), preferences.get());
 
     NSURLRequest *requestWithAudio = [NSURLRequest requestWithURL:[[NSBundle mainBundle] URLForResource:@"autoplay-check" withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"]];
 
@@ -908,9 +990,8 @@ TEST(WebKit, WebsitePoliciesAutoplayQuirksAsyncPolicyDelegate)
     [webView waitForMessage:@"did-not-play"];
     [webView waitForMessage:@"on-pause"];
 }
-#endif // PLATFORM(MAC)
 
-TEST(WebKit, InvalidCustomHeaders)
+TEST(WebpagePreferences, InvalidCustomHeaders)
 {
     auto customHeaderFields = adoptNS([[_WKCustomHeaderFields alloc] init]);
     [customHeaderFields setFields:@{@"invalidheader" : @"", @"noncustom" : @"header", @"    x-Custom ":@"  Needs Canonicalization\t ", @"x-other" : @"other value"}];
@@ -1057,7 +1138,7 @@ static void respond(id <WKURLSchemeTask>task, NSString *html = nil)
 
 @end
 
-TEST(WebKit, CustomHeaderFields)
+TEST(WebpagePreferences, CustomHeaderFields)
 {
     auto delegate = adoptNS([[CustomHeaderFieldsDelegate alloc] init]);
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
@@ -1130,12 +1211,12 @@ static unsigned loadCount;
 @implementation CustomUserAgentDelegate
 
 IGNORE_WARNINGS_BEGIN("deprecated-implementations")
-- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction userInfo:(id <NSSecureCoding>)userInfo decisionHandler:(void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *))decisionHandler
+- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction userInfo:(id <NSSecureCoding>)userInfo decisionHandler:(void (^)(WKNavigationActionPolicy, WKWebpagePreferences *))decisionHandler
 IGNORE_WARNINGS_END
 {
-    _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
+    WKWebpagePreferences *websitePolicies = [[[WKWebpagePreferences alloc] init] autorelease];
     if (navigationAction.targetFrame.mainFrame)
-        [websitePolicies setCustomUserAgent:@"Foo Custom UserAgent"];
+        [websitePolicies _setCustomUserAgent:@"Foo Custom UserAgent"];
 
     decisionHandler(WKNavigationActionPolicyAllow, websitePolicies);
 }
@@ -1177,7 +1258,7 @@ onload = () => {
 </script>
 )TESTRESOURCE";
 
-TEST(WebKit, WebsitePoliciesCustomUserAgent)
+TEST(WebpagePreferences, WebsitePoliciesCustomUserAgent)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
 
@@ -1221,13 +1302,13 @@ TEST(WebKit, WebsitePoliciesCustomUserAgent)
 
 @implementation CustomJavaScriptUserAgentDelegate
 
-- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction userInfo:(id <NSSecureCoding>)userInfo decisionHandler:(void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *))decisionHandler
+- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction userInfo:(id <NSSecureCoding>)userInfo decisionHandler:(void (^)(WKNavigationActionPolicy, WKWebpagePreferences *))decisionHandler
 {
-    _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
+    WKWebpagePreferences *websitePolicies = [[[WKWebpagePreferences alloc] init] autorelease];
     if (navigationAction.targetFrame.mainFrame) {
-        [websitePolicies setCustomJavaScriptUserAgentAsSiteSpecificQuirks:@"Foo Custom JavaScript UserAgent"];
+        [websitePolicies _setCustomUserAgentAsSiteSpecificQuirks:@"Foo Site Specific Quriks UserAgent"];
         if (_setCustomUserAgent)
-            [websitePolicies setCustomUserAgent:@"Foo Custom Request UserAgent"];
+            [websitePolicies _setCustomUserAgent:@"Foo Custom Request UserAgent"];
     }
 
     decisionHandler(WKNavigationActionPolicyAllow, websitePolicies);
@@ -1240,7 +1321,7 @@ TEST(WebKit, WebsitePoliciesCustomUserAgent)
 
 @end
 
-TEST(WebKit, WebsitePoliciesCustomJavaScriptUserAgent)
+TEST(WebpagePreferences, WebsitePoliciesCustomUserAgentAsSiteSpecificQuirksDisabled)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
 
@@ -1253,7 +1334,7 @@ TEST(WebKit, WebsitePoliciesCustomJavaScriptUserAgent)
         EXPECT_TRUE([userAgentString containsString:@"(KHTML, like Gecko)"]);
     }];
     [configuration setURLSchemeHandler:schemeHandler.get() forURLScheme:@"test"];
-    [configuration preferences]._needsSiteSpecificQuirks = YES;
+    [configuration preferences]._needsSiteSpecificQuirks = NO;
 
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
 
@@ -1270,11 +1351,16 @@ TEST(WebKit, WebsitePoliciesCustomJavaScriptUserAgent)
     while (loadCount != 9U)
         TestWebKitAPI::Util::spinRunLoop();
 
-    EXPECT_STREQ("Foo Custom JavaScript UserAgent", [[webView stringByEvaluatingJavaScript:@"navigator.userAgent"] UTF8String]);
-    EXPECT_STREQ("Foo Custom JavaScript UserAgent", [[webView stringByEvaluatingJavaScript:@"subframeUserAgent"] UTF8String]);
+    auto* userAgentString = [webView stringByEvaluatingJavaScript:@"navigator.userAgent"];
+    EXPECT_TRUE([userAgentString hasPrefix:@"Mozilla/5.0 "]);
+    EXPECT_TRUE([userAgentString containsString:@"(KHTML, like Gecko)"]);
+
+    userAgentString = [webView stringByEvaluatingJavaScript:@"navigator.userAgent"];
+    EXPECT_TRUE([userAgentString hasPrefix:@"Mozilla/5.0 "]);
+    EXPECT_TRUE([userAgentString containsString:@"(KHTML, like Gecko)"]);
 }
 
-TEST(WebKit, WebsitePoliciesCustomUserAgents)
+TEST(WebpagePreferences, WebsitePoliciesCustomUserAgentAsSiteSpecificQuirks)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
 
@@ -1282,7 +1368,7 @@ TEST(WebKit, WebsitePoliciesCustomUserAgents)
     [schemeHandler addMappingFromURLString:@"test://www.webkit.org/main.html" toData:customUserAgentMainFrameTestBytes];
     [schemeHandler addMappingFromURLString:@"test://www.apple.com/subframe.html" toData:customUserAgentSubFrameTestBytes];
     [schemeHandler setTaskHandler:[](id <WKURLSchemeTask> task) {
-        EXPECT_STREQ("Foo Custom Request UserAgent", [[task.request valueForHTTPHeaderField:@"User-Agent"] UTF8String]);
+        EXPECT_STREQ("Foo Site Specific Quriks UserAgent", [[task.request valueForHTTPHeaderField:@"User-Agent"] UTF8String]);
     }];
     [configuration setURLSchemeHandler:schemeHandler.get() forURLScheme:@"test"];
     [configuration preferences]._needsSiteSpecificQuirks = YES;
@@ -1303,8 +1389,8 @@ TEST(WebKit, WebsitePoliciesCustomUserAgents)
     while (loadCount != 9U)
         TestWebKitAPI::Util::spinRunLoop();
 
-    EXPECT_STREQ("Foo Custom JavaScript UserAgent", [[webView stringByEvaluatingJavaScript:@"navigator.userAgent"] UTF8String]);
-    EXPECT_STREQ("Foo Custom JavaScript UserAgent", [[webView stringByEvaluatingJavaScript:@"subframeUserAgent"] UTF8String]);
+    EXPECT_STREQ("Foo Site Specific Quriks UserAgent", [[webView stringByEvaluatingJavaScript:@"navigator.userAgent"] UTF8String]);
+    EXPECT_STREQ("Foo Site Specific Quriks UserAgent", [[webView stringByEvaluatingJavaScript:@"subframeUserAgent"] UTF8String]);
 }
 
 @interface CustomNavigatorPlatformDelegate : NSObject <WKNavigationDelegate> {
@@ -1313,11 +1399,11 @@ TEST(WebKit, WebsitePoliciesCustomUserAgents)
 
 @implementation CustomNavigatorPlatformDelegate
 
-- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction userInfo:(id <NSSecureCoding>)userInfo decisionHandler:(void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *))decisionHandler
+- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction userInfo:(id <NSSecureCoding>)userInfo decisionHandler:(void (^)(WKNavigationActionPolicy, WKWebpagePreferences *))decisionHandler
 {
-    _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
+    WKWebpagePreferences *websitePolicies = [[[WKWebpagePreferences alloc] init] autorelease];
     if (navigationAction.targetFrame.mainFrame)
-        [websitePolicies setCustomNavigatorPlatform:@"Test Custom Platform"];
+        [websitePolicies _setCustomNavigatorPlatform:@"Test Custom Platform"];
 
     decisionHandler(WKNavigationActionPolicyAllow, websitePolicies);
 }
@@ -1329,7 +1415,7 @@ TEST(WebKit, WebsitePoliciesCustomUserAgents)
 
 @end
 
-TEST(WebKit, WebsitePoliciesCustomNavigatorPlatform)
+TEST(WebpagePreferences, WebsitePoliciesCustomNavigatorPlatform)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
     
@@ -1372,10 +1458,10 @@ addEventListener("deviceorientation", (event) => {
     return self;
 }
 
-- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction userInfo:(id <NSSecureCoding>)userInfo decisionHandler:(void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *))decisionHandler
+- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction preferences:(WKWebpagePreferences *)preferences userInfo:(id <NSSecureCoding>)userInfo decisionHandler:(void (^)(WKNavigationActionPolicy, WKWebpagePreferences *))decisionHandler
 {
-    _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
-    [websitePolicies setDeviceOrientationAndMotionAccessPolicy:_accessPolicy];
+    WKWebpagePreferences *websitePolicies = [[[WKWebpagePreferences alloc] init] autorelease];
+    [websitePolicies _setDeviceOrientationAndMotionAccessPolicy:_accessPolicy];
 
     decisionHandler(WKNavigationActionPolicyAllow, websitePolicies);
 }
@@ -1449,17 +1535,17 @@ static void runWebsitePoliciesDeviceOrientationEventTest(_WKWebsiteDeviceOrienta
     }
 }
 
-TEST(WebKit, WebsitePoliciesDeviceOrientationGrantAccess)
+TEST(WebpagePreferences, WebsitePoliciesDeviceOrientationGrantAccess)
 {
     runWebsitePoliciesDeviceOrientationEventTest(_WKWebsiteDeviceOrientationAndMotionAccessPolicyGrant);
 }
 
-TEST(WebKit, WebsitePoliciesDeviceOrientationDenyAccess)
+TEST(WebpagePreferences, WebsitePoliciesDeviceOrientationDenyAccess)
 {
     runWebsitePoliciesDeviceOrientationEventTest(_WKWebsiteDeviceOrientationAndMotionAccessPolicyDeny);
 }
 
-TEST(WebKit, WebsitePoliciesDeviceOrientationAskAccess)
+TEST(WebpagePreferences, WebsitePoliciesDeviceOrientationAskAccess)
 {
     runWebsitePoliciesDeviceOrientationEventTest(_WKWebsiteDeviceOrientationAndMotionAccessPolicyAsk);
 }
@@ -1479,11 +1565,11 @@ TEST(WebKit, WebsitePoliciesDeviceOrientationAskAccess)
     decisionHandler(WKNavigationActionPolicyAllow);
 }
 
-- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *))decisionHandler
+- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy, WKWebpagePreferences *))decisionHandler
 {
-    _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
+    WKWebpagePreferences *websitePolicies = [[[WKWebpagePreferences alloc] init] autorelease];
     if (_popUpPolicyForURL)
-        websitePolicies.popUpPolicy = _popUpPolicyForURL(navigationAction.request.URL);
+        websitePolicies._popUpPolicy = _popUpPolicyForURL(navigationAction.request.URL);
     decisionHandler(WKNavigationActionPolicyAllow, websitePolicies);
 }
 
@@ -1494,7 +1580,7 @@ TEST(WebKit, WebsitePoliciesDeviceOrientationAskAccess)
 
 @end
 
-TEST(WebKit, WebsitePoliciesPopUp)
+TEST(WebpagePreferences, WebsitePoliciesPopUp)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
 
@@ -1528,14 +1614,12 @@ static bool done;
 
 @implementation WebsitePoliciesWebsiteDataStoreDelegate
 
-IGNORE_WARNINGS_BEGIN("deprecated-implementations")
-- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *))decisionHandler
-IGNORE_WARNINGS_END
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction preferences:(WKWebpagePreferences *)preferences decisionHandler:(void (^)(WKNavigationActionPolicy, WKWebpagePreferences *))decisionHandler
 {
     NSURL *url = navigationAction.request.URL;
     if ([url.path isEqualToString:@"/invalid"]) {
-        _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
-        websitePolicies.websiteDataStore = [[[WKWebsiteDataStore alloc] _initWithConfiguration:[[[_WKWebsiteDataStoreConfiguration alloc] init] autorelease]] autorelease];
+        WKWebpagePreferences *websitePolicies = [[[WKWebpagePreferences alloc] init] autorelease];
+        websitePolicies._websiteDataStore = [[[WKWebsiteDataStore alloc] _initWithConfiguration:[[[_WKWebsiteDataStoreConfiguration alloc] init] autorelease]] autorelease];
 
         bool sawException = false;
         @try {
@@ -1550,13 +1634,13 @@ IGNORE_WARNINGS_END
     if ([url.path isEqualToString:@"/checkStorage"]
         || [url.path isEqualToString:@"/checkCookies"]
         || [url.path isEqualToString:@"/mainFrame"]) {
-        _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
-        websitePolicies.websiteDataStore = [WKWebsiteDataStore nonPersistentDataStore];
+        WKWebpagePreferences *websitePolicies = [[[WKWebpagePreferences alloc] init] autorelease];
+        websitePolicies._websiteDataStore = [WKWebsiteDataStore nonPersistentDataStore];
         decisionHandler(WKNavigationActionPolicyAllow, websitePolicies);
     }
     if ([url.path isEqualToString:@"/subFrame"]) {
-        _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
-        websitePolicies.websiteDataStore = [WKWebsiteDataStore nonPersistentDataStore];
+        WKWebpagePreferences *websitePolicies = [[[WKWebpagePreferences alloc] init] autorelease];
+        websitePolicies._websiteDataStore = [WKWebsiteDataStore nonPersistentDataStore];
         bool sawException = false;
         @try {
             decisionHandler(WKNavigationActionPolicyCancel, websitePolicies);
@@ -1604,14 +1688,14 @@ RetainPtr<WKWebView> websiteDataStoreTestWebView()
     return webView;
 }
 
-TEST(WebKit, UpdateWebsitePoliciesInvalid)
+TEST(WebpagePreferences, UpdateWebsitePoliciesInvalid)
 {
     auto webView = websiteDataStoreTestWebView();
-    auto policies = adoptNS([[_WKWebsitePolicies alloc] init]);
-    [policies setWebsiteDataStore:[WKWebsiteDataStore nonPersistentDataStore]];
+    auto policies = adoptNS([[WKWebpagePreferences alloc] init]);
+    [policies _setWebsiteDataStore:[WKWebsiteDataStore nonPersistentDataStore]];
     bool sawException = false;
     @try {
-        [webView _updateWebsitePolicies:policies.get()];
+        [webView _updateWebpagePreferences:policies.get()];
     } @catch (NSException *exception) {
         sawException = true;
     }
@@ -1625,7 +1709,7 @@ TEST(WebKit, UpdateWebsitePoliciesInvalid)
     TestWebKitAPI::Util::run(&done);
 }
 
-TEST(WebKit, WebsitePoliciesDataStore)
+TEST(WebpagePreferences, WebsitePoliciesDataStore)
 {
     auto cookieWebView = websiteDataStoreTestWebView();
     NSString *alertOldCookie = @"<script>var oldCookie = document.cookie; document.cookie = 'key=value'; alert('old value: <' + oldCookie + '>');</script>";
@@ -1639,4 +1723,61 @@ TEST(WebKit, WebsitePoliciesDataStore)
     TestWebKitAPI::Util::run(&done);
 
     EXPECT_NE(pid1, [cookieWebView _webProcessIdentifier]);
+}
+
+TEST(WebpagePreferences, WebsitePoliciesUserContentController)
+{
+    auto makeScript = [] (NSString *script) {
+        return [[[WKUserScript alloc] initWithSource:script injectionTime:WKUserScriptInjectionTimeAtDocumentStart forMainFrameOnly:YES] autorelease];
+    };
+    WKWebViewConfiguration *configuration = [[WKWebViewConfiguration new] autorelease];
+    [configuration.userContentController addUserScript:makeScript(@"alert('testAlert1')")];
+    TestWKWebView *webView = [[[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration] autorelease];
+    TestUIDelegate *uiDelegate = [[TestUIDelegate new] autorelease];
+    webView.UIDelegate = uiDelegate;
+    TestNavigationDelegate *navigationDelegate = [[TestNavigationDelegate new] autorelease];
+    __block bool iframeExceptionThrown = false;
+    __block RetainPtr<WKUserContentController> replacementUserContentController;
+    navigationDelegate.decidePolicyForNavigationActionWithPreferences = ^(WKNavigationAction *action, WKWebpagePreferences *, void (^completionHandler)(WKNavigationActionPolicy, WKWebpagePreferences *)) {
+        if ([action.request.URL.path hasSuffix:@"/simple-iframe.html"])
+            return completionHandler(WKNavigationActionPolicyAllow, nil);
+        if ([action.request.URL.path hasSuffix:@"/simple.html"]) {
+            @try {
+                WKWebpagePreferences *preferences = [[WKWebpagePreferences new] autorelease];
+                preferences._userContentController = [[WKUserContentController new] autorelease];
+                return completionHandler(WKNavigationActionPolicyAllow, preferences);
+            } @catch (NSException *exception) {
+                iframeExceptionThrown = true;
+            }
+            return;
+        }
+        
+        EXPECT_TRUE([action.request.URL.path hasSuffix:@"/simple2.html"]);
+        WKWebpagePreferences *preferences = [[WKWebpagePreferences new] autorelease];
+        replacementUserContentController = adoptNS([WKUserContentController new]);
+        [replacementUserContentController addUserScript:makeScript(@"alert('testAlert2')")];
+        preferences._userContentController = replacementUserContentController.get();
+        completionHandler(WKNavigationActionPolicyAllow, preferences);
+    };
+    webView.navigationDelegate = navigationDelegate;
+
+    [webView loadTestPageNamed:@"simple-iframe"];
+    EXPECT_WK_STREQ([uiDelegate waitForAlert], "testAlert1");
+    TestWebKitAPI::Util::run(&iframeExceptionThrown);
+
+    [webView loadTestPageNamed:@"simple2"];
+    EXPECT_WK_STREQ([uiDelegate waitForAlert], "testAlert2");
+
+    bool caughtException = false;
+    @try {
+        WKWebpagePreferences *preferences = [[WKWebpagePreferences new] autorelease];
+        preferences._userContentController = [[WKUserContentController new] autorelease];
+        [webView _updateWebpagePreferences:preferences];
+    } @catch (NSException *exception) {
+        caughtException = true;
+    }
+    EXPECT_TRUE(caughtException);
+
+    [replacementUserContentController _addUserScriptImmediately:makeScript(@"alert('testAlert3');")];
+    EXPECT_WK_STREQ([uiDelegate waitForAlert], "testAlert3");
 }

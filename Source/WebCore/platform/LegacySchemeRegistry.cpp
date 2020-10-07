@@ -274,13 +274,6 @@ static URLSchemesMap& cachePartitioningSchemes()
     return schemes;
 }
 
-static URLSchemesMap& serviceWorkerSchemes()
-{
-    ASSERT(schemeRegistryLock.isHeld());
-    static NeverDestroyed<URLSchemesMap> schemes;
-    return schemes;
-}
-
 static URLSchemesMap& alwaysRevalidatedSchemes()
 {
     ASSERT(isMainThread());
@@ -500,39 +493,9 @@ bool LegacySchemeRegistry::shouldPartitionCacheForURLScheme(const String& scheme
     return cachePartitioningSchemes().contains(scheme);
 }
 
-void LegacySchemeRegistry::registerURLSchemeServiceWorkersCanHandle(const String& scheme)
-{
-    if (scheme.isNull())
-        return;
-
-    Locker<Lock> locker(schemeRegistryLock);
-    serviceWorkerSchemes().add(scheme);
-}
-
-bool LegacySchemeRegistry::canServiceWorkersHandleURLScheme(const String& scheme)
-{
-    if (scheme.isNull())
-        return false;
-
-    if (scheme.startsWithIgnoringASCIICase("http"_s)) {
-        if (scheme.length() == 4)
-            return true;
-        if (scheme.length() == 5 && isASCIIAlphaCaselessEqual(scheme[4], 's'))
-            return true;
-    }
-
-    Locker<Lock> locker(schemeRegistryLock);
-    return serviceWorkerSchemes().contains(scheme);
-}
-
-bool LegacySchemeRegistry::isServiceWorkerContainerCustomScheme(const String& scheme)
-{
-    Locker<Lock> locker(schemeRegistryLock);
-    return !scheme.isNull() && serviceWorkerSchemes().contains(scheme);
-}
-
 bool LegacySchemeRegistry::isUserExtensionScheme(const String& scheme)
 {
+    // FIXME: Remove this once Safari has adopted WKWebViewConfiguration._corsDisablingPatterns
 #if PLATFORM(MAC)
     if (scheme == "safari-extension")
         return true;

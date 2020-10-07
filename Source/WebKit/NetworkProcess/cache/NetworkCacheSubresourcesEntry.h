@@ -39,7 +39,7 @@ class SubresourceInfo {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     void encode(WTF::Persistence::Encoder&) const;
-    static bool decode(WTF::Persistence::Decoder&, SubresourceInfo&);
+    static Optional<SubresourceInfo> decode(WTF::Persistence::Decoder&);
 
     SubresourceInfo() = default;
     SubresourceInfo(const Key&, const WebCore::ResourceRequest&, const SubresourceInfo* previousInfo);
@@ -57,6 +57,8 @@ public:
     bool isTopSite() const { return false; }
 
     void setNonTransient() { m_isTransient = false; }
+
+    bool isFirstParty() const;
 
 private:
     Key m_key;
