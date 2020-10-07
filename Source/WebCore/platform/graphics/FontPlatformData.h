@@ -45,6 +45,9 @@
 #include <memory>
 #endif
 
+#if PLATFORM(HAIKU)
+#include <memory>
+
 #if USE(APPKIT)
 OBJC_CLASS NSFont;
 #endif
@@ -81,11 +84,24 @@ public:
 
     FontPlatformData(WTF::HashTableDeletedValueType);
     FontPlatformData();
+#if PLATFORM(HAIKU)
+    FontPlatformData(const FontPlatformData&);
+#else
+    FontPlatformData(FontPlatformData&&) = default;
+#endif
 
     FontPlatformData(float size, bool syntheticBold, bool syntheticOblique, FontOrientation = FontOrientation::Horizontal, FontWidthVariant = FontWidthVariant::RegularWidth, TextRenderingMode = TextRenderingMode::AutoTextRendering, CreationData* = nullptr);
 
 #if USE(CORE_TEXT)
     WEBCORE_EXPORT FontPlatformData(CTFontRef, float size, bool syntheticBold = false, bool syntheticOblique = false, FontOrientation = FontOrientation::Horizontal, FontWidthVariant = FontWidthVariant::RegularWidth, TextRenderingMode = TextRenderingMode::AutoTextRendering, CreationData* = nullptr);
+#endif
+
+#if PLATFORM(HAIKU)
+    FontPlatformData(const FontDescription& fontDescription, const AtomString& familyName);
+    static void SetFallBackSerifFont(const BString& font);
+    static void SetFallBackSansSerifFont(const BString& font);
+    static void SetFallBackFixedFont(const BString& font);
+    static void SetFallBackStandardFont(const BString& font);
 #endif
 
 #if PLATFORM(WIN)
@@ -108,6 +124,10 @@ public:
     static FontPlatformData cloneWithOrientation(const FontPlatformData&, FontOrientation);
     static FontPlatformData cloneWithSyntheticOblique(const FontPlatformData&, bool);
     static FontPlatformData cloneWithSize(const FontPlatformData&, float);
+
+#if PLATFORM(HAIKU)
+	const BFont* font() const { return m_font.get(); }
+#endif
 
 #if PLATFORM(WIN)
     HFONT hfont() const { return m_font ? m_font->get() : 0; }
@@ -168,6 +188,12 @@ public:
 #endif
 
     unsigned hash() const;
+
+#if USE(HAIKU)
+    FontPlatformData& operator=(const FontPlatformData&);
+#else
+    FontPlatformData& operator=(const FontPlatformData&) = default;
+#endif
 
     bool operator==(const FontPlatformData& other) const
     {
@@ -231,11 +257,16 @@ private:
 #if USE(CORE_TEXT)
     RetainPtr<CGFontRef> m_cgFont; // FIXME: Delete this in favor of m_ctFont.
     RetainPtr<CTFontRef> m_ctFont;
+#if PLATFORM(HAIKU)
+    static void findMatchingFontFamily(const AtomString& familyName,
+		font_family& fontFamily);
 #endif
 #elif USE(CORE_TEXT)
     // FIXME: Get rid of one of these. These two fonts are subtly different, and it is not obvious which one to use where.
     RetainPtr<CTFontRef> m_font;
     mutable RetainPtr<CTFontRef> m_ctFont;
+#elif PLATFORM(HAIKU)
+	std::unique_ptr<BFont> m_font;
 #endif
 
 #if USE(DIRECT2D)
@@ -267,6 +298,12 @@ private:
     bool m_hasVariations { false };
     // The values above are common to all ports
 
+#if PLATFORM(HAIKU)
+    static font_family m_FallbackSerifFontFamily;
+    static font_family m_FallbackSansSerifFontFamily;
+    static font_family m_FallbackFixedFontFamily;
+    static font_family m_FallbackStandardFontFamily;
+#endif
 #if PLATFORM(IOS_FAMILY)
     bool m_isEmoji { false };
 #endif
