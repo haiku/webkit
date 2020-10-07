@@ -33,6 +33,8 @@
 #include "AudioWorklet.h"
 #include "AudioWorkletGlobalScope.h"
 #include "AudioWorkletThread.h"
+#include "BaseAudioContext.h"
+#include "CacheStorageConnection.h"
 #include "Document.h"
 #include "Frame.h"
 #include "Settings.h"
@@ -48,24 +50,54 @@ static WorkletParameters generateWorkletParameters(AudioWorklet& worklet)
 
     return {
         document->url(),
-        jsRuntimeFlags
+        jsRuntimeFlags,
+        worklet.audioContext() ? worklet.audioContext()->sampleRate() : 0.0f
     };
 }
 
 AudioWorkletMessagingProxy::AudioWorkletMessagingProxy(AudioWorklet& worklet)
-    : m_workletThread(AudioWorkletThread::create(generateWorkletParameters(worklet)))
+    : m_worklet(makeWeakPtr(worklet))
+    , m_document(*worklet.document())
+    , m_workletThread(AudioWorkletThread::create(*this, generateWorkletParameters(worklet)))
 {
     ASSERT(isMainThread());
 
     m_workletThread->start();
 }
 
-AudioWorkletMessagingProxy::~AudioWorkletMessagingProxy() = default;
+AudioWorkletMessagingProxy::~AudioWorkletMessagingProxy()
+{
+    m_workletThread->stop();
+}
 
 bool AudioWorkletMessagingProxy::postTaskForModeToWorkletGlobalScope(ScriptExecutionContext::Task&& task, const String& mode)
 {
     m_workletThread->runLoop().postTaskForMode(WTFMove(task), mode);
     return true;
+}
+
+RefPtr<CacheStorageConnection> AudioWorkletMessagingProxy::createCacheStorageConnection()
+{
+    ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
+void AudioWorkletMessagingProxy::postTaskToLoader(ScriptExecutionContext::Task&& task)
+{
+    m_document->postTask(WTFMove(task));
+}
+
+bool AudioWorkletMessagingProxy::postTaskForModeToWorkerOrWorkletGlobalScope(ScriptExecutionContext::Task&& task, const String& mode)
+{
+    return postTaskForModeToWorkletGlobalScope(WTFMove(task), mode);
+}
+
+void AudioWorkletMessagingProxy::postTaskToAudioWorklet(Function<void(AudioWorklet&)>&& task)
+{
+    m_document->postTask([this, protectedThis = makeRef(*this), task = WTFMove(task)](ScriptExecutionContext&) {
+        if (m_worklet)
+            task(*m_worklet);
+    });
 }
 
 } // namespace WebCore

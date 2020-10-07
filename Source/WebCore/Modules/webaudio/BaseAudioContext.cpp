@@ -39,6 +39,7 @@
 #include "AudioListener.h"
 #include "AudioNodeInput.h"
 #include "AudioNodeOutput.h"
+#include "AudioParamDescriptor.h"
 #include "AudioSession.h"
 #include "AudioWorklet.h"
 #include "BiquadFilterNode.h"
@@ -126,7 +127,7 @@ BaseAudioContext::BaseAudioContext(Document& document, const AudioContextOptions
     , m_logger(document.logger())
     , m_logIdentifier(uniqueLogIdentifier())
 #endif
-    , m_worklet(AudioWorklet::create(document))
+    , m_worklet(AudioWorklet::create(*this))
     , m_mediaSession(PlatformMediaSession::create(PlatformMediaSessionManager::sharedManager(), *this))
 {
     // According to spec AudioContext must die only after page navigate.
@@ -161,7 +162,7 @@ BaseAudioContext::BaseAudioContext(Document& document, unsigned numberOfChannels
     , m_logger(document.logger())
     , m_logIdentifier(uniqueLogIdentifier())
 #endif
-    , m_worklet(AudioWorklet::create(document))
+    , m_worklet(AudioWorklet::create(*this))
     , m_isOfflineContext(true)
     , m_mediaSession(PlatformMediaSession::create(PlatformMediaSessionManager::sharedManager(), *this))
     , m_renderTarget(WTFMove(renderTarget))
@@ -1337,6 +1338,12 @@ PeriodicWave& BaseAudioContext::periodicWave(OscillatorType type)
         return *m_cachedPeriodicWaveSine;
     }
     RELEASE_ASSERT_NOT_REACHED();
+}
+
+void BaseAudioContext::addAudioParamDescriptors(const String& processorName, Vector<AudioParamDescriptor>&& descriptors)
+{
+    ASSERT(!m_parameterDescriptorMap.contains(processorName));
+    m_parameterDescriptorMap.add(processorName, WTFMove(descriptors));
 }
 
 #if !RELEASE_LOG_DISABLED

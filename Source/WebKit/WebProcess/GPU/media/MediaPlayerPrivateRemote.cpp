@@ -91,7 +91,7 @@ using namespace WebCore;
 #endif
 
 #if !PLATFORM(COCOA)
-MediaPlayerPrivateRemote::MediaPlayerPrivateRemote(MediaPlayer* player, MediaPlayerEnums::MediaEngineIdentifier engineIdentifier, MediaPlayerPrivateRemoteIdentifier playerIdentifier, RemoteMediaPlayerManager& manager)
+MediaPlayerPrivateRemote::MediaPlayerPrivateRemote(MediaPlayer* player, MediaPlayerEnums::MediaEngineIdentifier engineIdentifier, MediaPlayerIdentifier playerIdentifier, RemoteMediaPlayerManager& manager)
     : m_player(player)
 #if !RELEASE_LOG_DISABLED
     , m_logger(player->mediaPlayerLogger())
@@ -249,11 +249,6 @@ bool MediaPlayerPrivateRemote::hasVideo() const
 bool MediaPlayerPrivateRemote::hasAudio() const
 {
     return m_cachedState.hasAudio;
-}
-
-std::unique_ptr<PlatformTimeRanges> MediaPlayerPrivateRemote::seekable() const
-{
-    return makeUnique<PlatformTimeRanges>(m_cachedState.minTimeSeekable, m_cachedState.maxTimeSeekable);
 }
 
 std::unique_ptr<PlatformTimeRanges> MediaPlayerPrivateRemote::buffered() const
@@ -1155,6 +1150,11 @@ WTFLogChannel& MediaPlayerPrivateRemote::logChannel() const
     return LogMedia;
 }
 #endif
+
+MediaPlayerIdentifier MediaPlayerPrivateRemote::identifier() const
+{
+    return m_id;
+}
 
 } // namespace WebKit
 

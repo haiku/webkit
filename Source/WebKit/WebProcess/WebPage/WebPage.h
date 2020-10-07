@@ -75,6 +75,7 @@
 #include <WebCore/PageIdentifier.h>
 #include <WebCore/PageOverlay.h>
 #include <WebCore/PluginData.h>
+#include <WebCore/PointerCharacteristics.h>
 #include <WebCore/PointerID.h>
 #include <WebCore/RenderingMode.h>
 #include <WebCore/SecurityPolicyViolationEvent.h>
@@ -414,6 +415,9 @@ public:
     String userAgent(const URL&) const;
     String platformUserAgent(const URL&) const;
     WebCore::KeyboardUIMode keyboardUIMode();
+
+    bool hoverSupportedByAnyAvailablePointingDevice() const;
+    OptionSet<WebCore::PointerCharacteristics> pointerCharacteristicsOfAllAvailablePointingDevices() const;
 
     void didInsertMenuElement(WebCore::HTMLMenuElement&);
     void didRemoveMenuElement(WebCore::HTMLMenuElement&);
@@ -1548,8 +1552,8 @@ private:
     void getSelectionAsWebArchiveData(CallbackID);
     void getSourceForFrame(WebCore::FrameIdentifier, CallbackID);
     void getWebArchiveOfFrame(WebCore::FrameIdentifier, CallbackID);
-    void runJavaScript(WebFrame*, WebCore::RunJavaScriptParameters&&, ContentWorldIdentifier, CallbackID);
-    void runJavaScriptInFrameInScriptWorld(WebCore::RunJavaScriptParameters&&, Optional<WebCore::FrameIdentifier>, const std::pair<ContentWorldIdentifier, String>& worldData, CallbackID);
+    void runJavaScript(WebFrame*, WebCore::RunJavaScriptParameters&&, ContentWorldIdentifier, CompletionHandler<void(const IPC::DataReference&, const Optional<WebCore::ExceptionDetails>&)>&&);
+    void runJavaScriptInFrameInScriptWorld(WebCore::RunJavaScriptParameters&&, Optional<WebCore::FrameIdentifier>, const std::pair<ContentWorldIdentifier, String>& worldData, CompletionHandler<void(const IPC::DataReference&, const Optional<WebCore::ExceptionDetails>&)>&&);
     void forceRepaint(CallbackID);
     void takeSnapshot(WebCore::IntRect snapshotRect, WebCore::IntSize bitmapSize, uint32_t options, CallbackID);
 

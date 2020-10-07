@@ -1,3 +1,600 @@
+2020-10-06  Chris Dumez  <cdumez@apple.com>
+
+        Add implementation for AudioWorkletGlobalScope.registerProcessor()
+        https://bugs.webkit.org/show_bug.cgi?id=217405
+
+        Reviewed by Geoff Garen.
+
+        Add implementation for AudioWorkletGlobalScope.registerProcessor() that matches very closely
+        the specification at:
+        - https://www.w3.org/TR/webaudio/#dom-audioworkletglobalscope-registerprocessor
+
+        Also update the AudioWorkletNode constructor implementation as per:
+        - https://www.w3.org/TR/webaudio/#AudioWorkletNode-constructors
+
+        Now that the AudioWorklet is able to register a processor and AudioParamDescriptors, the
+        AudioWorkletNode constructor is able to make sure that a processor with the given name was
+        indeed registered. We are also able to construct the AudioParam objects based on the
+        AudioParamDescriptors provided when registering the processor.
+
+        Note that even though it is now possible to register an AudioWorkletProcessor, it is still
+        not used to process the audio. An AudioWorkletNode currently only outputs silence. This will
+        be addresssed in a future patch.
+
+        No new tests, rebaselined existing tests.
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * Modules/webaudio/AudioParam.h:
+        * Modules/webaudio/AudioParam.idl:
+        * Modules/webaudio/AudioParamDescriptor.h: Copied from Source/WebCore/Modules/webaudio/AudioWorkletGlobalScope.idl.
+        (WebCore::AudioParamDescriptor::isolatedCopy const):
+        * Modules/webaudio/AudioParamDescriptor.idl: Copied from Source/WebCore/Modules/webaudio/AudioWorkletGlobalScope.idl.
+        * Modules/webaudio/AudioWorkletGlobalScope.cpp:
+        (WebCore::AudioWorkletGlobalScope::registerProcessor):
+        * Modules/webaudio/AudioWorkletGlobalScope.h:
+        * Modules/webaudio/AudioWorkletGlobalScope.idl:
+        * Modules/webaudio/AudioWorkletMessagingProxy.cpp:
+        (WebCore::AudioWorkletMessagingProxy::AudioWorkletMessagingProxy):
+        (WebCore::AudioWorkletMessagingProxy::postTaskToAudioWorklet):
+        * Modules/webaudio/AudioWorkletMessagingProxy.h:
+        * Modules/webaudio/AudioWorkletNode.cpp:
+        (WebCore::AudioWorkletNode::create):
+        * Modules/webaudio/AudioWorkletThread.h:
+        (WebCore::AudioWorkletThread::messagingProxy):
+        * Modules/webaudio/AutomationRate.h: Copied from Source/WebCore/Modules/webaudio/AudioWorkletGlobalScope.idl.
+        * Modules/webaudio/AutomationRate.idl: Copied from Source/WebCore/Modules/webaudio/AudioWorkletGlobalScope.idl.
+        * Modules/webaudio/BaseAudioContext.cpp:
+        (WebCore::BaseAudioContext::addAudioParamDescriptors):
+        * Modules/webaudio/BaseAudioContext.h:
+        (WebCore::BaseAudioContext::parameterDescriptorMap const):
+        * Sources.txt:
+        * WebCore.xcodeproj/project.pbxproj:
+
+2020-10-06  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC] FormattingContext::Geometry::contentHeightForFormattingContextRoot should take a const ContainerBox&
+        https://bugs.webkit.org/show_bug.cgi?id=217404
+
+        Reviewed by Simon Fraser.
+
+        A formatting context root is always a Layout::ContainerBox (and not just a Layout::Box).
+
+        * layout/FormattingContext.h:
+        * layout/FormattingContextGeometry.cpp:
+        (WebCore::Layout::FormattingContext::Geometry::contentHeightForFormattingContextRoot const):
+        (WebCore::Layout::FormattingContext::Geometry::outOfFlowNonReplacedVerticalGeometry const):
+        (WebCore::Layout::FormattingContext::Geometry::outOfFlowNonReplacedHorizontalGeometry):
+        (WebCore::Layout::FormattingContext::Geometry::complicatedCases const):
+        (WebCore::Layout::FormattingContext::Geometry::outOfFlowVerticalGeometry const):
+        (WebCore::Layout::FormattingContext::Geometry::outOfFlowHorizontalGeometry):
+        * layout/blockformatting/BlockFormattingContextGeometry.cpp:
+        (WebCore::Layout::BlockFormattingContext::Geometry::inFlowNonReplacedHeightAndMargin):
+        * layout/layouttree/LayoutTreeBuilder.cpp:
+        (WebCore::Layout::TreeBuilder::createLayoutBox):
+
+2020-10-06  Devin Rousso  <drousso@apple.com>
+
+        CSS hover and "pointer: fine" media queries do not evaluate to true with iOS 13.4 mouse support
+        https://bugs.webkit.org/show_bug.cgi?id=209292
+        <rdar://problem/60663124>
+
+        Reviewed by Tim Horton.
+
+        On iOS, the primary pointer will always be touch input, so the `hover`/`pointer` media query
+        should never change. If a mouse is connected, however, `any-hover`/`any-pointer` should
+        change as now there is at least one device that supports `hover`/`fine`. Note that in the
+        case of `any-pointer` this means that both `coarse` and `fine` will apply. Catalyst assumes
+        that there is always a mouse connected.
+
+        Spec: https://drafts.csswg.org/mediaqueries-4/#any-input
+
+        * css/MediaQueryEvaluator.cpp:
+        (WebCore::anyHoverEvaluate):
+        (WebCore::anyPointerEvaluate):
+
+        * page/ChromeClient.h:
+        * loader/EmptyClients.h:
+        (WebCore::EmptyChromeClient::hoverSupportedByAnyAvailablePointingDevice const): Added.
+        (WebCore::EmptyChromeClient::pointerCharacteristicsOfAllAvailablePointingDevices const): Added.
+        Provide a way for WebCore to get the current state of whether there are any mouse devices.
+        Refactor logic in `anyHoverEvaluate` and `anyPointerEvaluate` to move platform code into the
+        respective `WebKit::WebPage` file.
+
+        * page/PointerCharacteristics.h: Added.
+        Enum for `Coarse` and `Fine`.
+
+        * platform/PlatformScreen.h:
+        Export additional functions for use in WebKit.
+
+        * Headers.cmake:
+        * WebCore.xcodeproj/project.pbxproj:
+
+2020-10-06  James Darpinian  <jdarpinian@chromium.org>
+
+        Support EXT_texture_compression_rgtc WebGL extension
+        https://bugs.webkit.org/show_bug.cgi?id=217198
+
+        Reviewed by Kenneth Russell.
+
+        Test: webgl/conformance/extensions/ext-texture-compression-rgtc.html
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * Sources.txt:
+        * WebCore.xcodeproj/project.pbxproj:
+        * bindings/js/JSDOMConvertWebGL.cpp:
+        (WebCore::convertToJSValue):
+        * html/canvas/EXTTextureCompressionRGTC.cpp: Added.
+        (WebCore::EXTTextureCompressionRGTC::EXTTextureCompressionRGTC):
+        (WebCore::EXTTextureCompressionRGTC::getName const):
+        * html/canvas/EXTTextureCompressionRGTC.h: Added.
+        * html/canvas/EXTTextureCompressionRGTC.idl: Added.
+        * html/canvas/WebGL2RenderingContext.cpp:
+        (WebCore::WebGL2RenderingContext::getExtension):
+        (WebCore::WebGL2RenderingContext::getSupportedExtensions):
+        * html/canvas/WebGLExtension.h:
+        * html/canvas/WebGLRenderingContext.cpp:
+        (WebCore::WebGLRenderingContext::getExtension):
+        (WebCore::WebGLRenderingContext::getSupportedExtensions):
+        * html/canvas/WebGLRenderingContextBase.cpp:
+        (WebCore::WebGLRenderingContextBase::extensionIsEnabled):
+        (WebCore::WebGLRenderingContextBase::validateCompressedTexFuncData):
+        (WebCore::WebGLRenderingContextBase::loseExtensions):
+        * html/canvas/WebGLRenderingContextBase.h:
+        * platform/graphics/ExtensionsGL.h:
+
+2020-10-06  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: Expose lineRangeForPosition for iOS Accessibility code
+        https://bugs.webkit.org/show_bug.cgi?id=217256
+        <rdar://problem/67478962>
+
+        Reviewed by Zalan Bujtas.
+
+        Expose the existing lineRangeForPosition method for iOS accessibility.
+
+        * accessibility/ios/WebAccessibilityObjectWrapperIOS.mm:
+        (-[WebAccessibilityObjectWrapper lineMarkersForMarker:]):
+
+2020-10-06  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][BFC] Move document box special height computation out of contentHeightForFormattingContextRoot
+        https://bugs.webkit.org/show_bug.cgi?id=217402
+
+        Reviewed by Simon Fraser.
+
+        Document box (<html>) is not a formatting context root and while its content height computation is very similar to
+        BFC root height computation, it should not pollute the generic contentHeightForFormattingContextRoot code.
+
+        * layout/FormattingContextGeometry.cpp:
+        (WebCore::Layout::FormattingContext::Geometry::contentHeightForFormattingContextRoot const):
+        (WebCore::Layout::FormattingContext::Geometry::complicatedCases const):
+
+2020-10-06  Chris Dumez  <cdumez@apple.com>
+
+        Add implementation for AudioWorkletGlobalScope's currentFrame / currentTime / sampleRate attributes
+        https://bugs.webkit.org/show_bug.cgi?id=217251
+
+        Reviewed by Geoffrey Garen.
+
+        Add implementation for AudioWorkletGlobalScope's currentFrame / currentTime / sampleRate attributes.
+        The AudioContext's sample rate is passed upon constructor since it does not change once the AudioContext
+        has been created. The current sample frame gets updated directly by the AudioDestinationNode on the
+        audio rendering thread, whenever the AudioAudioDestinationNode updates the current frame.
+        The currrentTime gets computed based on the current frame and the sample rate.
+
+        No new tests, no Web-facing behavior yet because we are not yet executing module scripts in
+        AudioWorklets.
+
+        * Modules/webaudio/AudioDestinationNode.cpp:
+        (WebCore::AudioDestinationNode::render):
+        * Modules/webaudio/AudioWorklet.cpp:
+        (WebCore::AudioWorklet::create):
+        (WebCore::AudioWorklet::AudioWorklet):
+        * Modules/webaudio/AudioWorklet.h:
+        * Modules/webaudio/AudioWorkletGlobalScope.cpp:
+        (WebCore::AudioWorkletGlobalScope::AudioWorkletGlobalScope):
+        * Modules/webaudio/AudioWorkletGlobalScope.h:
+        (WebCore::AudioWorkletGlobalScope::setCurrentFrame):
+        (WebCore::AudioWorkletGlobalScope::currentFrame const):
+        (WebCore::AudioWorkletGlobalScope::sampleRate const):
+        (WebCore::AudioWorkletGlobalScope::currentTime const):
+        * Modules/webaudio/AudioWorkletMessagingProxy.cpp:
+        (WebCore::generateWorkletParameters):
+        * Modules/webaudio/AudioWorkletMessagingProxy.h:
+        (WebCore::AudioWorkletMessagingProxy::workletThread):
+        * Modules/webaudio/AudioWorkletThread.h:
+        (WebCore::AudioWorkletThread::globalScope const):
+        * Modules/webaudio/BaseAudioContext.cpp:
+        (WebCore::BaseAudioContext::BaseAudioContext):
+        * Modules/webaudio/BaseAudioContext.h:
+        * worklets/WorkletParameters.h:
+        (WebCore::WorkletParameters::isolatedCopy const):
+
+2020-10-06  Simon Fraser  <simon.fraser@apple.com>
+
+        Redundant rendering updates can be scheduled from inside Page::updateRendering()
+        https://bugs.webkit.org/show_bug.cgi?id=216726
+
+        Reviewed by Tim Horton.
+
+        The basic model for scheduling rendering updates is that code that needs to trigger an
+        update just calls Page::schedule[Timed]RenderingUpdate(). However, if
+        Page::updateRendering() is already on the stack, and the work to be scheduled will happen
+        later in the current update, we don't have to schedule a new one.
+
+        To fix this Page::updateRendering() and related functions track which steps remain
+        in the current update, and callers of schedule[Timed]RenderingUpdate() pass the update steps
+        for the work they need to trigger. If the requested steps are included in the remaining steps
+        no new update needs to be scheduled. Note that requesting a step while that step is being executed
+        has to schedule an upate (e.g. requestAnimationFrame inside its own callback has to schedule).
+        
+        At the end of an update, if there are any unfulfilled steps, then we schedule a new update.
+
+        Add a log channel for EventLoop and and log from various places.
+
+        In my brief testing, this reduces the number of calls to Page::updateRendering() by 10-25%
+        on some real pages, which could be a significant power saving.
+
+        * animation/DocumentTimeline.cpp:
+        (WebCore::DocumentTimeline::scheduleAnimationResolution):
+        * display/DisplayLayerController.cpp:
+        (WebCore::Display::LayerController::scheduleRenderingUpdate):
+        * dom/Document.cpp:
+        (WebCore::Document::setNeedsDOMWindowResizeEvent):
+        (WebCore::Document::setNeedsVisualViewportResize):
+        (WebCore::Document::addPendingScrollEventTarget):
+        (WebCore::Document::setNeedsVisualViewportScrollEvent):
+        (WebCore::Document::serviceRequestAnimationFrameCallbacks):
+        (WebCore::Document::intersectionObserversInitialUpdateTimerFired):
+        (WebCore::Document::scheduleRenderingUpdate):
+        (WebCore::Document::scheduleInitialIntersectionObservationUpdate):
+        (WebCore::Document::updateResizeObservations):
+        (WebCore::Document::updateAnimationsAndSendEvents):
+        * dom/Document.h:
+        * dom/ScriptedAnimationController.cpp:
+        (WebCore::ScriptedAnimationController::scheduleAnimation):
+        * page/EventHandler.cpp:
+        (WebCore::EventHandler::scheduleCursorUpdate):
+        * page/FrameView.cpp:
+        (WebCore::FrameView::setViewExposedRect):
+        * page/Page.cpp:
+        (WebCore::Page::updateStyleAfterChangeInEnvironment):
+        (WebCore::Page::scheduleRenderingUpdate):
+        (WebCore::Page::computeUnfulfilledRenderingSteps):
+        (WebCore::Page::triggerRenderingUpdateForTesting):
+        (WebCore::Page::updateRendering):
+        (WebCore::Page::isolatedUpdateRendering):
+        (WebCore::Page::doAfterUpdateRendering):
+        (WebCore::Page::finalizeRenderingUpdate):
+        (WebCore::Page::renderingUpdateCompleted):
+        (WebCore::Page::accessibilitySettingsDidChange):
+        (WebCore::Page::appearanceDidChange):
+        (WebCore::operator<<):
+        * page/Page.h:
+        * page/PageOverlayController.cpp:
+        (WebCore::PageOverlayController::didChangeViewExposedRect):
+        (WebCore::PageOverlayController::notifyFlushRequired):
+        * page/RenderingUpdateScheduler.cpp:
+        (WebCore::RenderingUpdateScheduler::scheduleAnimation):
+        (WebCore::RenderingUpdateScheduler::scheduleRenderingUpdate):
+        (WebCore::RenderingUpdateScheduler::startTimer):
+        (WebCore::RenderingUpdateScheduler::displayRefreshFired):
+        * page/RenderingUpdateScheduler.h:
+        * page/ResizeObserver.cpp:
+        (WebCore::ResizeObserver::observe):
+        * page/WheelEventTestMonitor.cpp:
+        (WebCore::WheelEventTestMonitor::setTestCallbackAndStartMonitoring):
+        (WebCore::WheelEventTestMonitor::scheduleCallbackCheck):
+        * page/mac/ServicesOverlayController.mm:
+        (WebCore::ServicesOverlayController::Highlight::notifyFlushRequired):
+        * page/scrolling/AsyncScrollingCoordinator.cpp:
+        (WebCore::AsyncScrollingCoordinator::setEventTrackingRegionsDirty):
+        * page/scrolling/mac/ScrollingCoordinatorMac.mm:
+        (WebCore::ScrollingCoordinatorMac::scheduleTreeStateCommit):
+        * platform/Logging.cpp:
+        (WebCore::initializeLogChannelsIfNecessary):
+        * platform/Logging.h:
+        * rendering/RenderElement.cpp:
+        (WebCore::RenderElement::scheduleRenderingUpdateForImage):
+        * rendering/RenderLayerBacking.cpp:
+        (WebCore::RenderLayerBacking::notifyFlushRequired):
+        * rendering/RenderLayerCompositor.cpp:
+        (WebCore::RenderLayerCompositor::scheduleRenderingUpdate):
+        * rendering/RenderLayerCompositor.h:
+
+2020-10-06  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Rename MediaPlayerPrivateRemoteIdentifier to MediaPlayerIdentifier
+        https://bugs.webkit.org/show_bug.cgi?id=217397
+
+        Reviewed by Tim Horton.
+
+        Move `MediaPlayerPrivateRemoteIdentifier` into WebCore, and rename it to `MediaPlayerIdentifier`, such that it
+        isn't necessarily limited to use for GPU Process code. This is preparation for introducing a display list
+        drawing item which will need to reference a remotely hosted `MediaPlayer`.
+
+        No change in behavior.
+
+        * Headers.cmake:
+        * WebCore.xcodeproj/project.pbxproj:
+        * platform/graphics/MediaPlayer.cpp:
+        (WebCore::MediaPlayer::identifier const):
+        * platform/graphics/MediaPlayer.h:
+        * platform/graphics/MediaPlayerIdentifier.h: Renamed from Source/WebKit/WebProcess/GPU/media/MediaPlayerPrivateRemoteIdentifier.h.
+        * platform/graphics/MediaPlayerPrivate.h:
+        (WebCore::MediaPlayerPrivateInterface::identifier const):
+
+2020-10-06  Alex Christensen  <achristensen@webkit.org>
+
+        Rename namespace Packed to namespace PackedColor
+        https://bugs.webkit.org/show_bug.cgi?id=217391
+
+        Reviewed by Simon Fraser.
+
+        Otherwise "using WTF::Packed;" in wtf/Packed.h causes problems if both headers are included in the same translation unit.
+
+        * css/StyleColor.cpp:
+        (WebCore::StyleColor::colorFromKeyword):
+        * css/parser/CSSParserFastPaths.cpp:
+        (WebCore::finishParsingHexColor):
+        (WebCore::finishParsingNamedColor):
+        * platform/graphics/Color.h:
+        (WebCore::Color::asInline const):
+        (WebCore::Color::setColor):
+        (WebCore::Color::encode const):
+        (WebCore::Color::decode):
+        * platform/graphics/ColorTypes.h:
+        (WebCore::asSRGBA):
+        (WebCore::Packed::RGBA::RGBA): Deleted.
+        (WebCore::Packed::ARGB::ARGB): Deleted.
+        * platform/graphics/ImageBackingStore.h:
+        (WebCore::ImageBackingStore::blendPixel):
+        (WebCore::ImageBackingStore::pixelValue const):
+        * platform/graphics/cg/ColorCG.cpp:
+        (WebCore::cachedCGColor):
+        * platform/graphics/mac/ColorMac.mm:
+        (WebCore::nsColor):
+
+2020-10-06  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][Floating] Remove redundant FormattingContextRoot in FloatingContext c'tor
+        https://bugs.webkit.org/show_bug.cgi?id=217398
+
+        Reviewed by Antti Koivisto.
+
+        No need to pass in the root now that FormattingContext has the root() getter.
+
+        * layout/blockformatting/BlockFormattingContext.cpp:
+        (WebCore::Layout::BlockFormattingContext::layoutInFlowContent):
+        * layout/floats/FloatingContext.cpp:
+        (WebCore::Layout::FloatingContext::FloatingContext):
+        * layout/floats/FloatingContext.h:
+        (WebCore::Layout::FloatingContext::root const):
+        * layout/inlineformatting/InlineFormattingContext.cpp:
+        (WebCore::Layout::InlineFormattingContext::lineLayout):
+        (WebCore::Layout::InlineFormattingContext::computedIntrinsicWidthForConstraint const):
+        (WebCore::Layout::InlineFormattingContext::computeGeometryForLineContent):
+
+2020-10-06  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Bump reported current shipping release UA to 10_15_7
+        https://bugs.webkit.org/show_bug.cgi?id=217364
+        <rdar://problem/69984962>
+
+        Reviewed by Alex Christensen.
+
+        Bump the reported current shipping release UA from 10_15_6 to 10_15_7.
+
+        * platform/mac/UserAgentMac.mm:
+        (WebCore::standardUserAgentWithApplicationName):
+
+2020-10-06  Chris Dumez  <cdumez@apple.com>
+
+        Update Worklet.addModule() to actually fetch and evaluate the module script
+        https://bugs.webkit.org/show_bug.cgi?id=217242
+
+        Reviewed by Geoffrey Garen.
+
+        Update Worklet.addModule() to actually fetch and evaluate the module script as per:
+        - https://www.w3.org/TR/worklets-1/#dom-worklet-addmodule
+
+        The WorkletGlobalScope maintains a queue of fetch requests (basically a URL and a completion handler) and uses
+        the existing WorkerScriptLoader to process the requests serially. Based on the result on the load, we call the
+        CompletionHandler which will cause the Worklet.addModule() promise to get resolved or rejected.
+
+        Test: webaudio/audioworklet-addModule-failure.html
+
+        * Modules/webaudio/AudioWorkletGlobalScope.cpp:
+        * Modules/webaudio/AudioWorkletGlobalScope.h:
+        Provide workerOrWorkletThread() override for WorkerOrWorkletGlobalScope(), which is a replacement
+        for underlyingThread().
+
+        * Modules/webaudio/AudioWorkletMessagingProxy.cpp:
+        (WebCore::AudioWorkletMessagingProxy::AudioWorkletMessagingProxy):
+        (WebCore::AudioWorkletMessagingProxy::createCacheStorageConnection):
+        (WebCore::AudioWorkletMessagingProxy::postTaskToLoader):
+        (WebCore::AudioWorkletMessagingProxy::postTaskForModeToWorkerOrWorkletGlobalScope):
+        * Modules/webaudio/AudioWorkletMessagingProxy.h:
+        Update AudioWorkletMessagingProxy to subclass WorkerLoaderProxy so that AudioWorklet can reuse
+        WorkerScriptLoader. WorkerScriptLoader relies on WorkerLoaderProxy to do thread hopping.
+
+        * Modules/webaudio/AudioWorkletThread.cpp:
+        (WebCore::AudioWorkletThread::AudioWorkletThread):
+        (WebCore::AudioWorkletThread::workerLoaderProxy):
+        * Modules/webaudio/AudioWorkletThread.h:
+        (WebCore::AudioWorkletThread::create):
+        Subclass the new WorkerOrWorkletThread interface. WorkerOrWorkletThread is a new interface that
+        was adding so that WorkerScriptLoader can be reused by AudioWorklets.
+
+        * Modules/websockets/WorkerThreadableWebSocketChannel.cpp:
+        (WebCore::WorkerThreadableWebSocketChannel::Peer::send):
+        (WebCore::WorkerThreadableWebSocketChannel::Peer::bufferedAmount):
+        (WebCore::WorkerThreadableWebSocketChannel::Peer::didConnect):
+        (WebCore::WorkerThreadableWebSocketChannel::Peer::didReceiveMessage):
+        (WebCore::WorkerThreadableWebSocketChannel::Peer::didReceiveBinaryData):
+        (WebCore::WorkerThreadableWebSocketChannel::Peer::didUpdateBufferedAmount):
+        (WebCore::WorkerThreadableWebSocketChannel::Peer::didStartClosingHandshake):
+        (WebCore::WorkerThreadableWebSocketChannel::Peer::didClose):
+        (WebCore::WorkerThreadableWebSocketChannel::Peer::didReceiveMessageError):
+        (WebCore::WorkerThreadableWebSocketChannel::Peer::didUpgradeURL):
+        (WebCore::WorkerThreadableWebSocketChannel::Bridge::mainThreadInitialize):
+        Simple renaming.
+
+        * WebCore.xcodeproj/project.pbxproj:
+        * loader/ThreadableLoader.cpp:
+        (WebCore::ThreadableLoader::create):
+        * loader/WorkerThreadableLoader.cpp:
+        (WebCore::WorkerThreadableLoader::WorkerThreadableLoader):
+        (WebCore::WorkerThreadableLoader::loadResourceSynchronously):
+        (WebCore::WorkerThreadableLoader::MainThreadBridge::MainThreadBridge):
+        (WebCore::WorkerThreadableLoader::MainThreadBridge::notifyIsDone):
+        (WebCore::WorkerThreadableLoader::MainThreadBridge::didSendData):
+        (WebCore::WorkerThreadableLoader::MainThreadBridge::didReceiveResponse):
+        (WebCore::WorkerThreadableLoader::MainThreadBridge::didReceiveData):
+        (WebCore::WorkerThreadableLoader::MainThreadBridge::didFinishLoading):
+        (WebCore::WorkerThreadableLoader::MainThreadBridge::didFail):
+        (WebCore::WorkerThreadableLoader::MainThreadBridge::didFinishTiming):
+        * loader/WorkerThreadableLoader.h:
+        (WebCore::WorkerThreadableLoader::create):
+        Update WorkerThreadableLoader so that it can be reused by AudioWorklets.
+
+        * workers/WorkerGlobalScope.cpp:
+        (WebCore::WorkerGlobalScope::wrapCryptoKey):
+        (WebCore::WorkerGlobalScope::unwrapCryptoKey):
+        * workers/WorkerGlobalScope.h:
+        Minor changes to keep building after updates to WorkerOrWorkletGlobalScope.
+
+        * workers/WorkerLoaderProxy.h:
+        * workers/WorkerMessagingProxy.cpp:
+        (WebCore::WorkerMessagingProxy::createCacheStorageConnection):
+        (WebCore::WorkerMessagingProxy::postTaskForModeToWorkerOrWorkletGlobalScope):
+        * workers/WorkerMessagingProxy.h:
+        Simple renames.
+
+        * workers/WorkerOrWorkletGlobalScope.h:
+        (WebCore::WorkerOrWorkletGlobalScope::createUniqueIdentifier):
+        Update WorkerOrWorkletGlobalScope to add a few things WorkerScriptLoader needed to work with
+        both Workers and Worklets.
+
+        * workers/WorkerOrWorkletThread.h: Added.
+        Added new parent interface for WorkerThread and AudioWorkletThread so that WorkerScriptLoader
+        can work for both Workers and Worklets.
+
+        * workers/WorkerRunLoop.cpp:
+        (WebCore::WorkerRunLoop::runInMode):
+        (WebCore::WorkerRunLoop::runCleanupTasks):
+        Minor changes to keep building after changes to WorkerOrWorkletGlobalScope.
+
+        * workers/WorkerThread.h:
+        Subclass the new WorkerOrWorkletThread interface.
+
+        * workers/service/context/ServiceWorkerThreadProxy.cpp:
+        (WebCore::ServiceWorkerThreadProxy::postTaskForModeToWorkerOrWorkletGlobalScope):
+        (WebCore::ServiceWorkerThreadProxy::createCacheStorageConnection):
+        (WebCore::ServiceWorkerThreadProxy::notifyNetworkStateChange):
+        (WebCore::ServiceWorkerThreadProxy::startFetch):
+        (WebCore::ServiceWorkerThreadProxy::cancelFetch):
+        (WebCore::ServiceWorkerThreadProxy::continueDidReceiveFetchResponse):
+        * workers/service/context/ServiceWorkerThreadProxy.h:
+        Simple renames.
+
+        * worklets/WorkletGlobalScope.cpp:
+        (WebCore::WorkletGlobalScope::WorkletGlobalScope):
+        Make sure we correctly initialize the security origin for the WorkletGlobalScope.
+        Previously, we were using a unique origin so all script loads would have failed
+        with a cross-origin error.
+
+        (WebCore::WorkletGlobalScope::fetchAndInvokeScript):
+        (WebCore::WorkletGlobalScope::processNextScriptFetchJobIfNeeded):
+        (WebCore::WorkletGlobalScope::didReceiveResponse):
+        (WebCore::WorkletGlobalScope::notifyFinished):
+        (WebCore::WorkletGlobalScope::didCompleteScriptFetchJob):
+        * worklets/WorkletGlobalScope.h:
+        (WebCore::WorkletGlobalScope::responsibleDocument):
+        (WebCore::WorkletGlobalScope::responsibleDocument const):
+        Add implementation for module script fetching using WorkerScriptLoader. This gets called
+        when Worklet.addModule() is called on the main thread.
+
+2020-10-06  Antti Koivisto  <antti@apple.com>
+
+        [LFC][Integration] Add renderer() to iterator
+        https://bugs.webkit.org/show_bug.cgi?id=217382
+
+        Reviewed by Zalan Bujtas.
+
+        Also use it while converting RenderedPosition for the iterator.
+
+        * dom/Position.h:
+        * editing/RenderedPosition.cpp:
+        (WebCore::rendererFromPosition):
+        (WebCore::RenderedPosition::RenderedPosition):
+        (WebCore::RenderedPosition::previousLeafOnLine const):
+        (WebCore::RenderedPosition::nextLeafOnLine const):
+        (WebCore::RenderedPosition::isEquivalent const):
+        (WebCore::RenderedPosition::bidiLevelOnLeft const):
+        (WebCore::RenderedPosition::bidiLevelOnRight const):
+        (WebCore::RenderedPosition::leftBoundaryOfBidiRun):
+        (WebCore::RenderedPosition::rightBoundaryOfBidiRun):
+        (WebCore::RenderedPosition::atLeftBoundaryOfBidiRun const):
+        (WebCore::RenderedPosition::atRightBoundaryOfBidiRun const):
+        (WebCore::RenderedPosition::positionAtLeftBoundaryOfBiDiRun const):
+        (WebCore::RenderedPosition::positionAtRightBoundaryOfBiDiRun const):
+        (WebCore::RenderedPosition::absoluteRect const):
+        (WebCore::renderObjectContainsPosition):
+        * editing/RenderedPosition.h:
+        (WebCore::RenderedPosition::rootBox):
+        (WebCore::RenderedPosition::atLeftmostOffsetInBox const):
+        (WebCore::RenderedPosition::atRightmostOffsetInBox const):
+        (WebCore::RenderedPosition::uncachedInlineBox): Deleted.
+        (WebCore::RenderedPosition::RenderedPosition): Deleted.
+        * layout/integration/LayoutIntegrationInlineContent.cpp:
+        (WebCore::LayoutIntegration::InlineContent::InlineContent):
+        (WebCore::LayoutIntegration::InlineContent::lineLayout const):
+        (WebCore::LayoutIntegration::InlineContent::rendererForLayoutBox const):
+        * layout/integration/LayoutIntegrationInlineContent.h:
+        (WebCore::LayoutIntegration::InlineContent::create):
+        * layout/integration/LayoutIntegrationLineLayout.cpp:
+        (WebCore::LayoutIntegration::LineLayout::ensureInlineContent):
+        (WebCore::LayoutIntegration::LineLayout::rendererForLayoutBox const):
+        * layout/integration/LayoutIntegrationLineLayout.h:
+        * layout/integration/LayoutIntegrationPagination.cpp:
+        (WebCore::LayoutIntegration::makeAdjustedContent):
+        * layout/integration/LayoutIntegrationRunIterator.h:
+        (WebCore::LayoutIntegration::PathRun::renderer const):
+        * layout/integration/LayoutIntegrationRunIteratorLegacyPath.h:
+        (WebCore::LayoutIntegration::LegacyPath::isLastTextRunOnLine const):
+        (WebCore::LayoutIntegration::LegacyPath::isLastTextRun const):
+        (WebCore::LayoutIntegration::LegacyPath::renderer const):
+        * layout/integration/LayoutIntegrationRunIteratorModernPath.h:
+        (WebCore::LayoutIntegration::ModernPath::renderer const):
+
+2020-10-06  Alex Christensen  <achristensen@webkit.org>
+
+        FileReader should transition to readyState DONE after last onprogress event
+        https://bugs.webkit.org/show_bug.cgi?id=217333
+
+        Reviewed by Youenn Fablet.
+
+        I also bring the abort function in alignment with https://w3c.github.io/FileAPI/
+        and the behavior of Chrome and Firefox.
+
+        As suggested by Chris, I added a bool to remember if loading is complete so we can
+        retain existing behavior when abort is called inside the last onprogress event.
+        This is not mentioned by the spec yet, but it matches the existing behavior and the
+        behavior of Chrome, so I added a web platform test for it.
+
+        * fileapi/FileReader.cpp:
+        (WebCore::FileReader::abort):
+        (WebCore::FileReader::didFinishLoading):
+        (WebCore::FileReader::didFail):
+        * fileapi/FileReader.h:
+
 2020-10-06  Simon Fraser  <simon.fraser@apple.com>
 
         Rename scheduleTimedRenderingUpdate() to scheduleRenderingUpdate() everywhere

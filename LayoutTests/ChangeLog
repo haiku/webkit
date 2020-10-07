@@ -1,3 +1,96 @@
+2020-10-06  Peng Liu  <peng.liu6@apple.com>
+
+        [Media in GPU Process] The seekable attribute of HTMLMediaElement has an incorrect value
+        https://bugs.webkit.org/show_bug.cgi?id=217410
+
+        Reviewed by Eric Carlson.
+
+        * gpu-process/TestExpectations:
+
+2020-10-06  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (r267402): [ iOS Mojave+ Release ] imported/w3c/web-platform-tests/user-timing/measure-l3.any.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217414
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+        * platform/mac/TestExpectations:
+
+2020-10-06  James Darpinian  <jdarpinian@chromium.org>
+
+        Support EXT_texture_compression_rgtc WebGL extension
+        https://bugs.webkit.org/show_bug.cgi?id=217198
+
+        Reviewed by Kenneth Russell.
+
+        * webgl/conformance/extensions/ext-texture-compression-rgtc-expected.txt: Added.
+        * webgl/conformance/extensions/ext-texture-compression-rgtc.html: Added.
+        * webgl/conformance/extensions/s3tc-and-rgtc-expected.txt: Added.
+        * webgl/conformance/extensions/s3tc-and-rgtc.html: Added.
+        * webgl/resources/webgl_test_files/conformance/extensions/ext-texture-compression-rgtc.html: Added.
+        * webgl/resources/webgl_test_files/conformance/extensions/s3tc-and-rgtc.html: Added.
+        * webgl/resources/webgl_test_files/js/tests/compressed-texture-utils.js: Added.
+
+2020-10-06  Hector Lopez  <hector_i_lopez@apple.com>
+
+        Adjust test expectation to include Release queue failure after change to iOS 14
+        https://bugs.webkit.org/show_bug.cgi?id=214731
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
+2020-10-06  Hector Lopez  <hector_i_lopez@apple.com>
+
+        REGRESSION(iOS 14): http/wpt/cache-storage/cache-quota.any.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217412
+
+        Unreviewed test gardening.
+
+        * platform/ios-wk2/TestExpectations:
+
+2020-10-06  Hector Lopez  <hector_i_lopez@apple.com>
+
+        REGRESSION(iOS 14): http/tests/cache-storage/page-cache-domcache-pending-promise.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217408
+
+        Unreviewed test gardening.
+
+        * platform/ios-wk2/TestExpectations:
+
+2020-10-06  Peng Liu  <peng.liu6@apple.com>
+
+        [Media in GPU Process] Enable some layout tests
+
+        Unreviewed test gardening.
+
+        * gpu-process/TestExpectations:
+
+2020-10-06  Chris Dumez  <cdumez@apple.com>
+
+        Update Worklet.addModule() to actually fetch the module script
+        https://bugs.webkit.org/show_bug.cgi?id=217242
+
+        Reviewed by Geoffrey Garen.
+
+        Add layout test coverage.
+
+        * webaudio/audioworklet-addModule-failure-expected.txt: Added.
+        * webaudio/audioworklet-addModule-failure.html: Added.
+
+2020-10-06  Alex Christensen  <achristensen@webkit.org>
+
+        FileReader should transition to readyState DONE after last onprogress event
+        https://bugs.webkit.org/show_bug.cgi?id=217333
+
+        Reviewed by Youenn Fablet.
+
+        * fast/files/file-reader-abort-expected.txt:
+        * fast/files/file-reader-abort-using-open-panel-expected.txt:
+        Update expectations to reflect new behavior that onerror is not called before onabort,
+        matching Chrome, Firefox, and the specification.
+
 2020-10-06  Diego Pino Garcia  <dpino@igalia.com>
 
         [GLIB] Unreviewed test gardening. Skip LFC tests.

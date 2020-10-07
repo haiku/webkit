@@ -854,6 +854,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     page/PerformanceLoggingClient.h
     page/PlugInClient.h
     page/PointerCaptureController.h
+    page/PointerCharacteristics.h
     page/PointerLockController.h
     page/PostMessageOptions.h
     page/PrewarmInformation.h
@@ -1187,6 +1188,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/MediaPlaybackTargetPicker.h
     platform/graphics/MediaPlayer.h
     platform/graphics/MediaPlayerEnums.h
+    platform/graphics/MediaPlayerIdentifier.h
     platform/graphics/MediaPlayerPrivate.h
     platform/graphics/MediaUsageInfo.h
     platform/graphics/NativeImage.h
@@ -1522,6 +1524,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     workers/WorkerAnimationController.h
     workers/WorkerDebuggerProxy.h
     workers/WorkerLoaderProxy.h
+    workers/WorkerOrWorkletThread.h
     workers/WorkerRunLoop.h
     workers/WorkerScriptLoader.h
     workers/WorkerScriptLoaderClient.h

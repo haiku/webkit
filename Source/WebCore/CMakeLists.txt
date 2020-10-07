@@ -475,6 +475,7 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webaudio/AudioNode.idl
     Modules/webaudio/AudioNodeOptions.idl
     Modules/webaudio/AudioParam.idl
+    Modules/webaudio/AudioParamDescriptor.idl
     Modules/webaudio/AudioParamMap.idl
     Modules/webaudio/AudioProcessingEvent.idl
     Modules/webaudio/AudioProcessingEventInit.idl
@@ -486,6 +487,7 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webaudio/AudioWorkletNodeOptions.idl
     Modules/webaudio/AudioWorkletProcessor.idl
     Modules/webaudio/AudioWorkletProcessorConstructor.idl
+    Modules/webaudio/AutomationRate.idl
     Modules/webaudio/BaseAudioContext.idl
     Modules/webaudio/BiquadFilterNode.idl
     Modules/webaudio/BiquadFilterOptions.idl
@@ -1477,6 +1479,7 @@ if (ENABLE_WEBGL)
         html/canvas/EXTFloatBlend.cpp
         html/canvas/EXTFragDepth.cpp
         html/canvas/EXTShaderTextureLOD.cpp
+        html/canvas/EXTTextureCompressionRGTC.cpp
         html/canvas/EXTTextureFilterAnisotropic.cpp
         html/canvas/EXTsRGB.cpp
         html/canvas/OESElementIndexUint.cpp
@@ -1535,6 +1538,7 @@ list(APPEND WebCore_IDL_FILES
     html/canvas/EXTFloatBlend.idl
     html/canvas/EXTFragDepth.idl
     html/canvas/EXTShaderTextureLOD.idl
+    html/canvas/EXTTextureCompressionRGTC.idl
     html/canvas/EXTTextureFilterAnisotropic.idl
     html/canvas/EXTsRGB.idl
     html/canvas/OESElementIndexUint.idl

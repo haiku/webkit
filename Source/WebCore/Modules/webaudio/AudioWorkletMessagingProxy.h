@@ -29,14 +29,16 @@
 #pragma once
 
 #if ENABLE(WEB_AUDIO)
+#include "WorkerLoaderProxy.h"
 #include "WorkletGlobalScopeProxy.h"
 
 namespace WebCore {
 
 class AudioWorklet;
 class AudioWorkletThread;
+class Document;
 
-class AudioWorkletMessagingProxy : public WorkletGlobalScopeProxy {
+class AudioWorkletMessagingProxy : public WorkletGlobalScopeProxy, public WorkerLoaderProxy {
 public:
     static Ref<AudioWorkletMessagingProxy> create(AudioWorklet& worklet)
     {
@@ -48,11 +50,22 @@ public:
     // This method is used in the main thread to post task back to the worklet thread.
     bool postTaskForModeToWorkletGlobalScope(ScriptExecutionContext::Task&&, const String& mode) final;
 
+    AudioWorkletThread& workletThread() { return m_workletThread.get(); }
+
+    void postTaskToAudioWorklet(Function<void(AudioWorklet&)>&&);
+
 private:
     explicit AudioWorkletMessagingProxy(AudioWorklet&);
 
+    // WorkerLoaderProxy.
+    RefPtr<CacheStorageConnection> createCacheStorageConnection() final;
+    void postTaskToLoader(ScriptExecutionContext::Task&&) final;
+    bool postTaskForModeToWorkerOrWorkletGlobalScope(ScriptExecutionContext::Task&&, const String& mode) final;
+
     bool isAudioWorkletMessagingProxy() const final { return true; }
 
+    WeakPtr<AudioWorklet> m_worklet;
+    Ref<Document> m_document;
     Ref<AudioWorkletThread> m_workletThread;
 };
 

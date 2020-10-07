@@ -1,3 +1,118 @@
+2020-10-06  Chris Dumez  <cdumez@apple.com>
+
+        Reloading a view in its processTerminationHandler does not work reliably when using related views
+        https://bugs.webkit.org/show_bug.cgi?id=217407
+
+        Reviewed by Geoff Garen.
+
+        Add API test coverage.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/WebContentProcessDidTerminate.mm:
+        (-[NavigationDelegateWithCrashHandlerThatLoadsAgain _webView:webContentProcessDidTerminateWithReason:]):
+        (-[NavigationDelegateWithCrashHandlerThatLoadsAgain webView:didFinishNavigation:]):
+        (TEST):
+
+2020-10-06  Devin Rousso  <drousso@apple.com>
+
+        CSS hover and "pointer: fine" media queries do not evaluate to true with iOS 13.4 mouse support
+        https://bugs.webkit.org/show_bug.cgi?id=209292
+        <rdar://problem/60663124>
+
+        Reviewed by Tim Horton.
+
+        * TestWebKitAPI/cocoa/TestWKWebView.h:
+        * TestWebKitAPI/cocoa/TestWKWebView.mm:
+        (-[TestWKWebView evaluateMediaQuery:]): Added.
+        Create helper function for synchronously testing media queries.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/iOSMouseSupport.mm:
+        (iOSMouseSupport.MouseInitiallyDisconnected): Added.
+        (iOSMouseSupport.MouseInitiallyConnected): Added.
+        (iOSMouseSupport.MouseLaterDisconnected): Added.
+        (iOSMouseSupport.MouseLaterConnected): Added.
+        (iOSMouseSupport.MouseAlwaysConnected): Added.
+
+2020-10-06  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitscmpy] Generate Commit object from local repository
+        https://bugs.webkit.org/show_bug.cgi?id=216404
+        <rdar://problem/68702897>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Bump version.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/decorators.py:
+        (Memoize.__call__.decorator): Handle case where function arguments are different.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/mocks/popen.py:
+        (PopenBase.poll): Reset stdout and stderr after calling the completion handler.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/tests/decorators_unittest.py:
+        (TestMemoize.test_conflicting_args):
+        * Scripts/libraries/webkitscmpy/webkitscmpy/__init__.py: Bump version.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/contributor.py:
+        (Contributor): Number of lines may be singular.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/local/git.py:
+        (Git):
+        (Git.__init__): Caller may wish to specify the patterns for production and development branches.
+        (Git.branches): Call the more general _branches_for to unify remote stripping logic.
+        (Git._commit_count): Given a parameter (hash, branch, difference between default branch and commit), compute
+        the number of commits.
+        (Git._branches_for): Given a hash, return all branches the commit is part of.
+        (Git.commit): Construct a commit given a commit hash, revision, identifier or branch.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/local/scm.py:
+        (Scm):
+        (Scm.__init__): Caller may wish to specify the patterns for production and development branches.
+        (Scm.commit): Construct a commit given a commit hash, revision, identifier or branch.
+        (Scm.prioritize_branches): Given a set of branches, pick the highest priority one.
+        (Scm.log): Log error to a configured logger or stderr.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/local/svn.py:
+        (Svn):
+        (Svn.__init__): Caller may wish to specify the patterns for production and development branches.
+        (Svn.info): Allow info for a specific commit to be queried.
+        (Svn._cache_path): Path to json cache of branch-commit mapping.
+        (Svn._cache_revisions): Query the remote for a specific branch to get the list of all commits on that branch.
+        (Svn._commit_count): Given a revision or branch, compute the number of commits.
+        (Svn._branch_for): Given a revision, use local data to determine the most likely branch before asking the remote which branch
+        a commit is on.
+        (Svn.commit): Construct a commit given a commit hash, revision, identifier or branch.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/mocks/local/git.py:
+        (Git): Add commands needed to construct an identifier, add mock commits.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/mocks/local/svn.py:
+        (Svn): Add commands needed to construct an identifier, add mock commits.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/contributor_unittest.py:
+        (TestContributor.test_short_svn_log):
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/git_unittest.py:
+        (TestGit):
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/scm_unittest.py:
+        (TestScm.test_remote):
+        (TestScm):
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/svn_unittest.py:
+        (TestSvn):
+
+2020-10-06  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Ensure that steps names are valid Buildbot identifiers
+        https://bugs.webkit.org/show_bug.cgi?id=217394
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/build.webkit.org-config/steps.py: Removed spaces from step names.
+        (ConfigureBuild):
+        (KillOldProcesses):
+        (CleanBuildIfScheduled):
+        (DeleteStaleBuildFiles):
+        (RunGLibAPITests):
+        * BuildSlaveSupport/build.webkit.org-config/steps_unittest.py: Updated unit-tests.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotIteration.js:
+
+2020-10-06  Philippe Normand  <pnormand@igalia.com>
+
+        run-minibrowser not compatible with python3
+        https://bugs.webkit.org/show_bug.cgi?id=217368
+
+        Reviewed by Adrian Perez de Castro.
+
+        * Scripts/webkitpy/minibrowser/run_webkit_app.py: Use webkitcorepy's unicode().
+
 2020-10-06  Adrian Perez de Castro  <aperez@igalia.com>
 
         REGRESSION(r267399): [WPE] Build broken with ENABLE_ACCESSIBILITY=OFF

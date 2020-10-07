@@ -1259,6 +1259,7 @@ html/canvas/EXTColorBufferHalfFloat.cpp
 html/canvas/EXTFloatBlend.cpp
 html/canvas/EXTFragDepth.cpp
 html/canvas/EXTShaderTextureLOD.cpp
+html/canvas/EXTTextureCompressionRGTC.cpp
 html/canvas/EXTTextureFilterAnisotropic.cpp
 html/canvas/EXTsRGB.cpp
 html/canvas/GPUBasedCanvasRenderingContext.cpp
@@ -2680,6 +2681,7 @@ JSAudioListener.cpp
 JSAudioNode.cpp
 JSAudioNodeOptions.cpp
 JSAudioParam.cpp
+JSAudioParamDescriptor.cpp
 JSAudioParamMap.cpp
 JSAudioProcessingEvent.cpp
 JSAudioProcessingEventInit.cpp
@@ -2699,6 +2701,7 @@ JSAuthenticatorAssertionResponse.cpp
 JSAuthenticatorAttestationResponse.cpp
 JSAuthenticatorResponse.cpp
 JSAuthenticatorTransport.cpp
+JSAutomationRate.cpp
 JSBarProp.cpp
 JSBaseAudioContext.cpp
 JSBasicCredential.cpp
@@ -2873,6 +2876,7 @@ JSEXTColorBufferHalfFloat.cpp
 JSEXTFloatBlend.cpp
 JSEXTFragDepth.cpp
 JSEXTShaderTextureLOD.cpp
+JSEXTTextureCompressionRGTC.cpp
 JSEXTTextureFilterAnisotropic.cpp
 JSEXTsRGB.cpp
 JSEcKeyParams.cpp

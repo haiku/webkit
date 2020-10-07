@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice , this list of conditions and the following disclaimer.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -23,17 +23,25 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma once
+#if HAVE(UIKIT_WITH_MOUSE_SUPPORT) && PLATFORM(IOS)
 
-#if ENABLE(GPU_PROCESS)
-
-#include <wtf/ObjectIdentifier.h>
+#import "BackBoardServicesSPI.h"
 
 namespace WebKit {
+class WebProcessProxy;
+}
 
-enum MediaPlayerPrivateRemoteIdentifierType { };
-using MediaPlayerPrivateRemoteIdentifier = ObjectIdentifier<MediaPlayerPrivateRemoteIdentifierType>;
+@interface WKMouseDeviceObserver : NSObject<BKSMousePointerDeviceObserver>
 
-} // namespace WebKit
++ (WKMouseDeviceObserver *)sharedInstance;
 
-#endif
+- (void)start;
+- (void)stop;
+
+@property (nonatomic, readonly) BOOL hasMouseDevice;
+
+- (void)_setHasMouseDeviceForTesting:(BOOL)hasMouseDevice;
+
+@end
+
+#endif // HAVE(UIKIT_WITH_MOUSE_SUPPORT) && PLATFORM(IOS)
