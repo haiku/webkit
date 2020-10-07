@@ -870,7 +870,7 @@ GraphicsContext::ClipToDrawingCommandsResult GraphicsContext::clipToDrawingComma
     return ClipToDrawingCommandsResult::Success;
 }
 
-#if !USE(CG) && !USE(DIRECT2D) && !USE(CAIRO)
+#if !USE(CG) && !USE(DIRECT2D) && !USE(CAIRO) && !PLATFORM(HAIKU)
 IntRect GraphicsContext::clipBounds() const
 {
     ASSERT_NOT_REACHED();
@@ -1009,7 +1009,7 @@ void GraphicsContext::setPlatformTextDrawingMode(TextDrawingModeFlags)
 }
 #endif
 
-#if !USE(CAIRO) && !USE(DIRECT2D)
+#if !USE(CAIRO) && !USE(DIRECT2D) && !PLATFORM(HAIKU)
 void GraphicsContext::setPlatformStrokeStyle(StrokeStyle)
 {
 }
