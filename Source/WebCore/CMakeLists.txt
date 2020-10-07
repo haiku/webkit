@@ -2126,6 +2126,17 @@ WEBKIT_COMPUTE_SOURCES(WebCore)
 WEBKIT_WRAP_SOURCELIST(${WebCore_SOURCES})
 WEBKIT_WRAP_SOURCELIST(${WebCoreTestSupport_IDL_FILES} ${WebCoreTestSupport_SOURCES})
 
+IF (HAIKU)
+    # Can't use INCLUDE_DIRECTORIES, because some header file names conflicts between Haiku and WebKit
+    foreach(inc ${WebCore_LOCAL_INCLUDE_DIRECTORIES})
+        ADD_DEFINITIONS(-iquote ${inc})
+    endforeach(inc)
+
+    INCLUDE_DIRECTORIES(${WebCore_INCLUDE_DIRECTORIES} ${WebCoreTestSupport_INCLUDE_DIRECTORIES})
+ELSE (HAIKU)
+    INCLUDE_DIRECTORIES(${WebCore_LOCAL_INCLUDE_DIRECTORIES} ${WebCore_INCLUDE_DIRECTORIES} ${WebCoreTestSupport_INCLUDE_DIRECTORIES})
+ENDIF (HAIKU)
+
 if (MSVC)
     WEBKIT_ADD_PRECOMPILED_HEADER("WebCorePrefix.h" "WebCorePrefix.cpp" WebCore_SOURCES)
 endif ()
