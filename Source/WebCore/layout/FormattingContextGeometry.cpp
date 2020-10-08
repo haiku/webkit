@@ -30,6 +30,7 @@
 
 #include "BlockFormattingState.h"
 #include "FlexFormattingState.h"
+#include "FloatingContext.h"
 #include "FloatingState.h"
 #include "InlineFormattingState.h"
 #include "LayoutContext.h"
@@ -192,11 +193,12 @@ LayoutUnit FormattingContext::Geometry::contentHeightForFormattingContextRoot(co
     auto top = borderAndPaddingTop;
     auto bottom = borderAndPaddingTop;
     if (formattingContextRoot.establishesInlineFormattingContext()) {
-        auto& lines = layoutState.establishedInlineFormattingState(formattingContextRoot).lines();
-        // Even empty containers generate one line. 
+        auto& inlineFormattingState = layoutState.establishedInlineFormattingState(formattingContextRoot);
+        auto& lines = inlineFormattingState.lines();
+        // Even empty containers generate one line.
         ASSERT(!lines.isEmpty());
         top = lines.first().logicalTop();
-        bottom = lines.last().logicalBottom();
+        bottom = lines.last().logicalBottom() + inlineFormattingState.clearGapAfterLastLine();
     } else if (formattingContextRoot.establishesFlexFormattingContext()) {
         auto& lines = layoutState.establishedFlexFormattingState(formattingContextRoot).lines();
         ASSERT(!lines.isEmpty());
@@ -213,13 +215,13 @@ LayoutUnit FormattingContext::Geometry::contentHeightForFormattingContextRoot(co
     } else
         ASSERT_NOT_REACHED();
 
-    auto& floatingState = layoutState.establishedFormattingState(formattingContextRoot).floatingState();
-    auto floatBottom = floatingState.bottom(formattingContextRoot);
+    auto floatingContext = FloatingContext { formattingContext, layoutState.establishedFormattingState(formattingContextRoot).floatingState() };
+    auto floatBottom = floatingContext.bottom();
     if (floatBottom) {
-        bottom = std::max<LayoutUnit>(*floatBottom, bottom);
-        auto floatTop = floatingState.top(formattingContextRoot);
+        bottom = std::max(*floatBottom, bottom);
+        auto floatTop = floatingContext.top();
         ASSERT(floatTop);
-        top = std::min<LayoutUnit>(*floatTop, top);
+        top = std::min(*floatTop, top);
     }
     auto computedHeight = bottom - top;
 
@@ -829,10 +831,10 @@ ContentHeightAndMargin FormattingContext::Geometry::complicatedCases(const Box& 
             // This is a special (quirk?) behavior since the document box is not a formatting context root and
             // all the float boxes end up at the ICB level.
             auto& initialContainingBlock = documentBox.formattingContextRoot();
-            auto& floatingState = layoutState().establishedFormattingState(initialContainingBlock).floatingState();
-            if (auto floatBottom = floatingState.bottom(initialContainingBlock)) {
+            auto floatingContext = FloatingContext { formattingContext(), layoutState().establishedFormattingState(initialContainingBlock).floatingState() };
+            if (auto floatBottom = floatingContext.bottom()) {
                 bottom = std::max<LayoutUnit>(*floatBottom, bottom);
-                auto floatTop = floatingState.top(initialContainingBlock);
+                auto floatTop = floatingContext.top();
                 ASSERT(floatTop);
                 top = std::min<LayoutUnit>(*floatTop, top);
             }

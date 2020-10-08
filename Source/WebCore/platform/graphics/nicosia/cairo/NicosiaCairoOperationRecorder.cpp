@@ -1098,5 +1098,10 @@ void CairoOperationRecorder::clipToDrawingCommands(const FloatRect&, ColorSpace,
     // FIXME: Not implemented.
 }
 
+void CairoOperationRecorder::paintFrameForMedia(MediaPlayer&, const FloatRect&)
+{
+    // FIXME: Not implemented.
+}
+
 } // namespace Nicosia
 #endif

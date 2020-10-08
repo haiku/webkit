@@ -55,6 +55,8 @@
 #include "Settings.h"
 #include "WorkerGlobalScope.h"
 #include "WorkerNavigator.h"
+#include "WorkerOrWorkletGlobalScope.h"
+#include "WorkerOrWorkletThread.h"
 #include "WorkerThread.h"
 #include "WorkletGlobalScope.h"
 #include "WorkletScriptController.h"
@@ -205,7 +207,8 @@ void ScriptExecutionContext::dispatchMessagePortEvents()
 void ScriptExecutionContext::createdMessagePort(MessagePort& messagePort)
 {
     ASSERT((is<Document>(*this) && isMainThread())
-        || (is<WorkerGlobalScope>(*this) && downcast<WorkerGlobalScope>(*this).thread().thread() == &Thread::current()));
+        || (is<WorkerOrWorkletGlobalScope>(*this) && downcast<WorkerOrWorkletGlobalScope>(*this).workerOrWorkletThread() && downcast<WorkerOrWorkletGlobalScope>(*this).workerOrWorkletThread()->thread() == &Thread::current())
+        || (is<WorkerOrWorkletGlobalScope>(*this) && !downcast<WorkerOrWorkletGlobalScope>(*this).workerOrWorkletThread() && isMainThread()));
 
     m_messagePorts.add(&messagePort);
 }
@@ -213,7 +216,8 @@ void ScriptExecutionContext::createdMessagePort(MessagePort& messagePort)
 void ScriptExecutionContext::destroyedMessagePort(MessagePort& messagePort)
 {
     ASSERT((is<Document>(*this) && isMainThread())
-        || (is<WorkerGlobalScope>(*this) && downcast<WorkerGlobalScope>(*this).thread().thread() == &Thread::current()));
+        || (is<WorkerOrWorkletGlobalScope>(*this) && downcast<WorkerOrWorkletGlobalScope>(*this).workerOrWorkletThread() && downcast<WorkerOrWorkletGlobalScope>(*this).workerOrWorkletThread()->thread() == &Thread::current())
+        || (is<WorkerOrWorkletGlobalScope>(*this) && !downcast<WorkerOrWorkletGlobalScope>(*this).workerOrWorkletThread() && isMainThread()));
 
     m_messagePorts.remove(&messagePort);
 }

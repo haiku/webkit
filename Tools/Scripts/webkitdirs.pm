@@ -162,6 +162,7 @@ my $shouldNotUseNinja;
 my $xcodeVersion;
 
 my $unknownPortProhibited = 0;
+my @originalArgv = @ARGV;
 
 # Variables for Win32 support
 my $programFilesPath;
@@ -2349,7 +2350,7 @@ sub cmakeFilesPath()
 
 sub shouldRemoveCMakeCache(@)
 {
-    my (@buildArgs) = @_;
+    my (@buildArgs) = sort (@_, @originalArgv);
 
     # We check this first, because we always want to create this file for a fresh build.
     my $productDir = File::Spec->catdir(baseProductDir(), configuration());

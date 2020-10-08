@@ -51,11 +51,16 @@ public:
     LayoutPoint positionForFloat(const Box&, const HorizontalConstraints&) const;
     LayoutPoint positionForNonFloatingFloatAvoider(const Box&, const HorizontalConstraints&) const;
 
-    struct ClearancePosition {
-        Optional<Position> position;
+    struct PositionWithClearance {
+        LayoutUnit position;
         Optional<LayoutUnit> clearance;
     };
-    ClearancePosition verticalPositionWithClearance(const Box&) const;
+    Optional<PositionWithClearance> verticalPositionWithClearance(const Box&) const;
+
+    Optional<LayoutUnit> top() const;
+    Optional<LayoutUnit> leftBottom() const { return bottom(Clear::Left); }
+    Optional<LayoutUnit> rightBottom() const { return bottom(Clear::Right); }
+    Optional<LayoutUnit> bottom() const { return bottom(Clear::Both); }
 
     bool isEmpty() const { return m_floatingState.floats().isEmpty(); }
 
@@ -67,6 +72,8 @@ public:
     void append(const Box&);
 
 private:
+    Optional<LayoutUnit> bottom(Clear) const;
+
     LayoutState& layoutState() const { return m_floatingState.layoutState(); }
     const FormattingContext& formattingContext() const { return m_formattingContext; }
     const ContainerBox& root() const { return m_formattingContext.root(); }

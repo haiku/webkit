@@ -1,3 +1,302 @@
+2020-10-07  Aditya Keerthi  <akeerthi@apple.com>
+
+        REGRESSION(r268123): [ iOS ] 4 TestWebKitAPI.WebKitLegacy failures: File name unavailable. Unknown C++ exception thrown in the test body.
+        https://bugs.webkit.org/show_bug.cgi?id=217445
+        <rdar://problem/70063370>
+
+        Reviewed by Wenson Hsieh.
+
+        The patch which introduced these tests swizzled [UIDatePicker setDatePickerMode:]
+        to avoid a crash within UIKit, resulting from the fact that TestWebKitAPI isn't
+        actually an app.
+ 
+        However, this was not a reliable solution since UIKit was still attempting to
+        create a QoS interval. To fix, swizzle out a method much closer to the source
+        of the exception: [UITableView cellForRowAtIndexPath:].
+
+        * TestWebKitAPI/Tests/WebKitLegacy/ios/DateTimeInputsAccessoryViewTests.mm:
+        (cellForRowAtIndexPath):
+        (runTestWithInputType):
+
+2020-10-07  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Ensure that builder names are valid Buildbot identifiers
+        https://bugs.webkit.org/show_bug.cgi?id=217434
+
+        Reviewed by Dewei Zhu.
+
+        * BuildSlaveSupport/build.webkit.org-config/config.json: Updated builder names.
+        * BuildSlaveSupport/build.webkit.org-config/steps_unittest.py: Ditto.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/WebKitBuildbot.js: Ditto.
+        * BuildSlaveSupport/build.webkit.org-config/loadConfig.py: Ensure that unit-tests fail when any builder name does
+        not follow required naming convention.
+
+2020-10-07  Jonathan Bedard  <jbedard@apple.com>
+
+        REGRESSION (r268080): [test-webkitpy] Mojave bots failing to install python-dateutil-2.8.1
+        https://bugs.webkit.org/show_bug.cgi?id=217438
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Include wheel package.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/autoinstall.py:
+        (Package.install): The wheel package may be needed by setup tools.
+
+2020-10-07  Konstantin Tokarev  <annulen@yandex.ru>
+
+        [GTK][WPE] Remove Apache's mod_bw from install-dependencies
+        https://bugs.webkit.org/show_bug.cgi?id=217441
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        It is not activated in any of Apache configs in LayoutTests, and is not
+        referenced anywhere else.
+
+        * gtk/install-dependencies:
+        * wpe/install-dependencies:
+
+2020-10-07  Karl Rackler  <rackler@apple.com>
+
+        Unreviewed, reverting r268115.
+
+        This reverts commit r268115 while investigating ews test
+        failure.
+
+        Reverted changeset:
+
+        "Refactor TestOptions code in WebKitTestRunner to make it
+        easier to rationalize and extend"
+        https://bugs.webkit.org/show_bug.cgi?id=217390
+        https://trac.webkit.org/changeset/268115
+
+2020-10-07  Basuke Suzuki  <basuke.suzuki@sony.com>
+
+        [build-webkit] Compare with cmakeargs and unhandled to detect configuration change
+        https://bugs.webkit.org/show_bug.cgi?id=207012
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Added command line arguments on top of @featureArgs for comparison with previous build
+        options. This forces regeneration of CMakeCache.txt when any configuration is changed.
+
+        * Scripts/webkitdirs.pm:
+        (shouldRemoveCMakeCache):
+
+2020-10-07  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Ensure that invalid step names are not allowed
+        https://bugs.webkit.org/show_bug.cgi?id=217431
+
+        Reviewed by Darin Adler.
+
+        * BuildSlaveSupport/build.webkit.org-config/loadConfig.py:
+        (loadBuilderConfig):
+
+2020-10-07  Aditya Keerthi  <akeerthi@apple.com>
+
+        REGRESSION: Date/time pickers are not displayed in UIWebViews
+        https://bugs.webkit.org/show_bug.cgi?id=217341
+        <rdar://problem/66881739>
+
+        Reviewed by Wenson Hsieh.
+
+        Added regression tests to ensure this preference is not accidently
+        modified in the future.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebKitLegacy/ios/DateTimeInputsAccessoryViewTests.mm: Added.
+        (-[DateTimeInputsTestsLoadingDelegate webViewDidFinishLoad:]):
+        (runTestWithInputType):
+
+        Note that [UIDatePicker setDatePickerMode:] had to be swizzled to an
+        empty implementation as the UIKit version on the bots attempts to
+        create a QoS interval upon setting the initially selected row in
+        a UITableView when the date picker is presented. This fails because
+        TestWebKitAPI isn't actually an app. To avoid an exception, the method
+        is swizzled out.
+
+2020-10-06  Devin Rousso  <drousso@apple.com>
+
+        Move platform logic for CSS `hover` and `pointer` media queries outside of WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=217413
+
+        Reviewed by Tim Horton.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/iOSMouseSupport.mm:
+        (iOSMouseSupport.MouseInitiallyDisconnected):
+        (iOSMouseSupport.MouseInitiallyConnected):
+        (iOSMouseSupport.MouseLaterDisconnected):
+        (iOSMouseSupport.MouseLaterConnected):
+        (iOSMouseSupport.MouseAlwaysConnected):
+
+2020-10-06  Sam Weinig  <weinig@apple.com>
+
+        Refactor TestOptions code in WebKitTestRunner to make it easier to rationalize and extend
+        https://bugs.webkit.org/show_bug.cgi?id=217390
+
+        Reviewed by Darin Adler.
+
+        Refactors TestOptions code in WebKitTestRunner to make it clear how options coming in at 
+        different levels are treated and what precedence each has. The order is (from least to most):
+        
+        - Global features passed to WebKitTestRunner via the command line (e.g. --show-touches)
+        - Hardcoded features based on the path of the test being run (hopefully we can remove all soon)
+        - Hardcoded platform specific defaults (currently only used by macOS for useThreadedScrolling).
+        - Features from the test headers within the test itself.
+        - Finally, a second chance for more platform specific defaults (currenly only used the Cocoa ports
+          for setting enableProcessSwapOnNavigation and enableProcessSwapOnWindowOpen based on NSUserDefaults.)
+
+        To make this change work, and pave the way for future autogeneration of some of these test options,
+        the TestOptions struct (now class) was overhauled. Instead of storing the state itself, TestOptions
+        is now an immutable owner of a TestFeatures object. TestFeatures is a simple struct that contains maps 
+        of option keys to values and can be merged with other TestFeatures objects. TestOptions takes a 
+        TestFeatures at construction, and exposes getters for all keys, as well as defaults for when they are
+        not in the maps. In future changes, I would like to remove many of these (the ones that correspond
+        with WebKit preferences anyway) and have the keys and values automatically dealt with by WKPreferences.
+
+        * WebKitTestRunner/Options.cpp:
+        * WebKitTestRunner/Options.h:
+        Switch to std::unordered_map for consistency and ease of conversion.
+
+        * WebKitTestRunner/PlatformWebView.h:
+        (WTR::PlatformWebView::viewSupportsOptions const):
+        Update to call new TestOptions functions.
+
+        * WebKitTestRunner/StringFunctions.h:
+        (WTR::toWK):
+        (WTR::toWTFString):
+        Add conversions for std::string.
+
+        * WebKitTestRunner/TestController.h:
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::initialize):
+        Replace some bools with a new global TestFeatures instance that forms the base of
+        all TestFeatures merges.
+        
+        (WTR::TestController::generateContextConfiguration const):
+        (WTR::TestController::generatePageConfiguration):
+        (WTR::TestController::createWebViewWithOptions):
+        (WTR::TestController::ensureViewSupportsOptionsForTest):
+        (WTR::TestController::resetPreferencesToConsistentValues):
+        (WTR::TestController::resetStateToConsistentValues):
+        Update to call new TestOptions functions.
+        
+        (WTR::TestController::createTestURL):
+        Expose as a static member function on TestController for use in other files.
+        
+        (WTR::TestController::testOptionsForTest const):
+        Rework to be a sequence of TestFeatures merges.
+        
+        (WTR::TestController::updateWebViewSizeForTest):
+        (WTR::TestController::updateWindowScaleForTest):
+        Update to call new TestOptions functions.
+        
+        (WTR::createTestURL): Deleted.
+        (WTR::parseBooleanTestHeaderValue): Deleted.
+        (WTR::parseStringTestHeaderValueAsRelativePath): Deleted.
+        (WTR::parseStringTestHeaderValueAsURL): Deleted.
+        (WTR::updateTestOptionsFromTestHeader): Deleted.
+        (WTR::TestController::platformAddTestOptions const): Deleted.
+        Moved TestOptions parsing to TestOptions.cpp
+
+        * WebKitTestRunner/TestInvocation.cpp:
+        (WTR::TestInvocation::createTestSettingsDictionary):
+        Update to call new TestOptions functions.
+
+        * WebKitTestRunner/TestOptions.h:
+        Reworks TestOptions to be an immutable owner of a TestFeatures struct, which is a set
+        of maps that map feature string keys, to values of type bool, double, string or string vector.
+
+        * WebKitTestRunner/TestOptions.cpp:
+        (WTR::merge):
+        Merges two TestFeatures objects. If both contain the same key, the 'additional'
+        TestFeatures overrides the 'base' TestFeatures.
+
+        (WTR::dumpFeatures):
+        Helper to dump features to stderr, useful for debugging.
+
+        (WTR::keyType):
+        Helper for parser to know which value parser to use.
+
+        (WTR::parseBooleanTestHeaderValue):
+        (WTR::parseStringTestHeaderValueAsRelativePath):
+        (WTR::parseStringTestHeaderValueAsURL):
+        Value parsers moved from TestController.cpp
+
+        (WTR::parseTestHeader):
+        Header parser moved from TestController.cpp. Update to now return
+        a TestFeatures object and use keyType to pick value parser rather
+        than inlining the if statements.
+        
+        (WTR::hardcodedFeaturesBasedOnPathForTest):
+        Moved from the TestOptions contructor and reworked to return a TestFeatures
+        object to be merged by the caller.
+
+        (WTR::featureDefaultsFromTestHeaderForTest):
+        Creates a TestFeatures for the test headers of the current test.
+
+        * WebKitTestRunner/cocoa/TestControllerCocoa.mm:
+        (WTR::TestController::platformSpecificFeatureOverridesDefaultsForTest const):
+        Reworked to now return a TestFeatures object that will be merged, rather than updating
+        a TestOptions. Moves enableInAppBrowserPrivacy work to TestController::platformWillRunTest
+        where it is more appropriate.
+
+        (WTR::TestController::platformInitializeDataStore):
+        (WTR::TestController::platformCreateWebView):
+        (WTR::TestController::finishCreatingPlatformWebView):
+        (WTR::TestController::setApplicationBundleIdentifier):
+        (WTR::TestController::cocoaResetStateToConsistentValues):
+        (WTR::contentMode):
+        Update to call new TestOptions functions.
+
+        * WebKitTestRunner/ios/TestControllerIOS.mm:
+        (WTR::TestController::platformResetStateToConsistentValues):
+        (WTR::TestController::platformConfigureViewForTest):
+        Update to call new TestOptions functions.
+        
+        (WTR::TestController::platformSpecificFeatureDefaultsForTest const):
+        (WTR::TestController::updatePlatformSpecificTestOptionsForTest const): Deleted.
+        Moved GeneratedTouchesDebugWindow work to TestController::platformConfigureViewForTest
+        where it is more appropriate and removed shouldShowTouches setting as that is done
+        globally now. 
+        
+        * WebKitTestRunner/mac/PlatformWebViewMac.mm:
+        (WTR::PlatformWebView::PlatformWebView):
+        Update to call new TestOptions functions.
+
+        * WebKitTestRunner/mac/TestControllerMac.mm:
+        (WTR::TestController::platformSpecificFeatureDefaultsForTest const):
+        (WTR::TestController::updatePlatformSpecificTestOptionsForTest const): Deleted.
+        Remove shouldUseRemoteLayerTree and shouldShowWebView, as those are now done globally,
+        and re-implemented useThreadedScrolling to use boolFeatures.
+
+        * WebKitTestRunner/win/TestControllerWin.cpp:
+        (WTR::TestController::platformSpecificFeatureDefaultsForTest const):
+        (WTR::TestController::updatePlatformSpecificTestOptionsForTest const): Deleted.
+        Updated for new signature.
+
+        * WebKitTestRunner/wpe/TestControllerWPE.cpp:
+        (WTR::TestController::platformSpecificFeatureDefaultsForTest const):
+        (WTR::TestController::updatePlatformSpecificTestOptionsForTest const): Deleted.
+        Updated for new signature.
+
+        * WebKitTestRunner/gtk/TestControllerGTK.cpp:
+        (WTR::TestController::platformSpecificFeatureDefaultsForTest const):
+        (WTR::TestController::updatePlatformSpecificTestOptionsForTest const): Deleted.
+        Updated for new signature.
+
+2020-10-06  Sam Weinig  <weinig@apple.com>
+
+        <input type="datetime-local"> not show calendar UI when it's inside ShadowDOM
+        https://bugs.webkit.org/show_bug.cgi?id=216985
+        <rdar://problem/69660273>
+
+        Reviewed by Darin Adler.
+
+        * TestWebKitAPI/Tests/WebCore/DocumentOrder.cpp:
+        (TestWebKitAPI::createDocument):
+        Update to pass a Settings object to Document::create which is now required.
+
 2020-10-06  Chris Dumez  <cdumez@apple.com>
 
         Reloading a view in its processTerminationHandler does not work reliably when using related views

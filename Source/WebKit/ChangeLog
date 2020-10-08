@@ -1,3 +1,392 @@
+2020-10-08  Per Arne Vollan  <pvollan@apple.com>
+
+        [macOS] Deny access to performance analysis service in the WebContent process
+        https://bugs.webkit.org/show_bug.cgi?id=217452
+        <rdar://problem/68878318>
+
+        Reviewed by Youenn Fablet.
+
+        It has been confirmed that mach-lookup to 'com.apple.PerformanceAnalysis.animationperfd' can be denied in the WebContent process on macOS.
+
+        Test: fast/sandbox/sandbox-mach-lookup.html
+
+        * WebProcess/com.apple.WebProcess.sb.in:
+
+2020-10-08  Saagar Jha  <saagar@saagarjha.com>
+
+        Replace unqualified use of PlatformDisplayID in WebViewImpl
+        https://bugs.webkit.org/show_bug.cgi?id=217422
+
+        Reviewed by Youenn Fablet.
+
+        WebViewImpl utilizes things from WebCore but doesn't use the namespace, instead choosing to
+        qualify each reference. However, there is one use of WebCore::PlatformDisplayID that
+        doesn't use the the namespace qualifier. Usually this "works" because the code is in the
+        WebKit namespace, and other files that get included above this one often contain code of
+        the form
+
+        namespace WebKit {
+        using WebCore;
+        // code
+        }
+
+        which hides the issue by making PlatformDisplayID visible to this file as well without the
+        prefix. If we use auto none of this matters because it'll deduce the prefix even if
+        WebViewImpl.mm ends up near the top of a unified source file, before another file with the
+        using declaration shows up.
+
+        * UIProcess/Cocoa/WebViewImpl.mm:
+        (WebKit::WebViewImpl::windowDidChangeScreen): Replace PlatformDisplayID with auto.
+
+2020-10-07  Joonghun Park  <jh718.park@samsung.com>
+
+        Unreviewed. Remove the build warning below since r238330.
+        warning: unused variable ‘connectionIdentifier’ [-Wunused-variable]
+
+        No new tests, no new behaviors.
+
+        * WebProcess/Inspector/WebInspectorUI.cpp:
+        (WebKit::WebInspectorUI::updateConnection):
+
+2020-10-07  Keith Rollin  <krollin@apple.com>
+
+        Update post-processing rules for headers to not unnecessarily change timestamps
+        https://bugs.webkit.org/show_bug.cgi?id=217371
+        <rdar://problem/69992230>
+
+        Reviewed by Darin Adler.
+
+        Under XCBuild, the scripts employed in custom build rules can be
+        invoked in innocuous situations. A common example is when the user is
+        building from the command-line and they change the `make` output from
+        stdout to a file, or vice-versa. Changing the output changes the
+        setting of the COLOR_DIAGNOSTICS environment variable, which is enough
+        to cause XCBuild to think something is different and that the custom
+        build rule needs to be invoked. For the script's part, nothing
+        significant has changed, yet it post-processes the header files,
+        causing their modification dates to change, causing downstream
+        rebuilds to occur.
+
+        Fix this problem by adopting an approach that doesn't modify the
+        post-processed header files unless their contents actually change.
+
+        No new tests -- this is a build change only.
+
+        * Scripts/postprocess-header-rule:
+
+2020-10-07  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Implement a dummy WebAuthenticationAgent
+        https://bugs.webkit.org/show_bug.cgi?id=217401
+        <rdar://problem/70012011>
+
+        Reviewed by Darin Adler.
+
+        Part 1.
+
+        This patch introduces a new dummy WebAuthenticationAgent where in the future it will take over all WebAuthn operations
+        from the UI Process such that we can isolate high privileged entitlements to this standalone daemon and therefore are able
+        offer WebAuthn to third party WKWebView clients. One of the future feautres will require this new process to listen to
+        LaunchEvents, which only daemons can do. That's why it is implemented as a user agent instead of a XPC service.
+
+        This is the first part of establishing such a dummy daemon. What it does is to set up a new build target for the daemon and
+        hook it up with WebKit's build system. One can manually load the launchd plist and load the daemon to verify this change.
+
+        Commands are:
+        launchctl load /to/your/path/com.apple.webkit.WebAuthenticationAgent.plist
+        launchctl start com.apple.webkit.WebAuthenticationAgent.Development
+
+        Covered by manual tests.
+
+        * Configurations/WebAuthenticationAgent.xcconfig: Added.
+        Somehow the executable has a suffix .Development for debug/release builds. Will fix that in the later part.
+        * Daemons/WebAuthenticationAgent/Info.plist: Added.
+        * Daemons/WebAuthenticationAgent/WebAuthenticationAgent.entitlements: Added.
+        * Daemons/WebAuthenticationAgent/com.apple.webkit.WebAuthenticationAgent.plist: Added.
+        The executable location is hardcoded for now. It will be fixed in Part 2 to dynamically point to the right binary.
+        * Daemons/WebAuthenticationAgent/main.mm: Added.
+        (main):
+        * WebKit.xcodeproj/project.pbxproj:
+        Not sure why libWTF.a is needed. Will fix that in the later part.
+
+2020-10-07  Devin Rousso  <drousso@apple.com>
+
+        Add missing `#define` for `PENCILKIT_TEXT_INPUT` flag
+        https://bugs.webkit.org/show_bug.cgi?id=217436
+        <rdar://problem/69720219>
+
+        Reviewed by Wenson Hsieh.
+
+        * UIProcess/ios/WKContentViewInteraction.h:
+        * UIProcess/ios/WKContentViewInteraction.mm:
+        (-[WKContentView setUpInteraction]):
+        (-[WKContentView cleanUpInteraction]):
+        (-[WKContentView _shouldSimulateKeyboardInputOnTextInsertion]):
+        Change from `ENABLE` to `HAVE`.
+
+2020-10-07  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [GPU Process] Support CanvasRenderingContext2D.drawImage() with HTMLVideoElement
+        https://bugs.webkit.org/show_bug.cgi?id=217339
+        <rdar://problem/69409029>
+
+        Reviewed by Darin Adler.
+
+        Implements support for painting the current video frame into a canvas 2D graphics context. See below (and
+        Source/WebCore/ChangeLog) for more details.
+
+        * GPUProcess/graphics/RemoteImageBufferMessageHandlerProxy.h:
+        (WebKit::RemoteImageBufferMessageHandlerProxy::backend):
+        * GPUProcess/graphics/RemoteImageBufferProxy.h:
+        (WebKit::RemoteImageBufferProxy::apply):
+
+        Refactor `apply` so that it treats `PutImageData` and `PaintFrameForMedia` as special cases, and otherwise
+        returns `false` by default. Implement `apply` in the case where the display list item is `PaintFrameForMedia` by
+        using the `MediaPlayerIdentifier` to look up the platform `MediaPlayer` instance, and then calling
+        `GraphicsContext::paintFrameForMedia` with this `MediaPlayer`.
+
+        * GPUProcess/graphics/RemoteRenderingBackendProxy.cpp:
+        (WebKit::RemoteRenderingBackendProxy::gpuConnectionToWebProcess const):
+        * GPUProcess/graphics/RemoteRenderingBackendProxy.h:
+
+2020-10-07  Youenn Fablet  <youenn@apple.com>
+
+        Add support for BlobEvent.timecode
+        https://bugs.webkit.org/show_bug.cgi?id=217379
+
+        Reviewed by Eric Carlson.
+
+        Exchange timecode through IPC.
+
+        * GPUProcess/webrtc/RemoteMediaRecorder.cpp:
+        (WebKit::RemoteMediaRecorder::fetchData):
+        * GPUProcess/webrtc/RemoteMediaRecorder.h:
+        * GPUProcess/webrtc/RemoteMediaRecorder.messages.in:
+        * WebProcess/GPU/webrtc/MediaRecorderPrivate.cpp:
+        (WebKit::MediaRecorderPrivate::fetchData):
+        * WebProcess/GPU/webrtc/MediaRecorderPrivate.h:
+
+2020-10-07  Youenn Fablet  <youenn@apple.com>
+
+        Add support for MediaRecorder pause/resume
+        https://bugs.webkit.org/show_bug.cgi?id=217375
+
+        Reviewed by Eric Carlson.
+
+        Add IPC support for sending pause/resume orders.
+
+        * GPUProcess/webrtc/RemoteMediaRecorder.cpp:
+        (WebKit::RemoteMediaRecorder::pause):
+        (WebKit::RemoteMediaRecorder::resume):
+        * GPUProcess/webrtc/RemoteMediaRecorder.h:
+        * GPUProcess/webrtc/RemoteMediaRecorder.messages.in:
+        * WebProcess/GPU/webrtc/MediaRecorderPrivate.cpp:
+        (WebKit::MediaRecorderPrivate::pauseRecording):
+        (WebKit::MediaRecorderPrivate::resumeRecording):
+        * WebProcess/GPU/webrtc/MediaRecorderPrivate.h:
+
+2020-10-07  Per Arne Vollan  <pvollan@apple.com>
+
+        [macOS] Remove 'com.apple.cookied' from the WebContent process sandbox.
+        https://bugs.webkit.org/show_bug.cgi?id=206088
+        <rdar://problem/58489040>
+
+        Reviewed by Darin Adler.
+
+        It has been confirmed that access to the cookied service can be removed from the WebContent process.
+
+        Test: fast/sandbox/sandbox-mach-lookup.html
+
+        * WebProcess/com.apple.WebProcess.sb.in:
+
+2020-10-07  Aditya Keerthi  <akeerthi@apple.com>
+
+        zappos.com: Dropdown - 'Quantity' option size different
+        https://bugs.webkit.org/show_bug.cgi?id=217395
+        <rdar://problem/60261396>
+
+        Reviewed by Tim Horton.
+
+        The select element used in this instance uses a custom font (Open Sans)
+        with a 16px font size. When presenting the select dropdown a call to
+        WebPopupMenuProxyMac::showPopupMenu is made with those attributes.
+        However, since Open Sans is not a system font, the call to
+        [NSFont fontWithDescriptor:size:] returns nil. This results in the
+        presented view falling back to the default font size, which is smaller
+        than the expected 16px size, leading to smaller options.
+
+        While other browsers do not honor custom fonts in their select dropdowns,
+        they do honor the font size. Consequently, this dropdown appears
+        different in Safari. To fix, ensure that the font size is always honored
+        if the corresponding attribute is present.
+
+        * UIProcess/mac/WebPopupMenuProxyMac.mm:
+        (WebKit::WebPopupMenuProxyMac::showPopupMenu):
+
+2020-10-07  Youenn Fablet  <youenn@apple.com>
+
+        Make sure to fire the correct set of events in case MediaRecorder stream has track changes
+        https://bugs.webkit.org/show_bug.cgi?id=217316
+
+        Reviewed by Eric Carlson.
+
+        Make sure to not set audio/video tracks if the recorder was stopped.
+
+        * WebProcess/GPU/webrtc/MediaRecorderPrivate.cpp:
+        (WebKit::MediaRecorderPrivate::startRecording):
+        (WebKit::MediaRecorderPrivate::~MediaRecorderPrivate):
+        (WebKit::MediaRecorderPrivate::stopRecording):
+        * WebProcess/GPU/webrtc/MediaRecorderPrivate.h:
+
+2020-10-06  Peng Liu  <peng.liu6@apple.com>
+
+        [Media in GPU process] Don't use 'id' as a parameter or variable name
+        https://bugs.webkit.org/show_bug.cgi?id=206189
+
+        Reviewed by Tim Horton.
+
+        Mass rename `id` to `identifier`.
+
+        No new tests, no functional change.
+
+        * GPUProcess/media/RemoteAudioDestinationManager.cpp:
+        (WebKit::RemoteAudioDestination::create):
+        (WebKit::RemoteAudioDestination::RemoteAudioDestination):
+        (WebKit::RemoteAudioDestinationManager::deleteAudioDestination):
+        (WebKit::RemoteAudioDestinationManager::startAudioDestination):
+        (WebKit::RemoteAudioDestinationManager::stopAudioDestination):
+        * GPUProcess/media/RemoteAudioDestinationManager.messages.in:
+        * GPUProcess/media/RemoteAudioTrackProxy.cpp:
+        (WebKit::RemoteAudioTrackProxy::RemoteAudioTrackProxy):
+        (WebKit::RemoteAudioTrackProxy::configuration):
+        * GPUProcess/media/RemoteAudioTrackProxy.h:
+        * GPUProcess/media/RemoteCDMFactoryProxy.cpp:
+        (WebKit::RemoteCDMFactoryProxy::addProxy):
+        (WebKit::RemoteCDMFactoryProxy::removeProxy):
+        (WebKit::RemoteCDMFactoryProxy::addInstance):
+        (WebKit::RemoteCDMFactoryProxy::removeInstance):
+        (WebKit::RemoteCDMFactoryProxy::getInstance):
+        (WebKit::RemoteCDMFactoryProxy::addSession):
+        (WebKit::RemoteCDMFactoryProxy::removeSession):
+        * GPUProcess/media/RemoteCDMFactoryProxy.messages.in:
+        * GPUProcess/media/RemoteCDMInstanceProxy.messages.in:
+        * GPUProcess/media/RemoteCDMProxy.messages.in:
+        * GPUProcess/media/RemoteLegacyCDMFactoryProxy.cpp:
+        (WebKit::RemoteLegacyCDMFactoryProxy::addProxy):
+        (WebKit::RemoteLegacyCDMFactoryProxy::removeProxy):
+        (WebKit::RemoteLegacyCDMFactoryProxy::addSession):
+        (WebKit::RemoteLegacyCDMFactoryProxy::removeSession):
+        (WebKit::RemoteLegacyCDMFactoryProxy::getSession const):
+        * GPUProcess/media/RemoteLegacyCDMFactoryProxy.messages.in:
+        * GPUProcess/media/RemoteLegacyCDMProxy.messages.in:
+        * GPUProcess/media/RemoteMediaPlayerManagerProxy.cpp:
+        (WebKit::RemoteMediaPlayerManagerProxy::createMediaPlayer):
+        (WebKit::RemoteMediaPlayerManagerProxy::deleteMediaPlayer):
+        (WebKit::RemoteMediaPlayerManagerProxy::getProxy):
+        * GPUProcess/media/RemoteMediaPlayerManagerProxy.messages.in:
+        * GPUProcess/media/RemoteMediaPlayerProxy.cpp:
+        (WebKit::RemoteMediaPlayerProxy::RemoteMediaPlayerProxy):
+        * GPUProcess/media/RemoteMediaResource.cpp:
+        (WebKit::RemoteMediaResource::create):
+        (WebKit::RemoteMediaResource::RemoteMediaResource):
+        * GPUProcess/media/RemoteMediaResourceManager.cpp:
+        (WebKit::RemoteMediaResourceManager::responseReceived):
+        (WebKit::RemoteMediaResourceManager::redirectReceived):
+        (WebKit::RemoteMediaResourceManager::dataSent):
+        (WebKit::RemoteMediaResourceManager::dataReceived):
+        (WebKit::RemoteMediaResourceManager::accessControlCheckFailed):
+        (WebKit::RemoteMediaResourceManager::loadFailed):
+        (WebKit::RemoteMediaResourceManager::loadFinished):
+        * GPUProcess/media/RemoteMediaResourceManager.messages.in:
+        * GPUProcess/media/RemoteTextTrackProxy.cpp:
+        (WebKit::RemoteTextTrackProxy::RemoteTextTrackProxy):
+        (WebKit::RemoteTextTrackProxy::configuration):
+        * GPUProcess/media/RemoteTextTrackProxy.h:
+        * GPUProcess/media/RemoteVideoTrackProxy.cpp:
+        (WebKit::RemoteVideoTrackProxy::RemoteVideoTrackProxy):
+        (WebKit::RemoteVideoTrackProxy::configuration):
+        * GPUProcess/media/RemoteVideoTrackProxy.h:
+        * GPUProcess/media/TextTrackPrivateRemoteConfiguration.h:
+        (WebKit::TextTrackPrivateRemoteConfiguration::encode const):
+        (WebKit::TextTrackPrivateRemoteConfiguration::decode):
+        * GPUProcess/media/TrackPrivateRemoteConfiguration.h:
+        (WebKit::TrackPrivateRemoteConfiguration::encode const):
+        (WebKit::TrackPrivateRemoteConfiguration::decode):
+        * WebProcess/GPU/media/AudioTrackPrivateRemote.cpp:
+        (WebKit::AudioTrackPrivateRemote::updateConfiguration):
+        * WebProcess/GPU/media/MediaPlayerPrivateRemote.cpp:
+        (WebKit::MediaPlayerPrivateRemote::remoteTextTrackConfigurationChanged):
+        (WebKit::MediaPlayerPrivateRemote::removeRemoteVideoTrack):
+        (WebKit::MediaPlayerPrivateRemote::remoteVideoTrackConfigurationChanged):
+        * WebProcess/GPU/media/RemoteCDM.cpp:
+        (WebKit::RemoteCDM::create):
+        (WebKit::RemoteCDM::RemoteCDM):
+        (WebKit::RemoteCDM::createInstance):
+        * WebProcess/GPU/media/RemoteCDMFactory.cpp:
+        (WebKit::RemoteCDMFactory::createCDM):
+        (WebKit::RemoteCDMFactory::removeSession):
+        * WebProcess/GPU/media/RemoteCDMInstance.cpp:
+        (WebKit::RemoteCDMInstance::create):
+        (WebKit::RemoteCDMInstance::RemoteCDMInstance):
+        (WebKit::RemoteCDMInstance::createSession):
+        * WebProcess/GPU/media/RemoteCDMInstanceSession.cpp:
+        (WebKit::RemoteCDMInstanceSession::create):
+        (WebKit::RemoteCDMInstanceSession::RemoteCDMInstanceSession):
+        * WebProcess/GPU/media/RemoteLegacyCDM.cpp:
+        (WebKit::RemoteLegacyCDM::create):
+        (WebKit::RemoteLegacyCDM::RemoteLegacyCDM):
+        (WebKit::RemoteLegacyCDM::createSession):
+        (WebKit::RemoteLegacyCDM::setPlayerId):
+        * WebProcess/GPU/media/RemoteLegacyCDMFactory.cpp:
+        (WebKit::RemoteLegacyCDMFactory::createCDM):
+        (WebKit::RemoteLegacyCDMFactory::addSession):
+        (WebKit::RemoteLegacyCDMFactory::removeSession):
+        * WebProcess/GPU/media/RemoteLegacyCDMSession.cpp:
+        (WebKit::RemoteLegacyCDMSession::create):
+        (WebKit::RemoteLegacyCDMSession::RemoteLegacyCDMSession):
+        * WebProcess/GPU/media/RemoteMediaPlayerManager.cpp:
+        (WebKit::RemoteMediaPlayerManager::deleteRemoteMediaPlayer):
+        * WebProcess/GPU/media/RemoteMediaResourceProxy.cpp:
+        (WebKit::RemoteMediaResourceProxy::RemoteMediaResourceProxy):
+        * WebProcess/GPU/media/TextTrackPrivateRemote.cpp:
+        (WebKit::TextTrackPrivateRemote::updateConfiguration):
+        * WebProcess/GPU/media/VideoTrackPrivateRemote.cpp:
+        (WebKit::VideoTrackPrivateRemote::updateConfiguration):
+
+2020-10-06  Devin Rousso  <drousso@apple.com>
+
+        Move platform logic for CSS `hover` and `pointer` media queries outside of WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=217413
+
+        Reviewed by Tim Horton.
+
+        * WebProcess/WebCoreSupport/WebChromeClient.h:
+        * WebProcess/WebCoreSupport/WebChromeClient.cpp:
+        (WebKit::WebChromeClient::hoverSupportedByPrimaryPointingDevice const): Added.
+        (WebKit::WebChromeClient::pointerCharacteristicsOfPrimaryPointingDevices const): Added.
+        * WebProcess/WebPage/WebPage.h:
+        * WebProcess/WebPage/gtk/WebPageGtk.cpp:
+        (WebKit::WebPage::hoverSupportedByPrimaryPointingDevice const): Added.
+        (WebKit::WebPage::pointerCharacteristicsOfPrimaryPointingDevices const): Added.
+        * WebProcess/WebPage/ios/WebPageIOS.mm:
+        (WebKit::WebPage::hoverSupportedByPrimaryPointingDevice const): Added.
+        (WebKit::WebPage::pointerCharacteristicsOfPrimaryPointingDevices const): Added.
+        * WebProcess/WebPage/mac/WebPageMac.mm:
+        (WebKit::WebPage::hoverSupportedByPrimaryPointingDevice const): Added.
+        (WebKit::WebPage::pointerCharacteristicsOfPrimaryPointingDevices const): Added.
+        * WebProcess/WebPage/playstation/WebPagePlayStation.cpp:
+        (WebKit::WebPage::hoverSupportedByPrimaryPointingDevice const): Added.
+        (WebKit::WebPage::pointerCharacteristicsOfPrimaryPointingDevices const): Added.
+        * WebProcess/WebPage/win/WebPageWin.cpp:
+        (WebKit::WebPage::hoverSupportedByPrimaryPointingDevice const): Added.
+        (WebKit::WebPage::pointerCharacteristicsOfPrimaryPointingDevices const): Added.
+        * WebProcess/WebPage/wpe/WebPageWPE.cpp:
+        (WebKit::WebPage::hoverSupportedByPrimaryPointingDevice const): Added.
+        (WebKit::WebPage::pointerCharacteristicsOfPrimaryPointingDevices const): Added.
+        Provide a way for WebCore to get information about the primary pointing device.
+        Refactor logic in `WebCore::anyHoverEvaluate` and `WebCore::anyPointerEvaluate` to move
+        platform code into the respective `WebPage` file.
+
 2020-10-06  Chris Dumez  <cdumez@apple.com>
 
         Reloading a view in its processTerminationHandler does not work reliably when using related views

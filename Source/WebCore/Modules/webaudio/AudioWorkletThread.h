@@ -34,7 +34,6 @@
 #include "WorkletParameters.h"
 #include <wtf/Forward.h>
 #include <wtf/Lock.h>
-#include <wtf/ThreadSafeRefCounted.h>
 #include <wtf/Threading.h>
 
 namespace WebCore {
@@ -42,7 +41,7 @@ namespace WebCore {
 class AudioWorkletGlobalScope;
 class AudioWorkletMessagingProxy;
 
-class AudioWorkletThread : public ThreadSafeRefCounted<AudioWorkletThread>, public WorkerOrWorkletThread {
+class AudioWorkletThread : public WorkerOrWorkletThread {
 public:
     static Ref<AudioWorkletThread> create(AudioWorkletMessagingProxy& messagingProxy, const WorkletParameters& parameters)
     {
