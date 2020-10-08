@@ -71,6 +71,8 @@ public:
     ExceptionOr<void> startRecording(Optional<unsigned>);
     ExceptionOr<void> stopRecording();
     ExceptionOr<void> requestData();
+    ExceptionOr<void> pauseRecording();
+    ExceptionOr<void> resumeRecording();
 
     MediaStream& stream() { return m_stream.get(); }
 
@@ -97,7 +99,7 @@ private:
     void dispatchError(Exception&&);
 
     enum class TakePrivateRecorder { No, Yes };
-    using FetchDataCallback = Function<void(RefPtr<SharedBuffer>&&, const String& mimeType)>;
+    using FetchDataCallback = Function<void(RefPtr<SharedBuffer>&&, const String& mimeType, double)>;
     void fetchData(FetchDataCallback&&, TakePrivateRecorder);
 
     // MediaStream::Observer

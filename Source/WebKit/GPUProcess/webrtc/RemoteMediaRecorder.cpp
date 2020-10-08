@@ -121,17 +121,29 @@ void RemoteMediaRecorder::videoSampleAvailable(WebCore::RemoteVideoSample&& remo
     m_writer->appendVideoSampleBuffer(*sampleBuffer);
 }
 
-void RemoteMediaRecorder::fetchData(CompletionHandler<void(IPC::DataReference&&)>&& completionHandler)
+void RemoteMediaRecorder::fetchData(CompletionHandler<void(IPC::DataReference&&, double)>&& completionHandler)
 {
-    m_writer->fetchData([completionHandler = WTFMove(completionHandler)](auto&& data) mutable {
+    m_writer->fetchData([completionHandler = WTFMove(completionHandler)](auto&& data, auto timeCode) mutable {
         auto* pointer = reinterpret_cast<const uint8_t*>(data ? data->data() : nullptr);
-        completionHandler(IPC::DataReference { pointer, data ? data->size() : 0 });
+        completionHandler(IPC::DataReference { pointer, data ? data->size() : 0 }, timeCode);
     });
 }
 
 void RemoteMediaRecorder::stopRecording()
 {
     m_writer->stopRecording();
+}
+
+void RemoteMediaRecorder::pause(CompletionHandler<void()>&& completionHandler)
+{
+    m_writer->pause();
+    completionHandler();
+}
+
+void RemoteMediaRecorder::resume(CompletionHandler<void()>&& completionHandler)
+{
+    m_writer->resume();
+    completionHandler();
 }
 
 }

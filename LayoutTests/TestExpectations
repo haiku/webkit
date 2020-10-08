@@ -320,20 +320,15 @@ imported/w3c/web-platform-tests/html/webappapis/scripting/event-loops/fully_acti
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-mediastreamaudiosourcenode-interface/mediastreamaudiosourcenode-routing.html [ Skip ]
 
 # These webaudio tests are timing out due to lack for support for AudioWorklet.
-imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/processing-after-resume.https.html [ Skip ]
-imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-messageport.https.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-postmessage-sharedarraybuffer.https.html [ Skip ]
-imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletglobalscope-timing-info.https.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-automatic-pull.https.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-onerror.https.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-output-channel-count.https.html [ Skip ]
-imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-options.https.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-frozen-array.https.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-zero-outputs.https.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-promises.https.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/process-getter.https.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/process-parameters.https.html [ Skip ]
-imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/suspended-context-messageport.https.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-channelmergernode-interface/active-processing.https.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/active-processing.https.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/cors-check.https.html [ Skip ]
@@ -2032,6 +2027,21 @@ webkit.org/b/193042 imported/w3c/canvas/2d.fillStyle.parse.invalid.rgba-4.html [
 webkit.org/b/148950 imported/w3c/web-platform-tests/html/semantics/document-metadata/the-base-element/base_href_specified.sub.html [ Skip ]
 
 imported/w3c/web-platform-tests/html/browsers/history/the-history-interface/history_go_zero.html [ Pass Failure ]
+
+# Imported w3c tests for clip-path that don't pass yet
+webkit.org/b/104442 imported/w3c/web-platform-tests/css/css-masking/clip-path/clip-path-element-userSpaceOnUse-003.html [ ImageOnlyFailure ]
+webkit.org/b/104442 imported/w3c/web-platform-tests/css/css-masking/clip-path/clip-path-element-userSpaceOnUse-004.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-masking/clip-path/clip-path-inline-001.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-masking/clip-path/clip-path-inline-002.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-masking/clip-path/clip-path-inline-003.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-masking/clip-path/clip-path-polygon-010.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-masking/clip-path/clip-path-polygon-013.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-masking/clip-path/clip-path-reference-box-004.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-masking/clip-path/clip-path-svg-invalidate.html [ ImageOnlyFailure ]
+webkit.org/b/104442 imported/w3c/web-platform-tests/css/css-masking/clip-path/clip-path-url-reference-change-from-empty.html [ ImageOnlyFailure ]
+
+# A support file for a test
+imported/w3c/web-platform-tests/css/css-masking/clip-path/svg-clipPath.svg [ Skip ]
 
 imported/w3c/web-platform-tests/css/css-multicol/columnfill-auto-max-height-001.html
 imported/w3c/web-platform-tests/css/css-multicol/columnfill-auto-max-height-002.html

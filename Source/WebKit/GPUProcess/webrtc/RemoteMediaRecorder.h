@@ -69,8 +69,10 @@ private:
     void audioSamplesStorageChanged(const SharedMemory::IPCHandle&, const WebCore::CAAudioStreamDescription&, uint64_t numberOfFrames);
     void audioSamplesAvailable(MediaTime, uint64_t numberOfFrames, uint64_t startFrame, uint64_t endFrame);
     void videoSampleAvailable(WebCore::RemoteVideoSample&&);
-    void fetchData(CompletionHandler<void(IPC::DataReference&&)>&&);
+    void fetchData(CompletionHandler<void(IPC::DataReference&&, double)>&&);
     void stopRecording();
+    void pause(CompletionHandler<void()>&&);
+    void resume(CompletionHandler<void()>&&);
 
     SharedRingBufferStorage& storage();
 

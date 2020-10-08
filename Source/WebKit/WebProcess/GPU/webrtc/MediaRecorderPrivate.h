@@ -56,11 +56,13 @@ public:
 private:
     // WebCore::MediaRecorderPrivate
     void videoSampleAvailable(WebCore::MediaSample&) final;
-    void fetchData(CompletionHandler<void(RefPtr<WebCore::SharedBuffer>&&, const String& mimeType)>&&) final;
+    void fetchData(CompletionHandler<void(RefPtr<WebCore::SharedBuffer>&&, const String& mimeType, double)>&&) final;
     void stopRecording() final;
     void startRecording(StartRecordingCallback&&) final;
     void audioSamplesAvailable(const WTF::MediaTime&, const WebCore::PlatformAudioData&, const WebCore::AudioStreamDescription&, size_t) final;
     const String& mimeType() const final;
+    void pauseRecording(CompletionHandler<void()>&&) final;
+    void resumeRecording(CompletionHandler<void()>&&) final;
 
     // SharedRingBufferStorage::Client
     void storageChanged(SharedMemory*);
@@ -74,6 +76,7 @@ private:
     int64_t m_numberOfFrames { 0 };
     WebCore::MediaRecorderPrivateOptions m_options;
     bool m_hasVideo { false };
+    bool m_isStopped { false };
 };
 
 }

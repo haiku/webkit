@@ -1,3 +1,345 @@
+2020-10-08  Per Arne Vollan  <pvollan@apple.com>
+
+        [macOS] Deny access to performance analysis service in the WebContent process
+        https://bugs.webkit.org/show_bug.cgi?id=217452
+
+        Reviewed by Youenn Fablet.
+
+        * fast/sandbox/mac/sandbox-mach-lookup-expected.txt:
+        * fast/sandbox/mac/sandbox-mach-lookup.html:
+
+2020-10-08  Noam Rosenthal  <noam@webkit.org>
+
+        REGRESSION (r268138): [ iOS Mojave+ ] imported/w3c/web-platform-tests/css/css-masking/clip-path/svg-clipPath.svg is missing expected results
+        https://bugs.webkit.org/show_bug.cgi?id=217461
+        <rdar://problem/70074200>
+
+        Unreviewed, skipping a test resource file.
+
+        * TestExpectations:
+2020-10-08  Youenn Fablet  <youenn@apple.com>
+
+        Add a test case to verify WebRTC getCapabilities expose H264 profiles
+        https://bugs.webkit.org/show_bug.cgi?id=217464
+
+        Reviewed by Eric Carlson.
+
+        Validate the exposed profiles in sender/receiver getCapabilities.
+
+        * webrtc/video-h264-expected.txt:
+        * webrtc/video-h264.html:
+
+2020-10-08  Lauro Moura  <lmoura@igalia.com>
+
+        [GTK][WPE] Missing Exif Orientation support
+        https://bugs.webkit.org/show_bug.cgi?id=95299
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Update expectations after partial EXIF support
+
+        * platform/gtk/TestExpectations:
+        * platform/wpe/TestExpectations:
+
+2020-10-08  Diego Pino Garcia  <dpino@igalia.com>
+
+        Web Inspector: inspector/cpu-profiler/threads.html, use only 4 decimal digits to compare total and workers usage
+        https://bugs.webkit.org/show_bug.cgi?id=195134
+
+        Reviewed by Darin Adler.
+
+        * inspector/cpu-profiler/threads.html:
+
+2020-10-07  Hector Lopez  <hector_i_lopez@apple.com>
+
+        Rebaseline test result
+        https://bugs.webkit.org/show_bug.cgi?id=167729
+
+        Unreviewed test gardening.
+
+        * platform/mac/imported/w3c/web-platform-tests/css/css-pseudo/text-selection-expected.txt:
+
+2020-10-07  Hector Lopez  <hector_i_lopez@apple.com>
+
+        REGRESSION(r267940): [ macOS Catalina ] imported/w3c/web-platform-tests/css/css-pseudo/text-selection.html is a constant failure
+        https://bugs.webkit.org/show_bug.cgi?id=167729#add_comment
+
+        Unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
+2020-10-07  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (iOS 14): [ iOS wk2 ] imported/w3c/web-platform-tests/service-workers/cache-storage/serviceworker/cache-add.https.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217462
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
+2020-10-07  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (r268138): [ iOS Mojave+ ] imported/w3c/web-platform-tests/css/css-masking/clip-path/svg-clipPath.svg is missing expected results
+        https://bugs.webkit.org/show_bug.cgi?id=217461
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+        * platform/mac/TestExpectations:
+
+2020-10-07  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [JSC] Revert String.prototype.item
+        https://bugs.webkit.org/show_bug.cgi?id=217449
+
+        Reviewed by Yusuke Suzuki.
+
+        * js/Object-getOwnPropertyNames-expected.txt:
+        * js/script-tests/Object-getOwnPropertyNames.js:
+
+2020-10-07  Tim Horton  <timothy_horton@apple.com>
+
+        REGRESSION: Safari unable to load PDF in <embed> (docs.legalconnect.com)
+        https://bugs.webkit.org/show_bug.cgi?id=217451
+        <rdar://problem/69767043>
+
+        Reviewed by Alex Christensen.
+
+        * fast/replaced/pdf-as-embed-with-no-mime-type-is-not-blank-expected-mismatch.html: Added.
+        * fast/replaced/pdf-as-embed-with-no-mime-type-is-not-blank.html: Added.
+        Add a test ensuring that <embed> with no specified MIME type still renders the PDF.
+
+2020-10-07  Chris Dumez  <cdumez@apple.com>
+
+        Constructing a AudioWorkletNode should construct an AudioWorkletProcessor on the Worklet thread
+        https://bugs.webkit.org/show_bug.cgi?id=217442
+
+        Reviewed by Geoffrey Garen.
+
+        Unskip a few tests that are no longer timing out.
+
+        * TestExpectations:
+
+2020-10-07  Tyler Wilcock  <twilco.o@protonmail.com>
+
+        background-clip:var(--a) invalidates -webkit-background-clip:text when --a:text
+        https://bugs.webkit.org/show_bug.cgi?id=199410
+
+        Reviewed by Darin Adler.
+
+        We now parse the `text` value for the `background-clip` property, so
+        update this test to reflect that.
+
+        * fast/css/background-clip-text-expected.txt:
+        * fast/css/background-clip-text.html: Parse `text` value.
+
+2020-10-07  Tyler Wilcock  <twilco.o@protonmail.com>
+
+        Using CSS wide keywords as a fallback for variable substitution works inconsistently.
+        https://bugs.webkit.org/show_bug.cgi?id=197158
+
+        Reviewed by Darin Adler.
+
+        Add tests ensuring CSS-wide keywords are functional as variable
+        fallbacks.
+
+        * fast/css/variables/css-wide-keywords-in-fallback-inherited-property-expected.html: Added.
+        * fast/css/variables/css-wide-keywords-in-fallback-inherited-property.html: Added.
+        * fast/css/variables/css-wide-keywords-in-fallback-non-inherited-property-expected.html: Added.
+        * fast/css/variables/css-wide-keywords-in-fallback-non-inherited-property.html: Added.
+
+2020-10-07  Peng Liu  <peng.liu6@apple.com>
+
+        [Media in GPU Process] Unskip some layout tests
+
+        Unreviewed test gardening.
+
+        * gpu-process/TestExpectations:
+        Unskip the tests that are marked as failure or timeout when the "Media in GPU Process"
+        is not enabled.
+        * media/video-size-intrinsic-scale.html:
+
+2020-10-07  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Unreviewed, unskip a few dozen canvas-related tests that now pass after recent changes
+
+        * gpu-process/TestExpectations:
+
+        Unskip a number of tests that were skipped when enabling GPU process. Additionally, remove some erroneous test
+        expectation lines that were targeting HTML files that are resources or ref test.
+
+2020-10-07  Karl Rackler  <rackler@apple.com>
+
+        Remove test expectation for fast/images/image-orientation-none-canvas.html while the issue is investigated.
+        https://bugs.webkit.org/show_bug.cgi?id=217435
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
+2020-10-07  Aditya Keerthi  <akeerthi@apple.com>
+
+        [Contact Picker API] Add support for ContactsManager.getProperties()
+        https://bugs.webkit.org/show_bug.cgi?id=217354
+        <rdar://problem/69862099>
+
+        Reviewed by Youenn Fablet.
+
+        Added a layout test to exercise the method.
+
+        * contact-picker/contacts-manager-get-properties-expected.txt: Added.
+        * contact-picker/contacts-manager-get-properties.html: Added.
+
+2020-10-07  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (r268115?): [ iOS wk2 EWS ] fast/images/image-orientation-none-canvas.html is a constant failure
+        https://bugs.webkit.org/show_bug.cgi?id=217435
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
+2020-10-07  Noam Rosenthal  <noam@webkit.org>
+
+        clip-path: path() ignores page zooming (Command-+)
+        https://bugs.webkit.org/show_bug.cgi?id=217311
+        <rdar://problem/69977271>
+
+        Reviewed by Darin Adler.
+
+        * TestExpectations:
+                Marked newly imported clip-path w3c tests that don't pass yet as expected failure.
+                Some of them have open bugs, the others need triage.
+
+2020-10-07  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][IFC] Adjust the inline formatting context root's content height when the last line has float clear
+        https://bugs.webkit.org/show_bug.cgi?id=217432
+
+        Reviewed by Antti Koivisto.
+
+        * fast/layoutformattingcontext/float-avoiding-br-last-line-expected.html: Added.
+        * fast/layoutformattingcontext/float-avoiding-br-last-line.html: Added.
+
+2020-10-07  Youenn Fablet  <youenn@apple.com>
+
+        Add support for MediaRecorder pause/resume
+        https://bugs.webkit.org/show_bug.cgi?id=217375
+
+        Reviewed by Eric Carlson.
+
+        fix-217375
+
+        * http/wpt/mediarecorder/pause-recording-expected.txt: Added.
+        * http/wpt/mediarecorder/pause-recording.html: Added.
+
+2020-10-07  Per Arne Vollan  <pvollan@apple.com>
+
+        [macOS] Remove 'com.apple.cookied' from the WebContent process sandbox.
+        https://bugs.webkit.org/show_bug.cgi?id=206088
+
+        Reviewed by Darin Adler.
+
+        * fast/sandbox/mac/sandbox-mach-lookup-expected.txt:
+        * fast/sandbox/mac/sandbox-mach-lookup.html:
+
+2020-10-07  Youenn Fablet  <youenn@apple.com>
+
+        MediaRecorder::create should not need to create a MediaRecorderPrivate to validate it can record properly
+        https://bugs.webkit.org/show_bug.cgi?id=217387
+
+        Reviewed by Darin Adler.
+
+        * http/wpt/mediarecorder/MediaRecorder-frame-expected.txt: Added.
+        * http/wpt/mediarecorder/MediaRecorder-frame.html: Added.
+
+2020-10-07  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][IFC] Add initial support for inline content to clear intrusive floats
+        https://bugs.webkit.org/show_bug.cgi?id=217418
+
+        Reviewed by Antti Koivisto.
+
+        * fast/layoutformattingcontext/float-avoiding-br-simple-expected.html: Added.
+        * fast/layoutformattingcontext/float-avoiding-br-simple.html: Added.
+
+2020-10-07  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r268085.
+        https://bugs.webkit.org/show_bug.cgi?id=217424
+
+        Added broken test webgl/conformance/extensions/s3tc-and-
+        rgtc.html
+
+        Reverted changeset:
+
+        "Support EXT_texture_compression_rgtc WebGL extension"
+        https://bugs.webkit.org/show_bug.cgi?id=217198
+        https://trac.webkit.org/changeset/268085
+
+2020-10-07  Youenn Fablet  <youenn@apple.com>
+
+        Make sure to fire the correct set of events in case MediaRecorder stream has track changes
+        https://bugs.webkit.org/show_bug.cgi?id=217316
+
+        Reviewed by Eric Carlson.
+
+        * platform/mac-wk2/TestExpectations:
+
+2020-10-06  Andres Gonzalez  <andresg_22@apple.com>
+
+        Presidential Executive Order pages not accessible with Safari.
+        https://bugs.webkit.org/show_bug.cgi?id=217415
+
+        Reviewed by Chris Fleizach.
+
+        Expanded this test to cover the case whether the modal dialog visibility
+        is controlled by its opacity. Cleaned up JS code and made it work in
+        isolated tree mode.
+
+        * accessibility/aria-modal-expected.txt:
+        * accessibility/aria-modal.html:
+
+2020-10-06  Sam Weinig  <weinig@apple.com>
+
+        <input type="datetime-local"> not show calendar UI when it's inside ShadowDOM
+        https://bugs.webkit.org/show_bug.cgi?id=216985
+        <rdar://problem/69660273>
+
+        Reviewed by Darin Adler.
+
+        Add tests that show that date/time input elements are the same whether they come from a template
+        document or the main document.
+
+        * fast/forms/date/date-from-frameless-document-expected.html: Added.
+        * fast/forms/date/date-from-frameless-document.html: Added.
+        * fast/forms/datetimelocal/datetimelocal-from-frameless-document-expected.html: Added.
+        * fast/forms/datetimelocal/datetimelocal-from-frameless-document.html: Added.
+        * fast/forms/month/month-from-frameless-document-expected.html: Added.
+        * fast/forms/month/month-from-frameless-document.html: Added.
+        * fast/forms/time/time-from-frameless-document-expected.html: Added.
+        * fast/forms/time/time-from-frameless-document.html: Added.
+        * fast/forms/week/week-from-frameless-document-expected.html: Added.
+        * fast/forms/week/week-from-frameless-document.html: Added.
+
+2020-10-06  Lauro Moura  <lmoura@igalia.com>
+
+        [GLIB] Gardening and rebaseline two tests
+
+        Unreviewed test gardening.
+
+        * platform/glib/webaudio/audioworklet-addModule-failure-expected.txt: Added.
+        * platform/gtk/TestExpectations:
+
+2020-10-06  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (iOS 14): [ iOS wk2 ] imported/w3c/web-platform-tests/css/css-cascade/all-prop-initial-xml.html is a constant failure
+        https://bugs.webkit.org/show_bug.cgi?id=217419
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
 2020-10-06  Peng Liu  <peng.liu6@apple.com>
 
         [Media in GPU Process] The seekable attribute of HTMLMediaElement has an incorrect value
