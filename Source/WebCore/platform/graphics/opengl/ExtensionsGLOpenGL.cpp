@@ -30,7 +30,7 @@
 
 #include "GraphicsContextGLOpenGL.h"
 
-#if PLATFORM(GTK) || PLATFORM(WIN)
+#if PLATFORM(GTK) || PLATFORM(WIN) || PLATFORM(HAIKU)
 #include "OpenGLShims.h"
 #elif USE(OPENGL_ES)
 #include <OpenGLES/ES2/glext.h>
@@ -62,7 +62,7 @@ PlatformGLObject ExtensionsGLOpenGL::createVertexArrayOES()
 {
     m_context->makeContextCurrent();
     GLuint array = 0;
-#if PLATFORM(GTK) || PLATFORM(WIN)
+#if PLATFORM(GTK) || PLATFORM(WIN) || PLATFORM(HAIKU)
     if (isVertexArrayObjectSupported())
         glGenVertexArrays(1, &array);
 #elif defined(GL_APPLE_vertex_array_object) && GL_APPLE_vertex_array_object
@@ -77,7 +77,7 @@ void ExtensionsGLOpenGL::deleteVertexArrayOES(PlatformGLObject array)
         return;
 
     m_context->makeContextCurrent();
-#if PLATFORM(GTK) || PLATFORM(WIN)
+#if PLATFORM(GTK) || PLATFORM(WIN) || PLATFORM(HAIKU)
     if (isVertexArrayObjectSupported())
         glDeleteVertexArrays(1, &array);
 #elif defined(GL_APPLE_vertex_array_object) && GL_APPLE_vertex_array_object
@@ -91,7 +91,7 @@ GCGLboolean ExtensionsGLOpenGL::isVertexArrayOES(PlatformGLObject array)
         return GL_FALSE;
 
     m_context->makeContextCurrent();
-#if PLATFORM(GTK) || PLATFORM(WIN)
+#if PLATFORM(GTK) || PLATFORM(WIN) || PLATFORM(HAIKU)
     if (isVertexArrayObjectSupported())
         return glIsVertexArray(array);
 #elif defined(GL_APPLE_vertex_array_object) && GL_APPLE_vertex_array_object
@@ -103,7 +103,7 @@ GCGLboolean ExtensionsGLOpenGL::isVertexArrayOES(PlatformGLObject array)
 void ExtensionsGLOpenGL::bindVertexArrayOES(PlatformGLObject array)
 {
     m_context->makeContextCurrent();
-#if PLATFORM(GTK) || PLATFORM(WIN)
+#if PLATFORM(GTK) || PLATFORM(WIN) || PLATFORM(HAIKU)
     if (isVertexArrayObjectSupported())
         glBindVertexArray(array);
 #elif defined(GL_APPLE_vertex_array_object) && GL_APPLE_vertex_array_object
@@ -161,7 +161,7 @@ bool ExtensionsGLOpenGL::supportsExtension(const String& name)
 
     // GL_OES_vertex_array_object
     if (name == "GL_OES_vertex_array_object") {
-#if (PLATFORM(GTK))
+#if (PLATFORM(GTK)) || PLATFORM(HAIKU)
         return m_availableExtensions.contains("GL_ARB_vertex_array_object");
 #else
         return m_availableExtensions.contains("GL_APPLE_vertex_array_object");
@@ -183,7 +183,7 @@ bool ExtensionsGLOpenGL::supportsExtension(const String& name)
         return m_availableExtensions.contains("GL_EXT_texture_filter_anisotropic");
 
     if (name == "GL_EXT_draw_buffers") {
-#if PLATFORM(GTK)
+#if PLATFORM(GTK) || PLATFORM(HAIKU)
         return m_availableExtensions.contains("GL_ARB_draw_buffers");
 #else
         // FIXME: implement support for other platforms.
@@ -197,7 +197,7 @@ bool ExtensionsGLOpenGL::supportsExtension(const String& name)
 void ExtensionsGLOpenGL::drawBuffersEXT(GCGLsizei n, const GCGLenum* bufs)
 {
     //  FIXME: implement support for other platforms.
-#if PLATFORM(GTK)
+#if PLATFORM(GTK) || PLATFORM(HAIKU)
     ::glDrawBuffers(n, bufs);
 #else
     UNUSED_PARAM(n);
@@ -208,7 +208,7 @@ void ExtensionsGLOpenGL::drawBuffersEXT(GCGLsizei n, const GCGLenum* bufs)
 void ExtensionsGLOpenGL::drawArraysInstanced(GCGLenum mode, GCGLint first, GCGLsizei count, GCGLsizei primcount)
 {
     m_context->makeContextCurrent();
-#if PLATFORM(GTK)
+#if PLATFORM(GTK) || PLATFORM(HAIKU)
     ::glDrawArraysInstanced(mode, first, count, primcount);
 #else
     UNUSED_PARAM(mode);
@@ -221,7 +221,7 @@ void ExtensionsGLOpenGL::drawArraysInstanced(GCGLenum mode, GCGLint first, GCGLs
 void ExtensionsGLOpenGL::drawElementsInstanced(GCGLenum mode, GCGLsizei count, GCGLenum type, long long offset, GCGLsizei primcount)
 {
     m_context->makeContextCurrent();
-#if PLATFORM(GTK)
+#if PLATFORM(GTK) || PLATFORM(HAIKU)
     ::glDrawElementsInstanced(mode, count, type, reinterpret_cast<GLvoid*>(static_cast<intptr_t>(offset)), primcount);
 #else
     UNUSED_PARAM(mode);
@@ -235,7 +235,7 @@ void ExtensionsGLOpenGL::drawElementsInstanced(GCGLenum mode, GCGLsizei count, G
 void ExtensionsGLOpenGL::vertexAttribDivisor(GCGLuint index, GCGLuint divisor)
 {
     m_context->makeContextCurrent();
-#if PLATFORM(GTK)
+#if PLATFORM(GTK) || PLATFORM(HAIKU)
     ::glVertexAttribDivisor(index, divisor);
 #else
     UNUSED_PARAM(index);
@@ -249,7 +249,7 @@ String ExtensionsGLOpenGL::getExtensions()
     return String(reinterpret_cast<const char*>(::glGetString(GL_EXTENSIONS)));
 }
 
-#if PLATFORM(GTK) || PLATFORM(WIN)
+#if PLATFORM(GTK) || PLATFORM(WIN) || PLATFORM(HAIKU)
 bool ExtensionsGLOpenGL::isVertexArrayObjectSupported()
 {
     static const bool supportsVertexArrayObject = supports("GL_OES_vertex_array_object");
