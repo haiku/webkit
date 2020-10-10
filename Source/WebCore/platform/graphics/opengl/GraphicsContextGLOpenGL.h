@@ -892,6 +892,10 @@ private:
 #if PLATFORM(COCOA)
     bool m_hasSwitchedToHighPerformanceGPU { false };
 #endif
+
+#if PLATFORM(HAIKU)
+class BView;
+#endif
 };
 
 } // namespace WebCore
