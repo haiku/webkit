@@ -161,8 +161,6 @@ static OptionSet<AvoidanceReason> canUseForFontAndText(const RenderBlockFlow& fl
     bool flowIsJustified = style.textAlign() == TextAlignMode::Justify;
     for (const auto& textRenderer : childrenOfType<RenderText>(flow)) {
         // FIXME: Do not return until after checking all children.
-        if (textRenderer.text().isEmpty())
-            SET_REASON_AND_RETURN_IF_NEEDED(FlowTextIsEmpty, reasons, includeReasons);
         if (textRenderer.isCombineText())
             SET_REASON_AND_RETURN_IF_NEEDED(FlowTextIsCombineText, reasons, includeReasons);
         if (textRenderer.isCounter())
@@ -193,21 +191,19 @@ static OptionSet<AvoidanceReason> canUseForFontAndText(const RenderBlockFlow& fl
 static OptionSet<AvoidanceReason> canUseForStyle(const RenderStyle& style, IncludeReasons includeReasons)
 {
     OptionSet<AvoidanceReason> reasons;
+    if ((style.overflowX() != Overflow::Visible && style.overflowX() != Overflow::Hidden)
+        || (style.overflowY() != Overflow::Visible && style.overflowY() != Overflow::Hidden))
+        SET_REASON_AND_RETURN_IF_NEEDED(FlowHasOverflowNotVisible, reasons, includeReasons);
     if (style.textOverflow() == TextOverflow::Ellipsis)
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasTextOverflow, reasons, includeReasons);
     if (style.textUnderlinePosition() != TextUnderlinePosition::Auto || !style.textUnderlineOffset().isAuto() || !style.textDecorationThickness().isAuto())
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasUnsupportedUnderlineDecoration, reasons, includeReasons);
-    // Non-visible overflow should be pretty easy to support.
-    if (style.overflowX() != Overflow::Visible || style.overflowY() != Overflow::Visible)
-        SET_REASON_AND_RETURN_IF_NEEDED(FlowHasOverflowNotVisible, reasons, includeReasons);
     if (!style.isLeftToRightDirection())
         SET_REASON_AND_RETURN_IF_NEEDED(FlowIsNotLTR, reasons, includeReasons);
     if (!(style.lineBoxContain().contains(LineBoxContain::Block)))
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasLineBoxContainProperty, reasons, includeReasons);
     if (style.writingMode() != WritingMode::TopToBottom)
         SET_REASON_AND_RETURN_IF_NEEDED(FlowIsNotTopToBottom, reasons, includeReasons);
-    if (style.lineBreak() != LineBreak::Auto)
-        SET_REASON_AND_RETURN_IF_NEEDED(FlowHasLineBreak, reasons, includeReasons);
     if (style.unicodeBidi() != UBNormal)
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasNonNormalUnicodeBiDi, reasons, includeReasons);
     if (style.rtlOrdering() != Order::Logical)
@@ -307,7 +303,7 @@ OptionSet<AvoidanceReason> canUseForLineLayoutWithReason(const RenderBlockFlow& 
             child = child->nextSibling();
             continue;
         }
-        if (is<RenderLineBreak>(child) && child->style().clear() == Clear::None) {
+        if (is<RenderLineBreak>(child)) {
             child = child->nextSibling();
             continue;
         }

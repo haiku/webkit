@@ -1,3 +1,141 @@
+2020-10-09  Keith Miller  <keith_miller@apple.com>
+
+        Enable WeakRefs/FinalizationRegistries by default.
+        https://bugs.webkit.org/show_bug.cgi?id=215789
+
+        Reviewed by Yusuke Suzuki.
+
+        * runtime/OptionsList.h:
+
+2020-10-09  Keith Miller  <keith_miller@apple.com>
+
+        Finalizers shouldn't run if events can't fire
+        https://bugs.webkit.org/show_bug.cgi?id=214508
+
+        Reviewed by Ryosuke Niwa.
+
+        This patch makes it so the DeferredWorkTimer won't run scheduled
+        tasks if those would not have run if they were scheduled in
+        WebCore. To do this there is now a concept of a
+        ScriptExecutionOwner. The ScriptExecutionOwner is almost always
+        the same as the global object of the pending task (referred to as
+        the ticket). The only exception to this is if the global object
+        is a JSDOMWindowBase, then the ScriptExecutionOwner is the
+        Document's JS wrapper. To tell the status of a
+        ScriptExecutionOwner, the DeferredWorkTimer calls a virtual
+        function on the global object of the ticket, for JSC-only this
+        just always returns Running. For WebCore, we ask the
+        ScriptExecutionContext associated with the ScriptExecutionOwner.
+
+        * API/JSAPIGlobalObject.cpp:
+        * API/JSAPIGlobalObject.mm:
+        * jsc.cpp:
+        * runtime/DeferredWorkTimer.cpp:
+        (JSC::DeferredWorkTimer::doWork):
+        (JSC::DeferredWorkTimer::addPendingWork):
+        (JSC::DeferredWorkTimer::hasDependancyInPendingWork):
+        (JSC::DeferredWorkTimer::didResumeScriptExecutionOwner):
+        * runtime/DeferredWorkTimer.h:
+        * runtime/JSFinalizationRegistry.cpp:
+        (JSC::JSFinalizationRegistry::create):
+        (JSC::JSFinalizationRegistry::finishCreation):
+        * runtime/JSFinalizationRegistry.h:
+        * runtime/JSGlobalObject.cpp:
+        * runtime/JSGlobalObject.h:
+        (JSC::JSGlobalObject::currentScriptExecutionOwner):
+        (JSC::JSGlobalObject::scriptExecutionStatus):
+
+2020-10-08  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, reland r268170
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+
+        Fixed missing wrong OperationPtrTag use in Repatch.cpp.
+
+        * assembler/AbstractMacroAssembler.h:
+        (JSC::AbstractMacroAssembler::getLinkerAddress):
+        * assembler/AssemblerBuffer.h:
+        (JSC::ARM64EHash::update):
+        (JSC::ARM64EHash::finalHash const):
+        * assembler/JITOperationList.cpp:
+        (JSC::addPointers):
+        * assembler/MacroAssemblerARM64.cpp:
+        (JSC::MacroAssembler::probe):
+        * assembler/MacroAssemblerCodeRef.h:
+        (JSC::MacroAssemblerCodePtr::MacroAssemblerCodePtr):
+        (JSC::MacroAssemblerCodePtr::createFromExecutableAddress):
+        * assembler/testmasm.cpp:
+        (JSC::testProbeModifiesProgramCounter):
+        * b3/air/testair.cpp:
+        * ftl/FTLOutput.h:
+        (JSC::FTL::Output::callWithoutSideEffects):
+        (JSC::FTL::Output::operation):
+        * ftl/FTLSlowPathCall.cpp:
+        (JSC::FTL::SlowPathCallContext::makeCall):
+        * jit/JITCode.cpp:
+        (JSC::JITCodeWithCodeRef::executableAddressAtOffset):
+        * jit/JITExceptions.cpp:
+        (JSC::genericUnwind):
+        * jit/JITOperations.cpp:
+        * jit/Repatch.cpp:
+        (JSC::readPutICCallTarget):
+        (JSC::ftlThunkAwareRepatchCall):
+        (JSC::tryCacheGetBy):
+        (JSC::tryCachePutByID):
+        * llint/LLIntData.cpp:
+        (JSC::LLInt::initialize):
+        * llint/LLIntPCRanges.h:
+        (JSC::LLInt::isLLIntPC):
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::setUpCall):
+        * llint/LLIntThunks.cpp:
+        (JSC::LLInt::generateThunkWithJumpTo):
+        * runtime/JSCPtrTag.h:
+        * runtime/MachineContext.h:
+        (JSC::MachineContext::instructionPointer):
+        * runtime/NativeExecutable.cpp:
+        (JSC::NativeExecutable::finishCreation):
+        * runtime/PutPropertySlot.h:
+        (JSC::PutPropertySlot::setCustomValue):
+        (JSC::PutPropertySlot::setCustomAccessor):
+        (JSC::PutPropertySlot::customSetter const):
+        * wasm/WasmAirIRGenerator.cpp:
+        (JSC::Wasm::AirIRGenerator::emitCCall):
+        * wasm/WasmSlowPaths.cpp:
+
+2020-10-08  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r268170 and r268190.
+        https://bugs.webkit.org/show_bug.cgi?id=217502
+
+        Crash on ARM64E exclusively
+
+        Reverted changesets:
+
+        "[JSC] Restrict more ptr-tagging and avoid using
+        OperationPtrTag for JIT code"
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+        https://trac.webkit.org/changeset/268170
+
+        "Unreviewed, build fix for ARM64E"
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+        https://trac.webkit.org/changeset/268190
+
+2020-10-08  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Make it possible to send an arbitrary IPC message from JavaScript
+        https://bugs.webkit.org/show_bug.cgi?id=217423
+        <rdar://problem/69969351>
+
+        Reviewed by Geoffrey Garen.
+
+        Added a helper function to get uint64_t out of BigInt.
+
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::toUint64Heap): Added.
+        * runtime/JSBigInt.h:
+        (JSC::JSBigInt::toUint64): Added.
+
 2020-10-07  Yusuke Suzuki  <ysuzuki@apple.com>
 
         [JSC] Restrict more ptr-tagging and avoid using OperationPtrTag for JIT code

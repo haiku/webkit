@@ -165,21 +165,33 @@ void LineLayout::constructContent()
             auto& line = lines[lineIndex];
             auto& lineBoxLogicalRect = line.lineBoxLogicalRect();
             // FIXME: This is where the logical to physical translate should happen.
-            auto overflowWidth = std::max(line.logicalWidth(), lineBoxLogicalRect.width());
+            auto overflowWidth = [&] {
+                // FIXME: It's the copy of the lets-adjust-overflow-for-the-caret behavior from ComplexLineLayout::addOverflowFromInlineChildren.
+                auto endPadding = m_flow.hasOverflowClip() ? m_flow.paddingEnd() : 0_lu;
+                if (!endPadding)
+                    endPadding = m_flow.endPaddingWidthForCaret();
+                if (m_flow.hasOverflowClip() && !endPadding && m_flow.element() && m_flow.element()->isRootEditableElement())
+                    endPadding = 1;
+                auto lineBoxLogicalWidth = lineBoxLogicalRect.width() + endPadding;
+                return std::max(line.logicalWidth(), lineBoxLogicalWidth);
+            };
             auto lineBoxLogicalBottom = (lineBoxLogicalRect.top() - line.logicalTop()) + lineBoxLogicalRect.height();
             auto overflowHeight = std::max(line.logicalHeight(), lineBoxLogicalBottom);
-            auto scrollableOverflowRect = FloatRect { line.logicalLeft(), line.logicalTop(), overflowWidth, overflowHeight };
+            auto scrollableOverflowRect = FloatRect { line.logicalLeft(), line.logicalTop(), overflowWidth(), overflowHeight };
 
+            auto firstRunIndex = runIndex;
             auto lineInkOverflowRect = scrollableOverflowRect;
             while (runIndex < runs.size() && runs[runIndex].lineIndex() == lineIndex)
                 lineInkOverflowRect.unite(runs[runIndex++].inkOverflow());
+            auto runCount = runIndex - firstRunIndex;
             auto lineRect = FloatRect { line.logicalRect() };
             // Painting code (specifically TextRun's xPos) needs the line box offset to be able to compute tab positions.
             lineRect.setX(lineBoxLogicalRect.left());
-            displayInlineContent.lines.append({ lineRect, scrollableOverflowRect, lineInkOverflowRect, line.baseline(), line.horizontalAlignmentOffset() });
+            displayInlineContent.lines.append({ firstRunIndex, runCount, lineRect, scrollableOverflowRect, lineInkOverflowRect, line.baseline(), line.horizontalAlignmentOffset() });
         }
     };
     constructDisplayLine();
+    displayInlineContent.clearGapAfterLastLine = m_inlineFormattingState.clearGapAfterLastLine();
     displayInlineContent.shrinkToFit();
     m_inlineFormattingState.shrinkToFit();
 }
@@ -204,7 +216,7 @@ void LineLayout::prepareFloatingState()
             : Layout::FloatingState::FloatItem::Position::Left;
         auto boxGeometry = Layout::BoxGeometry { };
         // FIXME: We are flooring here for legacy compatibility.
-        //        See FloatingObjects::intervalForFloatingObject.
+        //        See FloatingObjects::intervalForFloatingObject and RenderBlockFlow::clearFloats.
         auto y = rect.y().floor();
         auto maxY = rect.maxY().floor();
         boxGeometry.setLogicalTopLeft({ rect.x(), y });
@@ -226,7 +238,7 @@ LayoutUnit LineLayout::contentLogicalHeight() const
         return { };
 
     auto& lines = m_inlineContent->lines;
-    return LayoutUnit { lines.last().rect().maxY() - lines.first().rect().y() };
+    return LayoutUnit { lines.last().rect().maxY() - lines.first().rect().y() + m_inlineContent->clearGapAfterLastLine };
 }
 
 size_t LineLayout::lineCount() const
@@ -279,11 +291,11 @@ void LineLayout::adjustForPagination(RenderBlockFlow& flow)
 void LineLayout::collectOverflow(RenderBlockFlow& flow)
 {
     ASSERT(&flow == &m_flow);
-    ASSERT(!flow.hasOverflowClip());
 
     for (auto& line : inlineContent()->lines) {
         flow.addLayoutOverflow(Layout::toLayoutRect(line.scrollableOverflow()));
-        flow.addVisualOverflow(Layout::toLayoutRect(line.inkOverflow()));
+        if (!flow.hasOverflowClip())
+            flow.addVisualOverflow(Layout::toLayoutRect(line.inkOverflow()));
     }
 }
 
@@ -312,7 +324,7 @@ TextRunIterator LineLayout::textRunsFor(const RenderText& renderText) const
     if (!firstIndex)
         return { };
 
-    return { LayoutIntegration::ModernPath(*m_inlineContent, *firstIndex) };
+    return { RunIteratorModernPath(*m_inlineContent, *firstIndex) };
 }
 
 RunIterator LineLayout::runFor(const RenderElement& renderElement) const
@@ -325,7 +337,7 @@ RunIterator LineLayout::runFor(const RenderElement& renderElement) const
     for (size_t i = 0; i < m_inlineContent->runs.size(); ++i) {
         auto& run =  m_inlineContent->runs[i];
         if (&run.layoutBox() == layoutBox)
-            return { LayoutIntegration::ModernPath(*m_inlineContent, i) };
+            return { RunIteratorModernPath(*m_inlineContent, i) };
     }
 
     return { };

@@ -1,3 +1,108 @@
+2020-10-09  Keith Miller  <keith_miller@apple.com>
+
+        Finalizers shouldn't run if events can't fire
+        https://bugs.webkit.org/show_bug.cgi?id=214508
+
+        Reviewed by Ryosuke Niwa.
+
+        Add a DropLockScope to make it easier to drop a lock for a short
+        piece of code.  Also, instead of deleting int Locker constructor
+        we should just delete the underlying type of the
+        NoLockingNecessary enum.
+
+        * wtf/Locker.h:
+        (WTF::Locker::~Locker):
+        (WTF::Locker::unlockEarly):
+        (WTF::Locker::Locker):
+        (WTF::Locker::operator=):
+        (WTF::Locker::unlock):
+        (WTF::DropLockForScope::DropLockForScope):
+        (WTF::DropLockForScope::~DropLockForScope):
+
+2020-10-08  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, reland r268170
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+
+        * wtf/PlatformRegisters.cpp:
+        (WTF::threadStateLRInternal):
+        (WTF::threadStatePCInternal):
+        * wtf/PtrTag.h:
+        (WTF::tagCodePtr):
+        (WTF::untagCodePtr):
+        (WTF::assertIsCFunctionPtr):
+        (WTF::assertIsNullOrCFunctionPtr):
+        (WTF::assertIsNotTagged):
+        (WTF::assertIsTagged):
+        (WTF::assertIsNullOrTagged):
+        (WTF::isTaggedWith):
+        (WTF::assertIsTaggedWith):
+        (WTF::assertIsNullOrTaggedWith):
+        (WTF::tagCFunctionPtr):
+        (WTF::tagCFunction):
+        (WTF::untagCFunctionPtr):
+        (WTF::tagInt):
+
+2020-10-08  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r268170 and r268190.
+        https://bugs.webkit.org/show_bug.cgi?id=217502
+
+        Crash on ARM64E exclusively
+
+        Reverted changesets:
+
+        "[JSC] Restrict more ptr-tagging and avoid using
+        OperationPtrTag for JIT code"
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+        https://trac.webkit.org/changeset/268170
+
+        "Unreviewed, build fix for ARM64E"
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+        https://trac.webkit.org/changeset/268190
+
+2020-10-08  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Make it possible to send an arbitrary IPC message from JavaScript
+        https://bugs.webkit.org/show_bug.cgi?id=217423
+        <rdar://problem/69969351>
+
+        Reviewed by Geoffrey Garen.
+
+        Added a compile time flag (ENABLE_IPC_TESTING_API) and a runtime flag (IPCTestingAPIEnabled)
+        for the JavaScript API to test IPC.
+
+        * Scripts/GeneratePreferences.rb:
+        (Preference::nameLower): Keep IPC uppercase.
+        * Scripts/Preferences/WebPreferencesInternal.yaml: Added IPCTestingAPIEnabled.
+        * wtf/PlatformEnable.h: Added ENABLE_IPC_TESTING_API.
+
+2020-10-08  Alex Christensen  <achristensen@webkit.org>
+
+        REGRESSION (r267763): [ iOS wk2 ] http/tests/in-app-browser-privacy/non-app-bound-domain-does-not-get-app-bound-session.html is a constant failure
+        https://bugs.webkit.org/show_bug.cgi?id=217386
+
+        Reviewed by Brent Fulgham.
+
+        * Scripts/Preferences/WebPreferencesDebug.yaml:
+
+2020-10-08  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, build fix for ARM64E
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+
+        * wtf/PtrTag.h:
+        (WTF::tagCodePtr):
+        (WTF::untagCodePtr):
+        (WTF::assertIsCFunctionPtr):
+        (WTF::assertIsNullOrCFunctionPtr):
+        (WTF::assertIsNotTagged):
+        (WTF::assertIsTagged):
+        (WTF::assertIsNullOrTagged):
+        (WTF::isTaggedWith):
+        (WTF::assertIsTaggedWith):
+        (WTF::assertIsNullOrTaggedWith):
+
 2020-10-07  Yusuke Suzuki  <ysuzuki@apple.com>
 
         [JSC] Restrict more ptr-tagging and avoid using OperationPtrTag for JIT code

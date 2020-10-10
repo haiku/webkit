@@ -14,6 +14,7 @@ editing/pasteboard/dom-paste [ Pass ]
 fast/events/cursors [ Pass ]
 fast/forms/date/date-editable-components [ Pass ]
 fast/forms/datetimelocal/datetimelocal-editable-components [ Pass ]
+fast/forms/month/month-editable-components [ Pass ]
 fast/forms/time/time-editable-components [ Pass ]
 fast/forms/select/mac-wk2 [ Pass ]
 fast/sandbox/mac [ Pass ]
@@ -841,8 +842,6 @@ webkit.org/b/183878 media/modern-media-controls/tracks-panel/tracks-panel-up-cli
 
 webkit.org/b/194826 http/tests/resourceLoadStatistics/do-not-block-top-level-navigation-redirect.html [ Pass Timeout ]
 
-webkit.org/b/196403 imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-stop.html [ Pass Failure ]
-
 webkit.org/b/187391 accessibility/mac/async-increment-decrement-action.html [ Skip ]
 
 http/tests/storageAccess/request-and-grant-access-cross-origin-sandboxed-iframe-from-prevalent-domain-with-user-interaction-but-access-from-wrong-frame.html [ Pass Timeout ]
@@ -1327,3 +1326,9 @@ webkit.org/b/217001 [ Catalina ] fast/scrolling/latching/latched-scroll-into-non
 webkit.org/b/217193 [ Mojave+ Release ] inspector/console/queryHolders.html [ Pass Failure ]
 
 webkit.org/b/217262 [ Catalina ] imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-peerconnection.https.html [ Pass Failure ]
+
+webkit.org/b/217525 [ Debug ] imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-stop.html [ Pass Crash ]
+
+webkit.org/b/217525 [ Debug ] imported/w3c/web-platform-tests/mediacapture-record/idlharness.window.html [ Pass Crash ]
+
+webkit.org/b/217540 compositing/animation/repaint-after-clearing-shared-backing.html [ Pass ImageOnlyFailure ]

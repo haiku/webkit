@@ -44,8 +44,6 @@ webkit.org/b/196112 imported/w3c/web-platform-tests/mathml/relations/css-styling
 
 http/wpt/cache-storage/quota-third-party.https.html [ Slow ]
 http/wpt/fetch/response-opaque-clone.html [ Slow ]
-http/wpt/cache-storage/cache-quota-after-restart.any.html [ Slow ]
-http/wpt/cache-storage/cache-quota.any.html [ Slow ]
 http/wpt/cache-storage/a-cache-open.https.html [ Slow ]
 http/wpt/cache-storage/cache-quota-add.any.html [ Slow ]
 
@@ -137,8 +135,6 @@ webkit.org/b/215676 [ Release ] http/tests/security/contentSecurityPolicy/worker
 
 webkit.org/b/217114 [ Release ] compositing/debug-borders-dynamic.html [ Pass ImageOnlyFailure ]
 
-webkit.org/b/217184 http/tests/in-app-browser-privacy/non-app-bound-domain-does-not-get-app-bound-session.html [ Failure ]
-webkit.org/b/217184 http/tests/in-app-browser-privacy/top-frame-redirect-to-non-app-bound-domain-blocked.html [ Failure ]
 webkit.org/b/217184 imported/w3c/web-platform-tests/xhr/event-timeout.any.html [ Failure ]
 
 webkit.org/b/217414 [ Release ] imported/w3c/web-platform-tests/user-timing/measure-l3.any.html [ Pass Failure ]
@@ -148,3 +144,7 @@ webkit.org/b/217419 [ Release ] imported/w3c/web-platform-tests/css/css-cascade/
 webkit.org/b/217461 imported/w3c/web-platform-tests/css/css-masking/clip-path/svg-clipPath.svg [ Skip ]
 
 webkit.org/b/217462 [ Release ] imported/w3c/web-platform-tests/service-workers/cache-storage/serviceworker/cache-add.https.html [ Pass Failure ]
+
+webkit.org/b/217357 http/wpt/cache-storage/cache-quota-after-restart.any.html [ Pass Failure ]
+
+webkit.org/b/217412 http/wpt/cache-storage/cache-quota.any.html [ Pass Failure ]

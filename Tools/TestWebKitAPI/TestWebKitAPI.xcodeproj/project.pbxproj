@@ -795,6 +795,7 @@
 		9329AA291DE3F81E003ABD07 /* TextBreakIterator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9329AA281DE3F81E003ABD07 /* TextBreakIterator.cpp */; };
 		932AE53D1D371047005DFFAF /* focus-inputs.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 93575C551D30366E000D604D /* focus-inputs.html */; };
 		933D631D1FCB76200032ECD6 /* Hasher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 933D631B1FCB76180032ECD6 /* Hasher.cpp */; };
+		93494FFE252E66BA0099F171 /* deferred-script-load-in-empty-document.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 93494FFD252E65440099F171 /* deferred-script-load-in-empty-document.html */; };
 		935786CC20F6A2700000CDFC /* IndexedDB.sqlite3-wal in Copy Resources */ = {isa = PBXBuildFile; fileRef = 934FA5C520F69FED0040DC1B /* IndexedDB.sqlite3-wal */; };
 		935786CD20F6A2910000CDFC /* IndexedDB.sqlite3 in Copy Resources */ = {isa = PBXBuildFile; fileRef = 934FA5C720F69FEE0040DC1B /* IndexedDB.sqlite3 */; };
 		935786CE20F6A2A10000CDFC /* IndexedDB.sqlite3-shm in Copy Resources */ = {isa = PBXBuildFile; fileRef = 934FA5C620F69FED0040DC1B /* IndexedDB.sqlite3-shm */; };
@@ -846,6 +847,7 @@
 		9B4F8FA7159D52DD002D9F94 /* HTMLCollectionNamedItem.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 9B4F8FA6159D52CA002D9F94 /* HTMLCollectionNamedItem.html */; };
 		9B59F12A2034086F009E63D5 /* mso-list-compat-mode.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 9B59F12920340854009E63D5 /* mso-list-compat-mode.html */; };
 		9B62630C1F8C25C8007EE29B /* copy-url.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 9B62630B1F8C2510007EE29B /* copy-url.html */; };
+		9B6D9FF9252EFDE500A51640 /* IPCTestingAPI.mm in Sources */ = {isa = PBXBuildFile; fileRef = 9B6D9FF8252EFDE500A51640 /* IPCTestingAPI.mm */; };
 		9B7A37C41F8AEBA5004AA228 /* CopyURL.mm in Sources */ = {isa = PBXBuildFile; fileRef = 9B7A37C21F8AEBA5004AA228 /* CopyURL.mm */; };
 		9B7D740F1F8378770006C432 /* paste-rtfd.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 9B7D740E1F8377E60006C432 /* paste-rtfd.html */; };
 		9B9332CE2320C745002D50E8 /* cocoa-writer-markup-with-lists.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 9B9332CD2320C73E002D50E8 /* cocoa-writer-markup-with-lists.html */; };
@@ -1358,6 +1360,7 @@
 				F486B1D01F67952300F34BDD /* DataTransfer-setDragImage.html in Copy Resources */,
 				F457A9D6202D68AF00F7E9D5 /* DataTransfer.html in Copy Resources */,
 				F4512E131F60C44600BB369E /* DataTransferItem-getAsEntry.html in Copy Resources */,
+				93494FFE252E66BA0099F171 /* deferred-script-load-in-empty-document.html in Copy Resources */,
 				118153442208B7AC00B2CCD2 /* deferred-script-load.html in Copy Resources */,
 				118153462208B7E500B2CCD2 /* deferred-script.js in Copy Resources */,
 				C07E6CB213FD73930038B22B /* devicePixelRatio.html in Copy Resources */,
@@ -2385,6 +2388,7 @@
 		9329AA281DE3F81E003ABD07 /* TextBreakIterator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TextBreakIterator.cpp; sourceTree = "<group>"; };
 		9331407B17B4419000F083B1 /* DidNotHandleKeyDown.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DidNotHandleKeyDown.cpp; sourceTree = "<group>"; };
 		933D631B1FCB76180032ECD6 /* Hasher.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Hasher.cpp; sourceTree = "<group>"; };
+		93494FFD252E65440099F171 /* deferred-script-load-in-empty-document.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = "deferred-script-load-in-empty-document.html"; sourceTree = "<group>"; };
 		934FA5C520F69FED0040DC1B /* IndexedDB.sqlite3-wal */ = {isa = PBXFileReference; lastKnownFileType = file; path = "IndexedDB.sqlite3-wal"; sourceTree = "<group>"; };
 		934FA5C620F69FED0040DC1B /* IndexedDB.sqlite3-shm */ = {isa = PBXFileReference; lastKnownFileType = file; path = "IndexedDB.sqlite3-shm"; sourceTree = "<group>"; };
 		934FA5C720F69FEE0040DC1B /* IndexedDB.sqlite3 */ = {isa = PBXFileReference; lastKnownFileType = file; path = IndexedDB.sqlite3; sourceTree = "<group>"; };
@@ -2456,6 +2460,7 @@
 		9B4F8FA6159D52CA002D9F94 /* HTMLCollectionNamedItem.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = HTMLCollectionNamedItem.html; sourceTree = "<group>"; };
 		9B59F12920340854009E63D5 /* mso-list-compat-mode.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "mso-list-compat-mode.html"; sourceTree = "<group>"; };
 		9B62630B1F8C2510007EE29B /* copy-url.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "copy-url.html"; sourceTree = "<group>"; };
+		9B6D9FF8252EFDE500A51640 /* IPCTestingAPI.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = IPCTestingAPI.mm; sourceTree = "<group>"; };
 		9B79164F1BD89D0D00D50B8F /* FirstResponderScrollingPosition.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FirstResponderScrollingPosition.mm; sourceTree = "<group>"; };
 		9B7A37C21F8AEBA5004AA228 /* CopyURL.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = CopyURL.mm; sourceTree = "<group>"; };
 		9B7D740E1F8377E60006C432 /* paste-rtfd.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "paste-rtfd.html"; sourceTree = "<group>"; };
@@ -3267,6 +3272,7 @@
 				CED73D35246F204C00DAE327 /* InsertTextAlternatives.mm */,
 				2DB0232E1E4E871800707123 /* InteractionDeadlockAfterCrash.mm */,
 				2D116E1223E0CB3900208900 /* iOSMouseSupport.mm */,
+				9B6D9FF8252EFDE500A51640 /* IPCTestingAPI.mm */,
 				5C69BDD41F82A7EB000F4F4B /* JavaScriptDuringNavigation.mm */,
 				5C0160C021A132320077FA32 /* JITEnabled.mm */,
 				C25CCA051E51380B0026CB8A /* LineBreaking.mm */,
@@ -4276,6 +4282,7 @@
 				9B270FED1DDC25FD002D53F3 /* closed-shadow-tree-test.html */,
 				5C9E56861DF9148E00C9EE33 /* contentBlockerCheck.html */,
 				290F4274172A1FDE00939FF0 /* custom-protocol-sync-xhr.html */,
+				93494FFD252E65440099F171 /* deferred-script-load-in-empty-document.html */,
 				118153432208B7AC00B2CCD2 /* deferred-script-load.html */,
 				118153452208B7E500B2CCD2 /* deferred-script.js */,
 				A14AAB641E78DC3F00C1ADC2 /* encrypted.pdf */,
@@ -5222,6 +5229,7 @@
 				7A909A821D877480007E10F8 /* IntRectTests.cpp in Sources */,
 				7A909A831D877480007E10F8 /* IntSizeTests.cpp in Sources */,
 				2D116E1323E0CB3A00208900 /* iOSMouseSupport.mm in Sources */,
+				9B6D9FF9252EFDE500A51640 /* IPCTestingAPI.mm in Sources */,
 				5C0BF8931DD599BD00B00328 /* IsNavigationActionTrusted.mm in Sources */,
 				CD5FF49F2162E943004BD86F /* ISOBox.cpp in Sources */,
 				5C69BDD51F82A7EF000F4F4B /* JavaScriptDuringNavigation.mm in Sources */,

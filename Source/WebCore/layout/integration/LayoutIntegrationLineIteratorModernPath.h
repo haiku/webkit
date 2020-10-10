@@ -34,20 +34,26 @@ namespace WebCore {
 
 namespace LayoutIntegration {
 
-class ModernLinePath {
+class RunIteratorModernPath;
+
+class LineIteratorModernPath {
 public:
-    ModernLinePath(const InlineContent& inlineContent, size_t lineIndex)
+    LineIteratorModernPath(const InlineContent& inlineContent, size_t lineIndex)
         : m_inlineContent(&inlineContent)
         , m_lineIndex(lineIndex)
     {
         ASSERT(lineIndex <= lines().size());
     }
-    ModernLinePath(ModernLinePath&&) = default;
-    ModernLinePath(const ModernLinePath&) = default;
-    ModernLinePath& operator=(const ModernLinePath&) = default;
-    ModernLinePath& operator=(ModernLinePath&&) = default;
+    LineIteratorModernPath(LineIteratorModernPath&&) = default;
+    LineIteratorModernPath(const LineIteratorModernPath&) = default;
+    LineIteratorModernPath& operator=(const LineIteratorModernPath&) = default;
+    LineIteratorModernPath& operator=(LineIteratorModernPath&&) = default;
 
-    FloatRect rect() const { return verticallyRoundedRect(line().rect()); }
+    LayoutUnit top() const { return LayoutUnit::fromFloatRound(line().rect().y()); }
+    LayoutUnit bottom() const { return LayoutUnit::fromFloatRound(line().rect().maxY()); }
+    LayoutUnit selectionTop() const { return top(); }
+    LayoutUnit selectionTopForHitTesting() const { return top(); }
+    LayoutUnit selectionBottom() const { return bottom(); }
 
     void traverseNext()
     {
@@ -59,15 +65,58 @@ public:
     void traversePrevious()
     {
         ASSERT(!atEnd());
-        ASSERT(m_lineIndex);
+
+        if (!m_lineIndex) {
+            setAtEnd();
+            return;
+        }
 
         --m_lineIndex;
     }
 
-    bool operator==(const ModernLinePath& other) const { return m_inlineContent == other.m_inlineContent && m_lineIndex == other.m_lineIndex; }
+    bool operator==(const LineIteratorModernPath& other) const { return m_inlineContent == other.m_inlineContent && m_lineIndex == other.m_lineIndex; }
 
     bool atEnd() const { return m_lineIndex == lines().size(); }
     void setAtEnd() { m_lineIndex = lines().size(); }
+
+    RunIteratorModernPath firstRun() const
+    {
+        if (!line().runCount())
+            return { *m_inlineContent };
+        return { *m_inlineContent, line().firstRunIndex() };
+    }
+
+    RunIteratorModernPath lastRun() const
+    {
+        auto runCount = line().runCount();
+        if (!runCount)
+            return { *m_inlineContent };
+        return { *m_inlineContent, line().firstRunIndex() + runCount - 1 };
+    }
+
+    RunIteratorModernPath logicalStartRunWithNode() const
+    {
+        auto startIndex = line().firstRunIndex();
+        auto endIndex = startIndex + line().runCount();
+        for (auto runIndex = startIndex; runIndex < endIndex; ++runIndex) {
+            auto& renderer = *m_inlineContent->rendererForLayoutBox(m_inlineContent->runs[runIndex].layoutBox());
+            if (renderer.node())
+                return { *m_inlineContent, runIndex };
+        }
+        return { *m_inlineContent };
+    }
+
+    RunIteratorModernPath logicalEndRunWithNode() const
+    {
+        auto startIndex = line().firstRunIndex();
+        auto endIndex = startIndex + line().runCount();
+        for (auto runIndex = endIndex; runIndex-- > startIndex;) {
+            auto& renderer = *m_inlineContent->rendererForLayoutBox(m_inlineContent->runs[runIndex].layoutBox());
+            if (renderer.node())
+                return { *m_inlineContent, runIndex };
+        }
+        return { *m_inlineContent };
+    }
 
 private:
     const InlineContent::Lines& lines() const { return m_inlineContent->lines; }

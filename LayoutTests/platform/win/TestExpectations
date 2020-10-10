@@ -518,6 +518,7 @@ webkit.org/b/60731 fast/css-grid-layout/ [ Skip ]
 
 # TODO ENABLE(CSS_SCROLL_SNAP) is disabled.
 css3/scroll-snap/ [ Skip ]
+imported/w3c/web-platform-tests/css/css-scroll-snap [ Skip ]
 
 # JSC does not support setIsolatedWorldSecurityOrigin
 webkit.org/b/61540 http/tests/security/isolatedWorld/cross-origin-xhr.html [ Skip ]
@@ -698,6 +699,10 @@ fast/visual-viewport/zoomed-fixed-scroll-down-then-up.html [ Failure ]
 # locale-specific shaping isn't implemented on any non-Cocoa port yet.
 webkit.org/b/77568 fast/text/locale-shaping.html [ ImageOnlyFailure ]
 webkit.org/b/77568 fast/text/locale-shaping-complex.html [ ImageOnlyFailure ]
+
+# WebAssembly doesn't exist on Windows
+fast/frames/detached-frame-wasm-resolve.html [ Skip ]
+fast/history/page-cache-wasm-promise-resolve.html [ Skip ]
 
 ################################################################################
 ###########    End Missing Functionality Prevents Testing         ##############

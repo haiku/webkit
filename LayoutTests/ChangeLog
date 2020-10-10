@@ -1,3 +1,283 @@
+2020-10-09  Hector Lopez  <hector_i_lopez@apple.com>
+
+        REGRESSION(r268161?): [ macOS ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/processing-after-resume.https.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217542
+
+        Unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
+2020-10-09  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [GPU Process] Add additional support for painting video elements to 2D contexts
+        https://bugs.webkit.org/show_bug.cgi?id=217532
+
+        Reviewed by Tim Horton.
+
+        Unskip several layout tests that pass after this change.
+
+        * gpu-process/TestExpectations:
+
+2020-10-09  Hector Lopez  <hector_i_lopez@apple.com>
+
+        imported/w3c/web-platform-tests/mediacapture-record/idlharness.window.html is a flaky crash
+        https://bugs.webkit.org/show_bug.cgi?id=217525
+
+       Unreviewed test gardening.
+
+        * platform/mac-wk2/TestExpectations:
+
+2020-10-09  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (r266972): [ Mojave+ debug wk2 ] compositing/animation/repaint-after-clearing-shared-backing.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217540
+
+        Unreviewed test gardening.
+
+        * platform/mac-wk2/TestExpectations:
+
+2020-10-09  Hector Lopez  <hector_i_lopez@apple.com>
+
+        [ iOS Debug ] imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-stop.html is a constant timeout
+        https://bugs.webkit.org/show_bug.cgi?id=217538
+
+        Unreviewed test gardening.
+
+        * platform/ios-wk2/TestExpectations:
+
+2020-10-09  Aditya Keerthi  <akeerthi@apple.com>
+
+        [macOS] Add editability to input type=month
+        https://bugs.webkit.org/show_bug.cgi?id=217481
+        <rdar://problem/70097164>
+
+        Reviewed by Sam Weinig.
+
+        * TestExpectations:
+        * fast/forms/month/month-editable-components/month-editable-components-focus-and-blur-events-expected.txt: Added.
+        * fast/forms/month/month-editable-components/month-editable-components-focus-and-blur-events.html: Added.
+        * fast/forms/month/month-editable-components/month-editable-components-keyboard-events-expected.txt: Added.
+        * fast/forms/month/month-editable-components/month-editable-components-keyboard-events.html: Added.
+        * fast/forms/month/month-editable-components/month-editable-components-mouse-events-expected.txt: Added.
+        * fast/forms/month/month-editable-components/month-editable-components-mouse-events.html: Added.
+        * platform/mac-wk2/TestExpectations:
+
+2020-10-09  Hector Lopez  <hector_i_lopez@apple.com>
+
+        ASSERTION FAILED: REGRESSION(r268052?): WTF::CompletionHandler<void ()>::~CompletionHandler(): Completion handler should always be called !m_function
+        https://bugs.webkit.org/show_bug.cgi?id=217525
+
+        Unreviewed test gardening.
+
+        * platform/mac-wk2/TestExpectations:
+
+2020-10-09  Keith Miller  <keith_miller@apple.com>
+
+        Finalizers shouldn't run if events can't fire
+        https://bugs.webkit.org/show_bug.cgi?id=214508
+
+        Reviewed by Ryosuke Niwa.
+
+        Add tests that check we don't run any tasks from JSC's event loop while contexts
+        are suspended/stopped. Also skip the WASM tests on Win because WASM doesn't work
+        there.
+
+        * fast/frames/detached-frame-wasm-resolve-expected.txt: Added.
+        * fast/frames/detached-frame-wasm-resolve.html: Added.
+        * fast/history/page-cache-active-finalization-registry-callback-expected.txt: Added.
+        * fast/history/page-cache-active-finalization-registry-callback.html: Added.
+        * fast/history/page-cache-wasm-promise-resolve-expected.txt: Added.
+        * fast/history/page-cache-wasm-promise-resolve.html: Added.
+        * platform/win/TestExpectations:
+
+2020-10-09  Andres Gonzalez  <andresg_22@apple.com>
+
+        Fix for accessibility tests keyevents-posted-for-increment-actions.html and keyevents-for-increment-actions-with-node-removal.html in isolated tree mode.
+        https://bugs.webkit.org/show_bug.cgi?id=217501
+
+        Reviewed by Chris Fleizach.
+
+        * accessibility/keyevents-for-increment-actions-with-node-removal.html:
+        Removed extra <html> tag and minor spacing and reordering to make it
+        more consistent with other accessibility tests.
+        * accessibility/keyevents-posted-for-increment-actions.html:
+        Corrected number of expected key events from 4 to 8.
+        Same minor spacing and ordering changes.
+
+2020-10-09  Martin Robinson  <mrobinson@webkit.org>
+
+        Import scroll-snap WPT tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=217467
+
+        Reviewed by Youenn Fablet.
+
+        * TestExpectations: Add failing reference tests.
+        * platform/gtk/TestExpectations: Skip tests on platform that does not support scroll-snap.
+        * platform/ios-wk2/imported/w3c/web-platform-tests/css/css-scroll-snap/scroll-snap-type-on-root-element-expected.txt: Added.
+        * platform/ios-wk2/imported/w3c/web-platform-tests/css/css-scroll-snap/scrollTo-scrollBy-snaps-expected.txt: Added.
+        * platform/win/TestExpectations: Ditto.
+        * platform/wpe/TestExpectations: Ditto.
+
+2020-10-09  Noam Rosenthal  <noam@webkit.org>
+
+        CSS image-orientation: none should be ignored for cross-origin images
+        https://bugs.webkit.org/show_bug.cgi?id=217294
+
+        Reviewed by Youenn Fablet.
+
+        * http/wpt/css/css-images/image-orientation/image-orientation-none-cross-origin-canvas.html: Added.
+        * http/wpt/css/css-images/image-orientation/image-orientation-none-cross-origin-canvas-expected.html: Added.
+
+2020-10-08  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        Stop clamping text-underline-offset to 0
+        https://bugs.webkit.org/show_bug.cgi?id=217455
+
+        Reviewed by Simon Fraser.
+
+        * fast/text/negative-underline-position-expected-mismatch.html: Added.
+        * fast/text/negative-underline-position.html: Added.
+        * fast/css3-text/css3-text-decoration/text-underline-negative-expected.html: Update.
+
+2020-10-08  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Unreviewed, unskip several canvas-related layout test directories when enabling GPU process
+
+        The vast majority of tests in these directories now pass; we can now enable these directories by default, and
+        track the remaining tests as individual failures.
+
+        * gpu-process/TestExpectations:
+
+2020-10-08  James Darpinian  <jdarpinian@chromium.org>
+
+        Support EXT_texture_compression_rgtc WebGL extension
+        https://bugs.webkit.org/show_bug.cgi?id=217198
+
+        Reviewed by Kenneth Russell.
+
+        * webgl/conformance/extensions/ext-texture-compression-rgtc-expected.txt: Added.
+        * webgl/conformance/extensions/ext-texture-compression-rgtc.html: Added.
+        * webgl/conformance/extensions/s3tc-and-rgtc-expected.txt: Added.
+        * webgl/conformance/extensions/s3tc-and-rgtc.html: Added.
+        * webgl/resources/webgl_test_files/conformance/extensions/ext-texture-compression-rgtc.html: Added.
+        * webgl/resources/webgl_test_files/conformance/extensions/s3tc-and-rgtc.html: Added.
+        * webgl/resources/webgl_test_files/js/tests/compressed-texture-utils.js: Added.
+
+2020-10-08  Hector Lopez  <hector_i_lopez@apple.com>
+
+        Add Mojave specific result
+        https://bugs.webkit.org/show_bug.cgi?id=167729
+
+        Unreviewed test gardening.
+
+        * platform/mac-mojave/imported/w3c/web-platform-tests/css/css-pseudo/text-selection-expected.txt: Added.
+
+2020-10-08  Alex Christensen  <achristensen@webkit.org>
+
+        FileReader.result should return null if it isn't done yet
+        https://bugs.webkit.org/show_bug.cgi?id=217484
+
+        Reviewed by Geoffrey Garen.
+
+        * fast/files/read-file-async-expected.txt:
+        * fast/files/workers/worker-read-file-async-expected.txt:
+
+2020-10-08  Peng Liu  <peng.liu6@apple.com>
+
+        [Media in GPU Process] Cannot activate or deactivate an audio session
+        https://bugs.webkit.org/show_bug.cgi?id=217492
+
+        Reviewed by Eric Carlson.
+
+        * gpu-process/TestExpectations:
+
+2020-10-08  Alex Christensen  <achristensen@webkit.org>
+
+        Implement Blob.stream
+        https://bugs.webkit.org/show_bug.cgi?id=217457
+
+        Reviewed by Youenn Fablet.
+
+        * fast/files/blob-stream-error-expected.txt: Added.
+        * fast/files/blob-stream-error.html: Added.
+        * fast/files/blob-stream-frame-expected.txt: Added.
+        * fast/files/blob-stream-frame.html: Added.
+        * fast/files/resources/blob-stream-iframe.html: Added.
+
+2020-10-08  Alex Christensen  <achristensen@webkit.org>
+
+        REGRESSION (r267763): [ iOS wk2 ] http/tests/in-app-browser-privacy/non-app-bound-domain-does-not-get-app-bound-session.html is a constant failure
+        https://bugs.webkit.org/show_bug.cgi?id=217386
+
+        Reviewed by Brent Fulgham.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
+2020-10-08  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][Integration] Enable float clear for <br>
+        https://bugs.webkit.org/show_bug.cgi?id=217450
+
+        Reviewed by Antti Koivisto.
+
+        * platform/ios-wk1/fast/css/word-space-extra-expected.txt: Rebaselining.
+        * platform/ios/fast/css/word-space-extra-expected.txt:
+        * platform/mac/fast/css/word-space-extra-expected.txt:
+
+2020-10-08  Peng Liu  <peng.liu6@apple.com>
+
+        RemoteAudioSession::category() returns an incorrect value after category changing
+        https://bugs.webkit.org/show_bug.cgi?id=217459
+
+        Reviewed by Youenn Fablet.
+
+        * gpu-process/TestExpectations: Minor clean-up and unskip some tests after fixing
+        the bug of RemoteAudioSession::category().
+        * platform/mac/media/audio-session-category-audio-autoplay.html:
+
+2020-10-08  Karl Rackler  <rackler@apple.com>
+
+        Move test expectations from ios-wk2 to ios-simulator-wk2
+        https://bugs.webkit.org/show_bug.cgi?id=217357
+        ​https://bugs.webkit.org/show_bug.cgi?id=217412
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+        * platform/ios-wk2/TestExpectations:
+
+2020-10-08  Hector Lopez  <hector_i_lopez@apple.com>
+
+        Test expectation correction
+        https://bugs.webkit.org/show_bug.cgi?id=167729
+
+        Unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
+2020-10-08  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (r268138): [ Mojave+ wk1 ] imported/w3c/web-platform-tests/css/css-masking/clip-path/clip-path-descendant-text-mutated-001.html is a flaky image failure
+        https://bugs.webkit.org/show_bug.cgi?id=217478
+
+        Unreviewed test gardening.
+
+        * platform/mac-wk1/TestExpectations:
+
+2020-10-08  Aditya Keerthi  <akeerthi@apple.com>
+
+        [iOS] Blurring a text input and focusing a date input changes the scrollable area
+        https://bugs.webkit.org/show_bug.cgi?id=217325
+        <rdar://problem/69979171>
+
+        Reviewed by Wenson Hsieh.
+
+        Added a regression test which focuses a text input, then focuses a date
+        input, and finally attempts to scroll the content.
+
+        * fast/forms/ios/constant-scroll-area-when-moving-focus-between-fields-expected.txt: Added.
+        * fast/forms/ios/constant-scroll-area-when-moving-focus-between-fields.html: Added.
+
 2020-10-08  Per Arne Vollan  <pvollan@apple.com>
 
         [macOS] Deny access to performance analysis service in the WebContent process

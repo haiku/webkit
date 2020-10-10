@@ -1450,10 +1450,12 @@ ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(HTMLImageElement& imag
     FloatRect imageRect = FloatRect(FloatPoint(), size(imageElement, ImageSizeType::BeforeDevicePixelRatio));
 
     auto orientation = ImageOrientation::FromImage;
-    if (auto* renderer = imageElement.renderer())
-        orientation = renderer->style().imageOrientation();
-    else if (auto* computedStyle = imageElement.computedStyle())
-        orientation = computedStyle->imageOrientation();
+    if (imageElement.allowsOrientationOverride()) {
+        if (auto* renderer = imageElement.renderer())
+            orientation = renderer->style().imageOrientation();
+        else if (auto* computedStyle = imageElement.computedStyle())
+            orientation = computedStyle->imageOrientation();
+    }
 
     auto result = drawImage(imageElement.document(), imageElement.cachedImage(), imageElement.renderer(), imageRect, srcRect, dstRect, op, blendMode, orientation);
 
@@ -1952,7 +1954,8 @@ ExceptionOr<RefPtr<CanvasPattern>> CanvasRenderingContext2DBase::createPattern(H
         return RefPtr<CanvasPattern> { CanvasPattern::create(BitmapImage::create(WTFMove(nativeImage)), repeatX, repeatY, originClean) };
 #endif
 
-    auto imageBuffer = ImageBuffer::create(size(videoElement), drawingContext() ? drawingContext()->renderingMode() : RenderingMode::Accelerated);
+    auto shouldAccelerate = !drawingContext() || drawingContext()->isAcceleratedContext() ? ShouldAccelerate::Yes : ShouldAccelerate::No;
+    auto imageBuffer = videoElement.createBufferForPainting(size(videoElement), shouldAccelerate);
     if (!imageBuffer)
         return nullptr;
 

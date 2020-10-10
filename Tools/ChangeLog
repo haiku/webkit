@@ -1,3 +1,375 @@
+2020-10-09  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitscmpy] Handle svn info run from directory
+        https://bugs.webkit.org/show_bug.cgi?id=217521
+        <rdar://problem/70144173>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/libraries/webkitscmpy/webkitscmpy/__init__.py: Bump version.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/local/svn.py:
+        (Svn.__init__): Set the root_path, so that svn info is run from the top level.
+        (Svn.info): Rely on root_path, not path.
+        (Svn.root_path): Use self._root_path instead of self.info() call.
+        (Svn.list): Rely on root_path, not path.
+        (Svn._cache_revisions):  Ditto.
+        (Svn.remote): The repository root will not change during a single command invocation.
+        (Svn._branch_for): Handle initial branch commits, which. may have non-standard change lists.
+        (Svn.commit): Rely on root_path, not path, certain svn info calls will not change during
+        the invocation of a single program.
+
+2020-10-09  Alex Christensen  <achristensen@webkit.org>
+
+        REGRESSION: [Mac Release] 2 Cookie API are failing
+        https://bugs.webkit.org/show_bug.cgi?id=217393
+
+        Reviewed by Chris Dumez.
+
+        If bad things happen when running API tests, the TestWebKitAPI default cookie storage can get stuck with
+        a cookie accept policy of never, which causes future tests to fail.  All existing tests restore the cookie
+        accept policy to what it was before the test started, but once a machine gets into a bad state, there's nothing
+        to reset it to the default state.  Some of our test bots have gotten into this bad state, causing 2 cookie API
+        tests to fail.  To fix this, set the cookie accept policy to its default value before running these two tests.
+        I verified this works by getting my computer into this bad state, verifying repeated API test runs don't fix it,
+        and verified this brings the computer back into a good state and causes the API tests to pass again.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/CookiePrivateBrowsing.mm:
+        (TEST):
+        * TestWebKitAPI/Tests/WebKitCocoa/Proxy.mm:
+        (TestWebKitAPI::TEST):
+
+2020-10-09  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitscmpy] Support unicode contributor names
+        https://bugs.webkit.org/show_bug.cgi?id=217520
+        <rdar://problem/70143490>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/libraries/webkitscmpy/webkitscmpy/__init__.py: Bump version.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/contributor.py:
+        (Contributor.__init__): Standardize name and emails as unicode.
+        (Contributor.__repr__): Ensure native string representation.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/contributor_unittest.py:
+        (TestContributor):
+        (TestContributor.test_unicode):
+
+2020-10-09  Kate Cheney  <katherine_cheney@apple.com>
+
+        Promote WKWebView media playback SPI to API
+        https://bugs.webkit.org/show_bug.cgi?id=217335
+        <rdar://problem/63406100>
+
+        Reviewed by Jer Noble.
+
+        Add API testing coverage for new API. Also converted testing to
+        use the new API instead of SPI.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/StopSuspendResumeAllMedia.mm:
+        (TestWebKitAPI::TEST):
+
+2020-10-09  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitpy] Use webkitcorepy's auto installer for pytest packages
+        https://bugs.webkit.org/show_bug.cgi?id=215895
+        <rdar://problem/67885471>
+
+        Rubber-stamped by Aakash Jain.
+
+        * Scripts/webkitpy/__init__.py: Add pytest and it's dependencies.
+        * Scripts/webkitpy/thirdparty/__init__.py:
+        (AutoinstallImportHook.find_module): Remove pytest and pytest_timeout.
+        (AutoinstallImportHook._install_pytest_timeout): Deleted.
+        (AutoinstallImportHook._install_pytest): Deleted.
+        * Scripts/webkitpy/webdriver_tests/pytest_runner.py: Implicitly use webkitcorepy's autoinstaller.
+
+2020-10-09  Alex Christensen  <achristensen@webkit.org>
+
+        Use sendWithAsyncReply for NetworkProcess::CancelDownload
+        https://bugs.webkit.org/show_bug.cgi?id=217420
+
+        Reviewed by Youenn Fablet.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/Download.mm:
+        (-[WaitUntilDownloadCanceledDelegate _download:didFailWithError:]):
+        (-[DownloadMonitorTestDelegate _download:didFailWithError:]):
+        (-[DownloadMonitorTestDelegate waitForDidFail]):
+        (-[DownloadMonitorTestDelegate stopWaitingForDidFail]):
+        (TestWebKitAPI::monitorDelegate):
+        (TestWebKitAPI::webViewWithDownloadMonitorSpeedMultiplier):
+        (TestWebKitAPI::downloadAtRate):
+        (TestWebKitAPI::TEST):
+        (-[WaitUntilDownloadCanceledDelegate _downloadDidCancel:]): Deleted.
+        (-[DownloadMonitorTestDelegate _downloadDidCancel:]): Deleted.
+
+2020-10-09  Lauro Moura  <lmoura@igalia.com>
+
+        [GLIB] Fix tests compilation warnings with deprecated API
+        https://bugs.webkit.org/show_bug.cgi?id=217504
+
+        Reviewed by Carlos Garcia Campos.
+
+        webkit_web_context_set_network_proxy_settings() is deprecated in favor of
+        webkit_website_data_manager_set_network_proxy_settings().
+
+        * TestWebKitAPI/Tests/WebKitGLib/TestAuthentication.cpp:
+        (ProxyAuthenticationTest::ProxyAuthenticationTest):
+
+2020-10-09  Paulo Matos  <pmatos@igalia.com>
+
+        Add armv8l arch to generic arm umbrella architecture variable
+        https://bugs.webkit.org/show_bug.cgi?id=217470
+
+        Reviewed by Adrian Perez de Castro.
+
+        The armv8l architecture specifies a system running an arm64 kernel
+        but running in 32bit user land. Therefore for JSC purposes armv8l and
+        armv7l are arm (32bit) architectures.
+
+        * Scripts/webkitdirs.pm:
+        (determineNativeArchitecture):
+
+2020-10-01  Matt Lewis  <jlewis3@apple.com>
+
+        Move EWS to new SDKs: tvOS 14, and watchOS 7.
+        https://bugs.webkit.org/show_bug.cgi?id=217145
+
+        Reviewed by Aakash Jain.
+
+        * BuildSlaveSupport/ews-build/config.json:
+
+2020-10-08  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Make it possible to send an arbitrary IPC message from JavaScript
+        https://bugs.webkit.org/show_bug.cgi?id=217423
+        <rdar://problem/69969351>
+
+        Reviewed by Geoffrey Garen.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebKitCocoa/IPCTestingAPI.mm: Added.
+        (-[IPCTestingAPIDelegate webView:runJavaScriptAlertPanelWithMessage:initiatedByFrame:completionHandler:]):
+        (TEST):
+
+2020-10-08  Sam Weinig  <weinig@apple.com>
+
+        Refactor TestOptions code in WebKitTestRunner to make it easier to rationalize and extend
+        https://bugs.webkit.org/show_bug.cgi?id=217390
+
+        Reviewed by Darin Adler.
+
+        Refactors TestOptions code in WebKitTestRunner to make it clear how options coming in at 
+        different levels are treated and what precedence each has. The order is (from least to most):
+        
+        - Global features passed to WebKitTestRunner via the command line (e.g. --show-touches)
+        - Hardcoded features based on the path of the test being run (hopefully we can remove all soon)
+        - Hardcoded platform specific defaults (currently only used by macOS for useThreadedScrolling).
+        - Features from the test headers within the test itself.
+        - Finally, a second chance for more platform specific defaults (currenly only used the Cocoa ports
+          for setting enableProcessSwapOnNavigation and enableProcessSwapOnWindowOpen based on NSUserDefaults.)
+
+        To make this change work, and pave the way for future autogeneration of some of these test options,
+        the TestOptions struct (now class) was overhauled. Instead of storing the state itself, TestOptions
+        is now an immutable owner of a TestFeatures object. TestFeatures is a simple struct that contains maps 
+        of option keys to values and can be merged with other TestFeatures objects. TestOptions takes a 
+        TestFeatures at construction, and exposes getters for all keys, as well as defaults for when they are
+        not in the maps. In future changes, I would like to remove many of these (the ones that correspond
+        with WebKit preferences anyway) and have the keys and values automatically dealt with by WKPreferences.
+
+        * WebKitTestRunner/Options.cpp:
+        * WebKitTestRunner/Options.h:
+        Switch to std::unordered_map for consistency and ease of conversion.
+
+        * WebKitTestRunner/PlatformWebView.h:
+        (WTR::PlatformWebView::viewSupportsOptions const):
+        Update to call new TestOptions functions.
+
+        * WebKitTestRunner/StringFunctions.h:
+        (WTR::toWK):
+        (WTR::toWTFString):
+        Add conversions for std::string.
+
+        * WebKitTestRunner/TestController.h:
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::initialize):
+        Replace some bools with a new global TestFeatures instance that forms the base of
+        all TestFeatures merges.
+        
+        (WTR::TestController::generateContextConfiguration const):
+        (WTR::TestController::generatePageConfiguration):
+        (WTR::TestController::createWebViewWithOptions):
+        (WTR::TestController::ensureViewSupportsOptionsForTest):
+        (WTR::TestController::resetPreferencesToConsistentValues):
+        (WTR::TestController::resetStateToConsistentValues):
+        Update to call new TestOptions functions.
+        
+        (WTR::TestController::createTestURL):
+        Expose as a static member function on TestController for use in other files.
+        
+        (WTR::TestController::testOptionsForTest const):
+        Rework to be a sequence of TestFeatures merges.
+        
+        (WTR::TestController::updateWebViewSizeForTest):
+        (WTR::TestController::updateWindowScaleForTest):
+        Update to call new TestOptions functions.
+        
+        (WTR::createTestURL): Deleted.
+        (WTR::parseBooleanTestHeaderValue): Deleted.
+        (WTR::parseStringTestHeaderValueAsRelativePath): Deleted.
+        (WTR::parseStringTestHeaderValueAsURL): Deleted.
+        (WTR::updateTestOptionsFromTestHeader): Deleted.
+        (WTR::TestController::platformAddTestOptions const): Deleted.
+        Moved TestOptions parsing to TestOptions.cpp
+
+        * WebKitTestRunner/TestInvocation.cpp:
+        (WTR::TestInvocation::createTestSettingsDictionary):
+        Update to call new TestOptions functions.
+
+        * WebKitTestRunner/TestOptions.h:
+        Reworks TestOptions to be an immutable owner of a TestFeatures struct, which is a set
+        of maps that map feature string keys, to values of type bool, double, string or string vector.
+
+        * WebKitTestRunner/TestOptions.cpp:
+        (WTR::merge):
+        Merges two TestFeatures objects. If both contain the same key, the 'additional'
+        TestFeatures overrides the 'base' TestFeatures.
+
+        (WTR::dumpFeatures):
+        Helper to dump features to stderr, useful for debugging.
+
+        (WTR::keyType):
+        Helper for parser to know which value parser to use.
+
+        (WTR::parseBooleanTestHeaderValue):
+        (WTR::parseStringTestHeaderValueAsRelativePath):
+        (WTR::parseStringTestHeaderValueAsURL):
+        Value parsers moved from TestController.cpp
+
+        (WTR::parseTestHeader):
+        Header parser moved from TestController.cpp. Update to now return
+        a TestFeatures object and use keyType to pick value parser rather
+        than inlining the if statements.
+        
+        (WTR::hardcodedFeaturesBasedOnPathForTest):
+        Moved from the TestOptions contructor and reworked to return a TestFeatures
+        object to be merged by the caller.
+
+        (WTR::featureDefaultsFromTestHeaderForTest):
+        Creates a TestFeatures for the test headers of the current test.
+
+        * WebKitTestRunner/cocoa/TestControllerCocoa.mm:
+        (WTR::TestController::platformSpecificFeatureOverridesDefaultsForTest const):
+        Reworked to now return a TestFeatures object that will be merged, rather than updating
+        a TestOptions. Moves enableInAppBrowserPrivacy work to TestController::platformWillRunTest
+        where it is more appropriate.
+
+        (WTR::TestController::platformInitializeDataStore):
+        (WTR::TestController::platformCreateWebView):
+        (WTR::TestController::finishCreatingPlatformWebView):
+        (WTR::TestController::setApplicationBundleIdentifier):
+        (WTR::TestController::cocoaResetStateToConsistentValues):
+        (WTR::contentMode):
+        Update to call new TestOptions functions.
+
+        * WebKitTestRunner/ios/TestControllerIOS.mm:
+        (WTR::TestController::platformResetStateToConsistentValues):
+        (WTR::TestController::platformConfigureViewForTest):
+        Update to call new TestOptions functions.
+        
+        (WTR::TestController::platformSpecificFeatureDefaultsForTest const):
+        (WTR::TestController::updatePlatformSpecificTestOptionsForTest const): Deleted.
+        Moved GeneratedTouchesDebugWindow work to TestController::platformConfigureViewForTest
+        where it is more appropriate and removed shouldShowTouches setting as that is done
+        globally now. 
+        
+        * WebKitTestRunner/mac/PlatformWebViewMac.mm:
+        (WTR::PlatformWebView::PlatformWebView):
+        Update to call new TestOptions functions.
+
+        * WebKitTestRunner/mac/TestControllerMac.mm:
+        (WTR::TestController::platformSpecificFeatureDefaultsForTest const):
+        (WTR::TestController::updatePlatformSpecificTestOptionsForTest const): Deleted.
+        Remove shouldUseRemoteLayerTree and shouldShowWebView, as those are now done globally,
+        and re-implemented useThreadedScrolling to use boolFeatures.
+
+        * WebKitTestRunner/win/TestControllerWin.cpp:
+        (WTR::TestController::platformSpecificFeatureDefaultsForTest const):
+        (WTR::TestController::updatePlatformSpecificTestOptionsForTest const): Deleted.
+        Updated for new signature.
+
+        * WebKitTestRunner/wpe/TestControllerWPE.cpp:
+        (WTR::TestController::platformSpecificFeatureDefaultsForTest const):
+        (WTR::TestController::updatePlatformSpecificTestOptionsForTest const): Deleted.
+        Updated for new signature.
+
+        * WebKitTestRunner/gtk/TestControllerGTK.cpp:
+        (WTR::TestController::platformSpecificFeatureDefaultsForTest const):
+        (WTR::TestController::updatePlatformSpecificTestOptionsForTest const): Deleted.
+        Updated for new signature.
+
+2020-10-08  Alex Christensen  <achristensen@webkit.org>
+
+        REGRESSION (r267763): [ iOS wk2 ] http/tests/in-app-browser-privacy/non-app-bound-domain-does-not-get-app-bound-session.html is a constant failure
+        https://bugs.webkit.org/show_bug.cgi?id=217386
+
+        Reviewed by Brent Fulgham.
+
+        * WebKitTestRunner/cocoa/TestControllerCocoa.mm:
+        (WTR::TestController::platformAddTestOptions const):
+        (WTR::TestController::platformInitializeDataStore):
+        * WebKitTestRunner/ios/TestControllerIOS.mm:
+        (WTR::TestController::platformResetStateToConsistentValues):
+
+2020-10-08  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitpy] Support custom version information
+        https://bugs.webkit.org/show_bug.cgi?id=217485
+        <rdar://problem/70069051>
+
+        Rubber-stamped by Aakash Jain.
+
+        * Scripts/webkitpy/common/system/platforminfo.py:
+        (PlatformInfo.__init__):
+
+2020-10-08  Keith Rollin  <krollin@apple.com>
+
+        Remove copy-webkitlibraries-to-product-directory
+        https://bugs.webkit.org/show_bug.cgi?id=217465
+        <rdar://problem/70082193>
+
+        Reviewed by Darin Adler.
+
+        This script no longer does anything, so remove it along with the
+        scaffolding around it that invokes it during the build.
+
+        * Scripts/build-jsc:
+        * Scripts/build-webkit:
+        * Scripts/copy-webkitlibraries-to-product-directory: Removed.
+
+2020-10-08  Chris Dumez  <cdumez@apple.com>
+
+        Crash under WebKit::WebProcessCache::clear()
+        https://bugs.webkit.org/show_bug.cgi?id=217480
+
+        Reviewed by Geoffrey Garen.
+
+        Add API test coverage.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/ProcessSwapOnNavigation.mm:
+
+2020-10-08  Sihui Liu  <sihui_liu@apple.com>
+
+        Adjust heuristic for checking whether view reaches visually non-empty state
+        https://bugs.webkit.org/show_bug.cgi?id=217400
+
+        Reviewed by Geoffrey Garen.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebKit/deferred-script-load-in-empty-document.html: Added.
+        * TestWebKitAPI/Tests/WebKitCocoa/FirstVisuallyNonEmptyMilestone.mm:
+        (-[RenderingProgressNavigationDelegate _webView:renderingProgressDidChange:]):
+        (TEST):
+
 2020-10-07  Aditya Keerthi  <akeerthi@apple.com>
 
         REGRESSION(r268123): [ iOS ] 4 TestWebKitAPI.WebKitLegacy failures: File name unavailable. Unknown C++ exception thrown in the test body.

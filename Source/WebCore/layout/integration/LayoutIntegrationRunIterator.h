@@ -48,9 +48,9 @@ class PathRun {
 public:
     using PathVariant = Variant<
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-        ModernPath,
+        RunIteratorModernPath,
 #endif
-        LegacyPath
+        RunIteratorLegacyPath
     >;
 
     PathRun(PathVariant&&);
@@ -92,9 +92,9 @@ protected:
 
     // To help with debugging.
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-    ModernPath& modernPath();
+    const RunIteratorModernPath& modernPath() const;
 #endif
-    LegacyPath& legacyPath();
+    const RunIteratorLegacyPath& legacyPath() const;
 
     PathVariant m_pathVariant;
 };
@@ -111,6 +111,8 @@ public:
     unsigned localEndOffset() const;
     unsigned length() const;
 
+    unsigned offsetForPosition(float x) const;
+
     bool isLastTextRunOnLine() const;
     bool isLastTextRun() const;
 
@@ -119,7 +121,7 @@ public:
 
 class RunIterator {
 public:
-    RunIterator() : m_run(LegacyPath { nullptr, { } }) { };
+    RunIterator() : m_run(RunIteratorLegacyPath { nullptr, { } }) { };
     RunIterator(PathRun::PathVariant&&);
 
     explicit operator bool() const { return !atEnd(); }
@@ -331,6 +333,13 @@ inline unsigned PathTextRun::length() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.length();
+    });
+}
+
+inline unsigned PathTextRun::offsetForPosition(float x) const
+{
+    return WTF::switchOn(m_pathVariant, [&](auto& path) {
+        return path.offsetForPosition(x);
     });
 }
 

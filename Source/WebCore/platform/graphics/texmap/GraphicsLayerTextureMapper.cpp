@@ -272,6 +272,15 @@ void GraphicsLayerTextureMapper::setContentsRect(const FloatRect& value)
     notifyChange(ContentsRectChange);
 }
 
+void GraphicsLayerTextureMapper::setContentsClippingRect(const FloatRoundedRect& rect)
+{
+    if (rect == m_contentsClippingRect)
+        return;
+
+    GraphicsLayer::setContentsClippingRect(rect);
+    notifyChange(ContentsRectChange);
+}
+
 void GraphicsLayerTextureMapper::setContentsToSolidColor(const Color& color)
 {
     if (color == m_solidColor)
@@ -407,6 +416,23 @@ void GraphicsLayerTextureMapper::commitLayerChanges()
     if (m_changeMask & ReplicaLayerChange)
         m_layer.setReplicaLayer(&downcast<GraphicsLayerTextureMapper>(replicaLayer())->layer());
 
+    if (m_changeMask & BackdropLayerChange) {
+        if (needsBackdrop()) {
+            if (!m_backdropLayer) {
+                m_backdropLayer = makeUnique<TextureMapperLayer>();
+                m_backdropLayer->setAnchorPoint(FloatPoint3D());
+                m_backdropLayer->setContentsVisible(true);
+                m_backdropLayer->setMasksToBounds(true);
+            }
+            m_backdropLayer->setFilters(m_backdropFilters);
+            m_backdropLayer->setSize(m_backdropFiltersRect.rect().size());
+            m_backdropLayer->setPosition(m_backdropFiltersRect.rect().location());
+        } else
+            m_backdropLayer = nullptr;
+
+        m_layer.setBackdropLayer(m_backdropLayer.get());
+    }
+
     if (m_changeMask & PositionChange)
         m_layer.setPosition(position());
 
@@ -425,8 +451,10 @@ void GraphicsLayerTextureMapper::commitLayerChanges()
     if (m_changeMask & Preserves3DChange)
         m_layer.setPreserves3D(preserves3D());
 
-    if (m_changeMask & ContentsRectChange)
+    if (m_changeMask & ContentsRectChange) {
         m_layer.setContentsRect(contentsRect());
+        m_layer.setContentsClippingRect(contentsClippingRect());
+    }
 
     if (m_changeMask & MasksToBoundsChange)
         m_layer.setMasksToBounds(masksToBounds());
@@ -480,10 +508,16 @@ void GraphicsLayerTextureMapper::flushCompositingState(const FloatRect& rect)
 
     flushCompositingStateForThisLayerOnly();
 
+    auto now = MonotonicTime::now();
+
     if (maskLayer())
         maskLayer()->flushCompositingState(rect);
-    if (replicaLayer())
+    if (replicaLayer()) {
         replicaLayer()->flushCompositingState(rect);
+        downcast<GraphicsLayerTextureMapper>(replicaLayer())->layer().applyAnimationsRecursively(now);
+    }
+    if (m_backdropLayer)
+        m_backdropLayer->applyAnimationsRecursively(now);
     for (auto& child : children())
         child->flushCompositingState(rect);
 }
@@ -614,6 +648,31 @@ bool GraphicsLayerTextureMapper::setFilters(const FilterOperations& filters)
     }
 
     return canCompositeFilters;
+}
+
+bool GraphicsLayerTextureMapper::setBackdropFilters(const FilterOperations& filters)
+{
+    bool canCompositeFilters = filtersCanBeComposited(filters);
+    if (m_backdropFilters == filters)
+        return canCompositeFilters;
+
+    if (canCompositeFilters)
+        GraphicsLayer::setBackdropFilters(filters);
+    else
+        clearBackdropFilters();
+
+    notifyChange(BackdropLayerChange);
+
+    return canCompositeFilters;
+}
+
+void GraphicsLayerTextureMapper::setBackdropFiltersRect(const FloatRoundedRect& backdropFiltersRect)
+{
+    if (m_backdropFiltersRect == backdropFiltersRect)
+        return;
+
+    GraphicsLayer::setBackdropFiltersRect(backdropFiltersRect);
+    notifyChange(BackdropLayerChange);
 }
 
 }
