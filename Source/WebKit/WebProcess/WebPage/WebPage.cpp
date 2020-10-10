@@ -46,6 +46,7 @@
 #include "LibWebRTCProvider.h"
 #include "LoadParameters.h"
 #include "Logging.h"
+#include "MediaPlaybackState.h"
 #include "MediaRecorderProvider.h"
 #include "NetscapePlugin.h"
 #include "NetworkConnectionToWebProcessMessages.h"
@@ -570,7 +571,7 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     if (!parameters.crossOriginAccessControlCheckEnabled)
         CrossOriginAccessControlCheckDisabler::singleton().setCrossOriginAccessControlCheckEnabled(false);
 
-#if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(IOS_FAMILY)
+#if ENABLE(ATTACHMENT_ELEMENT)
     if (parameters.frontboardExtensionHandle)
         SandboxExtension::consumePermanently(*parameters.frontboardExtensionHandle);
     if (parameters.iconServicesExtensionHandle)
@@ -789,6 +790,10 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
         WebProcess::singleton().ensureGPUProcessConnection().updateParameters(parameters);
 #endif
 
+#if ENABLE(IPC_TESTING_API)
+    m_visitedLinkTableID = parameters.visitedLinkTableID;
+#endif
+
 #if ENABLE(VP9)
     if (parameters.shouldEnableVP9Decoder)
         WebProcess::singleton().enableVP9Decoder();
@@ -802,19 +807,34 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     updateThrottleState();
 }
 
-void WebPage::stopAllMediaPlayback()
+void WebPage::requestMediaPlaybackState(CompletionHandler<void(WebKit::MediaPlaybackState)>&& completionHandler)
 {
-    m_page->stopAllMediaPlayback();
+    if (!m_page->mediaPlaybackExists())
+        return completionHandler(MediaPlaybackState::NoMediaPlayback);
+    if (m_page->mediaPlaybackIsPaused())
+        return completionHandler(MediaPlaybackState::MediaPlaybackPaused);
+    if (m_page->mediaPlaybackIsSuspended())
+        return completionHandler(MediaPlaybackState::MediaPlaybackSuspended);
+
+    completionHandler(MediaPlaybackState::MediaPlaybackPlaying);
 }
 
-void WebPage::suspendAllMediaPlayback()
+void WebPage::pauseAllMediaPlayback(CompletionHandler<void(void)>&& completionHandler)
+{
+    m_page->pauseAllMediaPlayback();
+    completionHandler();
+}
+
+void WebPage::suspendAllMediaPlayback(CompletionHandler<void(void)>&& completionHandler)
 {
     m_page->suspendAllMediaPlayback();
+    completionHandler();
 }
 
-void WebPage::resumeAllMediaPlayback()
+void WebPage::resumeAllMediaPlayback(CompletionHandler<void(void)>&& completionHandler)
 {
     m_page->resumeAllMediaPlayback();
+    completionHandler();
 }
 
 void WebPage::suspendAllMediaBuffering()
@@ -3783,6 +3803,10 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
     static_cast<WebMediaStrategy&>(platformStrategies()->mediaStrategy()).setUseGPUProcess(settings.useGPUProcessForMediaEnabled());
     WebProcess::singleton().supplement<RemoteMediaPlayerManager>()->updatePreferences(settings);
     WebProcess::singleton().setUseGPUProcessForMedia(settings.useGPUProcessForMediaEnabled());
+#endif
+
+#if ENABLE(IPC_TESTING_API)
+    m_ipcTestingAPIEnabled = store.getBoolValueForKey(WebPreferencesKey::ipcTestingAPIEnabledKey());
 #endif
 }
 
@@ -7196,6 +7220,8 @@ bool WebPage::shouldUseRemoteRenderingFor(RenderingPurpose purpose)
     switch (purpose) {
     case RenderingPurpose::Canvas:
         return m_shouldRenderCanvasInGPUProcess;
+    case RenderingPurpose::MediaPainting:
+        return m_page->settings().useGPUProcessForMediaEnabled();
     default:
         break;
     }

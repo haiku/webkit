@@ -37,6 +37,8 @@
 #include "ErrorEvent.h"
 #include "JSDOMExceptionHandling.h"
 #include "JSDOMWindow.h"
+#include "JSWorkerGlobalScope.h"
+#include "JSWorkletGlobalScope.h"
 #include "LegacySchemeRegistry.h"
 #include "MessagePort.h"
 #include "Navigator.h"
@@ -53,6 +55,7 @@
 #include "ServiceWorkerGlobalScope.h"
 #include "ServiceWorkerProvider.h"
 #include "Settings.h"
+#include "WebCoreJSClientData.h"
 #include "WorkerGlobalScope.h"
 #include "WorkerNavigator.h"
 #include "WorkerOrWorkletGlobalScope.h"
@@ -61,6 +64,7 @@
 #include "WorkletGlobalScope.h"
 #include "WorkletScriptController.h"
 #include <JavaScriptCore/CatchScope.h>
+#include <JavaScriptCore/DeferredWorkTimer.h>
 #include <JavaScriptCore/Exception.h>
 #include <JavaScriptCore/JSPromise.h>
 #include <JavaScriptCore/ScriptCallStack.h>
@@ -206,18 +210,14 @@ void ScriptExecutionContext::dispatchMessagePortEvents()
 
 void ScriptExecutionContext::createdMessagePort(MessagePort& messagePort)
 {
-    ASSERT((is<Document>(*this) && isMainThread())
-        || (is<WorkerOrWorkletGlobalScope>(*this) && downcast<WorkerOrWorkletGlobalScope>(*this).workerOrWorkletThread() && downcast<WorkerOrWorkletGlobalScope>(*this).workerOrWorkletThread()->thread() == &Thread::current())
-        || (is<WorkerOrWorkletGlobalScope>(*this) && !downcast<WorkerOrWorkletGlobalScope>(*this).workerOrWorkletThread() && isMainThread()));
+    ASSERT(isContextThread());
 
     m_messagePorts.add(&messagePort);
 }
 
 void ScriptExecutionContext::destroyedMessagePort(MessagePort& messagePort)
 {
-    ASSERT((is<Document>(*this) && isMainThread())
-        || (is<WorkerOrWorkletGlobalScope>(*this) && downcast<WorkerOrWorkletGlobalScope>(*this).workerOrWorkletThread() && downcast<WorkerOrWorkletGlobalScope>(*this).workerOrWorkletThread()->thread() == &Thread::current())
-        || (is<WorkerOrWorkletGlobalScope>(*this) && !downcast<WorkerOrWorkletGlobalScope>(*this).workerOrWorkletThread() && isMainThread()));
+    ASSERT(isContextThread());
 
     m_messagePorts.remove(&messagePort);
 }
@@ -248,6 +248,15 @@ void ScriptExecutionContext::forEachActiveDOMObject(const Function<ShouldContinu
         if (apply(*activeDOMObject) == ShouldContinue::No)
             break;
     }
+}
+
+JSC::ScriptExecutionStatus ScriptExecutionContext::jscScriptExecutionStatus() const
+{
+    if (activeDOMObjectsAreSuspended())
+        return JSC::ScriptExecutionStatus::Suspended;
+    if (activeDOMObjectsAreStopped())
+        return JSC::ScriptExecutionStatus::Stopped;
+    return JSC::ScriptExecutionStatus::Running;
 }
 
 void ScriptExecutionContext::suspendActiveDOMObjects(ReasonForSuspension why)
@@ -283,6 +292,8 @@ void ScriptExecutionContext::resumeActiveDOMObjects(ReasonForSuspension why)
         activeDOMObject.resume();
         return ShouldContinue::Yes;
     });
+
+    vm().deferredWorkTimer->didResumeScriptExecutionOwner();
 
     m_activeDOMObjectsAreSuspended = false;
 

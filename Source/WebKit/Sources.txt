@@ -211,6 +211,7 @@ Shared/API/c/WKRenderLayer.cpp
 Shared/API/c/WKRenderObject.cpp
 Shared/WebTouchEvent.cpp @no-unify
 Shared/WebUserContentControllerDataTypes.cpp
+Shared/WebWheelEventCoalescer.cpp
 Shared/WebWheelEvent.cpp @no-unify
 Shared/WebsiteDataStoreParameters.cpp
 Shared/WebsitePoliciesData.cpp
@@ -652,6 +653,7 @@ WebProcess/WebCoreSupport/WebSpeechSynthesisClient.cpp
 WebProcess/WebPage/DrawingArea.cpp
 WebProcess/WebPage/EventDispatcher.cpp
 WebProcess/WebPage/FindController.cpp
+WebProcess/WebPage/IPCTestingAPI.cpp
 WebProcess/WebPage/PageBanner.cpp
 WebProcess/WebPage/VisitedLinkTableController.cpp
 WebProcess/WebPage/WebBackForwardListProxy.cpp

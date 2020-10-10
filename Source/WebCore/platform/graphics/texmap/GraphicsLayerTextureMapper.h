@@ -61,11 +61,14 @@ public:
     void setBackfaceVisibility(bool) override;
     void setOpacity(float) override;
     bool setFilters(const FilterOperations&) override;
+    bool setBackdropFilters(const FilterOperations&) override;
+    void setBackdropFiltersRect(const FloatRoundedRect&) override;
 
     void setNeedsDisplay() override;
     void setNeedsDisplayInRect(const FloatRect&, ShouldClipToLayer = ClipToLayer) override;
     void setContentsNeedsDisplay() override;
     void setContentsRect(const FloatRect&) override;
+    void setContentsClippingRect(const FloatRoundedRect&) override;
 
     bool addAnimation(const KeyframeValueList&, const FloatSize&, const Animation*, const String&, double) override;
     void pauseAnimation(const String&, double) override;
@@ -145,10 +148,12 @@ private:
         RepaintCountChange =        (1L << 25),
 
         AnimationStarted =          (1L << 26),
+        BackdropLayerChange =       (1L << 27),
     };
     void notifyChange(ChangeMask);
 
     TextureMapperLayer m_layer;
+    std::unique_ptr<TextureMapperLayer> m_backdropLayer;
     RefPtr<TextureMapperTiledBackingStore> m_compositedImage;
     NativeImagePtr m_compositedNativeImagePtr;
     RefPtr<TextureMapperTiledBackingStore> m_backingStore;

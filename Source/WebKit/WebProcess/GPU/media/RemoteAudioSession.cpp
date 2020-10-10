@@ -65,12 +65,21 @@ IPC::Connection& RemoteAudioSession::connection()
 
 void RemoteAudioSession::setCategory(CategoryType type, RouteSharingPolicy policy)
 {
-    if (type == m_category && policy == m_routeSharingPolicy)
+#if PLATFORM(IOS_FAMILY)
+    if (type == m_configuration.category && policy == m_configuration.routeSharingPolicy)
         return;
 
-    m_category = type;
-    m_routeSharingPolicy = policy;
-    connection().send(Messages::RemoteAudioSessionProxy::SetCategory(m_category, m_routeSharingPolicy), { });
+    m_configuration.category = type;
+    m_configuration.routeSharingPolicy = policy;
+
+    connection().send(Messages::RemoteAudioSessionProxy::SetCategory(type, policy), { });
+#elif PLATFORM(MAC)
+    // FIXME: Move AudioSessionRoutingArbitratorProxy to the GPU process (webkit.org/b/217535)
+    AudioSession::setCategory(type, policy);
+#else
+    UNUSED_PARAM(type);
+    UNUSED_PARAM(policy);
+#endif
 }
 
 void RemoteAudioSession::setPreferredBufferSize(size_t size)
@@ -82,7 +91,20 @@ bool RemoteAudioSession::tryToSetActiveInternal(bool active)
 {
     bool succeeded;
     connection().sendSync(Messages::RemoteAudioSessionProxy::TryToSetActive(active), Messages::RemoteAudioSessionProxy::TryToSetActive::Reply(succeeded), { });
+    if (succeeded)
+        m_configuration.isActive = active;
     return succeeded;
+}
+
+AudioSession::CategoryType RemoteAudioSession::category() const
+{
+#if PLATFORM(IOS_FAMILY)
+    return m_configuration.category;
+#elif PLATFORM(MAC)
+    return AudioSession::category();
+#else
+    return None;
+#endif
 }
 
 void RemoteAudioSession::configurationChanged(RemoteAudioSessionConfiguration&& configuration)

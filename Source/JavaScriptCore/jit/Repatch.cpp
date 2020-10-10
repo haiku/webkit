@@ -96,7 +96,7 @@ void ftlThunkAwareRepatchCall(CodeBlock* codeBlock, CodeLocationCall<JSInternalP
         auto slowPathThunk = MacroAssemblerCodePtr<JITThunkPtrTag>::createFromExecutableAddress(target.executableAddress());
         FTL::SlowPathCallKey key = thunks.keyForSlowPathCallThunk(slowPathThunk);
         key = key.withCallTarget(newCalleeFunction);
-        MacroAssembler::repatchCall(call, FunctionPtr<OperationPtrTag>(thunks.getSlowPathCallThunk(vm, key).retaggedCode<OperationPtrTag>()));
+        MacroAssembler::repatchCall(call, FunctionPtr<JITThunkPtrTag>(thunks.getSlowPathCallThunk(vm, key).code()));
         return;
     }
 #else // ENABLE(FTL_JIT)

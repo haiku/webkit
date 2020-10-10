@@ -34,6 +34,7 @@ namespace WebCore {
 namespace LayoutIntegration {
 
 class LineIterator;
+class LineRunIterator;
 class PathIterator;
 
 struct EndLineIterator { };
@@ -42,17 +43,18 @@ class PathLine {
 public:
     using PathVariant = Variant<
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-        ModernLinePath,
+        LineIteratorModernPath,
 #endif
-        LegacyLinePath
+        LineIteratorLegacyPath
     >;
 
     PathLine(PathVariant&&);
 
-    FloatRect rect() const;
-
-    bool operator==(const PathLine&) const;
-    bool operator!=(const PathLine& other) const { return !(*this == other); }
+    LayoutUnit top() const;
+    LayoutUnit bottom() const;
+    LayoutUnit selectionTop() const;
+    LayoutUnit selectionTopForHitTesting() const;
+    LayoutUnit selectionBottom() const;
 
 protected:
     friend class LineIterator;
@@ -62,7 +64,7 @@ protected:
 
 class LineIterator {
 public:
-    LineIterator() : m_line(LegacyLinePath { nullptr }) { };
+    LineIterator() : m_line(LineIteratorLegacyPath { nullptr }) { };
     LineIterator(PathLine::PathVariant&&);
 
     LineIterator& operator++() { return traverseNext(); }
@@ -74,8 +76,8 @@ public:
 
     explicit operator bool() const { return !atEnd(); }
 
-    bool operator==(const LineIterator& other) const { return m_line == other.m_line; }
-    bool operator!=(const LineIterator& other) const { return m_line != other.m_line; }
+    bool operator==(const LineIterator&) const;
+    bool operator!=(const LineIterator& other) const { return !(*this == other); }
 
     bool operator==(EndLineIterator) const { return atEnd(); }
     bool operator!=(EndLineIterator) const { return !atEnd(); }
@@ -84,6 +86,11 @@ public:
     const PathLine* operator->() const { return &m_line; }
 
     bool atEnd() const;
+
+    LineRunIterator firstRun() const;
+    LineRunIterator lastRun() const;
+    LineRunIterator logicalStartRunWithNode() const;
+    LineRunIterator logicalEndRunWithNode() const;
 
 private:
     PathLine m_line;
@@ -98,20 +105,38 @@ inline PathLine::PathLine(PathVariant&& path)
 {
 }
 
-inline FloatRect PathLine::rect() const
+inline LayoutUnit PathLine::top() const
 {
-    return WTF::switchOn(m_pathVariant, [](auto& path) {
-        return path.rect();
+    return WTF::switchOn(m_pathVariant, [](const auto& path) {
+        return path.top();
     });
 }
 
-inline bool PathLine::operator==(const PathLine& other) const
+inline LayoutUnit PathLine::bottom() const
 {
-    if (m_pathVariant.index() != other.m_pathVariant.index())
-        return false;
+    return WTF::switchOn(m_pathVariant, [](const auto& path) {
+        return path.top();
+    });
+}
 
-    return WTF::switchOn(m_pathVariant, [&](const auto& path) {
-        return path == WTF::get<std::decay_t<decltype(path)>>(other.m_pathVariant);
+inline LayoutUnit PathLine::selectionTop() const
+{
+    return WTF::switchOn(m_pathVariant, [](const auto& path) {
+        return path.selectionTop();
+    });
+}
+
+inline LayoutUnit PathLine::selectionTopForHitTesting() const
+{
+    return WTF::switchOn(m_pathVariant, [](const auto& path) {
+        return path.selectionTopForHitTesting();
+    });
+}
+
+inline LayoutUnit PathLine::selectionBottom() const
+{
+    return WTF::switchOn(m_pathVariant, [](const auto& path) {
+        return path.selectionBottom();
     });
 }
 
