@@ -1,3 +1,260 @@
+2020-10-13  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][IFC] Remove fully collapsed trailing run
+        https://bugs.webkit.org/show_bug.cgi?id=217653
+
+        Reviewed by Antti Koivisto.
+
+        * fast/layoutformattingcontext/replaced-and-trailing-trimmable-content-expected.html: Added.
+        * fast/layoutformattingcontext/replaced-and-trailing-trimmable-content.html: Added.
+
+2020-10-13  Philippe Normand  <pnormand@igalia.com>
+
+        [GStreamer] Crash in WebCore::GStreamerRegistryScanner::isAVC1CodecSupported
+        https://bugs.webkit.org/show_bug.cgi?id=217647
+
+        Reviewed by Xabier Rodriguez-Calvar.
+
+        * media/media-can-play-mpeg4-video-expected.txt:
+        * media/media-can-play-mpeg4-video.html: Add test for "avc1" codec.
+
+2020-10-13  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [GTK] Add support for gamepad tests
+        https://bugs.webkit.org/show_bug.cgi?id=98937
+
+        Reviewed by Carlos Garcia Campos.
+
+        Change PLATFORM(MAC) guards to ENABLE(GAMEPAD) around the support code used for
+        testing gamepad support in WKTR, and update GTK port test expectations accordingly.
+
+        * platform/glib/TestExpectations: Remove skipped gamepad tests.
+        * platform/wpe/TestExpectations: Skip gamepad tests for the WPE port.
+
+2020-10-12  Zalan Bujtas  <zalan@apple.com>
+
+        REGRESSION (r268294): [ iOS wk2 ] imported/blink/fast/css/zoomed-intrinsic-width.html is a constant image failure
+        https://bugs.webkit.org/show_bug.cgi?id=217610
+        <rdar://problem/70207977>
+
+        Reviewed by Antti Koivisto.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
+2020-10-12  Hector Lopez  <hector_i_lopez@apple.com>
+
+        [ macOS iOS Debug ] imported/w3c/web-platform-tests/xhr/event-timeout.any.worker.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217641
+
+        Unreviewed test gardening.
+
+        * platform/ios-wk2/TestExpectations:
+        * platform/mac/TestExpectations:
+
+2020-10-12  Hector Lopez  <hector_i_lopez@apple.com>
+
+        Test expectation adjustment
+        https://bugs.webkit.org/show_bug.cgi?id=209073
+
+        Unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
+2020-10-12  Hector Lopez  <hector_i_lopez@apple.com>
+
+        Test expectation adjustment
+        https://bugs.webkit.org/show_bug.cgi?id=209073
+
+        Unreviewed test gardening.
+
+        * platform/mac-wk1/TestExpectations:
+        * platform/mac/TestExpectations:
+
+2020-10-12  Chris Dumez  <cdumez@apple.com>
+
+        Calling AudioContext.resume() right after AudioContext.suspend() should not be a no-op
+        https://bugs.webkit.org/show_bug.cgi?id=217628
+
+        Reviewed by Darin Adler.
+
+        * TestExpectations:
+        Unskip test that is no longer timing out.
+
+        * webaudio/audiocontext-promise-expected.txt:
+        * webaudio/audiocontext-promise.html:
+        Udpate existing layout test to reflect behavior change.
+
+2020-10-12  Chris Dumez  <cdumez@apple.com>
+
+        Use AudioWorkletProcessor to process audio
+        https://bugs.webkit.org/show_bug.cgi?id=217531
+
+        Reviewed by Youenn Fablet and Saam Barati.
+
+        Unskip all AudioWorklet tests now that they are no longer timing out.
+
+        * TestExpectations:
+
+2020-10-12  Hector Lopez  <hector_i_lopez@apple.com>
+
+        [ macOS iOS ] 2 imported/w3c/web-platform-tests/service-workers/service-worker/* tests are flaky failures
+        https://bugs.webkit.org/show_bug.cgi?id=217617
+
+        Unreviewed test gardening.
+
+        * TestExpectations:
+
+2020-10-12  Youenn Fablet  <youenn@apple.com>
+
+        [ iOS ] 2 mediacapture-record tests are a constant failure
+        https://bugs.webkit.org/show_bug.cgi?id=217263
+        <rdar://problem/69904225>
+
+        Unreviewed.
+        Marking some tests as slow.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+        * platform/ios-wk2/TestExpectations:
+
+2020-10-12  Youenn Fablet  <youenn@apple.com>
+
+        REGRESSION: [ Catalina wk2 ] imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-peerconnection.https.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217262
+        <rdar://problem/69904100>
+
+        Unreviewed.
+
+        * platform/mac/TestExpectations:
+        Removed flaky expectation now that it passes consistently.
+
+2020-10-11  Darin Adler  <darin@apple.com>
+
+        Selection API: Update some more tests to not *require* non-standard behavior
+        https://bugs.webkit.org/show_bug.cgi?id=217597
+
+        Reviewed by Anders Carlsson.
+
+        * editing/mac/selection/doubleclick-should-not-expand-across-lines-expected.txt:
+        * editing/mac/selection/doubleclick-should-not-expand-across-lines.html:
+        Updated this test and its result to not rely in getSelection() returning a selection
+        inside a textarea element. Doing that is non-standard incorrect behavior. Instead,
+        use the selectionStart, selectionEnd, and value methods on the textarea element to
+        check the same thing in a standard way.
+
+        * editing/selection/DOMSelection-DocumentType-expected.txt: Removed.
+        * editing/selection/DOMSelection-DocumentType.html: Removed.
+        * editing/selection/addRange.html: Removed.
+        * editing/selection/legal-positions-expected.txt: Removed.
+        * editing/selection/legal-positions.html: Removed.
+        * editing/selection/selection-invalid-offset-expected.txt: Removed.
+        * editing/selection/selection-invalid-offset.html: Removed.
+        * platform/gtk/editing/selection/addRange-expected.png: Removed.
+        * platform/gtk/editing/selection/addRange-expected.txt: Removed.
+        * platform/ios/editing/selection/addRange-expected.txt: Removed.
+        * platform/mac/editing/selection/addRange-expected.png: Removed.
+        * platform/mac/editing/selection/addRange-expected.txt: Removed.
+        * platform/win/editing/selection/addRange-expected.txt: Removed.
+        * platform/wincairo/editing/selection/addRange-expected.txt: Removed.
+        These test results expect and require incorrect non-standard behavior.
+        In most cases they also cover things that are tested by web-platform-tests.
+        So we don't need to keep these tests around.
+
+2020-10-12  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (r268294): [ iOS wk2 ] imported/blink/fast/css/zoomed-intrinsic-width.html is a constant image failure
+        https://bugs.webkit.org/show_bug.cgi?id=217610
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
+2020-10-12  Martin Robinson  <mrobinson@igalia.com>
+
+        Improve serialization of scroll-snap-type
+        https://bugs.webkit.org/show_bug.cgi?id=217469
+
+        Reviewed by Simon Fraser.
+
+        * web-platform-tests/css/css-scroll-snap/inheritance-expected.txt: Tests now passing.
+        * web-platform-tests/css/css-scroll-snap/parsing/scroll-snap-type-computed-expected.txt: Ditto.
+        * css3/scroll-snap/scroll-snap-inherit-expected.txt: Update test to reflect new serialization.
+        * css3/scroll-snap/scroll-snap-inherit.html: Ditto.
+        * css3/scroll-snap/scroll-snap-initial-expected.txt: Ditto.
+        * css3/scroll-snap/scroll-snap-initial.html: Ditto.
+        * css3/scroll-snap/scroll-snap-property-computed-style-expected.txt: Ditto.
+        * css3/scroll-snap/scroll-snap-property-computed-style.js: Ditto.
+        * tiled-drawing/scrolling/scroll-snap/scroll-snap-mandatory-then-proximity-expected.txt: Ditto.
+
+2020-10-11  Rob Buis  <rbuis@igalia.com>
+
+        Various test-cases from Gecko assert with ASSERTION FAILED: tagName == mmultiscriptsTag or ASSERTION FAILED: tagName == mrootTag
+        https://bugs.webkit.org/show_bug.cgi?id=202804
+
+        Reviewed by Frédéric Wang.
+
+        Reduce Gecko test crashes into two tests.
+
+        * mathml/scripts-with-prefixes-expected.txt: Added.
+        * mathml/scripts-with-prefixes.xhtml: Added.
+        * mathml/square-roots-with-prefixes-expected.txt: Added.
+        * mathml/square-roots-with-prefixes.xhtml: Added.
+
+2020-10-10  Darin Adler  <darin@apple.com>
+
+        REGRESSION (r267761): editing/mac/spelling/autocorrection-contraction.html is a constant timeout on macOS wk2 Debug
+        https://bugs.webkit.org/show_bug.cgi?id=217548
+
+        Reviewed by Alexey Proskuryakov.
+
+        * editing/mac/spelling/autocorrection-contraction-expected.html: Added.
+        * editing/mac/spelling/autocorrection-contraction-expected.png: Removed.
+        * editing/mac/spelling/autocorrection-contraction-expected.txt: Removed.
+        * editing/mac/spelling/autocorrection-contraction.html: Simplified this and changed it to a ref test.
+        * platform/mac-wk2/editing/mac/spelling/autocorrection-contraction-expected.png: Removed.
+        * platform/mac-wk2/editing/mac/spelling/autocorrection-contraction-expected.txt: Removed.
+        * platform/win/editing/mac/spelling/autocorrection-contraction-expected.txt: Removed.
+
+        * platform/mac/TestExpectations: Remove failure and timeout expectations for autocorrection-contraction.html.
+        Both because the slowness in WebKitTestRunner causing the timeout issue was fixed, and because the new
+        reference test is unlikely to be flaky.
+
+        * platform/wk2/TestExpectations: Removed timeout expectations for two other tests affected by the same
+        bug in WebKitTestRunner.
+
+2020-10-10  Oriol Brufau  <obrufau@igalia.com>
+
+        Fix mac expectations for text-selection.html
+        https://bugs.webkit.org/show_bug.cgi?id=217475
+
+        Reviewed by Alexey Proskuryakov.
+
+        In Mojave this test produces a different result than in other platforms.
+        r268233 already added a Mojave-specific expected.txt, this patch removes
+        the failure from TestExpectations and removes the Mac-specific
+        expected.txt, which is identical to the non-platform-specific one.
+
+
+        * platform/mac/TestExpectations:
+        * platform/mac/imported/w3c/web-platform-tests/css/css-pseudo/text-selection-expected.txt: Removed.
+
+2020-10-09  Hector Lopez  <hector_i_lopez@apple.com>
+
+        [ macOS wk2 Debug ] editing/mac/spelling/autocorrection-contraction.html is a constant timeout
+        https://bugs.webkit.org/show_bug.cgi?id=217548
+
+        Unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
+2020-10-09  Hector Lopez  <hector_i_lopez@apple.com>
+
+        [ macOS ] webaudio/OfflineAudioContext/onstatechange.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217543
+
+        Unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
 2020-10-09  Hector Lopez  <hector_i_lopez@apple.com>
 
         REGRESSION(r268161?): [ macOS ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/processing-after-resume.https.html is a flaky failure

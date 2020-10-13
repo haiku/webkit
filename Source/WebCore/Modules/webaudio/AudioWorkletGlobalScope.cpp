@@ -38,6 +38,7 @@
 #include "JSAudioWorkletProcessor.h"
 #include "JSAudioWorkletProcessorConstructor.h"
 #include "JSDOMConvert.h"
+#include <JavaScriptCore/JSLock.h>
 #include <wtf/CrossThreadCopier.h>
 #include <wtf/IsoMallocInlines.h>
 
@@ -118,7 +119,7 @@ RefPtr<AudioWorkletProcessor> AudioWorkletGlobalScope::createProcessor(const Str
         return nullptr;
 
     JSC::JSObject* jsConstructor = constructor->callbackData()->callback();
-    auto* globalObject = jsConstructor->globalObject();
+    auto* globalObject = constructor->callbackData()->globalObject();
     JSC::VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
     JSC::JSLockHolder lock { globalObject };
@@ -136,6 +137,8 @@ RefPtr<AudioWorkletProcessor> AudioWorkletGlobalScope::createProcessor(const Str
     RETURN_IF_EXCEPTION(scope, nullptr);
 
     auto& jsProcessor = *JSC::jsCast<JSAudioWorkletProcessor*>(object);
+    jsProcessor.wrapped().setProcessCallback(makeUnique<JSCallbackDataStrong>(&jsProcessor, globalObject));
+
     return &jsProcessor.wrapped();
 }
 
@@ -170,6 +173,21 @@ std::unique_ptr<AudioWorkletProcessorConstructionData> AudioWorkletGlobalScope::
 AudioWorkletThread& AudioWorkletGlobalScope::thread() const
 {
     return *static_cast<AudioWorkletThread*>(workerOrWorkletThread());
+}
+
+void AudioWorkletGlobalScope::handlePreRenderTasks()
+{
+    // We grab the JS API lock at the beginning of rendering and release it at the end of rendering.
+    // This makes sure that we only drain the MicroTask queue after each render quantum.
+    m_lockDuringRendering.emplace(script()->vm());
+}
+
+void AudioWorkletGlobalScope::handlePostRenderTasks(size_t currentFrame)
+{
+    m_currentFrame = currentFrame;
+
+    // This takes care of processing the MicroTask queue after rendering.
+    m_lockDuringRendering = WTF::nullopt;
 }
 
 } // namespace WebCore

@@ -217,8 +217,6 @@ ALWAYS_INLINE static JSValue getByValObject(JSGlobalObject* globalObject, VM& vm
     return base->get(globalObject, propertyName);
 }
 
-extern "C" {
-
 JSC_DEFINE_JIT_OPERATION(operationToThis, EncodedJSValue, (JSGlobalObject* globalObject, EncodedJSValue encodedOp))
 {
     VM& vm = globalObject->vm();
@@ -3781,7 +3779,7 @@ static char* tierUpCommon(VM& vm, CallFrame* callFrame, BytecodeIndex originByte
                 ASSERT(canOSREnterHere);
                 if (void* address = FTL::prepareOSREntry(vm, callFrame, codeBlock, entryBlock, originBytecodeIndex, streamIndex)) {
                     CODEBLOCK_LOG_EVENT(entryBlock, "osrEntry", ("at ", originBytecodeIndex));
-                    return retagCodePtr<char*>(address, JSEntryPtrTag, bitwise_cast<PtrTag>(callFrame));
+                    return tagCodePtrWithStackPointerForJITCall(untagCodePtr<char*, JSEntryPtrTag>(address), callFrame);
                 }
             }
         }
@@ -3936,7 +3934,7 @@ static char* tierUpCommon(VM& vm, CallFrame* callFrame, BytecodeIndex originByte
     void* address = FTL::prepareOSREntry(vm, callFrame, codeBlock, jitCode->osrEntryBlock(), originBytecodeIndex, streamIndex);
     if (!address)
         return nullptr;
-    return retagCodePtr<char*>(address, JSEntryPtrTag, bitwise_cast<PtrTag>(callFrame));
+    return tagCodePtrWithStackPointerForJITCall(untagCodePtr<char*, JSEntryPtrTag>(address), callFrame);
 }
 
 JSC_DEFINE_JIT_OPERATION(operationTriggerTierUpNowInLoop, void, (VM* vmPointer, unsigned bytecodeIndexBits))
@@ -3996,7 +3994,6 @@ JSC_DEFINE_JIT_OPERATION(operationTriggerOSREntryNow, char*, (VM* vmPointer, uns
 
 #endif // ENABLE(FTL_JIT)
 
-} // extern "C"
 } } // namespace JSC::DFG
 
 IGNORE_WARNINGS_END

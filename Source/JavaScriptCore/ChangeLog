@@ -1,3 +1,241 @@
+2020-10-12  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        JIT operations do not need extern "C"
+        https://bugs.webkit.org/show_bug.cgi?id=217636
+
+        Reviewed by Saam Barati.
+
+        Since they are directly embedded by JIT code generator (not linked via linker), they do not need to be C linkage.
+
+        * dfg/DFGOperations.cpp:
+        * dfg/DFGOperations.h:
+        * ftl/FTLOSRExitCompiler.cpp:
+        * ftl/FTLOSRExitCompiler.h:
+        * ftl/FTLOperations.cpp:
+        * ftl/FTLOperations.h:
+        * jit/JITOperations.cpp:
+        * jit/JITOperations.h:
+
+2020-10-12  Saam Barati  <sbarati@apple.com>
+
+        Array.prototype.sort's sortBucketSort accesses an array in an invalid way that can lead to incorrect results with indexed properties on the prototype chain
+        https://bugs.webkit.org/show_bug.cgi?id=217634
+        <rdar://problem/69489404>
+
+        Reviewed by Yusuke Suzuki.
+
+        Inside one of Array.prototype.sort's builtin helper methods, we are using an
+        array as an internal data structure to do some bookkeeping. However, we were
+        accessing it in such a way that it was reading properties from the prototype
+        chain. The code is written in a way such that it is only correct if it is
+        reading self properties (as the prototype chain can be user controlled). The
+        fix is to set this bookkeeping array's __proto__ to null, so we don't read
+        from the prototype chain.
+
+        * builtins/ArrayPrototype.js:
+        (globalPrivate.sortBucketSort):
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        OpToPropertyKey only accepts temporary for destination
+        https://bugs.webkit.org/show_bug.cgi?id=217471
+
+        Reviewed by Saam Barati.
+
+        propertyName register can be constant. We should create temporary register if it is necessary for the destination.
+
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::ObjectPatternNode::bindValue const):
+
+2020-10-12  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 
+        with Xcode 12 on macOS Big Sur SUs
+        https://bugs.webkit.org/show_bug.cgi?id=217602
+        rdar://70194453
+
+        Reviewed by Darin Adler.
+
+        The previous workaround turns out to be ineffective because we can't set the value of 
+        TARGET_MAC_OS_X_VERSION_MAJOR based on a previous value of itself. Introduce a new 
+        variable TARGET_MAC_OS_X_VERSION_MAJOR to determine whether we need to explicitly 
+        adjust MAC_OS_X_VERSION_MAJOR to 110000.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-12  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 
+        with Xcode 12 on macOS Big Sur SUs
+        https://bugs.webkit.org/show_bug.cgi?id=217602
+        rdar://70194453
+
+        Reviewed by Darin Adler.
+
+        Due to a bug in Xcode (rdar://70185899), Xcode 12.0 and Xcode 12.1 Beta incorrectly includes the 
+        minor release number in MAC_OS_X_VERSION_MAJOR, which causes Debug and Release builds of WebKit 
+        to be misconfigured when building on macOS Big Sur SUs, leading to webpages failing to load.
+
+        To work around the Xcode bug, when the MAC_OS_X_VERSION_MAJOR includes the minor version number, 
+        drop the minor version number by explicitly setting TARGET_MAC_OS_X_VERSION_MAJOR to 110000.
+
+        Note: This change should be reverted after <rdar://70185899> is resolved.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-11  Luming Yin  <luming_yin@apple.com>
+
+        Strip patch version from TARGET_MAC_OS_X_VERSION_MAJOR when building for macOS Big Sur 
+        or later
+        https://bugs.webkit.org/show_bug.cgi?id=217594
+        rdar://70188497
+
+        Reviewed by Darin Adler.
+
+        To ensure successful Mac Catalyst WebKit builds, strip the patch version from 
+        TARGET_MAC_OS_X_VERSION_MAJOR by using two `base:`s on MACOSX_DEPLOYMENT_TARGET.
+
+        * Configurations/Base.xcconfig:
+
+2020-10-11  Luming Yin  <luming_yin@apple.com>
+
+        Ignore deployment suffix and identifier when computing major OS version for macOS 
+        Big Sur and newer
+        https://bugs.webkit.org/show_bug.cgi?id=217584
+        rdar://70168426
+
+        Reviewed by Darin Adler.
+
+        Stop using MACOSX_DEPLOYMENT_TARGET:suffix:identifier to compute major OS versions. 
+        Only use the deployment target base for macOS Big Sur and newer. Keep the manual 
+        definitions for legacy versions of macOS.
+
+        * Configurations/Base.xcconfig:
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, mark missing custom getter and setters
+        https://bugs.webkit.org/show_bug.cgi?id=217500
+
+        * tools/JSDollarVM.cpp:
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] arguments.callee should become ThrowTypeError if function has non simple parameter list
+        https://bugs.webkit.org/show_bug.cgi?id=217574
+
+        Reviewed by Darin Adler.
+
+        We should set ThrowTypeError in ClonedArguments when the callee is strict mode or callee has non simple parameter list[1].
+        We propagate NonSimpleParameterList information from parser and use it when materializing "callee" property of ClonedArguments.
+
+        [1]: https://tc39.es/ecma262/#sec-functiondeclarationinstantiation
+
+        * parser/Nodes.h:
+        (JSC::ScopeNode::isStrictMode const):
+        (JSC::ScopeNode::usesNonSimpleParameterList const):
+        (JSC::ScopeNode::setFeatures): Deleted.
+        (JSC::ScopeNode::setUsesArguments): Deleted.
+        * parser/Parser.cpp:
+        (JSC::Parser<LexerType>::parseInner):
+        * parser/ParserModes.h:
+        * runtime/ClonedArguments.cpp:
+        (JSC::ClonedArguments::getOwnPropertySlot):
+        (JSC::ClonedArguments::materializeSpecials):
+        * runtime/ScriptExecutable.h:
+        (JSC::ScriptExecutable::usesNonSimpleParameterList const):
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] BigInt constructor should be constructible while it always throws an error
+        https://bugs.webkit.org/show_bug.cgi?id=217575
+
+        Reviewed by Darin Adler.
+
+        In terms of the spec, BigInt constructor should be a constructor. So we should put constructBigIntConstructor function instead of nullptr.
+        But it should always throw a TypeError. Error message looks a bit awkward ("TypeError: function is not a constructor..."), but this looks
+        most intuitive to users. Note that V8 and SpiderMonkey throw similar messages ("is not a constructor").
+
+        * runtime/BigIntConstructor.cpp:
+        (JSC::BigIntConstructor::BigIntConstructor):
+        (JSC::JSC_DEFINE_HOST_FUNCTION):
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] LowerCase when LanguageTag checks duplicate variants
+        https://bugs.webkit.org/show_bug.cgi?id=217571
+
+        Reviewed by Ross Kirsling.
+
+        Since Unicode LanguageTag is case insensitive, we need to recognize "VARIANT0" and "variant0" are the same language tag variants.
+        To achieve that, we perform toASCIILower when computing VariantCode.
+
+        * runtime/IntlObject.cpp:
+        (JSC::parseVariantCode):
+
+2020-10-09  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Assert Operation and HostFunction are in JITOperationsList
+        https://bugs.webkit.org/show_bug.cgi?id=217500
+
+        Reviewed by Saam Barati.
+
+        We make JSC PtrTag more restricted. We add the following information for each PtrTag.
+
+            1. What code target is tagged with this PtrTag? Native or JIT.
+            2. What uses this PtrTag when invoking code? Native, JIT, or None.
+
+        And we will verify via JIT-caging.
+
+        This patch adds HostFunctionPtrTag and sign host functions with it. Previously, it was signed with JSEntryPtrTag,
+        and this is wrong since it is used for JS entry thunks. And we introduce assertion that function is registered in
+        JITOperationList when signing function with OperationPtrTag or HostFunctionPtrTag.
+
+        We also annotate all operations in testb3 so that testb3 can work with OperationPtrTag / HostFunctionPtrTag assertions.
+
+        * assembler/JITOperationList.cpp:
+        (JSC::addPointers):
+        * assembler/JITOperationList.h:
+        * b3/testb3_1.cpp:
+        (main):
+        * b3/testb3_5.cpp:
+        (JSC_DEFINE_JIT_OPERATION):
+        (simpleFunction): Deleted.
+        (functionWithHellaArguments): Deleted.
+        (functionWithHellaArguments2): Deleted.
+        (functionWithHellaArguments3): Deleted.
+        (simpleFunctionDouble): Deleted.
+        (simpleFunctionFloat): Deleted.
+        (functionWithHellaDoubleArguments): Deleted.
+        (functionWithHellaFloatArguments): Deleted.
+        * b3/testb3_6.cpp:
+        (JSC_DEFINE_JIT_OPERATION):
+        (interpreterPrint): Deleted.
+        * b3/testb3_7.cpp:
+        (JSC_DEFINE_JIT_OPERATION):
+        (oneFunction): Deleted.
+        (noOpFunction): Deleted.
+        (functionNineArgs): Deleted.
+        * dfg/DFGOSREntry.cpp:
+        (JSC::DFG::prepareOSREntry):
+        * dfg/DFGOperations.cpp:
+        * jit/JITOperations.cpp:
+        * jit/ThunkGenerators.cpp:
+        (JSC::nativeForGenerator):
+        * llint/LowLevelInterpreter.asm:
+        * llint/LowLevelInterpreter64.asm:
+        * runtime/JSCPtrTag.cpp:
+        (JSC::tagForPtr):
+        (JSC::ptrTagName):
+        * runtime/JSCPtrTag.h:
+        (JSC::tagJSCCodePtrImpl):
+        (JSC::untagJSCCodePtrImpl):
+        * runtime/NativeFunction.h:
+        (JSC::TaggedNativeFunction::TaggedNativeFunction):
+        (JSC::TaggedNativeFunction::operator NativeFunction):
+        * wasm/WasmOperations.cpp:
+        (JSC::Wasm::doOSREntry):
+
 2020-10-09  Keith Miller  <keith_miller@apple.com>
 
         Enable WeakRefs/FinalizationRegistries by default.

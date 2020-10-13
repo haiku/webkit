@@ -1091,6 +1091,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/gamepad/GamepadProvider.h
     platform/gamepad/GamepadProviderClient.h
     platform/gamepad/PlatformGamepad.h
+    platform/gamepad/SharedGamepadValue.h
 
     platform/graphics/AlphaPremultiplication.h
     platform/graphics/ANGLEWebKitBridge.h
@@ -1207,6 +1208,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/PlatformTextTrack.h
     platform/graphics/PlatformTimeRanges.h
     platform/graphics/Region.h
+    platform/graphics/RemoteResourceIdentifier.h
     platform/graphics/RemoteVideoSample.h
     platform/graphics/RenderingMode.h
     platform/graphics/RoundedRect.h

@@ -201,6 +201,9 @@ class Preferences
     result = []
     if parsedPreferences
       parsedPreferences.each do |name, options|
+        if !options["webcoreBinding"] && options["defaultValue"].size != 3
+          raise "ERROR: Preferences bound to WebCore::Settings must have default values for all frontends: #{name}"
+        end
         if !options["exposed"] or options["exposed"].include?(@frontend)
           preference = Preference.new(name, options, @frontend)
           @preferences << preference
@@ -212,8 +215,6 @@ class Preferences
   end
 
   def renderTemplate(templateFile, outputDirectory)
-    puts "Generating output for template file: #{templateFile}"
-
     resultFile = File.join(outputDirectory, File.basename(templateFile, ".erb"))
     tempResultFile = resultFile + ".tmp"
 

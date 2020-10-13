@@ -1,3 +1,189 @@
+2020-10-12  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 
+        with Xcode 12 on macOS Big Sur SUs
+        https://bugs.webkit.org/show_bug.cgi?id=217602
+        rdar://70194453
+
+        Reviewed by Darin Adler.
+
+        The previous workaround turns out to be ineffective because we can't set the value of 
+        TARGET_MAC_OS_X_VERSION_MAJOR based on a previous value of itself. Introduce a new 
+        variable TARGET_MAC_OS_X_VERSION_MAJOR to determine whether we need to explicitly 
+        adjust MAC_OS_X_VERSION_MAJOR to 110000.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-12  Andy Estes  <aestes@apple.com>
+
+        [macCatalyst] Enable WKPDFView
+        https://bugs.webkit.org/show_bug.cgi?id=217403
+        <rdar://problem/48217791>
+
+        Reviewed by Tim Horton.
+
+        * wtf/PlatformEnableCocoa.h: Enabled WKPDFView when building for the Catalyst variant on
+        Big Sur or later.
+
+2020-10-12  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        -Wsign-compare warnings in URL.cpp and URLParser.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=217583
+
+        Using unsigned literals where required.
+
+        Reviewed by Darin Adler.
+
+        * wtf/URL.cpp:
+        (WTF::URL::pathStart const):
+        * wtf/URLParser.cpp:
+        (WTF::URLParser::needsNonSpecialDotSlash const):
+
+2020-10-12  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 
+        with Xcode 12 on macOS Big Sur SUs
+        https://bugs.webkit.org/show_bug.cgi?id=217602
+        rdar://70194453
+
+        Reviewed by Darin Adler.
+
+        Due to a bug in Xcode (rdar://70185899), Xcode 12.0 and Xcode 12.1 Beta incorrectly includes the 
+        minor release number in MAC_OS_X_VERSION_MAJOR, which causes Debug and Release builds of WebKit 
+        to be misconfigured when building on macOS Big Sur SUs, leading to webpages failing to load.
+
+        To work around the Xcode bug, when the MAC_OS_X_VERSION_MAJOR includes the minor version number, 
+        drop the minor version number by explicitly setting TARGET_MAC_OS_X_VERSION_MAJOR to 110000.
+
+        Note: This change should be reverted after <rdar://70185899> is resolved.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-11  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        GeneratePreferences.rb is noisy
+        https://bugs.webkit.org/show_bug.cgi?id=217589
+
+        Reviewed by Sam Weinig.
+
+        Don't print anything when the script is successful. Since it runs during the build, it
+        should only print errors.
+
+        * Scripts/GeneratePreferences.rb:
+
+2020-10-11  Luming Yin  <luming_yin@apple.com>
+
+        Strip patch version from TARGET_MAC_OS_X_VERSION_MAJOR when building for macOS Big Sur 
+        or later
+        https://bugs.webkit.org/show_bug.cgi?id=217594
+        rdar://70188497
+
+        Reviewed by Darin Adler.
+
+        To ensure successful Mac Catalyst WebKit builds, strip the patch version from 
+        TARGET_MAC_OS_X_VERSION_MAJOR by using two `base:`s on MACOSX_DEPLOYMENT_TARGET.
+
+        * Configurations/Base.xcconfig:
+
+2020-10-11  Luming Yin  <luming_yin@apple.com>
+
+        Ignore deployment suffix and identifier when computing major OS version for macOS 
+        Big Sur and newer
+        https://bugs.webkit.org/show_bug.cgi?id=217584
+        rdar://70168426
+
+        Reviewed by Darin Adler.
+
+        Stop using MACOSX_DEPLOYMENT_TARGET:suffix:identifier to compute major OS versions. 
+        Only use the deployment target base for macOS Big Sur and newer. Keep the manual 
+        definitions for legacy versions of macOS.
+
+        * Configurations/Base.xcconfig:
+
+2020-10-09  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Assert Operation and HostFunction are in JITOperationsList
+        https://bugs.webkit.org/show_bug.cgi?id=217500
+
+        Reviewed by Saam Barati.
+
+        This patch makes tagCodePtr etc. take PtrTag only from template parameter.
+        As a result, we can easily customize special verification process for specific PtrTag.
+        By leveraging this feature, we introduce HostFunction / JITOperation assertions for HostFunctionPtrTag and OperationPtrTag.
+
+        We also add tagCodePtrWithStackPointerForJITCall and untagCodePtrWithStackPointerForJITCall, they are used only when we need
+        to tag a pointer with stack pointer which is a dynamic PtrTag.
+
+        * wtf/PtrTag.cpp:
+        (WTF::tagForPtr):
+        * wtf/PtrTag.h:
+        (WTF::tagNativeCodePtrImpl):
+        (WTF::untagNativeCodePtrImpl):
+        (WTF::PtrTagTraits::tagCodePtr):
+        (WTF::PtrTagTraits::untagCodePtr):
+        (WTF::registerPtrTagLookup):
+        (WTF::reportBadTag):
+        (WTF::removeCodePtrTag):
+        (WTF::tagCodePtrImpl):
+        (WTF::tagCodePtr):
+        (WTF::untagCodePtrImpl):
+        (WTF::untagCodePtr):
+        (WTF::retagCodePtrImplHelper):
+        (WTF::retagCodePtrImpl):
+        (WTF::retagCodePtr):
+        (WTF::assertIsCFunctionPtr):
+        (WTF::isTaggedWith):
+        (WTF::tagCFunctionPtrImpl):
+        (WTF::tagCFunctionPtr):
+        (WTF::tagCFunction):
+        (WTF::untagCFunctionPtrImpl):
+        (WTF::untagCFunctionPtr):
+        (WTF::tagArrayPtr):
+        (WTF::untagArrayPtr):
+        (WTF::removeArrayPtrTag):
+        (WTF::retagArrayPtr):
+        (WTF::tagCodePtrWithStackPointerForJITCall):
+        (WTF::untagCodePtrWithStackPointerForJITCall):
+        (WTF::untagCodePtrImplHelper): Deleted.
+
+2020-10-10  Sam Weinig  <weinig@apple.com>
+
+        Use WebPreference definitions from shared configuration files in WebCore (Part 1)
+        https://bugs.webkit.org/show_bug.cgi?id=217551
+
+        Reviewed by Darin Adler.
+
+        This begins using the WebPreferences*.yaml files for the generation of 
+        WebCore's Settings and InternalSettings classes. In this first part, we 
+        only are moving settings that already exist in the WebPreferences*.yaml 
+        files. A subsequent change will migrate the remaining additional settings
+        over.
+
+        To do this we must add default values for 'WebCore', which are unfortunately
+        still needed for things like the empty client based SVGImage and sanitizing 
+        web content functionality. We only need default WebCore values for preferences 
+        that are bound to WebCore::Settings. It would be good to eliminate the need
+        for these eventually, but that is not a goal of this change.
+
+        This also adds some new keys from WebCore's Settings.yaml:
+        - 'webcoreOnChange: *' called by WebCore::Settings when the setting changes.
+        - 'inspectorOverride: true' used to allow the inspector to override the setting.
+        - 'webcoreImplementation: custom' used to indicate that WebCore::SettingsBase 
+          implements the setting.
+        - 'webcoreGetter: *' used to provide an alternate name for the getter in WebCore::Settings.
+        - 'webcoreExcludeFromInternalSettings: true' used to exclude from WebCore's InternalSettings
+          bindings.
+
+        * Scripts/GeneratePreferences.rb:
+        Adds check that if the preference is bound to WebCore, it includes defaults for all
+        three front generators, 'WebKit', WebKitLegacy', and 'WebCore'.
+
+        * Scripts/Preferences/WebPreferences.yaml:
+        * Scripts/Preferences/WebPreferencesDebug.yaml:
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+        * Scripts/Preferences/WebPreferencesInternal.yaml:
+        Migrates defaults and additional keys from Settings.yaml.
+
 2020-10-09  Keith Miller  <keith_miller@apple.com>
 
         Finalizers shouldn't run if events can't fire

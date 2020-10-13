@@ -394,7 +394,6 @@ private:
 
     void ensureViewSupportsOptionsForTest(const TestInvocation&);
     TestOptions testOptionsForTest(const TestCommand&) const;
-    TestFeatures globalFeatureDefaultsForTest(const TestCommand&) const;
     TestFeatures platformSpecificFeatureDefaultsForTest(const TestCommand&) const;
     TestFeatures platformSpecificFeatureOverridesDefaultsForTest(const TestCommand&) const;
 
@@ -596,8 +595,6 @@ private:
     String m_unsupportedPluginMode;
 
     bool m_forceComplexText { false };
-    bool m_shouldUseAcceleratedDrawing { false };
-    
     bool m_shouldLogCanAuthenticateAgainstProtectionSpace { false };
     bool m_shouldLogDownloadCallbacks { false };
     bool m_shouldLogHistoryClientCallbacks { false };
@@ -645,15 +642,6 @@ private:
 #if PLATFORM(COCOA)
     bool m_hasSetApplicationBundleIdentifier { false };
 #endif
-};
-
-struct TestCommand {
-    std::string pathOrURL;
-    std::string absolutePath;
-    std::string expectedPixelHash;
-    WTF::Seconds timeout;
-    bool shouldDumpPixels { false };
-    bool dumpJSConsoleLogInStdErr { false };
 };
 
 } // namespace WTR
