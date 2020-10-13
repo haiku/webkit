@@ -25,15 +25,24 @@
 
 #pragma once
 
-#if ENABLE(GPU_PROCESS)
+#include <string>
+#include <wtf/Seconds.h>
+#include <wtf/StdFilesystem.h>
 
-#include <wtf/ObjectIdentifier.h>
+namespace WTR {
 
-namespace WebKit {
+struct TestCommand {
+    std::string pathOrURL;
+    std::filesystem::path absolutePath;
+    std::string expectedPixelHash;
+    WTF::Seconds timeout;
+    bool shouldDumpPixels { false };
+    bool dumpJSConsoleLogInStdErr { false };
+};
 
-enum ImageBufferIdentifierType { };
-using ImageBufferIdentifier = ObjectIdentifier<ImageBufferIdentifierType>;
+TestCommand parseInputLine(const std::string& inputLine);
 
-} // namespace WebKit
+std::filesystem::path testPath(const std::string& pathOrURL);
+std::string testURLString(const std::string& pathOrURL);
 
-#endif // ENABLE(GPU_PROCESS)
+}

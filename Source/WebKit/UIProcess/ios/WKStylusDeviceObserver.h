@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,33 +23,19 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma once
+#if HAVE(PENCILKIT_TEXT_INPUT)
 
-#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+@interface WKStylusDeviceObserver : NSObject
 
-#include "LayoutBox.h"
++ (WKStylusDeviceObserver *)sharedInstance;
++ (instancetype)new NS_UNAVAILABLE;
+- (instancetype)init NS_UNAVAILABLE;
 
-namespace WebCore {
+- (void)start;
+- (void)stop;
 
-class GraphicsContext;
-class IntRect;
+@property (nonatomic, readonly) BOOL hasStylusDevice;
 
-namespace Layout {
-class BoxGeometry;
-class LayoutState;
-}
+@end
 
-namespace Display {
-
-class Painter {
-public:
-    static void paint(const Layout::LayoutState&, GraphicsContext&, const IntRect& dirtyRect);
-    static void paintInlineFlow(const Layout::LayoutState&, GraphicsContext&);
-
-    // FIXME: Move to display box.
-    static Layout::BoxGeometry absoluteBoxGeometry(const Layout::LayoutState&, const Layout::Box&);
-};
-
-}
-}
-#endif
+#endif // HAVE(PENCILKIT_TEXT_INPUT)

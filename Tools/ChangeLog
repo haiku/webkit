@@ -1,3 +1,345 @@
+2020-10-13  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [GTK] Add support for gamepad tests
+        https://bugs.webkit.org/show_bug.cgi?id=98937
+
+        Reviewed by Carlos Garcia Campos.
+
+        Change PLATFORM(MAC) guards to ENABLE(GAMEPAD) around the support code used for
+        testing gamepad support in WKTR, and update GTK port test expectations accordingly.
+
+        * WebKitTestRunner/InjectedBundle/TestRunner.cpp: Change guards to ENABLE(GAMEPAD).
+        * WebKitTestRunner/TestController.cpp: Ditto.
+        (WTR::TestController::initialize):
+        * WebKitTestRunner/TestInvocation.cpp: Ditto.
+        (WTR::TestInvocation::didReceiveSynchronousMessageFromInjectedBundle):
+
+2020-10-13  Diego Pino Garcia  <dpino@igalia.com>
+
+        Unreviewed GLIB gardening. Remove several tests that were only failing in EWS API-GTK.
+
+        * TestWebKitAPI/glib/TestExpectations.json:
+
+2020-10-12  Devin Rousso  <drousso@apple.com>
+
+        CSS "any-pointer:fine" media query false on iPad/Pencil
+        https://bugs.webkit.org/show_bug.cgi?id=212580
+        <rdar://problem/63813283>
+
+        Reviewed by Wenson Hsieh.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/iOSStylusSupport.mm: Added.
+        (iOSStylusSupport.StylusInitiallyDisconnected):
+        (iOSStylusSupport.StylusInitiallyConnected):
+        (iOSStylusSupport.StylusLaterDisconnected):
+        (iOSStylusSupport.StylusLaterConnected):
+        (iOSStylusSupport.StylusDisconnectedTimeout):
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+
+2020-10-12  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitcorepy] Attempt to terminate stuck processes before killing them
+        https://bugs.webkit.org/show_bug.cgi?id=217632
+        <rdar://problem/70222803>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Bump version.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/subprocess_utils.py:
+        (run): Killed processes will sometimes not have stdout or stderr, while terminated processes often will.
+
+2020-10-12  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 
+        with Xcode 12 on macOS Big Sur SUs
+        https://bugs.webkit.org/show_bug.cgi?id=217602
+        rdar://70194453
+
+        Reviewed by Darin Adler.
+
+        The previous workaround turns out to be ineffective because we can't set the value of 
+        TARGET_MAC_OS_X_VERSION_MAJOR based on a previous value of itself. Introduce a new 
+        variable TARGET_MAC_OS_X_VERSION_MAJOR to determine whether we need to explicitly 
+        adjust MAC_OS_X_VERSION_MAJOR to 110000.
+
+        * ContentExtensionTester/Configurations/DebugRelease.xcconfig:
+        * DumpRenderTree/mac/Configurations/DebugRelease.xcconfig:
+        * ImageDiff/cg/Configurations/DebugRelease.xcconfig:
+        * MiniBrowser/Configurations/DebugRelease.xcconfig:
+        * TestWebKitAPI/Configurations/DebugRelease.xcconfig:
+        * WebEditingTester/Configurations/DebugRelease.xcconfig:
+        * WebKitTestRunner/Configurations/DebugRelease.xcconfig:
+        * lldb/lldbWebKitTester/Configurations/DebugRelease.xcconfig:
+
+2020-10-12  Sam Weinig  <weinig@apple.com>
+
+        Share TestFeatures and TestCommand infrastructure between DumpRenderTree and WebKitTestRunner
+        https://bugs.webkit.org/show_bug.cgi?id=217614
+
+        Reviewed by Dean Jackson.
+
+        Move TestFeatures and TestCommand code from WebKitTestRunner to TestRunnerShared
+        and adopt shared code in both WebKitTestRunner and DumpRenderTree.
+        
+        This allows us to remove duplicate argument and test header parsing code and
+        avoid updating both when we want want change things.
+        
+        To support different sets of test header options, featureDefaultsFromTestHeaderForTest now
+        has a parameter for a key type map, rather than the old hardcoded set. This allows
+        WebKitTestRunner and DumpRenderTree, which currently have slightly different options
+        to continue to behave in the same way. Eventually, it will probably make sense to have these
+        mostly generated from the WebPreferences*.yaml configuration files.
+
+        Matching precedent, shared files use the WTR namespace. 
+
+        * DumpRenderTree/CMakeLists.txt:
+        * DumpRenderTree/DumpRenderTree.xcodeproj/project.pbxproj:
+        * TestRunnerShared/CMakeLists.txt:
+        * WebKitTestRunner/CMakeLists.txt:
+        * WebKitTestRunner/WebKitTestRunner.xcodeproj/project.pbxproj:
+        Add new files.
+
+        * DumpRenderTree/DumpRenderTree.h:
+        Removes TestCommand and parseInputLine now that they come from shared TestCommand.h
+
+        * DumpRenderTree/DumpRenderTreeCommon.cpp: Removed.
+        Moved contents to shared TestCommand.cpp
+        
+        * DumpRenderTree/TestOptions.cpp:
+        * DumpRenderTree/TestOptions.h:
+        Adopt model from WebKitTestRunner and use initialization from TestFeatures.
+
+        * DumpRenderTree/mac/DumpRenderTree.mm:
+        Adopt shared TestFeatures and TestCommand infrastructure. Construct TestOptions
+        in a similar manner to WebKitTestRunner by merging together hardcoded / path based
+        features and test header based features.
+ 
+        * DumpRenderTree/mac/UIDelegate.h:
+        * DumpRenderTree/mac/UIDelegate.mm:
+        Update for new namespace.
+
+        * TestRunnerShared/TestCommand.cpp: Added.
+        * TestRunnerShared/TestCommand.h: Added.
+        * TestRunnerShared/TestFeatures.cpp: Added.
+        * TestRunnerShared/TestFeatures.h: Added.
+        * WebKitTestRunner/TestController.cpp:
+        * WebKitTestRunner/TestController.h:
+        * WebKitTestRunner/TestOptions.cpp:
+        * WebKitTestRunner/TestOptions.h:
+        Moved from WebKitTestRunner. Generalized to TestFeatures to take a key type map,
+        rather than hard coding it. Replace use of WebKit types, like WKURLRef, with std::string
+        and std::filesystem::path.
+
+2020-10-12  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 
+        with Xcode 12 on macOS Big Sur SUs
+        https://bugs.webkit.org/show_bug.cgi?id=217602
+        rdar://70194453
+
+        Reviewed by Darin Adler.
+
+        Due to a bug in Xcode (rdar://70185899), Xcode 12.0 and Xcode 12.1 Beta incorrectly includes the 
+        minor release number in MAC_OS_X_VERSION_MAJOR, which causes Debug and Release builds of WebKit 
+        to be misconfigured when building on macOS Big Sur SUs, leading to webpages failing to load.
+
+        To work around the Xcode bug, when the MAC_OS_X_VERSION_MAJOR includes the minor version number, 
+        drop the minor version number by explicitly setting TARGET_MAC_OS_X_VERSION_MAJOR to 110000.
+
+        Note: This change should be reverted after <rdar://70185899> is resolved.
+
+        * ContentExtensionTester/Configurations/DebugRelease.xcconfig:
+        * DumpRenderTree/mac/Configurations/DebugRelease.xcconfig:
+        * ImageDiff/cg/Configurations/DebugRelease.xcconfig:
+        * MiniBrowser/Configurations/DebugRelease.xcconfig:
+        * TestWebKitAPI/Configurations/DebugRelease.xcconfig:
+        * WebEditingTester/Configurations/DebugRelease.xcconfig:
+        * WebKitTestRunner/Configurations/DebugRelease.xcconfig:
+        * lldb/lldbWebKitTester/Configurations/DebugRelease.xcconfig:
+
+2020-10-11  Sam Weinig  <weinig@apple.com>
+
+        [Preferences] Introduce string based SPI for WKPreferences to allow tests to change internal behavior without always adding additional SPI
+        https://bugs.webkit.org/show_bug.cgi?id=217582
+
+        Reviewed by Darin Adler.
+
+        Adopt new WebKit SPI to set preferences using the keys defined in the WebPreferences*.yaml 
+        files. 
+
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::initialize):
+        Remove need for m_shouldUseAcceleratedDrawing by merging it into the global feature set.
+
+        (WTR::TestController::createWebViewWithOptions):
+        Move WKHTTPCookieStoreDeleteAllCookies() call out of resetPreferencesToConsistentValues
+        where it did not make sense.
+
+        (WTR::TestController::resetPreferencesToConsistentValues):
+        Replace preference setters that used values from TestOptions with use of the new
+        WKPreferencesSetBoolValueForKey SPI. Also removes some unnecessary #ifdefs, as the API
+        it was guarding is always available, though may just be a no-op if the feature is disabled.
+
+        (WTR::TestController::resetStateToConsistentValues):
+        Move Cocoa specific call to WebCoreTestSupport::setAdditionalSupportedImageTypesForTesting to
+        TestControllerCocoa.mm and Gtk specific call to WKTextCheckerContinuousSpellCheckingEnabledStateChanged
+        to TestControllerGtk.cpp.
+
+        * WebKitTestRunner/TestController.h:
+        Remove unimplemented globalFeatureDefaultsForTest() function and now unused m_shouldUseAcceleratedDrawing
+        member variable.
+
+        * WebKitTestRunner/TestOptions.cpp:
+        (WTR::TestOptions::boolWKPreferences const):
+        Add helper to get all the bool options in TestOptions that correspond with WebKit preferences.
+
+        * WebKitTestRunner/TestOptions.h:
+        (WTR::TestOptions::useAcceleratedDrawing const): Deleted.
+        (WTR::TestOptions::useMockScrollbars const): Deleted.
+        (WTR::TestOptions::needsSiteSpecificQuirks const): Deleted.
+        (WTR::TestOptions::enableIntersectionObserver const): Deleted.
+        (WTR::TestOptions::enableMenuItemElement const): Deleted.
+        (WTR::TestOptions::enableKeygenElement const): Deleted.
+        (WTR::TestOptions::enableModernMediaControls const): Deleted.
+        (WTR::TestOptions::enablePointerLock const): Deleted.
+        (WTR::TestOptions::enableWebAuthentication const): Deleted.
+        (WTR::TestOptions::enableWebAuthenticationLocalAuthenticator const): Deleted.
+        (WTR::TestOptions::enableInspectorAdditions const): Deleted.
+        (WTR::TestOptions::allowCrossOriginSubresourcesToAskForCredentials const): Deleted.
+        (WTR::TestOptions::domPasteAllowed const): Deleted.
+        (WTR::TestOptions::enableColorFilter const): Deleted.
+        (WTR::TestOptions::checkForWorldLeaks const): Deleted.
+        (WTR::TestOptions::shouldIgnoreMetaViewport const): Deleted.
+        (WTR::TestOptions::enableServiceControls const): Deleted.
+        (WTR::TestOptions::enableAppNap const): Deleted.
+        (WTR::TestOptions::enableBackForwardCache const): Deleted.
+        (WTR::TestOptions::enableCaptureVideoInUIProcess const): Deleted.
+        (WTR::TestOptions::enableCaptureVideoInGPUProcess const): Deleted.
+        (WTR::TestOptions::enableCaptureAudioInUIProcess const): Deleted.
+        (WTR::TestOptions::enableCaptureAudioInGPUProcess const): Deleted.
+        Remove all getters that are now replaced by boolWKPreferences.
+        Also, sorts all the lists to make it easier to find things.
+
+        * WebKitTestRunner/cocoa/TestControllerCocoa.mm:
+        (WTR::initializeWebViewConfiguration):
+        (WTR::TestController::platformCreateWebView):
+        Remove setting of configuration values that also covered by boolWKPreferences.
+
+        (WTR::TestController::cocoaResetStateToConsistentValues):
+        Move Cocoa specific call here.
+
+        * WebKitTestRunner/gtk/TestControllerGtk.cpp:
+        (WTR::TestController::platformResetStateToConsistentValues):
+        Move Gtk specific call here.
+
+        * WebKitTestRunner/ios/TestControllerIOS.mm:
+        (WTR::TestController::platformResetPreferencesToConsistentValues):
+        (WTR::TestController::platformConfigureViewForTest):
+        Remove setting of configuration values that also covered by boolWKPreferences.
+
+        * WebKitTestRunner/win/TestControllerWin.cpp:
+        (WTR::TestController::platformResetStateToConsistentValues):
+        Moved default no-op implementation from TestController.cpp now that not all
+        non-Cocoa platforms use the same implementation.
+
+        * WebKitTestRunner/wpe/TestControllerWPE.cpp:
+        (WTR::TestController::platformResetStateToConsistentValues):
+        Moved default no-op implementation from TestController.cpp now that not all
+        non-Cocoa platforms use the same implementation.
+
+2020-10-11  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        -Wdeprecated-declarations caused by WKTR using WKBundlePostSynchronousMessage
+        https://bugs.webkit.org/show_bug.cgi?id=217591
+
+        Reviewed by Darin Adler.
+
+        Use ALLOW_DEPRECATED_DECLARATIONS_BEGIN/END.
+
+        * WebKitTestRunner/InjectedBundle/InjectedBundle.h:
+        (WTR::postSynchronousMessage):
+
+2020-10-11  Darin Adler  <darin@apple.com>
+
+        [macOS] Harden more build configurations against macOS versions 11 and higher as well as inclusion of patch versions
+        https://bugs.webkit.org/show_bug.cgi?id=217595
+
+        Reviewed by Alexey Proskuryakov.
+
+        * ContentExtensionTester/Configurations/Base.xcconfig: Updated to same idiom used elsewhere.
+        * DumpRenderTree/mac/Configurations/Base.xcconfig: Ditto.
+        * ImageDiff/cg/Configurations/Base.xcconfig: Ditto.
+        * WebKitTestRunner/Configurations/Base.xcconfig: Ditto.
+        * lldb/lldbWebKitTester/Configurations/Base.xcconfig: Ditto.
+
+        * Scripts/webkitpy/common/config/contributors.json: Added contributor Luming Yin, an engineer who works on Safari at
+        Apple who has been contributing build fixes like these.
+
+2020-10-10  Darin Adler  <darin@apple.com>
+
+        REGRESSION (r267761): editing/mac/spelling/autocorrection-contraction.html is a constant timeout on macOS wk2 Debug
+        https://bugs.webkit.org/show_bug.cgi?id=217548
+
+        Reviewed by Alexey Proskuryakov.
+
+        * TestRunnerShared/Bindings/JSBasics.cpp:
+        (WTR::objectProperty): Use JSValueIsObject instead of JSValueToObject. The latter
+        function is *very* slow when passed undefined or null, creating an exception object
+        every time, even when we pass nullptr to indicate that we don't want the exception
+        object, and also invoking debugging machinery to inform the "inspector" about this
+        exception, which results in logging to the console while running tests. This
+        inefficiency is something we can fix in JavaScriptCore if we like, and makes it a
+        bad idea to call the function on undefined and null. And also points out the problem
+        with passing exceptions to anyone except the caller: there's no reason the inspector
+        needs to know about the exception in a case like this. Because the uses of this
+        function in the test runners don't need that behavior of converting non-object values
+        to objects, it was best just to stop using JSValueToObject entirely.
+
+        * WebKitTestRunner/InjectedBundle/InjectedBundle.cpp:
+        (WTR::InjectedBundle::didReceiveMessageToPage): Use uint64Value here. Just something
+        missed in my earlier refactoring and spotted while debugging.
+
+2020-10-11  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitscmpy] Support json encoding of Commit object
+        https://bugs.webkit.org/show_bug.cgi?id=217533
+        <rdar://problem/70151709>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/libraries/webkitscmpy/webkitscmpy/__init__.py: Bump version.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/commit.py:
+        (Commit.__repr__): Support identifiers being 0.
+        (Commit.Encoder): Encode commit as dictionary.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/commit_unittest.py:
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, fix WK2 Debug test failures
+        https://bugs.webkit.org/show_bug.cgi?id=217500
+
+        WebKitTestRunner also uses WebCoreTestSupport's JIT operations so we need to populate them too.
+
+        * WebKitTestRunner/InjectedBundle/InjectedBundle.cpp:
+        (WTR::InjectedBundle::initialize):
+
+2020-10-09  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Assert Operation and HostFunction are in JITOperationsList
+        https://bugs.webkit.org/show_bug.cgi?id=217500
+
+        Reviewed by Saam Barati.
+
+        This patch turned out that WebCoreTestSupport has its own JIT operations. So we need to populate them in test harness specially.
+
+        * DumpRenderTree/mac/DumpRenderTree.mm:
+        (dumpRenderTree):
+        * DumpRenderTree/win/DumpRenderTree.cpp:
+        (main):
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::initialize):
+
 2020-10-09  Jonathan Bedard  <jbedard@apple.com>
 
         [webkitscmpy] Handle svn info run from directory

@@ -1,3 +1,404 @@
+2020-10-13  Kimmo Kinnunen  <kkinnunen@apple.com>
+
+        Cocoa: Make WebGLLayer not dependent on  GraphicsContextGLOpenGL
+        https://bugs.webkit.org/show_bug.cgi?id=217212
+        <rdar://problem/69876022>
+
+        Reviewed by Dean Jackson.
+
+        Removed unneeded inclusions of GraphicsContextGLOpenGL.h. The
+        file is now using non-public headers.
+
+        * WebProcess/WebPage/WebPage.cpp:
+        * WebProcess/WebPage/mac/WebPageMac.mm:
+
+2020-10-12  Devin Rousso  <drousso@apple.com>
+
+        CSS "any-pointer:fine" media query false on iPad/Pencil
+        https://bugs.webkit.org/show_bug.cgi?id=212580
+        <rdar://problem/63813283>
+
+        Reviewed by Wenson Hsieh.
+
+        Use `+[UIScribbleInteraction isPencilInputExpected]` as a proxy for the presence of stylus
+        devices as there's no way of directly querying for connected stylus devices (especially if
+        there is no active connection). When the value is changed to `YES`, notify all WebProcess
+        immediately. When the value is changed to `NO`, use an `NSTimer` to delay notifying all
+        WebProcess for 10min in case the user starts using their stylus again.
+
+        For live-on/tweaking purposes this 10min timeout can be adjusted before the UIProcess is
+        created with the `WKStylusDeviceObserverChangeTimeInterval` key in `NSUserDefaults`.
+
+        * UIProcess/ios/WKStylusDeviceObserver.h: Added.
+        * UIProcess/ios/WKStylusDeviceObserver.mm: Added.
+        (+[WKStylusDeviceObserver sharedInstance]):
+        (-[WKStylusDeviceObserver init]):
+        (-[WKStylusDeviceObserver setHasStylusDevice:]):
+        (-[WKStylusDeviceObserver start]):
+        (-[WKStylusDeviceObserver stop]):
+        (-[WKStylusDeviceObserver observeValueForKeyPath:ofObject:change:context:]):
+        (-[WKStylusDeviceObserver startChangeTimer:]):
+        (-[WKStylusDeviceObserver changeTimerFired:]):
+        Use ObjC KVO to listen for changes to `+[UIScribbleInteraction isPencilInputExpected]`.
+
+        * UIProcess/WebProcessProxy.h:
+        * UIProcess/WebProcessProxy.cpp:
+        (WebKit::WebProcessProxy::notifyHasStylusDeviceChanged): Added.
+        * UIProcess/ios/WebProcessProxyIOS.mm:
+        (WebKit::WebProcessProxy::platformInitialize):
+        (WebKit::WebProcessProxy::platformDestroy):
+        Tell the shared `WKStylusDeviceObserver` to start listening when creating the WebProcess.
+
+        * UIProcess/Cocoa/WebProcessPoolCocoa.mm:
+        (WebKit::WebProcessPool::platformInitializeWebProcess):
+        * Shared/WebProcessCreationParameters.h:
+        * Shared/WebProcessCreationParameters.cpp:
+        (WebKit::WebProcessCreationParameters::encode const):
+        (WebKit::WebProcessCreationParameters::decode):
+        Use the current state of the shared `WKStylusDeviceObserver` when creating WebProcess
+        instead of sending a `SetHasStylusDevice` message immediately after the WebProcess is
+        created.
+
+        * WebProcess/WebProcess.messages.in:
+        * WebProcess/WebProcess.h:
+        (WebKit::WebProcess::hasStylusDevice const): Added.
+        * WebProcess/WebProcess.cpp:
+        (WebKit::WebProcess::setHasStylusDevice): Added.
+        (WebKit::WebProcess::initializeWebProcess):
+        Update style (including `any-pointer`) whenever stylus devices change.
+
+        * WebProcess/WebPage/ios/WebPageIOS.mm:
+        (WebKit::hasStylusDevice): Added.
+        (WebKit::WebPage::pointerCharacteristicsOfAllAvailablePointingDevices const):
+        Include `fine` when there is a stylus device.
+
+        * UIProcess/ios/WKMouseDeviceObserver.h:
+        * UIProcess/ios/WKMouseDeviceObserver.mm:
+        (-[WKMouseDeviceObserver start]):
+        (-[WKMouseDeviceObserver stop]):
+        (-[WKMouseDeviceObserver dealloc]): Removed.
+        Drive-by: use a count of `start`/`stop` instead of `WebProcessProxy::allProcesses` size.
+
+        * SourcesCocoa.txt:
+        * WebKit.xcodeproj/project.pbxproj:
+
+2020-10-12  Darin Adler  <darin@apple.com>
+
+        Eliminate some "using namespace WebCore" cases in global scope
+        https://bugs.webkit.org/show_bug.cgi?id=217644
+
+        Reviewed by Tim Horton.
+
+        * NetworkProcess/ServiceWorker/ServiceWorkerFetchTask.cpp:
+        * NetworkProcess/cocoa/WebSocketTaskCocoa.mm:
+        * WebProcess/Automation/WebAutomationSessionProxy.cpp:
+        Move "using namespace WebCore" inside WebKit namespace.
+
+2020-10-12  Tim Horton  <timothy_horton@apple.com>
+
+        Fix the macCatalyst build ("reference to 'Rect' is ambiguous")
+        https://bugs.webkit.org/show_bug.cgi?id=217642
+        <rdar://problem/70224629>
+
+        Reviewed by Wenson Hsieh.
+
+        * UIProcess/ios/forms/WKDateTimeInputControl.mm:
+        (-[WKDateTimePicker initWithView:datePickerMode:]):
+        (-[WKDateTimePicker shouldPresentGregorianCalendar:]):
+        (-[WKDateTimePicker controlBeginEditing]):
+        (-[WKDateTimeInputControl initWithView:]):
+        An earlier unified source's `using namespace WebCore` inside `namespace WebKit`
+        and then WKDateTimeInputControl's `using namespace WebKit` in the global namespace
+        resulted in once-again conflicting definitions of `Rect` between CSS
+        code and MacTypes.h.
+
+2020-10-12  Andy Estes  <aestes@apple.com>
+
+        Unreviewed build fix after r268367.
+
+        * Configurations/WebKit.xcconfig: Corrected the definition of
+        WK_PDFKIT_LDFLAGS_maccatalyst.
+
+2020-10-12  Tim Horton  <timothy_horton@apple.com>
+
+        Cursor window is transparent - but not hidden - when `cursor: none` is specified
+        https://bugs.webkit.org/show_bug.cgi?id=217639
+        <rdar://problem/70006186>
+
+        Reviewed by Simon Fraser.
+
+        * Platform/spi/mac/AppKitSPI.h:
+        * UIProcess/mac/PageClientImplMac.mm:
+        (WebKit::PageClientImpl::setCursor):
+        Adopt new AppKit SPI to actually hide the cursor when we set it to the "none" shape.
+        This hiding lives until the next time the app-global cursor shape is changed by any client.]
+        We'll re-set it the next time we set the "none" shape.
+
+        This is important, because on some platforms, hiding the cursor is a performance improvement
+        over simply making it transparent.
+
+2020-10-12  Said Abou-Hallawa  <sabouhallawa@apple.com>
+
+        [GPU Process]: Replace "ImageBufferIdentifier" by a generic identifier named "RemoteResourceIdentifier"
+        https://bugs.webkit.org/show_bug.cgi?id=217550
+
+        Reviewed by Simon Fraser.
+
+        GPU Process needs a universal identifier for drawing cached resources and 
+        drawing buffers and layers. The meaning of RemoteResourceIdentifier will
+        depend on the context it is used in.
+
+        * GPUProcess/graphics/RemoteImageBufferMessageHandlerProxy.cpp:
+        (WebKit::RemoteImageBufferMessageHandlerProxy::RemoteImageBufferMessageHandlerProxy):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::createBackend):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::commitFlushContext):
+        * GPUProcess/graphics/RemoteImageBufferMessageHandlerProxy.h:
+        * GPUProcess/graphics/RemoteImageBufferProxy.h:
+        (WebKit::RemoteImageBufferProxy::create):
+        (WebKit::RemoteImageBufferProxy::RemoteImageBufferProxy):
+        * GPUProcess/graphics/RemoteRenderingBackendProxy.cpp:
+        (WebKit::RemoteRenderingBackendProxy::createImageBuffer):
+        (WebKit::RemoteRenderingBackendProxy::releaseRemoteResource):
+        (WebKit::RemoteRenderingBackendProxy::getImageData):
+        (WebKit::RemoteRenderingBackendProxy::flushImageBufferDrawingContext):
+        (WebKit::RemoteRenderingBackendProxy::flushImageBufferDrawingContextAndCommit):
+        (WebKit::RemoteRenderingBackendProxy::releaseImageBuffer): Deleted.
+        * GPUProcess/graphics/RemoteRenderingBackendProxy.h:
+        * GPUProcess/graphics/RemoteRenderingBackendProxy.messages.in:
+        * Scripts/webkit/messages.py:
+        * WebKit.xcodeproj/project.pbxproj:
+        * WebProcess/GPU/graphics/RemoteImageBufferMessageHandler.cpp:
+        (WebKit::RemoteImageBufferMessageHandler::RemoteImageBufferMessageHandler):
+        (WebKit::RemoteImageBufferMessageHandler::~RemoteImageBufferMessageHandler):
+        (WebKit::RemoteImageBufferMessageHandler::getImageData const):
+        (WebKit::RemoteImageBufferMessageHandler::flushDrawingContext):
+        (WebKit::RemoteImageBufferMessageHandler::flushDrawingContextAndWaitCommit):
+        * WebProcess/GPU/graphics/RemoteImageBufferMessageHandler.h:
+        (WebKit::RemoteImageBufferMessageHandler::remoteResourceIdentifier const):
+        (WebKit::RemoteImageBufferMessageHandler::imageBufferIdentifier const): Deleted.
+        * WebProcess/GPU/graphics/RemoteRenderingBackend.cpp:
+        (WebKit::RemoteRenderingBackend::createImageBuffer):
+        (WebKit::RemoteRenderingBackend::releaseRemoteResource):
+        (WebKit::RemoteRenderingBackend::createImageBufferBackend):
+        (WebKit::RemoteRenderingBackend::commitImageBufferFlushContext):
+        (WebKit::RemoteRenderingBackend::releaseImageBuffer): Deleted.
+        * WebProcess/GPU/graphics/RemoteRenderingBackend.h:
+        * WebProcess/GPU/graphics/RemoteRenderingBackend.messages.in:
+
+2020-10-12  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 
+        with Xcode 12 on macOS Big Sur SUs
+        https://bugs.webkit.org/show_bug.cgi?id=217602
+        rdar://70194453
+
+        Reviewed by Darin Adler.
+
+        The previous workaround turns out to be ineffective because we can't set the value of 
+        TARGET_MAC_OS_X_VERSION_MAJOR based on a previous value of itself. Introduce a new 
+        variable TARGET_MAC_OS_X_VERSION_MAJOR to determine whether we need to explicitly 
+        adjust MAC_OS_X_VERSION_MAJOR to 110000.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-12  Andy Estes  <aestes@apple.com>
+
+        [macCatalyst] Enable WKPDFView
+        https://bugs.webkit.org/show_bug.cgi?id=217403
+        <rdar://problem/48217791>
+
+        Reviewed by Tim Horton.
+
+        * Configurations/WebKit.xcconfig: Linked PDFKit.framework when building for the Catalyst
+        variant on Big Sur or later.
+
+2020-10-12  Youenn Fablet  <youenn@apple.com>
+
+        Add support for MediaRecorder bitrate getters
+        https://bugs.webkit.org/show_bug.cgi?id=217383
+
+        Reviewed by Eric Carlson.
+
+        Pipe up bit rates through IPC
+
+        * GPUProcess/webrtc/RemoteMediaRecorder.h:
+        (WebKit::RemoteMediaRecorder::audioBitRate const):
+        (WebKit::RemoteMediaRecorder::videoBitRate const):
+        * GPUProcess/webrtc/RemoteMediaRecorderManager.cpp:
+        (WebKit::RemoteMediaRecorderManager::createRecorder):
+        * GPUProcess/webrtc/RemoteMediaRecorderManager.h:
+        * GPUProcess/webrtc/RemoteMediaRecorderManager.messages.in:
+        * WebProcess/GPU/webrtc/MediaRecorderPrivate.cpp:
+        (WebKit::MediaRecorderPrivate::startRecording):
+
+2020-10-12  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 
+        with Xcode 12 on macOS Big Sur SUs
+        https://bugs.webkit.org/show_bug.cgi?id=217602
+        rdar://70194453
+
+        Reviewed by Darin Adler.
+
+        Due to a bug in Xcode (rdar://70185899), Xcode 12.0 and Xcode 12.1 Beta incorrectly includes the 
+        minor release number in MAC_OS_X_VERSION_MAJOR, which causes Debug and Release builds of WebKit 
+        to be misconfigured when building on macOS Big Sur SUs, leading to webpages failing to load.
+
+        To work around the Xcode bug, when the MAC_OS_X_VERSION_MAJOR includes the minor version number, 
+        drop the minor version number by explicitly setting TARGET_MAC_OS_X_VERSION_MAJOR to 110000.
+
+        Note: This change should be reverted after <rdar://70185899> is resolved.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-12  Alex Christensen  <achristensen@webkit.org>
+
+        DownloadProxy::cancel should take a CompletionHandler
+        https://bugs.webkit.org/show_bug.cgi?id=217547
+
+        Reviewed by Youenn Fablet.
+
+        This paves the way for a new download cancel API that looks like this:
+        - (void)cancelByProducingResumeData:(void (^)(NSData *resumeData))completionHandler;
+        In order to do this, we push the legacy didCancel client call into the legacy API implementations.
+
+        The resume data will be accessible through this completion handler and the didFail callback
+        instead of querying the DownloadProxy wrapper for it, so I renamed it to legacyResumeData.
+
+        No change in behavior, as verified by existing tests.
+
+        * UIProcess/API/APIDownloadClient.h:
+        (API::DownloadClient::legacyDidCancel):
+        (API::DownloadClient::didCancel): Deleted.
+        * UIProcess/API/C/WKContext.cpp:
+        (WKContextSetDownloadClient):
+        * UIProcess/API/C/WKDownload.cpp:
+        (WKDownloadGetResumeData):
+        (WKDownloadCancel):
+        * UIProcess/API/Cocoa/_WKDownload.mm:
+        (-[_WKDownload cancel]):
+        (-[_WKDownload resumeData]):
+        * UIProcess/API/glib/WebKitDownload.cpp:
+        (webkit_download_cancel):
+        * UIProcess/API/glib/WebKitDownloadClient.cpp:
+        * UIProcess/Cocoa/LegacyDownloadClient.h:
+        * UIProcess/Cocoa/LegacyDownloadClient.mm:
+        (WebKit::LegacyDownloadClient::legacyDidCancel):
+        (WebKit::LegacyDownloadClient::didCancel): Deleted.
+        * UIProcess/Downloads/DownloadProxy.cpp:
+        (WebKit::DownloadProxy::cancel):
+        (WebKit::DownloadProxy::didFail):
+        * UIProcess/Downloads/DownloadProxy.h:
+        (WebKit::DownloadProxy::legacyResumeData const):
+        (WebKit::DownloadProxy::client):
+        (WebKit::DownloadProxy::resumeData const): Deleted.
+
+2020-10-11  Sam Weinig  <weinig@apple.com>
+
+        [Preferences] Introduce string based SPI for WKPreferences to allow tests to change internal behavior without always adding additional SPI
+        https://bugs.webkit.org/show_bug.cgi?id=217582
+
+        Reviewed by Darin Adler.
+
+        Add SPI for setting any WebKit preference using the key as defined in the WebPreferences*.yaml
+        files. This will allow adding testing of non-default behavior that we don't necessarily want to
+        expose via its own API or SPI.
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * Scripts/PreferencesTemplates/WebPreferencesGetterSetters.cpp.erb: Added.
+        * WebKit.xcodeproj/project.pbxproj:
+        Add new generated file, WebPreferencesGetterSetters.cpp.
+
+        * Scripts/PreferencesTemplates/WebPreferencesExperimentalFeatures.cpp.erb:
+        * Scripts/PreferencesTemplates/WebPreferencesInternalDebugFeatures.cpp.erb:
+        Moved getter/setter definitions to WebPreferencesGetterSetters.cpp.erb
+
+        * UIProcess/WebPreferences.cpp:
+        * UIProcess/WebPreferences.h:
+        * UIProcess/API/C/WKPreferences.cpp:
+        (WKPreferencesSetBoolValueForKey):
+        (WKPreferencesSetDoubleValueForKey):
+        (WKPreferencesSetUInt32ValueForKey):
+        (WKPreferencesSetStringValueForKey):
+        * UIProcess/API/C/WKPreferencesRefPrivate.h:
+        Expose new SPI.
+
+2020-10-11  Luming Yin  <luming_yin@apple.com>
+
+        Strip patch version from TARGET_MAC_OS_X_VERSION_MAJOR when building for macOS Big Sur 
+        or later
+        https://bugs.webkit.org/show_bug.cgi?id=217594
+        rdar://70188497
+
+        Reviewed by Darin Adler.
+
+        To ensure successful Mac Catalyst WebKit builds, strip the patch version from 
+        TARGET_MAC_OS_X_VERSION_MAJOR by using two `base:`s on MACOSX_DEPLOYMENT_TARGET.
+
+        * Configurations/Base.xcconfig:
+
+2020-10-11  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        -Wreorder in MediaPlayerPrivateRemote.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=217590
+
+        Reviewed by Eric Carlson.
+
+        Reorder initializer list to avoid misleading initialization order.
+
+        It might be nicer to actually reorder the member variables in the class itself, which would
+        probably be safe, but that would be a behavior change and I'd rather avoid changing
+        behavior.
+
+        * WebProcess/GPU/media/MediaPlayerPrivateRemote.cpp:
+        (WebKit::MediaPlayerPrivateRemote::MediaPlayerPrivateRemote):
+
+2020-10-11  Luming Yin  <luming_yin@apple.com>
+
+        Ignore deployment suffix and identifier when computing major OS version for macOS 
+        Big Sur and newer
+        https://bugs.webkit.org/show_bug.cgi?id=217584
+        rdar://70168426
+
+        Reviewed by Darin Adler.
+
+        Stop using MACOSX_DEPLOYMENT_TARGET:suffix:identifier to compute major OS versions. 
+        Only use the deployment target base for macOS Big Sur and newer. Keep the manual 
+        definitions for legacy versions of macOS.
+
+        * Configurations/Base.xcconfig:
+
+2020-10-10  Sam Weinig  <weinig@apple.com>
+
+        Use WebPreference definitions from shared configuration files in WebCore (Part 1)
+        https://bugs.webkit.org/show_bug.cgi?id=217551
+
+        Reviewed by Darin Adler.
+
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::sendViewportAttributesChanged):
+        Add explicit type to support layoutFallbackWidth now being an unsigned int
+        in Settings (it was already an unsigned int at the WebKit level).
+
+2020-10-10  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [GTK] Build broken with ENABLE_GAMEPAD enabled
+        https://bugs.webkit.org/show_bug.cgi?id=217226
+
+        Reviewed by Darin Adler.
+
+        * UIProcess/Gamepad/UIGamepadProvider.h: Mark class as final, because the destructor is
+        final itself.
+        * UIProcess/WebProcessPool.cpp:
+        (WebKit::WebProcessPool::numberOfConnectedGamepadsForTesting): Reorganize PLATFORM(MAC)
+        guards to use GameControllerGamepadProvider only on macOS, as it is unavailable on other
+        ports.
+        * WebProcess/Gamepad/WebGamepadProvider.h: Mark class as final, because the destructor
+        is final itself.
+
 2020-10-09  Wenson Hsieh  <wenson_hsieh@apple.com>
 
         [GPU Process] Add additional support for painting video elements to 2D contexts

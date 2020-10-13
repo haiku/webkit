@@ -1,3 +1,83 @@
+2020-10-12  Chris Dumez  <cdumez@apple.com>
+
+        AudioWorkletGlobalScope should perform a microtask checkpoint after each rendering quantum
+        https://bugs.webkit.org/show_bug.cgi?id=217624
+
+        Reviewed by Geoffrey Garen.
+
+        Rebaseline WPT test now that it is passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-promises.https-expected.txt:
+
+2020-10-12  Chris Dumez  <cdumez@apple.com>
+
+        Calling AudioContext.resume() right after AudioContext.suspend() should not be a no-op
+        https://bugs.webkit.org/show_bug.cgi?id=217628
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT test that is now passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/process-parameters.https-expected.txt:
+
+2020-10-12  Chris Dumez  <cdumez@apple.com>
+
+        Use AudioWorkletProcessor to process audio
+        https://bugs.webkit.org/show_bug.cgi?id=217531
+
+        Reviewed by Youenn Fablet and Saam Barati.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/active-processing.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-automatic-pull.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-disconnected-input.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-onerror.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-output-channel-count.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-frozen-array.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-zero-outputs.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-promises.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/process-getter.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/processor-construction-port.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/simple-input-output.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-channelmergernode-interface/active-processing.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/active-processing.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/cors-check.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/no-cors.https-expected.txt:
+
+2020-10-12  Youenn Fablet  <youenn@apple.com>
+
+        Add support for MediaRecorder bitrate getters
+        https://bugs.webkit.org/show_bug.cgi?id=217383
+
+        Reviewed by Eric Carlson.
+
+        * web-platform-tests/mediacapture-record/MediaRecorder-bitrate.https-expected.txt:
+        * web-platform-tests/mediacapture-record/idlharness.window-expected.txt:
+
+2020-10-12  Martin Robinson  <mrobinson@igalia.com>
+
+        Improve serialization of scroll-snap-type
+        https://bugs.webkit.org/show_bug.cgi?id=217469
+
+        Reviewed by Simon Fraser.
+
+        Improve serialization of scroll-snap-type
+
+        * web-platform-tests/css/css-scroll-snap/inheritance-expected.txt: Tests now passing.
+        * web-platform-tests/css/css-scroll-snap/parsing/scroll-snap-type-computed-expected.txt: Ditto.
+
+2020-10-10  Darin Adler  <darin@apple.com>
+
+        replaceChildren() (with no arguments) silently does nothing rather than removing the children
+        https://bugs.webkit.org/show_bug.cgi?id=217537
+
+        Reviewed by Sam Weinig.
+
+        * web-platform-tests/dom/nodes/ParentNode-replaceChildren-expected.txt:
+        * web-platform-tests/dom/nodes/ParentNode-replaceChildren.html:
+        Added a test of replaceChildren without any argument, on a parent having a child.
+
 2020-10-09  Antoine Quint  <graouts@webkit.org>
 
         CSS transform computed style should not reflect individual transform properties
