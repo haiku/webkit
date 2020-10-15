@@ -1,3 +1,709 @@
+2020-10-15  Chris Lord  <clord@igalia.com>
+
+        [GTK][WPE] Add support for smooth scrolling animation with async scrolling
+        https://bugs.webkit.org/show_bug.cgi?id=210382
+
+        Reviewed by Carlos Garcia Campos.
+
+        Add hasPreciseScrollingDeltas to GTK/WPE wheel events.
+
+        No new tests needed.
+
+        * Shared/WebEventConversion.cpp:
+        (WebKit::WebKit2PlatformWheelEvent::WebKit2PlatformWheelEvent):
+        * Shared/WebWheelEvent.cpp:
+        (WebKit::WebWheelEvent::WebWheelEvent):
+        (WebKit::WebWheelEvent::encode const):
+        (WebKit::WebWheelEvent::decode):
+        * Shared/WebWheelEvent.h:
+        * Shared/WebWheelEventCoalescer.cpp:
+        (WebKit::WebWheelEventCoalescer::canCoalesce):
+        (WebKit::WebWheelEventCoalescer::coalesce):
+        * Shared/gtk/NativeWebWheelEventGtk.cpp:
+        (WebKit::NativeWebWheelEvent::NativeWebWheelEvent):
+        * Shared/gtk/WebEventFactory.cpp:
+        (WebKit::WebEventFactory::createWebWheelEvent):
+        * Shared/libwpe/WebEventFactory.cpp:
+        (WebKit::WebEventFactory::createWebWheelEvent):
+
+2020-10-15  Youenn Fablet  <youenn@apple.com>
+
+        Introduce a RemoteAudioSourceProvider to receive audio samples for web audio from GPUProcess
+        https://bugs.webkit.org/show_bug.cgi?id=217710
+
+        Reviewed by Eric Carlson.
+
+        Make use of WebAudioSourceProviderAVFObjC to implement RemoteAudioSourceProvider.
+        RemoteAudioSourceProvider currently implements an AudioSourceProvider but it is not yet connected to GPUProcess media players.
+        This will be implemented in a follow-up.
+
+        * SourcesCocoa.txt:
+        * WebKit.xcodeproj/project.pbxproj:
+        * WebProcess/GPU/media/MediaPlayerPrivateRemote.cpp:
+        (WebKit::MediaPlayerPrivateRemote::~MediaPlayerPrivateRemote):
+        (WebKit::MediaPlayerPrivateRemote::audioSourceProvider):
+        * WebProcess/GPU/media/MediaPlayerPrivateRemote.h:
+        * WebProcess/GPU/media/RemoteAudioSourceProvider.cpp: Added.
+        (WebKit::RemoteAudioSourceProvider::create):
+        (WebKit::RemoteAudioSourceProvider::RemoteAudioSourceProvider):
+        (WebKit::RemoteAudioSourceProvider::~RemoteAudioSourceProvider):
+        (WebKit::RemoteAudioSourceProvider::close):
+        (WebKit::RemoteAudioSourceProvider::hasNewClient):
+        (WebKit::RemoteAudioSourceProvider::audioSamplesAvailable):
+        (WebKit::RemoteAudioSourceProvider::logChannel const):
+        * WebProcess/GPU/media/RemoteAudioSourceProvider.h: Added.
+        * WebProcess/GPU/media/cocoa/MediaPlayerPrivateRemoteCocoa.mm:
+
+2020-10-15  Adrian Perez de Castro  <aperez@igalia.com>
+
+        Non-unified build fixes, mid October 2020, take two
+        https://bugs.webkit.org/show_bug.cgi?id=217734
+
+        Unreviewed build fix.
+
+        * UIProcess/WebProcessProxy.cpp: Add missing WebPreferencesKeys.h header.
+
+2020-10-14  Brent Fulgham  <bfulgham@apple.com>
+
+        [iOS] Allow additional sysctl reads needed by image decoding
+        https://bugs.webkit.org/show_bug.cgi?id=217733
+        <rdar://problem/68649171>
+
+        Reviewed by Per Arne Vollan.
+
+        Telemetry on iOS 14 shows that we are hitting some sandbox violations during image decoding. We should
+        grant access to hw.byteorder, hw.cachelinesize_compat, and hw.vectorunit. We should silence warnings
+        about hw.cpufrequency_compat since it is not needed in web-facing use cases.
+
+        * Resources/SandboxProfiles/ios/com.apple.WebKit.WebContent.sb:
+
+2020-10-14  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Unreviewed build fix for non-Cocoa platforms & release builds.
+
+        * Platform/IPC/Connection.cpp:
+        (IPC::Connection::dispatchSyncMessage):
+
+2020-10-14  Ryosuke Niwa  <rniwa@webkit.org>
+
+        IPC testing JS API should expose a reply and describe the list of arguments for each message
+        https://bugs.webkit.org/show_bug.cgi?id=217565
+
+        Reviewed by Geoffrey Garen.
+
+        This patch makes IPC.sendMessage and IPC.sendSyncMessage decode the reply. IPC.sendSyncMessage now returns
+        a dictionary with two keys: "buffer" and "arguments", the first of which returns ArrayBuffer of the decoded
+        message reply and the second of which is an array of decoded arguments where there was an appropriate JS
+        binding code existed for the argument type. IPC.sendMessage now returns a Promise which can either resolve
+        with the same dictionary as IPC.sendSyncMessage or reject when the decoding fails.
+
+        In addition, this patch exposes a dictionary describing each IPC message argument's type and parameter name.
+
+        In order to add these two functionalities, this patch adds a new step in generate-message-receiver.py to
+        generate MessageArgumentDescriptions.cpp, which contains functions which know how to decode arguments of
+        any IPC message and create a JS dictionary describing it as well as functions that return descriptions of
+        arguments or reply arguments.
+
+        Finally, this patch adds encoders for a few types found to be very common after r268239 had been landed.
+
+        Tests: TestWebKitAPI.IPCTestingAPI.DecodesReplyArgumentsForPrompt
+               TestWebKitAPI.IPCTestingAPI.DecodesReplyArgumentsForAsyncMessage
+               TestWebKitAPI.IPCTestingAPI.DescribesArguments
+
+        * CMakeLists.txt:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * Platform/IPC/Decoder.h:
+        (IPC::Decoder::buffer const):
+        * Platform/IPC/JSIPCBinding.h: Added.
+        (jsValueForDecodedArgumentValue): Added. A template function to construct a JS value for a given C++ value.
+        (jsValueForDecodedNumericArgumentValue): Added. A helper for constructing a JS value for numeric values.
+        (jsValueForDecodedArgumentRect): Added. Ditto for IntRect and FloatRect.
+        (DecodedArgumentJSValueConverter): Added. A helper class to construct JS values for a tuple of values using
+        partial template specializations.
+        (DecodedArgumentJSValueConverter::convert): Added.
+        (jsValueForArgumentTuple): Added. A helper to construct a JS array for the decoded IPC arguments.
+        (jsValueForDecodedArguments): Added.
+        * Platform/IPC/MessageArgumentDescriptions.h: Added.
+        (IPC::ArgumentDescription): Added.
+        * Scripts/generate-message-receiver.py:
+        (main): Generate MessageArgumentDescriptions.cpp.
+        * Scripts/webkit/messages.py:
+        (headers_for_type): Removed the special case for PaymentMethodUpdate now that it's in its own header. Also
+        added made webrtc::WebKitEncodedFrameInfo include LibWebRTCEnumTraits.h as it uses webrtc::VideoFrameType.
+        (collect_header_conditions_for_receiver): Extracted from generate_message_handler.
+        (generate_header_includes_from_conditions): Ditto.
+        (generate_message_handler):
+        (generate_js_value_conversion_function): Added.
+        (generate_js_argument_descriptions): Added.
+        (generate_message_argument_description_implementation): Added.
+        * Shared/ApplePay/ApplePayPaymentSetupFeaturesWebKit.h: Fixed a bug that we were not forward declaring NSArray.
+        * SourcesCocoa.txt: Added MessageArgumentDescriptions.cpp as a non-unified cpp file as its size is around 1MB.
+        * WebKit.xcodeproj/project.pbxproj:
+        * WebProcess/WebPage/IPCTestingAPI.cpp:
+        (WebKit::IPCTestingAPI::JSIPC::staticValues): Added the session ID and page ID as static variables.
+        (WebKit::IPCTestingAPI::encodePointType): Added.
+        (WebKit::IPCTestingAPI::encodeRectType): Fixed the bug was that this code wasn't checking for any exceptions.
+        (WebKit::IPCTestingAPI::encodeNumericType): Renamed from encodeIntegralType since this function is now used
+        to encode double and float, not just integral types.
+        (WebKit::IPCTestingAPI::encodeArgument): Added the support for IntPoint, FloatPoint, URL, RegistrableDomain,
+        double, and float all of which turned out to be in the top 20 most common types.
+        (WebKit::IPCTestingAPI::jsResultFromReplyDecoder): Added.
+        (WebKit::IPCTestingAPI::JSIPC::sendMessage): Added the code to return Promise when there is a reply and resolve
+        it with the JS object describing the decoded argument. We use messageReplyArgumentDescriptions to figure out
+        whether there is a reply or not.
+        (WebKit::IPCTestingAPI::JSIPC::sendSyncMessage): Decode the reply and return a JS object which describes it.
+        (WebKit::IPCTestingAPI::JSIPC::frameID): Renamed from frameIdentifier to be consistent.
+        (WebKit::IPCTestingAPI::JSIPC::pageID): Added.
+        (WebKit::IPCTestingAPI::JSIPC::sessionID): Added.
+        (WebKit::IPCTestingAPI::createJSArrayForArgumentDescriptions): Added.
+        (WebKit::IPCTestingAPI::JSIPC::messages): Added the code to generate descriptions for arguments.
+
+2020-10-14  Chris Dumez  <cdumez@apple.com>
+
+        REGRESSION(r268423) SHOULD NEVER BE REACHED: GPUConnectionToWebProcess::didReceiveMessage(IPC::Connection &, IPC::Decoder &)
+        https://bugs.webkit.org/show_bug.cgi?id=217730
+        <rdar://problem/70308112>
+
+        Reviewed by Geoffrey Garen.
+
+        r268423 added support for registering IPC WorkQueueMessageReceivers & ThreadMessageReceivers with
+        a given identifier. When receiving an IPC message, we would look up the key [ReceiverName, ID] in
+        the receiver map and pass the message to this receiver.
+        This introduced a crash because of an existing ThreadMessageReceiver (RemoteAudioMediaStreamTrackRenderer)
+        was registering itself as a message receiver without an identifier (ID=0). However, the IPC senders
+        on GPU process side would pass a non-0 identifier when sending the IPC. As a result, we would fail to
+        look up the receiver in the map when receiving those IPC messages.
+
+        While existing code should probably be fixed so that senders and receivers agree on on identifier,
+        I have decided to fix the issue in this patch at IPC::Connection level. When receiving an IPC
+        message, we first check if there is a "global" receiver in the map by looking up key
+        [ReceiverName, 0]. If there is, we pass the IPC to this one. If there isn't, we look up the key
+        [ReceiverName, ID] in the map and use the more specific receiver.
+
+        The reason I chose to fix it this way is that the code in MessageReceiverMap (which is used for
+        receivers that are not using a WorkQueue or a Thread) behaves in this fashion. I believe it is
+        good to have consistency between all kinds of receivers.
+
+        No new tests, covered by existing test that is crashing on the bots.
+
+        * Platform/IPC/Connection.cpp:
+        (IPC::Connection::threadMessageReceiver):
+        (IPC::Connection::workQueueMessageReceiver):
+        (IPC::Connection::dispatchMessageToWorkQueueReceiver):
+        (IPC::Connection::dispatchMessageToThreadReceiver):
+        * Platform/IPC/Connection.h:
+
+2020-10-14  Simon Fraser  <simon.fraser@apple.com>
+
+        Scrolls in the passive handler region should be reported as handled promptly
+        https://bugs.webkit.org/show_bug.cgi?id=217718
+
+        Reviewed by Tim Horton.
+
+        The UI process will enqueue wheel events to send later if the WebContent process doesn't
+        promptly respond that it has handled the previous event. When scrolling in the passive
+        event region, we want the WebContent process to appear responsive, so respond to the UI
+        process when we've scrolled (which is before the event has been dispatched for DOM events).
+
+        Hard to test because CPU-constrained bots don't send wheel events in a predictable way.
+
+        * WebProcess/WebPage/EventDispatcher.cpp:
+        (WebKit::EventDispatcher::wheelEvent):
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::wheelEvent):
+
+2020-10-14  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Enabling IPC testing API should prevent the termination of WebContent process which sends an invalid IPC
+        https://bugs.webkit.org/show_bug.cgi?id=217698
+
+        Reviewed by Geoffrey Garen.
+
+        A part of this was landed in r268431 but this patch formally disables UI process' default behavior
+        to terminate a Web process upon receiving an invalid message from it.
+
+        Tests: IPCTestingAPI.CanSendInvalidAsyncMessageWithoutTermination
+               IPCTestingAPI.CanSendInvalidMessageWithoutTermination
+
+        * Platform/IPC/Connection.cpp:
+        (IPC::Connection::dispatchSyncMessage): Disable the debug assertion if the IPC testing API is enabled.
+        * Platform/IPC/Connection.h:
+        (IPC::Connection::setIgnoreInvalidMessageForTesting): Added.
+        (IPC::Connection::ignoreInvalidMessageForTesting const): Added.
+        (IPC::Connection::m_ignoreInvalidMessageForTesting): Added.
+        * UIProcess/WebPageProxy.cpp:
+        (WebKit::WebPageProxy::WebPageProxy): Set the flag on WebProcessProxy to trigger the behavior.
+        (WebKit::WebPageProxy::launchProcess): Ditto.
+        * UIProcess/WebProcessProxy.cpp:
+        (WebKit::WebProcessProxy::didReceiveInvalidMessage): Use the flag on Connection instead of reaching
+        out to the default page group.
+        (WebKit::WebProcessProxy::setIgnoreInvalidMessageForTesting): Added. Remember the fact we've enabled IPC
+        testing API in a member variable and propagate the flag to Connection if a Web process is already running.
+        (WebKit::WebProcessProxy::didFinishLaunching): Propagte the flag to the newly launched Web process.
+        * UIProcess/WebProcessProxy.h:
+        (WebKit::WebProcessProxy::m_ignoreInvalidMessageForTesting): Added.
+
+2020-10-14  Per Arne Vollan  <pvollan@apple.com>
+
+        [macOS] Issue sandbox extension to additional icon service when attachment element is enabled.
+        https://bugs.webkit.org/show_bug.cgi?id=217706
+        <rdar://problem/70291100>
+
+        Reviewed by Brent Fulgham.
+
+        Issue sandbox extension to 'com.apple.iconservices.store' when attachment element is enabled on macOS.
+
+        * Shared/WebPageCreationParameters.cpp:
+        (WebKit::WebPageCreationParameters::encode const):
+        (WebKit::WebPageCreationParameters::decode):
+        * Shared/WebPageCreationParameters.h:
+        * Shared/WebProcessCreationParameters.cpp:
+        (WebKit::WebProcessCreationParameters::encode const):
+        (WebKit::WebProcessCreationParameters::decode):
+        * Shared/WebProcessCreationParameters.h:
+        * UIProcess/WebPageProxy.cpp:
+        (WebKit::attachmentElementServices):
+        (WebKit::WebPageProxy::creationParameters):
+        * WebProcess/WebPage/WebPage.cpp:
+        * WebProcess/com.apple.WebProcess.sb.in:
+
+2020-10-14  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r268431 and r268443.
+        https://bugs.webkit.org/show_bug.cgi?id=217728
+
+        Broke debug builds of GTK, WinCairo and Playstation ports
+
+        Reverted changesets:
+
+        "IPC testing JS API should expose a reply and describe the
+        list of arguments for each message"
+        https://bugs.webkit.org/show_bug.cgi?id=217565
+        https://trac.webkit.org/changeset/268431
+
+        "IPC testing JS API should expose a reply and describe the
+        list of arguments for each message"
+        https://bugs.webkit.org/show_bug.cgi?id=217565
+        https://trac.webkit.org/changeset/268443
+
+2020-10-14  Don Olmstead  <don.olmstead@sony.com>
+
+        Non-unified build fixes, mid October 2020
+        https://bugs.webkit.org/show_bug.cgi?id=217721
+
+        Reviewed by Yusuke Suzuki.
+
+        * NetworkProcess/Downloads/DownloadManager.cpp:
+        * UIProcess/Downloads/DownloadProxyMap.cpp:
+
+2020-10-14  Devin Rousso  <drousso@apple.com>
+
+        REGRESSION (r268384): ASSERTION FAILED: _startCount > 1 in -[WKMouseDeviceObserver stop]
+        https://bugs.webkit.org/show_bug.cgi?id=217684
+        <rdar://problem/70272646>
+
+        Reviewed by Tim Horton.
+
+        The `ASSERT` was incorrect in that it's possible for `_startCount` to be equal to `1`. Also
+        add a check to make sure `_startCount` doesn't overflow.
+
+        * UIProcess/ios/WKMouseDeviceObserver.mm:
+        (-[WKMouseDeviceObserver stop]):
+        * UIProcess/ios/WKStylusDeviceObserver.mm:
+        (-[WKStylusDeviceObserver stop]):
+
+2020-10-14  Sergio Villar Senin  <svillar@igalia.com>
+
+        [GLIB] Fix linking error for systems not providing <sys/memfd.h>
+        https://bugs.webkit.org/show_bug.cgi?id=217514
+
+        Reviewed by Carlos Garcia Campos.
+
+        * UIProcess/Launcher/glib/BubblewrapLauncher.cpp: Unconditionally check for <sys/mman.h> which should always exist instead
+        of <sys/memfd.h>. Also define the fallback with syscall() only for linux systems (as it requires <linux/memfd.h>).
+
+2020-10-14  Kate Cheney  <katherine_cheney@apple.com>
+
+        Remove ResourceLoadStatistics telemetry
+        https://bugs.webkit.org/show_bug.cgi?id=217665
+        <rdar://problem/69748988>
+
+        Reviewed by Sam Weinig.
+
+        Telemetry calculation in ITP is unused, very complicated, a potential
+        privacy risk, and it causes flaky tests. We should remove it.
+
+        No new tests. Existing ITP tests will check for no behavior change.
+
+        * NetworkProcess/Classifier/ResourceLoadStatisticsDatabaseStore.cpp:
+        (WebKit::ResourceLoadStatisticsDatabaseStore::ResourceLoadStatisticsDatabaseStore):
+        (WebKit::makeMedianWithUIQuery): Deleted.
+        (WebKit::buildQueryStartAndEnd): Deleted.
+        (WebKit::makeMedianWithoutUIQuery): Deleted.
+        (WebKit::getMedianOfPrevalentResourcesWithUserInteraction): Deleted.
+        (WebKit::ResourceLoadStatisticsDatabaseStore::getNumberOfPrevalentResources const): Deleted.
+        (WebKit::ResourceLoadStatisticsDatabaseStore::getNumberOfPrevalentResourcesWithUI const): Deleted.
+        (WebKit::ResourceLoadStatisticsDatabaseStore::getTopPrevelentResourceDaysSinceUI const): Deleted.
+        (WebKit::getMedianOfPrevalentResourceWithoutUserInteraction): Deleted.
+        (WebKit::getNumberOfPrevalentResourcesInTopResources): Deleted.
+        (WebKit::makeStatisticQuery): Deleted.
+        (WebKit::ResourceLoadStatisticsDatabaseStore::getNumberOfPrevalentResourcesWithoutUI const): Deleted.
+        (WebKit::ResourceLoadStatisticsDatabaseStore::calculateTelemetryData const): Deleted.
+        (WebKit::ResourceLoadStatisticsDatabaseStore::calculateAndSubmitTelemetry const): Deleted.
+        * NetworkProcess/Classifier/ResourceLoadStatisticsDatabaseStore.h:
+        * NetworkProcess/Classifier/ResourceLoadStatisticsMemoryStore.cpp:
+        (WebKit::ResourceLoadStatisticsMemoryStore::ResourceLoadStatisticsMemoryStore):
+        (WebKit::ResourceLoadStatisticsMemoryStore::calculateAndSubmitTelemetry const): Deleted.
+        * NetworkProcess/Classifier/ResourceLoadStatisticsMemoryStore.h:
+        * NetworkProcess/Classifier/ResourceLoadStatisticsStore.cpp:
+        (WebKit::ResourceLoadStatisticsStore::setShouldSubmitTelemetry): Deleted.
+        * NetworkProcess/Classifier/ResourceLoadStatisticsStore.h:
+        * NetworkProcess/Classifier/WebResourceLoadStatisticsStore.cpp:
+        (WebKit::WebResourceLoadStatisticsStore::performDailyTasks):
+        (WebKit::WebResourceLoadStatisticsStore::setShouldSubmitTelemetry): Deleted.
+        (WebKit::WebResourceLoadStatisticsStore::submitTelemetry): Deleted.
+        (WebKit::WebResourceLoadStatisticsStore::notifyPageStatisticsTelemetryFinished const): Deleted.
+        * NetworkProcess/Classifier/WebResourceLoadStatisticsStore.h:
+        * NetworkProcess/Classifier/WebResourceLoadStatisticsTelemetry.cpp: Removed.
+        * NetworkProcess/Classifier/WebResourceLoadStatisticsTelemetry.h: Removed.
+        * NetworkProcess/NetworkProcess.cpp:
+        (WebKit::NetworkProcess::submitTelemetry): Deleted.
+        * NetworkProcess/NetworkProcess.h:
+        * NetworkProcess/NetworkProcess.messages.in:
+        * NetworkProcess/NetworkSession.cpp:
+        (WebKit::NetworkSession::notifyPageStatisticsTelemetryFinished): Deleted.
+        * NetworkProcess/NetworkSession.h:
+        * SourcesCocoa.txt:
+        * UIProcess/API/C/WKWebsiteDataStoreRef.cpp:
+        (WKWebsiteDataStoreStatisticsSubmitTelemetry): Deleted.
+        * UIProcess/API/C/WKWebsiteDataStoreRef.h:
+        * UIProcess/API/Cocoa/WKWebsiteDataStore.mm:
+        * UIProcess/Network/NetworkProcessProxy.cpp:
+        (WebKit::NetworkProcessProxy::submitTelemetry): Deleted.
+        (WebKit::NetworkProcessProxy::notifyResourceLoadStatisticsTelemetryFinished): Deleted.
+        * UIProcess/Network/NetworkProcessProxy.h:
+        * UIProcess/Network/NetworkProcessProxy.messages.in:
+        * UIProcess/WebProcessProxy.cpp:
+        (WebKit::WebProcessProxy::notifyPageStatisticsTelemetryFinished): Deleted.
+        * UIProcess/WebProcessProxy.h:
+        * UIProcess/WebsiteData/WebsiteDataStore.cpp:
+        (WebKit::WebsiteDataStore::submitTelemetry): Deleted.
+        * UIProcess/WebsiteData/WebsiteDataStore.h:
+        * WebKit.xcodeproj/project.pbxproj:
+        * PlatformFTW.cmake:
+        * SourcesGTK.txt:
+        * PlatformPlayStation.cmake:
+        * PlatformWin.cmake:
+        * SourcesWPE.txt:
+
+2020-10-14  Kate Cheney  <katherine_cheney@apple.com>
+
+        Remove _WKWebViewCategory from WKWebViewConfiguration
+        https://bugs.webkit.org/show_bug.cgi?id=217679
+        <rdar://problem/70260337>
+
+        Reviewed by Sam Weinig.
+
+        This property is not used in any meaningful way. Its original purpose
+        was to categorize WKWebViews for app-bound domains, but this is
+        now done using the isNavigatingToAppBoundDomain property on
+        WebPageProxy. We should remove it.
+
+        No new tests, behavior confirmed by existing tests.
+
+        * Shared/WebViewCategory.h: Removed.
+        * UIProcess/API/APIPageConfiguration.cpp:
+        (API::PageConfiguration::copy const):
+        * UIProcess/API/APIPageConfiguration.h:
+        (API::PageConfiguration::webViewCategory const): Deleted.
+        (API::PageConfiguration::setWebViewCategory): Deleted.
+        * UIProcess/API/Cocoa/WKWebViewConfiguration.mm:
+        (toWebKitWebViewCategory): Deleted.
+        (toWKWebViewCategory): Deleted.
+        (-[WKWebViewConfiguration _webViewCategory]): Deleted.
+        (-[WKWebViewConfiguration _setWebViewCategory:]): Deleted.
+        * UIProcess/API/Cocoa/WKWebViewConfigurationPrivate.h:
+        * UIProcess/WebPageProxy.cpp:
+        (WebKit::WebPageProxy::setIsNavigatingToAppBoundDomainAndCheckIfPermitted):
+        * WebKit.xcodeproj/project.pbxproj:
+
+2020-10-14  Joonghun Park  <jh718.park@samsung.com>
+
+        Unreviewed. Fix the build warning below since r268312.
+        warning: control reaches end of non-void function [-Wreturn-type]
+
+        No new tests, no new behaviors.
+
+        * UIProcess/WebProcessPool.cpp:
+        (WebKit::WebProcessPool::numberOfConnectedGamepadsForTesting):
+
+2020-10-14  Joonghun Park  <jh718.park@samsung.com>
+
+        Unreviewed. Fix the build warning below since r222233.
+        warning: redundant move in return statement [-Wredundant-move]
+
+        No new tests, no new behaviors.
+
+        * Shared/Gamepad/GamepadData.cpp:
+        (WebKit::GamepadData::decode):
+
+2020-10-13  Julian Gonzalez  <julian_a_gonzalez@apple.com>
+
+        Null dereference in PDFPlugin::snapshot()
+        https://bugs.webkit.org/show_bug.cgi?id=217668
+
+        Reviewed by Ryosuke Niwa.
+
+        Add a null pointer check in PDFPlugin's snapshot method
+        to prevent a crash if the backing store's size
+        isn't sufficient for the ShareableBitmap.
+
+        Test: plugins/pdf-plugin-null-onloaddeddata.html
+
+        * WebProcess/Plugins/PDF/PDFPlugin.mm:
+        (WebKit::PDFPlugin::snapshot):
+
+2020-10-12  Ryosuke Niwa  <rniwa@webkit.org>
+
+        IPC testing JS API should expose a reply and describe the list of arguments for each message
+        https://bugs.webkit.org/show_bug.cgi?id=217565
+
+        Reviewed by Geoffrey Garen.
+
+        This patch makes IPC.sendMessage and IPC.sendSyncMessage decode the reply. IPC.sendSyncMessage now returns
+        a dictionary with two keys: "buffer" and "arguments", the first of which returns ArrayBuffer of the decoded
+        message reply and the second of which is an array of decoded arguments where there was an appropriate JS
+        binding code existed for the argument type. IPC.sendMessage now returns a Promise which can either resolve
+        with the same dictionary as IPC.sendSyncMessage or reject when the decoding fails.
+
+        In addition, this patch exposes a dictionary describing each IPC message argument's type and parameter name.
+
+        In order to add these two functionalities, this patch adds a new step in generate-message-receiver.py to
+        generate MessageArgumentDescriptions.cpp, which contains functions which know how to decode arguments of
+        any IPC message and create a JS dictionary describing it as well as functions that return descriptions of
+        arguments or reply arguments.
+
+        Finally, this patch adds encoders for a few types found to be very common after r268239 had been landed.
+
+        Tests: TestWebKitAPI.IPCTestingAPI.DecodesReplyArgumentsForPrompt
+               TestWebKitAPI.IPCTestingAPI.DecodesReplyArgumentsForAsyncMessage
+               TestWebKitAPI.IPCTestingAPI.DescribesArguments
+
+        * CMakeLists.txt:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * Platform/IPC/Decoder.h:
+        (IPC::Decoder::buffer const):
+        * Platform/IPC/JSIPCBinding.h: Added.
+        (jsValueForDecodedArgumentValue): Added. A template function to construct a JS value for a given C++ value.
+        (jsValueForDecodedNumericArgumentValue): Added. A helper for constructing a JS value for numeric values.
+        (jsValueForDecodedArgumentRect): Added. Ditto for IntRect and FloatRect.
+        (DecodedArgumentJSValueConverter): Added. A helper class to construct JS values for a tuple of values using
+        partial template specializations.
+        (DecodedArgumentJSValueConverter::convert): Added.
+        (jsValueForArgumentTuple): Added. A helper to construct a JS array for the decoded IPC arguments.
+        (jsValueForDecodedArguments): Added.
+        * Platform/IPC/MessageArgumentDescriptions.h: Added.
+        (IPC::ArgumentDescription): Added.
+        * Scripts/generate-message-receiver.py:
+        (main): Generate MessageArgumentDescriptions.cpp.
+        * Scripts/webkit/messages.py:
+        (headers_for_type): Removed the special case for PaymentMethodUpdate now that it's in its own header. Also
+        added made webrtc::WebKitEncodedFrameInfo include LibWebRTCEnumTraits.h as it uses webrtc::VideoFrameType.
+        (collect_header_conditions_for_receiver): Extracted from generate_message_handler.
+        (generate_header_includes_from_conditions): Ditto.
+        (generate_message_handler):
+        (generate_js_value_conversion_function): Added.
+        (generate_js_argument_descriptions): Added.
+        (generate_message_argument_description_implementation): Added.
+        * Shared/ApplePay/ApplePayPaymentSetupFeaturesWebKit.h: Fixed a bug that we were not forward declaring NSArray.
+        * SourcesCocoa.txt: Added MessageArgumentDescriptions.cpp as a non-unified cpp file as its size is around 1MB.
+        * WebKit.xcodeproj/project.pbxproj:
+        * WebProcess/WebPage/IPCTestingAPI.cpp:
+        (WebKit::IPCTestingAPI::JSIPC::staticValues): Added the session ID and page ID as static variables.
+        (WebKit::IPCTestingAPI::encodePointType): Added.
+        (WebKit::IPCTestingAPI::encodeRectType): Fixed the bug was that this code wasn't checking for any exceptions.
+        (WebKit::IPCTestingAPI::encodeNumericType): Renamed from encodeIntegralType since this function is now used
+        to encode double and float, not just integral types.
+        (WebKit::IPCTestingAPI::encodeArgument): Added the support for IntPoint, FloatPoint, URL, RegistrableDomain,
+        double, and float all of which turned out to be in the top 20 most common types.
+        (WebKit::IPCTestingAPI::jsResultFromReplyDecoder): Added.
+        (WebKit::IPCTestingAPI::JSIPC::sendMessage): Added the code to return Promise when there is a reply and resolve
+        it with the JS object describing the decoded argument. We use messageReplyArgumentDescriptions to figure out
+        whether there is a reply or not.
+        (WebKit::IPCTestingAPI::JSIPC::sendSyncMessage): Decode the reply and return a JS object which describes it.
+        (WebKit::IPCTestingAPI::JSIPC::frameID): Renamed from frameIdentifier to be consistent.
+        (WebKit::IPCTestingAPI::JSIPC::pageID): Added.
+        (WebKit::IPCTestingAPI::JSIPC::sessionID): Added.
+        (WebKit::IPCTestingAPI::createJSArrayForArgumentDescriptions): Added.
+        (WebKit::IPCTestingAPI::JSIPC::messages): Added the code to generate descriptions for arguments.
+
+2020-10-13  Ellie Epskamp-Hunt  <eepskamphunt@apple.com>
+
+        Expose a property on WKWebView to know if it's being inspected.
+        https://bugs.webkit.org/show_bug.cgi?id=217629
+        rdar://70073369
+
+        Reviewed by Brian Burg.
+
+        Move an existing property from WKWebViewPrivateForTesting to WKWebViewPrivate so Safari can
+        know when a web view is being inspected.
+
+        * UIProcess/API/Cocoa/WKWebView.mm:
+        (-[WKWebView _isBeingInspected]):
+        * UIProcess/API/Cocoa/WKWebViewPrivate.h:
+        * UIProcess/API/Cocoa/WKWebViewPrivateForTesting.h:
+        * UIProcess/API/Cocoa/WKWebViewTesting.mm:
+        (-[WKWebView _hasInspectorFrontend]): Deleted.
+
+2020-10-13  Chris Dumez  <cdumez@apple.com>
+
+        WebAudio tests are crashing in debug when enabling the GPU process
+        https://bugs.webkit.org/show_bug.cgi?id=217663
+
+        Reviewed by Geoff Garen.
+
+        WebAudio tests were crashing in debug when enabling the GPU process because it did audio
+        processing on the WebContent process's main thread. To address the issue, I made
+        RemoteAudioDestinationProxy a ThreadMessageReceiver so that it receives IPC on an audio
+        thread instead of the main thread. IPC messages are processed directly on the AudioWorklet
+        thread when active or on an audio thread constructed by RemoteAudioDestinationProxy
+        otherwise.
+
+        * GPUProcess/media/RemoteAudioDestinationManager.cpp:
+        (WebKit::RemoteAudioDestination::RemoteAudioDestination):
+        Use a PushPullFIFO structure in render() to avoid hanging the audio rendering thread
+        on a semaphore. Hanging the rendering thread was terrible for performance and was also
+        a source of deadlock since the underlying framework is holding a lock while render() is
+        called. We could process a RemoteAudioDestination::CreateAudioDestination sync IPC on the
+        main thread and deadlock on that lock.
+
+        * GPUProcess/webrtc/LibWebRTCCodecsProxy.h:
+        * GPUProcess/webrtc/RemoteAudioMediaStreamTrackRendererManager.h:
+        * GPUProcess/webrtc/RemoteSampleBufferDisplayLayerManager.h:
+        * NetworkProcess/IndexedDB/WebIDBServer.h:
+        * NetworkProcess/webrtc/NetworkRTCProvider.h:
+        * WebProcess/Network/webrtc/LibWebRTCNetwork.h:
+        * WebProcess/cocoa/RemoteCaptureSampleManager.h:
+        Use ThreadMessageReceiverRefCounted instead of ThreadMessageReceiver since those classes
+        do not provide their own RefCounting.
+
+        * Platform/IPC/Connection.cpp:
+        (IPC::Connection::addWorkQueueMessageReceiver):
+        (IPC::Connection::removeWorkQueueMessageReceiver):
+        (IPC::Connection::addThreadMessageReceiver):
+        (IPC::Connection::removeThreadMessageReceiver):
+        (IPC::Connection::processIncomingMessage):
+        (IPC::Connection::dispatchMessageToWorkQueueReceiver):
+        (IPC::Connection::dispatchMessageToThreadReceiver):
+        * Platform/IPC/Connection.h:
+        (IPC::Connection::ThreadMessageReceiver::ref):
+        (IPC::Connection::ThreadMessageReceiver::deref):
+        - Add support for passing a destinationID when registering a WorkQueueMessageReceiver or a
+          ThreadMessageReceiver, similarly to regular MessageReceivers. This was needed here since
+          The GPUProcess sends IPC messages to the RemoteAudioDestinationProxy with a given
+          destinationID and since RemoteAudioDestinationProxy is now a ThreadMessageReceiver.
+        - Stop having ThreadMessageReceiver subclass ThreadSafeRefCounted since
+          RemoteAudioDestinationProxy already subclasses ThreadSafeRefCounted indirectly. A new
+          ThreadMessageReceiverRefCounted class was added for convenience for existing code that
+          relied on its refcounting.
+
+        * WebProcess/GPU/media/RemoteAudioDestinationProxy.cpp:
+        (WebKit::RemoteAudioDestinationProxy::RemoteAudioDestinationProxy):
+        (WebKit::RemoteAudioDestinationProxy::~RemoteAudioDestinationProxy):
+        (WebKit::RemoteAudioDestinationProxy::start):
+        (WebKit::RemoteAudioDestinationProxy::stop):
+        (WebKit::RemoteAudioDestinationProxy::renderBuffer):
+        (WebKit::RemoteAudioDestinationProxy::didChangeIsPlaying):
+        (WebKit::RemoteAudioDestinationProxy::dispatchToThread):
+        * WebProcess/GPU/media/RemoteAudioDestinationProxy.h:
+        Use a PushPullFIFO container in render() to avoid handing the audio rendering thread on
+        a semaphore while the Render IPC is getting processed by the WebProcess.
+
+2020-10-13  Per Arne Vollan  <pvollan@apple.com>
+
+        [iOS 14] Hang in -[WKUserDefaults _notifyObserversOfChangeFromValuesForKeys:toValuesForKeys:]
+        https://bugs.webkit.org/show_bug.cgi?id=217183
+        <rdar://problem/69916673>
+
+        Reviewed by Geoffrey Garen.
+
+        Dispatch this work on a non-main thread, in order to avoid blocking the main thread.
+
+        * UIProcess/Cocoa/PreferenceObserver.mm:
+        (-[WKUserDefaults _notifyObserversOfChangeFromValuesForKeys:toValuesForKeys:]):
+
+2020-10-13  Keith Rollin  <krollin@apple.com>
+
+        Remove leftover MACOSX_DEPLOYMENT_TARGET_macosx support
+        https://bugs.webkit.org/show_bug.cgi?id=217649
+        <rdar://problem/70236877>
+
+        Reviewed by Darin Adler.
+
+        Bug 42796 introduced MACOSX_DEPLOYMENT_TARGET_<PLATFORM> as "support
+        for compiling WebKit against iOS SDKs". Support for the iOS part of
+        this feature was later removed in several changes, including Bug
+        139212, Bug 139463 and Bug 144762. However, vestiges have remained for
+        five or six years in the form of MACOSX_DEPLOYMENT_TARGET_macosx. The
+        inclusion of the platform in MACOSX_DEPLOYMENT_TARGET is no longer
+        needed and can be removed.
+
+        This changes brings most projects in conformance with other projects
+        that don't support including the platform in MACOSX_DEPLOYMENT_TARGET,
+        including WebEditingTester, gtest, WebKitTestRunner, MiniBrowser, and
+        TestWebKitAPI.
+
+        Along the way, remove a couple of left-over references to macOS 10.16,
+        and a couple of places where [sdk=macosx*] was still being used.
+
+        With this change, initialization of MACOSX_DEPLOYMENT_TARGET should be
+        consistent across all projects, with two exceptions: WebKitLauncher
+        (which hardcodes it to 10.12) and libwebrtc's copy of googletest
+        (which hardcodes it to 10.4). The reasons for these hard-coded values
+        is not apparent, so leave them be.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-13  Simon Fraser  <simon.fraser@apple.com>
+
+        Plumb OptionSet<WheelEventProcessingSteps> through the wheel event handling code
+        https://bugs.webkit.org/show_bug.cgi?id=217660
+
+        Reviewed by Tim Horton.
+
+        Async scrolling in passive wheel event regions will require that the main thread event
+        handling code knows that the scrolling thread did the scrolling. To propagate this
+        information, plumb OptionSet<WheelEventProcessingSteps> through.
+
+        No behavior change.
+
+        * WebProcess/WebPage/EventDispatcher.cpp:
+        (WebKit::EventDispatcher::wheelEvent):
+        (WebKit::EventDispatcher::dispatchWheelEventViaMainThread):
+        (WebKit::EventDispatcher::dispatchWheelEvent):
+        * WebProcess/WebPage/EventDispatcher.h:
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::handleWheelEvent):
+        (WebKit::WebPage::wheelEvent):
+        * WebProcess/WebPage/WebPage.h:
+
+2020-10-13  Alex Christensen  <achristensen@webkit.org>
+
+        Allow legacy custom scheme registration on non-main threads
+        https://bugs.webkit.org/show_bug.cgi?id=217656
+        <rdar://problem/70228036>
+
+        Reviewed by Brady Eidson.
+
+        r267802 was quite necessary, but it exposed an internal client calling our API on a background thread,
+        which crashes now.  Make it not crash.  There is a race condition in their registration, but there already was.
+
+        * UIProcess/API/Cocoa/WKBrowsingContextController.mm:
+        (+[WKBrowsingContextController registerSchemeForCustomProtocol:]):
+        (+[WKBrowsingContextController unregisterSchemeForCustomProtocol:]):
+
 2020-10-13  Kimmo Kinnunen  <kkinnunen@apple.com>
 
         Cocoa: Make WebGLLayer not dependent on  GraphicsContextGLOpenGL

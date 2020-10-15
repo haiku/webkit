@@ -1,3 +1,1279 @@
+2020-10-15  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (r267662): [ Mojave+ debug wk1 ] webgl/2.0.0/conformance/extensions/webgl-compressed-texture-s3tc-srgb.html is a flaky crash
+        https://bugs.webkit.org/show_bug.cgi?id=217761
+
+        Unreviewed test gardening.
+
+        * platform/mac-wk1/TestExpectations:
+
+2020-10-15  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION: [ iOS wk2 ews ] media/now-playing-status-without-media.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217759
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
+2020-10-15  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (r268178): [iOS] imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-multiple-times.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217741
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
+2020-10-15  Karl Rackler  <rackler@apple.com>
+
+        [ Mojave wk1 ews ] media/remote-control-command-seek.html is a flaky timeout
+        https://bugs.webkit.org/show_bug.cgi?id=215325
+
+        Unreviewed test gardening.
+
+        * platform/mac-wk1/TestExpectations:
+
+2020-10-15  Antti Koivisto  <antti@apple.com>
+
+        Remove <br> render tree dump quirk
+        https://bugs.webkit.org/show_bug.cgi?id=209813
+
+        Reviewed by Zalan Bujtas.
+
+        * platform/mac/css1/box_properties/float_on_text_elements-expected.txt:
+        * platform/mac/css1/color_and_background/background_attachment-expected.txt:
+        * platform/mac/css1/text_properties/text_indent-expected.txt:
+        * platform/mac/editing/deleting/5272440-expected.txt:
+        * platform/mac/editing/deleting/delete-at-paragraph-boundaries-002-expected.txt:
+        * platform/mac/editing/deleting/delete-at-paragraph-boundaries-003-expected.txt:
+        * platform/mac/editing/deleting/delete-at-paragraph-boundaries-004-expected.txt:
+        * platform/mac/editing/deleting/delete-at-paragraph-boundaries-005-expected.txt:
+        * platform/mac/editing/deleting/delete-at-paragraph-boundaries-006-expected.txt:
+        * platform/mac/editing/deleting/delete-at-paragraph-boundaries-007-expected.txt:
+        * platform/mac/editing/deleting/delete-at-paragraph-boundaries-008-expected.txt:
+        * platform/mac/editing/deleting/delete-at-paragraph-boundaries-009-expected.txt:
+        * platform/mac/editing/deleting/delete-at-paragraph-boundaries-010-expected.txt:
+        * platform/mac/editing/deleting/delete-at-paragraph-boundaries-011-expected.txt:
+        * platform/mac/editing/deleting/delete-block-merge-contents-002-expected.txt:
+        * platform/mac/editing/deleting/delete-block-merge-contents-003-expected.txt:
+        * platform/mac/editing/deleting/delete-block-merge-contents-004-expected.txt:
+        * platform/mac/editing/deleting/delete-block-merge-contents-006-expected.txt:
+        * platform/mac/editing/deleting/delete-block-merge-contents-007-expected.txt:
+        * platform/mac/editing/deleting/delete-block-merge-contents-009-expected.txt:
+        * platform/mac/editing/deleting/delete-block-merge-contents-011-expected.txt:
+        * platform/mac/editing/deleting/delete-br-003-expected.txt:
+        * platform/mac/editing/deleting/delete-image-001-expected.txt:
+        * platform/mac/editing/deleting/delete-image-002-expected.txt:
+        * platform/mac/editing/deleting/delete-line-003-expected.txt:
+        * platform/mac/editing/deleting/delete-trailing-ws-002-expected.txt:
+        * platform/mac/editing/deleting/non-smart-delete-expected.txt:
+        * platform/mac/editing/execCommand/4641880-1-expected.txt:
+        * platform/mac/editing/execCommand/4641880-2-expected.txt:
+        * platform/mac/editing/execCommand/4916541-expected.txt:
+        * platform/mac/editing/execCommand/5080333-1-expected.txt:
+        * platform/mac/editing/execCommand/5080333-2-expected.txt:
+        * platform/mac/editing/execCommand/5569741-expected.txt:
+        * platform/mac/editing/execCommand/indent-selection-expected.txt:
+        * platform/mac/editing/execCommand/remove-list-from-range-selection-expected.txt:
+        * platform/mac/editing/input/emacs-ctrl-o-expected.txt:
+        * platform/mac/editing/inserting/4960120-2-expected.txt:
+        * platform/mac/editing/inserting/5002441-expected.txt:
+        * platform/mac/editing/inserting/5156401-2-expected.txt:
+        * platform/mac/editing/inserting/5510537-expected.txt:
+        * platform/mac/editing/inserting/5549929-3-expected.txt:
+        * platform/mac/editing/inserting/6703873-expected.txt:
+        * platform/mac/editing/inserting/break-blockquote-after-delete-expected.txt:
+        * platform/mac/editing/inserting/insert-3778059-fix-expected.txt:
+        * platform/mac/editing/inserting/insert-br-at-tabspan-001-expected.txt:
+        * platform/mac/editing/inserting/insert-br-at-tabspan-002-expected.txt:
+        * platform/mac/editing/inserting/insert-br-at-tabspan-003-expected.txt:
+        * platform/mac/editing/inserting/insert-br-quoted-001-expected.txt:
+        * platform/mac/editing/inserting/insert-br-quoted-002-expected.txt:
+        * platform/mac/editing/inserting/insert-br-quoted-003-expected.txt:
+        * platform/mac/editing/inserting/insert-br-quoted-004-expected.txt:
+        * platform/mac/editing/inserting/insert-br-quoted-005-expected.txt:
+        * platform/mac/editing/inserting/insert-br-quoted-006-expected.txt:
+        * platform/mac/editing/inserting/insert-div-020-expected.txt:
+        * platform/mac/editing/inserting/insert-div-022-expected.txt:
+        * platform/mac/editing/inserting/insert-div-026-expected.txt:
+        * platform/mac/editing/inserting/insert-paragraph-03-expected.txt:
+        * platform/mac/editing/inserting/insert-text-with-newlines-expected.txt:
+        * platform/mac/editing/inserting/paragraph-separator-in-table-1-expected.txt:
+        * platform/mac/editing/inserting/paragraph-separator-in-table-2-expected.txt:
+        * platform/mac/editing/inserting/return-key-with-selection-001-expected.txt:
+        * platform/mac/editing/inserting/return-key-with-selection-002-expected.txt:
+        * platform/mac/editing/inserting/return-key-with-selection-003-expected.txt:
+        * platform/mac/editing/pasteboard/4989774-expected.txt:
+        * platform/mac/editing/pasteboard/5006779-expected.txt:
+        * platform/mac/editing/pasteboard/5601583-1-expected.txt:
+        * platform/mac/editing/pasteboard/8145-2-expected.txt:
+        * platform/mac/editing/pasteboard/bad-placeholder-expected.txt:
+        * platform/mac/editing/pasteboard/emacs-cntl-y-001-expected.txt:
+        * platform/mac/editing/pasteboard/emacs-ctrl-k-y-001-expected.txt:
+        * platform/mac/editing/pasteboard/paste-4038267-fix-expected.txt:
+        * platform/mac/editing/pasteboard/paste-blockquote-into-blockquote-4-expected.txt:
+        * platform/mac/editing/pasteboard/paste-line-endings-001-expected.txt:
+        * platform/mac/editing/pasteboard/paste-line-endings-002-expected.txt:
+        * platform/mac/editing/pasteboard/paste-line-endings-003-expected.txt:
+        * platform/mac/editing/pasteboard/paste-line-endings-004-expected.txt:
+        * platform/mac/editing/pasteboard/paste-line-endings-005-expected.txt:
+        * platform/mac/editing/pasteboard/paste-line-endings-006-expected.txt:
+        * platform/mac/editing/pasteboard/paste-line-endings-007-expected.txt:
+        * platform/mac/editing/pasteboard/paste-line-endings-008-expected.txt:
+        * platform/mac/editing/pasteboard/paste-line-endings-009-expected.txt:
+        * platform/mac/editing/pasteboard/paste-line-endings-010-expected.txt:
+        * platform/mac/editing/pasteboard/paste-match-style-001-expected.txt:
+        * platform/mac/editing/pasteboard/paste-match-style-002-expected.txt:
+        * platform/mac/editing/pasteboard/paste-text-016-expected.txt:
+        * platform/mac/editing/pasteboard/paste-text-019-expected.txt:
+        * platform/mac/editing/pasteboard/quirks-mode-br-1-expected.txt:
+        * platform/mac/editing/selection/3690703-2-expected.txt:
+        * platform/mac/editing/selection/3690703-expected.txt:
+        * platform/mac/editing/selection/3690719-expected.txt:
+        * platform/mac/editing/selection/5007143-2-expected.txt:
+        * platform/mac/editing/selection/5007143-expected.txt:
+        * platform/mac/editing/selection/drag-in-iframe-expected.txt:
+        * platform/mac/editing/selection/editable-html-element-expected.txt:
+        * platform/mac/editing/selection/extend-by-character-002-expected.txt:
+        * platform/mac/editing/selection/extend-by-character-004-expected.txt:
+        * platform/mac/editing/selection/focus_editable_html-expected.txt:
+        * platform/mac/editing/selection/image-before-linebreak-expected.txt:
+        * platform/mac/editing/selection/move-3875618-fix-expected.txt:
+        * platform/mac/editing/selection/move-backwords-by-word-001-expected.txt:
+        * platform/mac/editing/selection/move-by-character-002-expected.txt:
+        * platform/mac/editing/selection/move-by-character-004-expected.txt:
+        * platform/mac/editing/selection/move-by-sentence-linebreak-expected.txt:
+        * platform/mac/editing/selection/paragraph-granularity-expected.txt:
+        * platform/mac/editing/selection/replaced-boundaries-3-expected.txt:
+        * platform/mac/editing/selection/select-all-002-expected.txt:
+        * platform/mac/editing/selection/select-all-003-expected.txt:
+        * platform/mac/editing/selection/select-all-iframe-expected.txt:
+        * platform/mac/editing/selection/selectNode-expected.txt:
+        * platform/mac/editing/selection/selectNodeContents-expected.txt:
+        * platform/mac/editing/selection/selection-3748164-fix-expected.txt:
+        * platform/mac/editing/selection/selection-actions-expected.txt:
+        * platform/mac/editing/selection/word-granularity-expected.txt:
+        * platform/mac/editing/style/5046875-2-expected.txt:
+        * platform/mac/editing/style/block-styles-007-expected.txt:
+        * platform/mac/editing/style/create-block-for-style-001-expected.txt:
+        * platform/mac/editing/style/create-block-for-style-002-expected.txt:
+        * platform/mac/editing/style/create-block-for-style-003-expected.txt:
+        * platform/mac/editing/style/create-block-for-style-004-expected.txt:
+        * platform/mac/editing/style/create-block-for-style-013-expected.txt:
+        * platform/mac/editing/style/smoosh-styles-001-expected.txt:
+        * platform/mac/editing/style/style-3998892-fix-expected.txt:
+        * platform/mac/editing/style/style-boundary-001-expected.txt:
+        * platform/mac/editing/style/style-boundary-004-expected.txt:
+        * platform/mac/editing/style/style-boundary-005-expected.txt:
+        * platform/mac/editing/unsupported-content/list-delete-001-expected.txt:
+        * platform/mac/editing/unsupported-content/list-delete-003-expected.txt:
+        * platform/mac/editing/unsupported-content/list-type-after-expected.txt:
+        * platform/mac/editing/unsupported-content/list-type-before-expected.txt:
+        * platform/mac/editing/unsupported-content/table-delete-002-expected.txt:
+        * platform/mac/editing/unsupported-content/table-type-after-expected.txt:
+        * platform/mac/editing/unsupported-content/table-type-before-expected.txt:
+        * platform/mac/fast/backgrounds/background-clip-text-expected.txt:
+        * platform/mac/fast/backgrounds/border-radius-split-background-image-expected.txt:
+        * platform/mac/fast/backgrounds/quirks-mode-line-box-backgrounds-expected.txt:
+        * platform/mac/fast/block/float/002-expected.txt:
+        * platform/mac/fast/block/float/021-expected.txt:
+        * platform/mac/fast/block/margin-collapse/104-expected.txt:
+        * platform/mac/fast/block/positioning/056-expected.txt:
+        * platform/mac/fast/block/positioning/differing-writing-modes-expected.txt:
+        * platform/mac/fast/block/positioning/differing-writing-modes-replaced-expected.txt:
+        * platform/mac/fast/block/positioning/trailing-space-test-expected.txt:
+        * platform/mac/fast/borders/border-styles-split-expected.txt:
+        * platform/mac/fast/box-shadow/basic-shadows-expected.txt:
+        * platform/mac/fast/clip/nestedTransparencyClip-expected.txt:
+        * platform/mac/fast/clip/overflow-border-radius-combinations-expected.txt:
+        * platform/mac/fast/clip/overflow-border-radius-composited-expected.txt:
+        * platform/mac/fast/clip/overflow-border-radius-transformed-expected.txt:
+        * platform/mac/fast/css-generated-content/inline-display-types-expected.txt:
+        * platform/mac/fast/css-generated-content/table-row-group-to-inline-expected.txt:
+        * platform/mac/fast/css-generated-content/table-row-group-with-before-expected.txt:
+        * platform/mac/fast/css-generated-content/table-row-with-before-expected.txt:
+        * platform/mac/fast/css-generated-content/table-with-before-expected.txt:
+        * platform/mac/fast/css/001-expected.txt:
+        * platform/mac/fast/css/first-letter-first-line-hover-expected.txt:
+        * platform/mac/fast/css/first-line-text-decoration-expected.txt:
+        * platform/mac/fast/css/first-line-text-decoration-inherited-from-parent-expected.txt:
+        * platform/mac/fast/css/focus-ring-detached-expected.txt:
+        * platform/mac/fast/css/font-smoothing-expected.txt:
+        * platform/mac/fast/css/hsl-color-expected.txt:
+        * platform/mac/fast/css/layerZOrderCrash-expected.txt:
+        * platform/mac/fast/css/line-height-overflow-expected.txt:
+        * platform/mac/fast/css/nth-child-dynamic-expected.txt:
+        * platform/mac/fast/css/outline-narrowLine-expected.txt:
+        * platform/mac/fast/css/text-overflow-ellipsis-expected.txt:
+        * platform/mac/fast/css/text-rendering-expected.txt:
+        * platform/mac/fast/css/word-space-extra-expected.txt:
+        * platform/mac/fast/dom/HTMLElement/bdo-expected.txt:
+        * platform/mac/fast/dom/HTMLImageElement/image-alt-text-expected.txt:
+        * platform/mac/fast/dom/HTMLTableElement/colSpan-expected.txt:
+        * platform/mac/fast/dom/HTMLTableElement/createCaption-expected.txt:
+        * platform/mac/fast/dom/children-nodes-expected.txt:
+        * platform/mac/fast/dom/focus-contenteditable-expected.txt:
+        * platform/mac/fast/dynamic/float-in-trailing-whitespace-after-last-line-break-expected.txt:
+        * platform/mac/fast/encoding/utf-16-big-endian-expected.txt:
+        * platform/mac/fast/encoding/utf-16-little-endian-expected.txt:
+        * platform/mac/fast/encoding/xmacroman-encoding-test-expected.txt:
+        * platform/mac/fast/events/standalone-image-drag-to-editable-expected.txt:
+        * platform/mac/fast/forms/007-expected.txt:
+        * platform/mac/fast/forms/basic-textareas-expected.txt:
+        * platform/mac/fast/forms/button-table-styles-expected.txt:
+        * platform/mac/fast/forms/caret-rtl-expected.txt:
+        * platform/mac/fast/forms/input-appearance-spinbutton-expected.txt:
+        * platform/mac/fast/forms/input-baseline-expected.txt:
+        * platform/mac/fast/forms/input-disabled-color-expected.txt:
+        * platform/mac/fast/forms/input-type-text-min-width-expected.txt:
+        * platform/mac/fast/forms/negativeLineHeight-expected.txt:
+        * platform/mac/fast/forms/option-index-expected.txt:
+        * platform/mac/fast/forms/placeholder-pseudo-style-expected.txt:
+        * platform/mac/fast/forms/range/slider-padding-expected.txt:
+        * platform/mac/fast/forms/range/slider-thumb-shared-style-expected.txt:
+        * platform/mac/fast/forms/tabbing-input-iframe-expected.txt:
+        * platform/mac/fast/frames/001-expected.txt:
+        * platform/mac/fast/frames/iframe-with-frameborder-expected.txt:
+        * platform/mac/fast/frames/onlyCommentInIFrame-expected.txt:
+        * platform/mac/fast/hidpi/image-set-border-image-comparison-expected.txt:
+        * platform/mac/fast/inline-block/001-expected.txt:
+        * platform/mac/fast/inline-block/006-expected.txt:
+        * platform/mac/fast/inline-block/contenteditable-baseline-expected.txt:
+        * platform/mac/fast/inline-block/tricky-baseline-expected.txt:
+        * platform/mac/fast/inline/drawStyledEmptyInlines-expected.txt:
+        * platform/mac/fast/invalid/010-expected.txt:
+        * platform/mac/fast/invalid/021-expected.txt:
+        * platform/mac/fast/layers/overflow-scroll-auto-switch-expected.txt:
+        * platform/mac/fast/layers/video-layer-expected.txt:
+        * platform/mac/fast/line-grid/line-grid-contains-value-expected.txt:
+        * platform/mac/fast/line-grid/line-grid-floating-expected.txt:
+        * platform/mac/fast/line-grid/line-grid-inside-columns-expected.txt:
+        * platform/mac/fast/line-grid/line-grid-into-columns-expected.txt:
+        * platform/mac/fast/line-grid/line-grid-into-floats-expected.txt:
+        * platform/mac/fast/line-grid/line-grid-positioned-expected.txt:
+        * platform/mac/fast/multicol/column-break-with-balancing-expected.txt:
+        * platform/mac/fast/multicol/column-count-with-rules-expected.txt:
+        * platform/mac/fast/multicol/float-paginate-complex-expected.txt:
+        * platform/mac/fast/multicol/float-paginate-empty-lines-expected.txt:
+        * platform/mac/fast/multicol/float-paginate-expected.txt:
+        * platform/mac/fast/multicol/layers-in-multicol-expected.txt:
+        * platform/mac/fast/multicol/max-height-columns-block-expected.txt:
+        * platform/mac/fast/multicol/paginate-block-replaced-expected.txt:
+        * platform/mac/fast/multicol/positioned-split-expected.txt:
+        * platform/mac/fast/multicol/table-vertical-align-expected.txt:
+        * platform/mac/fast/multicol/unsplittable-inline-block-expected.txt:
+        * platform/mac/fast/multicol/vertical-lr/column-break-with-balancing-expected.txt:
+        * platform/mac/fast/multicol/vertical-lr/column-count-with-rules-expected.txt:
+        * platform/mac/fast/multicol/vertical-lr/float-paginate-complex-expected.txt:
+        * platform/mac/fast/multicol/vertical-lr/float-paginate-expected.txt:
+        * platform/mac/fast/multicol/vertical-lr/unsplittable-inline-block-expected.txt:
+        * platform/mac/fast/multicol/vertical-rl/column-break-with-balancing-expected.txt:
+        * platform/mac/fast/multicol/vertical-rl/column-count-with-rules-expected.txt:
+        * platform/mac/fast/multicol/vertical-rl/float-paginate-complex-expected.txt:
+        * platform/mac/fast/multicol/vertical-rl/float-paginate-expected.txt:
+        * platform/mac/fast/multicol/vertical-rl/unsplittable-inline-block-expected.txt:
+        * platform/mac/fast/overflow/002-expected.txt:
+        * platform/mac/fast/overflow/006-expected.txt:
+        * platform/mac/fast/overflow/line-clamp-expected.txt:
+        * platform/mac/fast/overflow/overflow-float-stacking-expected.txt:
+        * platform/mac/fast/overflow/overflow-stacking-expected.txt:
+        * platform/mac/fast/overflow/position-fixed-transform-clipping-expected.txt:
+        * platform/mac/fast/overflow/table-overflow-float-expected.txt:
+        * platform/mac/fast/reflections/reflection-direction-expected.txt:
+        * platform/mac/fast/repaint/block-selection-gap-stale-cache-2-expected.txt:
+        * platform/mac/fast/repaint/block-selection-gap-stale-cache-expected.txt:
+        * platform/mac/fast/repaint/make-children-non-inline-expected.txt:
+        * platform/mac/fast/repaint/selection-after-remove-expected.txt:
+        * platform/mac/fast/repaint/selection-gap-overflow-scroll-2-expected.txt:
+        * platform/mac/fast/repaint/selection-gap-overflow-scroll-expected.txt:
+        * platform/mac/fast/repaint/text-selection-rect-in-overflow-2-expected.txt:
+        * platform/mac/fast/replaced/007-expected.txt:
+        * platform/mac/fast/replaced/selection-rect-transform-expected.txt:
+        * platform/mac/fast/ruby/ruby-beforeafter-expected.txt:
+        * platform/mac/fast/ruby/ruby-inline-table-expected.txt:
+        * platform/mac/fast/ruby/ruby-length-expected.txt:
+        * platform/mac/fast/ruby/ruby-run-break-expected.txt:
+        * platform/mac/fast/ruby/ruby-runs-expected.txt:
+        * platform/mac/fast/ruby/ruby-simple-expected.txt:
+        * platform/mac/fast/ruby/ruby-simple-rp-expected.txt:
+        * platform/mac/fast/table/005-expected.txt:
+        * platform/mac/fast/table/009-expected.txt:
+        * platform/mac/fast/table/039-expected.txt:
+        * platform/mac/fast/table/040-expected.txt:
+        * platform/mac/fast/table/040-vertical-expected.txt:
+        * platform/mac/fast/table/cellindex-expected.txt:
+        * platform/mac/fast/table/percent-heights-expected.txt:
+        * platform/mac/fast/table/table-and-parts-outline-expected.txt:
+        * platform/mac/fast/text/basic/012-expected.txt:
+        * platform/mac/fast/text/basic/014-expected.txt:
+        * platform/mac/fast/text/basic/generic-family-reset-expected.txt:
+        * platform/mac/fast/text/complex-synthetic-bold-space-width-expected.txt:
+        * platform/mac/fast/text/international/bidi-control-chars-treated-as-ZWS-expected.txt:
+        * platform/mac/fast/text/international/bidi-layout-across-linebreak-expected.txt:
+        * platform/mac/fast/text/international/bidi-listbox-atsui-expected.txt:
+        * platform/mac/fast/text/international/bidi-listbox-expected.txt:
+        * platform/mac/fast/text/international/hebrew-vowels-expected.txt:
+        * platform/mac/fast/text/international/thai-baht-space-expected.txt:
+        * platform/mac/fast/text/midword-break-after-breakable-char-expected.txt:
+        * platform/mac/fast/text/whitespace/pre-wrap-spaces-after-newline-expected.txt:
+        * platform/mac/fast/transforms/bounding-rect-zoom-expected.txt:
+        * platform/mac/fast/transforms/transformed-caret-expected.txt:
+        * platform/mac/fast/writing-mode/border-styles-vertical-lr-expected.txt:
+        * platform/mac/fast/writing-mode/border-styles-vertical-rl-expected.txt:
+        * platform/mac/fast/writing-mode/english-bt-text-expected.txt:
+        * platform/mac/fast/writing-mode/english-lr-text-expected.txt:
+        * platform/mac/fast/writing-mode/english-rl-text-expected.txt:
+        * platform/mac/fast/writing-mode/fieldsets-expected.txt:
+        * platform/mac/fast/writing-mode/text-orientation-basic-expected.txt:
+        * platform/mac/fast/xsl/xslt-enc-cyr-expected.txt:
+        * platform/mac/fast/xsl/xslt-enc-expected.txt:
+        * platform/mac/fast/xsl/xslt-enc16-expected.txt:
+        * platform/mac/fast/xsl/xslt-enc16to16-expected.txt:
+        * platform/mac/fonts/default-expected.txt:
+        * platform/mac/fonts/fantasy-expected.txt:
+        * platform/mac/fonts/monospace-expected.txt:
+        * platform/mac/fonts/sans-serif-expected.txt:
+        * platform/mac/fonts/serif-expected.txt:
+        * platform/mac/http/tests/loading/simple-subframe-expected.txt:
+        * platform/mac/http/tests/local/file-url-sent-as-referer-expected.txt:
+        * platform/mac/http/tests/misc/favicon-as-image-expected.txt:
+        * platform/mac/http/tests/misc/frame-access-during-load-expected.txt:
+        * platform/mac/http/tests/navigation/javascriptlink-frames-expected.txt:
+        * platform/mac/http/tests/navigation/postredirect-basic-expected.txt:
+        * platform/mac/http/tests/navigation/postredirect-goback1-expected.txt:
+        * platform/mac/media/video-transformed-expected.txt:
+        * platform/mac/scrollbars/basic-scrollbar-expected.txt:
+        * platform/mac/scrollbars/overflow-scrollbar-combinations-expected.txt:
+        * platform/mac/svg/as-image/animated-svg-as-image-expected.txt:
+        * platform/mac/svg/as-image/animated-svg-as-image-same-image-expected.txt:
+        * platform/mac/svg/custom/getsvgdocument-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug106158-1-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug10633-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug11026-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug113235-1-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug1188-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug1224-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug131020-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug131020_iframe-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug1318-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug1430-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug149275-1-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug16012-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug17138-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug19061-1-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug19061-2-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug19599-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug20579-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug20804-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug23235-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug23299-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug25663-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug28341-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug2962-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug30332-1-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug30692-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug32205-2-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug32205-3-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug4093-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug4284-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug43854-1-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug43854-2-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug4427-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug4527-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug4849-2-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug5538-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug55694-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug5799-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug5838-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug60992-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug6404-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug82946-1-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug8858-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug8950-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug9123-1-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug92143-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug92868-expected.txt:
+        * platform/mac/tables/mozilla/bugs/bug963-expected.txt:
+        * platform/mac/tables/mozilla/core/bloomberg-expected.txt:
+        * platform/mac/tables/mozilla/core/col_widths_auto_autoFix-expected.txt:
+        * platform/mac/tables/mozilla/core/col_widths_fix_auto-expected.txt:
+        * platform/mac/tables/mozilla/dom/deleteTbodyRebuild1-expected.txt:
+        * platform/mac/tables/mozilla/marvin/table_row_align_center-expected.txt:
+        * platform/mac/tables/mozilla/marvin/table_row_align_left-expected.txt:
+        * platform/mac/tables/mozilla/marvin/table_row_align_right-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_align_center-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_align_left-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_align_right-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_border_0-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_border_1-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_border_2-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_border_3-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_cellpadding-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_cellspacing-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_default-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_row_th_nowrap-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_td_align_left-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_td_align_right-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_td_colspan-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_td_height-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_td_nowrap-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_td_rowspan-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_td_width-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_th_align_center-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_th_align_left-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_th_align_right-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_th_colspan-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_th_height-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_th_rowspan-expected.txt:
+        * platform/mac/tables/mozilla/marvin/tables_th_width-expected.txt:
+        * platform/mac/tables/mozilla/other/nestedTables-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/bugs/bug1128-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/bugs/bug11331-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/bugs/bug1262-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/bugs/bug131020-3-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/bugs/bug14007-2-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/bugs/bug18770-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/bugs/bug32205-1-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/bugs/bug56024-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/bugs/bug80762-2-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/bugs/bug8499-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/core/col_span2-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/other/test4-expected.txt:
+        * platform/mac/transforms/3d/hit-testing/backface-hit-test-expected.txt:
+        * platform/mac/transforms/3d/hit-testing/backface-no-transform-hit-test-expected.txt:
+        * platform/mac/transforms/3d/point-mapping/3d-point-mapping-2-expected.txt:
+        * platform/mac/transforms/3d/point-mapping/3d-point-mapping-3-expected.txt:
+        * platform/mac/transforms/3d/point-mapping/3d-point-mapping-coplanar-expected.txt:
+        * platform/mac/transforms/3d/point-mapping/3d-point-mapping-deep-expected.txt:
+        * platform/mac/transforms/3d/point-mapping/3d-point-mapping-expected.txt:
+        * platform/mac/transforms/3d/point-mapping/3d-point-mapping-origins-expected.txt:
+        * platform/mac/transforms/3d/point-mapping/3d-point-mapping-overlapping-expected.txt:
+        * platform/mac/transforms/3d/point-mapping/3d-point-mapping-preserve-3d-expected.txt:
+
+2020-10-15  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GLIB] Unreviewed test gardening. Update baseline of fast/css/word-space-extra.html after r268202.
+
+        * platform/glib/fast/css/word-space-extra-expected.png: Renamed from LayoutTests/platform/gtk/fast/css/word-space-extra-expected.png.
+        * platform/glib/fast/css/word-space-extra-expected.txt: Renamed from LayoutTests/platform/gtk/fast/css/word-space-extra-expected.txt.
+        * platform/wpe/fast/css/word-space-extra-expected.txt: Removed.
+
+2020-10-14  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WinCairo] Unreviewed test gardening
+
+        * platform/wincairo/TestExpectations:
+        * platform/wincairo/fast/css/word-space-extra-expected.txt:
+
+2020-10-14  James Darpinian  <jdarpinian@chromium.org>
+
+        Unity RubysAdventure demo does not render properly if WebGL2 is enabled.
+        https://bugs.webkit.org/show_bug.cgi?id=215846
+
+        Reviewed by Kenneth Russell.
+
+        * webgl/conformance2/uniforms/gl-uniform-arrays-sub-source-expected.txt: Added.
+        * webgl/conformance2/uniforms/gl-uniform-arrays-sub-source.html: Added.
+        * webgl/resources/webgl_test_files/conformance2/uniforms/gl-uniform-arrays-sub-source.html: Added.
+
+2020-10-14  Andres Gonzalez  <andresg_22@apple.com>
+
+        Support AXCoreObject::elementPath for text elements.
+        https://bugs.webkit.org/show_bug.cgi?id=215206
+
+        Reviewed by Chris Fleizach.
+
+        * accessibility/mac/bounds-for-range-expected.txt:
+        Since elementPath is now supported for text elements,
+        AccessibilityUIEelement::attributesOfLinkedUIElements also returns the
+        element path description.
+        * accessibility/mac/internal-link-anchors-expected.txt: Ditto.
+        * accessibility/text-element-path-expected.txt: Added.
+        * accessibility/text-element-path.html: Added.
+
+2020-10-14  Hector Lopez  <hector_i_lopez@apple.com>
+
+        Rebaseline editing/editable-region/iframe.html result
+        https://bugs.webkit.org/show_bug.cgi?id=158439
+
+        Unreviewed test gardening.
+
+        * editing/editable-region/iframe-expected.txt:
+
+2020-10-14  Chris Dumez  <cdumez@apple.com>
+
+        REGRESSION (r267744): [ Debug WK2 ] fast/css-custom-paint/out-of-memory-while-adding-worklet-module.html is a constant timeout
+        https://bugs.webkit.org/show_bug.cgi?id=217549
+
+        Reviewed by Sam Weinig.
+
+        After r267744, Worklet.addModule() returns a promise and no longer throws exceptions.
+        Update the test accordingly to expect that a promise gets rejected with an out of
+        memory error, instead of expecting an exception to be thrown.
+
+        * fast/css-custom-paint/out-of-memory-while-adding-worklet-module-expected.txt:
+        * fast/css-custom-paint/script-tests/out-of-memory-while-adding-worklet-module.js:
+
+2020-10-14  Megan Gardner  <megan_gardner@apple.com>
+
+        Paint CSS highlights over images
+        https://bugs.webkit.org/show_bug.cgi?id=217417
+
+        Reviewed by Tim Horton.
+
+        * http/wpt/css/css-highlight-api/highlight-image-expected-mismatched.html: Removed.
+        * http/wpt/css/css-highlight-api/highlight-image-expected-mismatch.html: Added.
+
+2020-10-14  Alex Christensen  <achristensen@webkit.org>
+
+        Disallow ports in file URLs
+        https://bugs.webkit.org/show_bug.cgi?id=217252
+
+        Reviewed by Darin Adler.
+
+        * fast/loader/file-URL-with-port-number-expected.txt:
+        * fast/loader/file-URL-with-port-number.html:
+        Update test to reflect this new behavior.  The test was added in r24484 and
+        based on discussion in https://github.com/whatwg/url/issues/548 I've decided to try it and see if we can make this change.
+
+2020-10-13  Simon Fraser  <simon.fraser@apple.com>
+
+        Allow passive mouse wheel event listeners to not force synchronous scrolling
+        https://bugs.webkit.org/show_bug.cgi?id=158439
+        <rdar://problem/28265360>
+
+        Reviewed by Tim Horton.
+        
+        Change tests that relied on dumping the non-fast scrollable rects for wheel handlers
+        to dump layer trees with event regions instead. They also need to wait for a
+        rendering update, since wheel event regions are updated once per frame.
+        
+        slow-scrolling-overflow.html tests that an overflow:scroll that's forced into slow
+        scrolling because of background-attachment:fixed still scrolls.
+
+        * fast/scrolling/mac/slow-scrolling-overflow-expected.txt: Added.
+        * fast/scrolling/mac/slow-scrolling-overflow.html: Added.
+        * fast/scrolling/mac/wheel-event-listener-region-inside-overflow-scroll-clipped-out-expected.txt:
+        * fast/scrolling/mac/wheel-event-listener-region-inside-overflow-scroll-expected.txt:
+        * platform/mac-wk2/TestExpectations:
+        * tiled-drawing/scrolling/non-fast-region/fixed-div-in-scrollable-page.html:
+        * tiled-drawing/scrolling/non-fast-region/handlers-in-iframes-expected.txt:
+        * tiled-drawing/scrolling/non-fast-region/handlers-in-iframes.html:
+        * tiled-drawing/scrolling/non-fast-region/non-fast-scrollable-region-hide-show-iframe-expected.txt:
+        * tiled-drawing/scrolling/non-fast-region/non-fast-scrollable-region-hide-show-iframe.html:
+        * tiled-drawing/scrolling/non-fast-region/resources/wheel-handler-region-helper.js:
+        (nonFastScrollableRects):
+        (dumpNonFastScrollableRects):
+        (async dumpRegionAndNotifyDone):
+        (rectsAsString): Deleted.
+        (dumpRegion): Deleted.
+        * tiled-drawing/scrolling/non-fast-region/top-content-inset-expected.txt:
+        * tiled-drawing/scrolling/non-fast-region/top-content-inset-header-expected.txt:
+        * tiled-drawing/scrolling/non-fast-region/top-content-inset-header.html:
+        * tiled-drawing/scrolling/non-fast-region/top-content-inset.html:
+        * tiled-drawing/scrolling/non-fast-region/wheel-event-plugin.html:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-fixed-child-expected.txt:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-fixed-child.html:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-in-columns-expected.txt:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-in-columns.html:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-in-overflow-scroll-expected.txt:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-in-overflow-scroll.html:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-inside-fixed-expected.txt:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-inside-fixed.html:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-on-document-expected.txt:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-on-document.html:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-on-fixed-expected.txt:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-on-fixed.html:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-region-basic-expected.txt:
+        * tiled-drawing/scrolling/non-fast-region/wheel-handler-region-basic.html:
+
+2020-10-14  Kate Cheney  <katherine_cheney@apple.com>
+
+        Remove ResourceLoadStatistics telemetry
+        https://bugs.webkit.org/show_bug.cgi?id=217665
+        <rdar://problem/69748988>
+
+        Reviewed by Sam Weinig.
+
+        Remove layout tests.
+
+        * http/tests/resourceLoadStatistics/telemetry-generation-expected.txt: Removed.
+        * http/tests/resourceLoadStatistics/telemetry-generation.html: Removed.
+        * platform/wk2/TestExpectations:
+
+2020-10-14  Andres Gonzalez  <andresg_22@apple.com>
+
+        [ macOS ] accessibility/mac/select-element-selection-with-optgroups.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=215649
+        <rdar://problem/67406148>
+
+        Reviewed by Chris Fleizach.
+
+        Uses Promises to make test deterministic. Also waits for the correct event
+        since selectedChildrenCount is not the right indication that the
+        expected update happened.
+
+        * accessibility/mac/select-element-selection-with-optgroups-expected.txt:
+        * accessibility/mac/select-element-selection-with-optgroups.html:
+        * platform/mac/TestExpectations: No longer flaky.
+
+2020-10-14  Karl Rackler  <rackler@apple.com>
+
+        Unreviewed, reverting r268441.
+
+        This reverts commit r268441 made in error.
+
+        Reverted changeset:
+
+        "REGRESSION (iOS 14): [ iOS wk2 ] 12 2d.gradient.radial WPT
+        tests are a flaky failure"
+        https://bugs.webkit.org/show_bug.cgi?id=217690
+        https://trac.webkit.org/changeset/268441
+
+2020-10-14  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WinCairo] Unreviewed test gardening
+
+        * platform/wincairo/TestExpectations:
+
+2020-10-13  Antoine Quint  <graouts@webkit.org>
+
+        transform-origin is applied on top of invidivual CSS transform properties on composited layers
+        https://bugs.webkit.org/show_bug.cgi?id=217661
+        <rdar://problem/70259960>
+
+        Reviewed by Simon Fraser.
+
+        Add new tests checking that individual CSS properties render the same as the single transform property
+        when applied to a composited element.
+
+        * transforms/2d/rotate-composited-expected.html: Added.
+        * transforms/2d/rotate-composited.html: Added.
+        * transforms/2d/scale-composited-expected.html: Added.
+        * transforms/2d/scale-composited.html: Added.
+        * transforms/2d/translate-composited-expected.html: Added.
+        * transforms/2d/translate-composited.html: Added.
+
+2020-10-13  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (iOS 14): [ iOS wk2 ] 12 2d.gradient.radial WPT tests are a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217690
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
+2020-10-13  Hector Lopez  <hector_i_lopez@apple.com>
+
+        [ macOS ] inspector/page/overrideSetting-ITPDebugModeEnabled.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217686
+
+        Unreviewed test gardening.
+
+        * platform/mac-wk2/TestExpectations:
+
+2020-10-13  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (iOS 14): [ iOS wk2 ] accessibility tests are a flaky timeout
+        https://bugs.webkit.org/show_bug.cgi?id=217687
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
+2020-10-13  Megan Gardner  <megan_gardner@apple.com>
+
+        Paint CSS highlights over images
+        https://bugs.webkit.org/show_bug.cgi?id=217417
+
+        Reviewed by Darin Adler.
+
+        * http/wpt/css/css-highlight-api/highlight-image-expected-mismatched.html: Added.
+        * http/wpt/css/css-highlight-api/highlight-image.html: Added.
+
+2020-10-13  Julian Gonzalez  <julian_a_gonzalez@apple.com>
+
+        Null dereference in PDFPlugin::snapshot()
+        https://bugs.webkit.org/show_bug.cgi?id=217668
+
+        Reviewed by Ryosuke Niwa.
+
+        Add new pass-if-no-crash test to catch crash in PDFPlugin
+        snapshotting.
+
+        * plugins/pdf-plugin-null-onloaddeddata-expected.txt: Added.
+        * plugins/pdf-plugin-null-onloaddeddata.html: Added.
+
+2020-10-13  Chris Dumez  <cdumez@apple.com>
+
+        WebAudio tests are crashing in debug when enabling the GPU process
+        https://bugs.webkit.org/show_bug.cgi?id=217663
+
+        Reviewed by Geoff Garen.
+
+        Unskip webaudio tests when the GPU process is enabled.
+
+        * gpu-process/TestExpectations:
+
+2020-10-13  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION (iOS 14): [ iOS wk2 ] service-workers-spinning tests are flaky failures
+        https://bugs.webkit.org/show_bug.cgi?id=217669
+
+        Unreviewed test gardening.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+
+2020-10-13  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WinCairo][MediaFoundation] Many test cases are timing out by waiting for events
+        https://bugs.webkit.org/show_bug.cgi?id=217463
+
+        Reviewed by Don Olmstead.
+
+        * platform/wincairo/TestExpectations: Unskip media tests. Marked
+        failing tests.
+
+2020-10-13  Truitt Savell  <tsavell@apple.com>
+
+        REGRESSION: [ Mac ] inspector/audit/basic-async.htm is flaky timeout
+        https://bugs.webkit.org/show_bug.cgi?id=217620
+
+        Unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
+2020-10-13  Truitt Savell  <tsavell@apple.com>
+
+        REGRESSION: [ Mac iOS ] fast/css-custom-paint/out-of-memory-while-adding-worklet-module.html is flaky timeout
+        https://bugs.webkit.org/show_bug.cgi?id=217618
+
+        Unreviewed test Gardening.
+
+        * TestExpectations:
+
+2020-10-13  Sam Weinig  <weinig@apple.com>
+
+        [Testing] Rename test header commands to match names in WebPreferences*.yaml
+        https://bugs.webkit.org/show_bug.cgi?id=217654
+
+        Reviewed by Simon Fraser.
+
+        Update test header commands to match names in the WebPreferences*.yaml configuration files.
+
+        * accessibility/attachment-element.html:
+        * accessibility/content-changed-notification-causes-crash.html:
+        * accessibility/contenteditable-table-check-causes-crash.html:
+        * accessibility/duplicate-axrenderobject-crash.html:
+        * accessibility/ios-simulator/attributed-string-for-range.html:
+        * accessibility/ios-simulator/has-touch-event-listener-with-shadow.html:
+        * accessibility/ios-simulator/media-with-aria-label.html:
+        * accessibility/mac/attachment-element-replacement-character.html:
+        * accessibility/mac/video-tag-hit-test.html:
+        * accessibility/mac/video-volume-slider-accessibility.html:
+        * accessibility/media-element.html:
+        * accessibility/media-emits-object-replacement.html:
+        * accessibility/media-with-aria-label.html:
+        * animations/resume-after-page-cache.html:
+        * compositing/accelerated-layers-after-back.html:
+        * compositing/iframes/page-cache-layer-tree.html:
+        * compositing/page-cache-back-crash.html:
+        * compositing/show-composited-iframe-on-back-button.html:
+        * compositing/video/poster-expected.html:
+        * compositing/video/poster.html:
+        * css3/color-filters/color-filter-animation.html:
+        * css3/color-filters/color-filter-apple-invert-lightness.html:
+        * css3/color-filters/color-filter-backgrounds-borders.html:
+        * css3/color-filters/color-filter-box-shadow.html:
+        * css3/color-filters/color-filter-brightness.html:
+        * css3/color-filters/color-filter-caret-color.html:
+        * css3/color-filters/color-filter-color-property-list-item.html:
+        * css3/color-filters/color-filter-color-property.html:
+        * css3/color-filters/color-filter-color-text-decorations.html:
+        * css3/color-filters/color-filter-column-rule.html:
+        * css3/color-filters/color-filter-composition-underline-color-expected.html:
+        * css3/color-filters/color-filter-composition-underline-color.html:
+        * css3/color-filters/color-filter-contrast.html:
+        * css3/color-filters/color-filter-current-color.html:
+        * css3/color-filters/color-filter-filter-list.html:
+        * css3/color-filters/color-filter-gradients.html:
+        * css3/color-filters/color-filter-grayscale.html:
+        * css3/color-filters/color-filter-hue-rotate.html:
+        * css3/color-filters/color-filter-ignore-semantic-expected.html:
+        * css3/color-filters/color-filter-ignore-semantic.html:
+        * css3/color-filters/color-filter-inherits.html:
+        * css3/color-filters/color-filter-invert.html:
+        * css3/color-filters/color-filter-opacity.html:
+        * css3/color-filters/color-filter-outline.html:
+        * css3/color-filters/color-filter-parsing.html:
+        * css3/color-filters/color-filter-saturate.html:
+        * css3/color-filters/color-filter-sepia.html:
+        * css3/color-filters/color-filter-text-decoration-shadow.html:
+        * css3/color-filters/color-filter-text-emphasis.html:
+        * css3/color-filters/color-filter-text-shadow.html:
+        * css3/color-filters/color-filter-text-stroke.html:
+        * css3/color-filters/svg/color-filter-inline-svg.html:
+        * editing/async-clipboard/clipboard-change-data-while-reading.html:
+        * editing/async-clipboard/clipboard-change-data-while-writing.html:
+        * editing/async-clipboard/clipboard-do-not-read-text-from-platform-if-text-changes.html:
+        * editing/async-clipboard/clipboard-read-text-from-platform.html:
+        * editing/async-clipboard/clipboard-read-text-same-origin.html:
+        * editing/async-clipboard/clipboard-read-while-pasting.html:
+        * editing/async-clipboard/sanitize-when-reading-markup.html:
+        * editing/execCommand/set-backColor-with-color-filter-from-scripts.html:
+        * editing/execCommand/set-foreColor-with-color-filter-from-scripts.html:
+        * editing/mac/attributed-string/attrib-string-colors-with-color-filter.html:
+        * editing/mac/attributed-string/attrib-string-range-with-color-filter.html:
+        * editing/mac/attributed-string/attribute-string-for-copy-with-color-filter.html:
+        * editing/mac/attributed-string/attributed-string-for-typing-with-color-filter.html:
+        * editing/mac/input/unconfirmed-text-navigation-with-page-cache.html:
+        * editing/pasteboard/copy-paste-attachment.html:
+        * editing/pasteboard/dom-paste/dom-paste-confirmation.html:
+        * editing/pasteboard/dom-paste/dom-paste-consecutive-confirmations.html:
+        * editing/pasteboard/dom-paste/dom-paste-rejection.html:
+        * editing/pasteboard/dom-paste/dom-paste-requires-user-gesture.html:
+        * editing/pasteboard/dom-paste/dom-paste-same-origin.html:
+        * editing/pasteboard/drag-file-promises-to-editable-element-as-URLs.html:
+        * editing/pasteboard/drag-file-promises-to-editable-element-as-attachment.html:
+        * editing/pasteboard/drag-files-to-editable-element-as-URLs.html:
+        * editing/pasteboard/drag-files-to-editable-element-as-attachment.html:
+        * editing/pasteboard/entries-api/DirectoryEntry-getFile-back-forward-cache.html:
+        * editing/pasteboard/entries-api/DirectoryReader-readEntries-back-forward-cache.html:
+        * editing/pasteboard/paste-dark-mode-color-filtered.html:
+        * editing/selection/selection-change-in-disconnected-frame-crash.html:
+        * editing/style/inverse-color-filter.html:
+        * editing/style/set-backColor-with-color-filter.html:
+        * editing/style/set-foreColor-with-color-filter.html:
+        * fast/attachment/attachment-action-expected.html:
+        * fast/attachment/attachment-action.html:
+        * fast/attachment/attachment-border-should-stay-inside-attachment.html:
+        * fast/attachment/attachment-borderless-expected-mismatch.html:
+        * fast/attachment/attachment-borderless.html:
+        * fast/attachment/attachment-default-icon-expected.html:
+        * fast/attachment/attachment-default-icon.html:
+        * fast/attachment/attachment-dom.html:
+        * fast/attachment/attachment-dynamic-type.html:
+        * fast/attachment/attachment-folder-icon-expected.html:
+        * fast/attachment/attachment-folder-icon.html:
+        * fast/attachment/attachment-icon-from-file-extension-expected.html:
+        * fast/attachment/attachment-icon-from-file-extension.html:
+        * fast/attachment/attachment-label-highlight.html:
+        * fast/attachment/attachment-progress.html:
+        * fast/attachment/attachment-rendering.html:
+        * fast/attachment/attachment-respects-css-size.html:
+        * fast/attachment/attachment-select-on-click-inside-user-select-all.html:
+        * fast/attachment/attachment-select-on-click.html:
+        * fast/attachment/attachment-subtitle-resize.html:
+        * fast/attachment/attachment-subtitle.html:
+        * fast/attachment/attachment-thumbnail-preserves-aspect-ratio.html:
+        * fast/attachment/attachment-title-with-rtl-expected.html:
+        * fast/attachment/attachment-title-with-rtl.html:
+        * fast/attachment/attachment-title.html:
+        * fast/attachment/attachment-type-attribute-expected.html:
+        * fast/attachment/attachment-type-attribute.html:
+        * fast/attachment/attachment-uti-expected.html:
+        * fast/attachment/attachment-uti.html:
+        * fast/attachment/attachment-wrapping-action-expected-mismatch.html:
+        * fast/attachment/attachment-wrapping-action.html:
+        * fast/block/float/float-not-removed-from-first-letter.html:
+        * fast/block/float/split-inline-sibling-of-float-crash.html:
+        * fast/canvas/2d.currentPoint.html:
+        * fast/canvas/2d.getPath.modification.html:
+        * fast/canvas/2d.getPath.newobject.html:
+        * fast/canvas/2d.setPath.html:
+        * fast/canvas/webgl/canvas-webgl-page-cache.html:
+        * fast/css/fontloader-page-cache.html:
+        * fast/css/has-attachment.html:
+        * fast/css/pseudo-required-optional-unapplied.html:
+        * fast/dom/DeviceMotion/no-page-cache.html:
+        * fast/dom/DeviceOrientation/event-after-navigation.html:
+        * fast/dom/DeviceOrientation/no-page-cache.html:
+        * fast/dom/HTMLFormElement/associated-elements-after-index-assertion-fail1.html:
+        * fast/dom/HTMLKeygenElement/keygen-keytype.html:
+        * fast/dom/HTMLKeygenElement/keygen.html:
+        * fast/dom/Window/timer-resume-on-navigation-back.html:
+        * fast/dom/adopt-node-crash-2.html:
+        * fast/dom/attribute-set-before-element-in-tree.html:
+        * fast/dom/domstring-attribute-reflection.html:
+        * fast/dom/set-custom-validity-with-too-few-arguments.html:
+        * fast/dom/tabindex-defaults.html:
+        * fast/dom/wrapper-classes.html:
+        * fast/dynamic/insertAdjacentHTML-allowed-parents.html:
+        * fast/events/ios/do-not-show-keyboard-when-focusing-after-blur.html:
+        * fast/events/ios/pdf-modifer-key-down-crash.html:
+        * fast/events/ios/rotation/do-not-shrink-to-fit-content-after-rotation.html:
+        * fast/events/onunload-back-to-page-cache.html:
+        * fast/events/pagehide-timeout.html:
+        * fast/events/pagehide-xhr-open.html:
+        * fast/events/pageshow-pagehide-on-back-cached-with-frames.html:
+        * fast/events/pageshow-pagehide-on-back-cached.html:
+        * fast/events/suspend-timers.html:
+        * fast/files/file-reader-back-forward-cache.html:
+        * fast/flexbox/crash-button-keygen.html:
+        * fast/forms/ValidityState-001.html:
+        * fast/forms/autocomplete-off-with-default-value-does-not-clear.html:
+        * fast/forms/autofocus-keygen.html:
+        * fast/forms/checkValidity-001.html:
+        * fast/forms/fieldset/fieldset-elements-htmlcollection.html:
+        * fast/forms/fieldset/fieldset-elements.html:
+        * fast/forms/form-associated-element-crash3.html:
+        * fast/forms/form-attribute.html:
+        * fast/forms/form-collection-elements-order.html:
+        * fast/forms/form-collection-elements.html:
+        * fast/forms/form-collection-radio-node-list.html:
+        * fast/forms/ios/no-scrolling-when-moving-focus-between-adjacent-fields.html:
+        * fast/forms/label/labelable-elements.html:
+        * fast/forms/label/labels-add-htmlFor-label.html:
+        * fast/forms/label/labels-add-parent-label.html:
+        * fast/forms/label/labels-change-htmlFor-attribute.html:
+        * fast/forms/label/labels-multiple-sibling-labels.html:
+        * fast/forms/label/labels-parent-and-sibling-labels.html:
+        * fast/forms/label/labels-remove-htmlFor-attribute.html:
+        * fast/forms/label/labels-remove-htmlFor-label.html:
+        * fast/forms/label/labels-remove-parent-label.html:
+        * fast/forms/large-parts.html:
+        * fast/forms/scrollheight-with-mutation-crash.html:
+        * fast/forms/setCustomValidity-arguments.html:
+        * fast/forms/setCustomValidity-existence.html:
+        * fast/forms/setCustomValidity-null-parameter.html:
+        * fast/forms/state-restore-skip-stateless.html:
+        * fast/forms/update-form-owner-in-moved-subtree-assertion-failure.html:
+        * fast/forms/validationMessage.html:
+        * fast/forms/willvalidate.html:
+        * fast/frames/frame-crash-with-page-cache.html:
+        * fast/frames/frame-unload-navigate-and-setTimeout-assert-fail.html:
+        * fast/frames/page-hide-document-open.html:
+        * fast/frames/restoring-page-cache-should-not-run-scripts-via-style-update.html:
+        * fast/frames/restoring-page-cache-should-not-run-scripts.html:
+        * fast/harness/page-cache-crash-on-data-urls.html:
+        * fast/harness/use-page-cache.html:
+        * fast/hidpi/video-controls-in-hidpi.html:
+        * fast/history/back-forward-cache-visibility-state.html:
+        * fast/history/back-from-page-with-focused-iframe.html:
+        * fast/history/go-back-to-iframe-with-plugin.html:
+        * fast/history/go-back-to-object-subframe.html:
+        * fast/history/history-back-while-pdf-in-pagecache.html:
+        * fast/history/multiple-back-forward-navigations.html:
+        * fast/history/page-cache-MessagePort-pending-message.html:
+        * fast/history/page-cache-active-fetch-request-blobReadAsBlob.html:
+        * fast/history/page-cache-active-fetch-request-blobReadAsReadableStream.html:
+        * fast/history/page-cache-active-fetch-request-blobReadAsText.html:
+        * fast/history/page-cache-active-fetch-response-blobReadAsBlob.html:
+        * fast/history/page-cache-after-window-open.html:
+        * fast/history/page-cache-back-navigation-crash.html:
+        * fast/history/page-cache-clearing.html:
+        * fast/history/page-cache-closed-audiocontext.html:
+        * fast/history/page-cache-createImageBitmap.html:
+        * fast/history/page-cache-createObjectURL-using-open-panel.html:
+        * fast/history/page-cache-createObjectURL.html:
+        * fast/history/page-cache-destroy-document.html:
+        * fast/history/page-cache-element-state-focused.html:
+        * fast/history/page-cache-execute-script-during-restore.html:
+        * fast/history/page-cache-geolocation-active-oneshot.html:
+        * fast/history/page-cache-geolocation-active-watcher.html:
+        * fast/history/page-cache-geolocation.html:
+        * fast/history/page-cache-gpu-canvas-context.html:
+        * fast/history/page-cache-iframe-js-url.html:
+        * fast/history/page-cache-indexed-closed-db.html:
+        * fast/history/page-cache-indexed-opened-db.html:
+        * fast/history/page-cache-media-recorder.html:
+        * fast/history/page-cache-media-source-closed-2.html:
+        * fast/history/page-cache-media-source-closed.html:
+        * fast/history/page-cache-media-source-opened.html:
+        * fast/history/page-cache-navigate-during-restore.html:
+        * fast/history/page-cache-notification-showing.html:
+        * fast/history/page-cache-notification-suspendable.html:
+        * fast/history/page-cache-removed-source-buffer.html:
+        * fast/history/page-cache-running-audiocontext.html:
+        * fast/history/page-cache-subframes-with-provisional-load.html:
+        * fast/history/page-cache-suspended-audiocontext.html:
+        * fast/history/page-cache-webdatabase-no-transaction-db.html:
+        * fast/history/page-cache-webdatabase-pending-transaction.html:
+        * fast/history/page-cache-with-opener.html:
+        * fast/history/pagehide-remove-iframe-crash.html:
+        * fast/history/resources/page-cache-window-with-iframe.html:
+        * fast/history/resources/page-cache-window-with-opener.html:
+        * fast/history/timed-refresh-in-cached-frame.html:
+        * fast/html/clone-keygen.html:
+        * fast/html/keygen.html:
+        * fast/html/marquee-reparent-check.html:
+        * fast/html/menuitem-element.html:
+        * fast/images/animated-gif-restored-from-bfcache.html:
+        * fast/invalid/residual-style-expected.html:
+        * fast/invalid/residual-style.html:
+        * fast/layers/video-layer.html:
+        * fast/loader/data-url-load-denied.html:
+        * fast/loader/frames-with-unload-handlers-in-page-cache.html:
+        * fast/loader/image-in-page-cache.html:
+        * fast/loader/input-element-page-cache-crash.html:
+        * fast/loader/navigate-with-new-target-after-back-forward-navigation.html:
+        * fast/loader/navigate-with-post-to-new-target-after-back-forward-navigation.html:
+        * fast/loader/scroll-position-restored-on-back.html:
+        * fast/loader/stateobjects/no-popstate-when-back-to-stateless-entry-with-page-cache.html:
+        * fast/loader/stateobjects/popstate-fires-with-page-cache.html:
+        * fast/loader/unschedule-relayout-after-unload.html:
+        * fast/loader/window-properties-restored-from-page-cache.html:
+        * fast/mediastream/MediaStream-video-element-video-tracks-disabled.html:
+        * fast/mediastream/RTCPeerConnection-page-cache.html:
+        * fast/mediastream/captureInGPUProcess.html:
+        * fast/mediastream/media-stream-track-interrupted.html:
+        * fast/multicol/span/positioned-child-not-removed-crash.html:
+        * fast/overflow/horizontal-scroll-after-back.html:
+        * fast/ruby/float-object-doesnt-crash.html:
+        * fast/sandbox/ios/sandbox-mach-lookup-attachment-element.html:
+        * fast/scrolling/iframe-scrollable-after-back.html:
+        * fast/scrolling/ios/scroll-events-back-forward-after-pageshow.html:
+        * fast/scrolling/ios/scroll-events-back-forward.html:
+        * fast/scrolling/ios/touch-scroll-back-forward.html:
+        * fast/scrolling/mac/scrollbars/overflow-in-iframe-overlay-scrollbar-hovered.html:
+        * fast/scrolling/mac/scrollbars/overflow-in-iframe-overlay-scrollbar-reveal.html:
+        * fast/scrolling/mac/scrollbars/overflow-overlay-scrollbar-hovered.html:
+        * fast/scrolling/mac/scrollbars/overflow-overlay-scrollbar-reveal.html:
+        * fast/scrolling/mac/scrollbars/overlay-scrollbar-hovered.html:
+        * fast/scrolling/mac/scrollbars/overlay-scrollbar-reveal.html:
+        * fast/scrolling/mac/scrollbars/overlay-scrollbar-state.html:
+        * fast/scrolling/mac/scrollbars/select-overlay-scrollbar-hovered.html:
+        * fast/scrolling/mac/scrollbars/select-overlay-scrollbar-reveal.html:
+        * fast/scrolling/overflow-scrollable-after-back.html:
+        * fast/scrolling/page-cache-back-overflow-scroll-restore.html:
+        * fast/scrolling/rtl-scrollbars-animation-property.html:
+        * fast/shadow-dom/keygen-shadow-manipulation.html:
+        * fast/table/crash-splitColumn-2.html:
+        * fast/table/multiple-captions-crash3-expected.html:
+        * fast/table/multiple-captions-crash3.html:
+        * fast/text-autosizing/ios/text-autosizing-after-back.html:
+        * fast/viewport/ios/ignore-minimum-device-width-for-page-with-viewport-device-width.html:
+        * fast/viewport/ios/minimum-scale-after-changing-view-scale.html:
+        * fast/viewport/ios/resources/go-back.html:
+        * fast/viewport/ios/shrink-to-fit-content-constant-width.html:
+        * fast/viewport/ios/shrink-to-fit-content-large-constant-width.html:
+        * fast/viewport/ios/shrink-to-fit-content-large-width-breakpoint.html:
+        * fast/viewport/ios/shrink-to-fit-content-no-viewport.html:
+        * fast/viewport/ios/shrink-to-fit-content-responsive-viewport-with-horizontal-overflow.html:
+        * fast/viewport/ios/shrink-to-fit-content-temporary-overflow.html:
+        * fast/viewport/ios/shrink-to-fit-for-page-without-viewport-meta.html:
+        * fast/viewport/ios/shrink-to-fit-large-content-width.html:
+        * fast/viewport/ios/use-minimum-device-width-for-page-without-viewport-meta.html:
+        * fast/viewport/ios/viewport-shrink-to-fit-on-new-navigation.html:
+        * fast/viewport/viewport-128.html:
+        * fast/workers/worker-page-cache.html:
+        * fullscreen/video-controls-drag.html:
+        * fullscreen/video-controls-override.html:
+        * fullscreen/video-controls-rtl.html:
+        * fullscreen/video-controls-timeline.html:
+        * http/tests/cache-storage/page-cache-domcache-pending-promise.html:
+        * http/tests/cache-storage/page-cache-domcachestorage-pending-promise.html:
+        * http/tests/cache/display-image-unset-allows-cached-image-load.html:
+        * http/tests/eventsource/eventsource-page-cache-connected.html:
+        * http/tests/eventsource/eventsource-page-cache-connecting.html:
+        * http/tests/loading/main-resource-delegates-on-back-navigation.html:
+        * http/tests/loading/unfinished-load-back-to-cached-page-callbacks.html:
+        * http/tests/loading/unfinished-main-resource-back-to-cached-page-callbacks.html:
+        * http/tests/media/hls/video-controls-live-stream.html:
+        * http/tests/media/hls/video-duration-accessibility.html:
+        * http/tests/media/reload-after-dialog.html:
+        * http/tests/media/video-auth-with-allowCrossOriginSubresourcesToAskForCredentials.html:
+        * http/tests/misc/resources/check-keygen-post.php:
+        * http/tests/misc/submit-post-keygen.html:
+        * http/tests/navigation/go-back-to-error-page.html:
+        * http/tests/navigation/https-in-page-cache.html:
+        * http/tests/navigation/https-no-store-subframe-in-page-cache.html:
+        * http/tests/navigation/image-load-in-pagehide-handler.html:
+        * http/tests/navigation/page-cache-failed-xhr.html:
+        * http/tests/navigation/page-cache-fontfaceset.html:
+        * http/tests/navigation/page-cache-fragment-referrer.html:
+        * http/tests/navigation/page-cache-getUserMedia-pending-promise.html:
+        * http/tests/navigation/page-cache-iframe-no-current-historyItem.html:
+        * http/tests/navigation/page-cache-iframe-provisional-load-async-delegates.html:
+        * http/tests/navigation/page-cache-iframe-provisional-load.html:
+        * http/tests/navigation/page-cache-mediakeysession.html:
+        * http/tests/navigation/page-cache-mediastream.html:
+        * http/tests/navigation/page-cache-pending-image-load-cache-partition.html:
+        * http/tests/navigation/page-cache-pending-image-load.html:
+        * http/tests/navigation/page-cache-pending-load.html:
+        * http/tests/navigation/page-cache-pending-ping-load-cross-origin.html:
+        * http/tests/navigation/page-cache-pending-ping-load-same-origin.html:
+        * http/tests/navigation/page-cache-requestAnimationFrame.html:
+        * http/tests/navigation/page-cache-video.html:
+        * http/tests/navigation/page-cache-xhr-in-loading-iframe.html:
+        * http/tests/navigation/page-cache-xhr-in-pagehide.html:
+        * http/tests/navigation/page-cache-xhr.html:
+        * http/tests/navigation/resources/https-in-page-cache-3.html:
+        * http/tests/navigation/subframe-pagehide-handler-starts-load.html:
+        * http/tests/navigation/subframe-pagehide-handler-starts-load2.html:
+        * http/tests/paymentrequest/page-cache-closed-payment-request.https.html:
+        * http/tests/paymentrequest/page-cache-completed-payment-response.https.html:
+        * http/tests/paymentrequest/page-cache-created-payment-request.https.html:
+        * http/tests/paymentrequest/page-cache-created-payment-response.https.html:
+        * http/tests/paymentrequest/page-cache-interactive-payment-request.https.html:
+        * http/tests/paymentrequest/page-cache-retried-payment-response.https.html:
+        * http/tests/security/contentSecurityPolicy/userAgentShadowDOM/default-src-object-data-url-allowed.html:
+        * http/tests/security/contentSecurityPolicy/userAgentShadowDOM/default-src-object-data-url-blocked.html:
+        * http/tests/security/contentSecurityPolicy/userAgentShadowDOM/default-src-object-data-url-blocked2.html:
+        * http/tests/security/contentSecurityPolicy/userAgentShadowDOM/video-controls-allowed.html:
+        * http/tests/security/credentials-iframes-allowCrossOriginSubresourcesToAskForCredentials.html:
+        * http/tests/security/cross-origin-window-open-insert-script.html:
+        * http/tests/security/cross-origin-window-open-javascript-url.html:
+        * http/tests/security/mixedContent/insecure-basic-auth-image-allowCrossOriginSubresourcesToAskForCredentials.https.html:
+        * http/tests/security/mixedContent/insecure-image-redirects-to-basic-auth-secure-image-allowCrossOriginSubresourcesToAskForCredentials.html:
+        * http/tests/security/mixedContent/secure-redirect-to-insecure-redirect-to-basic-auth-secure-image-allowCrossOriginSubresourcesToAskForCredentials.https.html:
+        * http/tests/security/mixedContent/secure-redirect-to-secure-redirect-to-basic-auth-insecure-image-allowCrossOriginSubresourcesToAskForCredentials.https.html:
+        * http/tests/security/mixedContent/secure-redirect-to-secure-redirect-to-basic-auth-secure-image-allowCrossOriginSubresourcesToAskForCredentials.https.html:
+        * http/tests/security/navigate-when-restoring-cached-page.html:
+        * http/tests/security/xss-DENIED-click-and-form-submission-from-inactive-domwindow.html:
+        * http/tests/security/xss-DENIED-script-inject-into-inactive-window.html:
+        * http/tests/security/xss-DENIED-script-inject-into-inactive-window2-pson.html:
+        * http/tests/security/xss-DENIED-script-inject-into-inactive-window2.html:
+        * http/tests/security/xss-DENIED-script-inject-into-inactive-window3.html:
+        * http/tests/ssl/applepay/page-cache-active-apple-pay-session.html:
+        * http/tests/ssl/applepay/page-cache-inactive-apple-pay-session.html:
+        * http/tests/websocket/tests/hybi/closed-when-entering-page-cache.html:
+        * http/tests/websocket/tests/hybi/stop-on-resume-in-error-handler.html:
+        * http/tests/workers/service/client-added-to-clients-when-restored-from-page-cache.html:
+        * http/tests/workers/service/client-removed-from-clients-while-in-page-cache.html:
+        * http/tests/workers/service/page-cache-service-worker-pending-promise.https.html:
+        * http/tests/workers/service/page-caching.html:
+        * http/wpt/beacon/support/sendBeacon-onpagehide-window.html:
+        * http/wpt/fetch/resources/fetch-in-pagehide-window.html:
+        * http/wpt/notifications/constructor-basic-bfcache.html:
+        * http/wpt/service-workers/mac/throttleable.https.html:
+        * http/wpt/service-workers/service-worker-spinning-activate.https.html:
+        * http/wpt/service-workers/service-worker-spinning-fetch.https.html:
+        * http/wpt/service-workers/service-worker-spinning-install.https.html:
+        * http/wpt/service-workers/service-worker-spinning-message.https.html:
+        * imported/blink/fast/dom/shadow/shadowdom-for-keygen-only-shadow-expected.html:
+        * imported/blink/fast/dom/shadow/shadowdom-for-keygen-only-shadow.html:
+        * imported/blink/fast/text/international-iteration-simple-text.html:
+        * inspector/css/pseudo-element-matches.html:
+        * intersection-observer/intersection-observer-entry-interface.html:
+        * intersection-observer/intersection-observer-interface.html:
+        * intersection-observer/root-element-deleted.html:
+        * intersection-observer/root-element-moved.html:
+        * intersection-observer/target-deleted.html:
+        * js/dom/regress-157246.html:
+        * loader/go-back-cached-main-resource.html:
+        * loader/go-back-to-different-window-size.html:
+        * media/accessibility-closed-captions-has-aria-owns.html:
+        * media/adopt-node-crash.html:
+        * media/airplay-allows-buffering.html:
+        * media/airplay-autoplay.html:
+        * media/audio-as-video-fullscreen.html:
+        * media/audio-controls-do-not-fade-out.html:
+        * media/audio-controls-rendering.html:
+        * media/audio-controls-timeline-in-media-document.html:
+        * media/audio-delete-while-slider-thumb-clicked.html:
+        * media/audio-repaint.html:
+        * media/click-placeholder-not-pausing.html:
+        * media/click-volume-bar-not-pausing.html:
+        * media/controls-after-reload.html:
+        * media/controls-drag-timebar.html:
+        * media/controls-right-click-on-timebar.html:
+        * media/controls-strict.html:
+        * media/controls-styling.html:
+        * media/controls-without-preload.html:
+        * media/controls/airplay-controls.html:
+        * media/controls/airplay-picker.html:
+        * media/controls/basic.html:
+        * media/controls/elementOrder.html:
+        * media/controls/forced-tracks-only.html:
+        * media/controls/fullscreen-button-inline-layout.html:
+        * media/controls/inline-elements-dropoff-order.html:
+        * media/controls/picture-in-picture.html:
+        * media/controls/pip-placeholder-without-video-controls.html:
+        * media/controls/showControlsButton.html:
+        * media/controls/statusDisplay.html:
+        * media/controls/statusDisplayBad.html:
+        * media/controls/track-menu.html:
+        * media/crash-closing-page-with-media-as-plugin-fallback.html:
+        * media/mac/controls-panel-not-clipped-out-expected.html:
+        * media/mac/controls-panel-not-clipped-out.html:
+        * media/media-captions-no-controls.html:
+        * media/media-controller-drag-crash.html:
+        * media/media-controls-accessibility.html:
+        * media/media-controls-cancel-events.html:
+        * media/media-controls-clone.html:
+        * media/media-controls-drag-timeline-set-controls-property.html:
+        * media/media-controls-timeline-updates-after-playing.html:
+        * media/media-controls-timeline-updates-when-hovered.html:
+        * media/media-controls-timeline-updates.html:
+        * media/media-document-audio-controls-visible.html:
+        * media/media-document-audio-repaint.html:
+        * media/media-fullscreen-loop-inline.html:
+        * media/media-fullscreen-pause-inline.html:
+        * media/media-fullscreen-return-to-inline.html:
+        * media/media-source/media-source-page-cache.html:
+        * media/nodesFromRect-shadowContent.html:
+        * media/progress-events-generated-correctly.html:
+        * media/require-user-gesture-to-load-video.html:
+        * media/restore-from-page-cache.html:
+        * media/tab-focus-inside-media-elements.html:
+        * media/track/track-cue-rendering-horizontal.html:
+        * media/track/track-cue-rendering-snap-to-lines-not-set.html:
+        * media/track/track-cue-rendering-vertical.html:
+        * media/track/track-cues-cuechange.html:
+        * media/track/track-cues-enter-exit.html:
+        * media/track/track-in-band-duplicate-tracks-when-source-changes.html:
+        * media/track/track-manual-mode.html:
+        * media/video-click-dblckick-standalone.html:
+        * media/video-controls-audiotracks-trackmenu.html:
+        * media/video-controls-captions-trackmenu-localized.html:
+        * media/video-controls-captions-trackmenu-only-captions-descriptions-and-subtitles.html:
+        * media/video-controls-captions-trackmenu-sorted.html:
+        * media/video-controls-captions-trackmenu.html:
+        * media/video-controls-drop-and-restore-timeline.html:
+        * media/video-controls-in-media-document.html:
+        * media/video-controls-no-display-with-text-track.html:
+        * media/video-controls-rendering.html:
+        * media/video-controls-show-on-kb-or-ax-event.html:
+        * media/video-controls-toggling.html:
+        * media/video-controls-transformed.html:
+        * media/video-controls-visible-audio-only.html:
+        * media/video-controls-visible-exiting-fullscreen.html:
+        * media/video-controls-zoomed.html:
+        * media/video-display-toggle.html:
+        * media/video-empty-source.html:
+        * media/video-fullscreen-only-controls.html:
+        * media/video-fullscreen-only-playback.html:
+        * media/video-initially-hidden-volume-slider-up.html:
+        * media/video-no-audio.html:
+        * media/video-play-audio-require-user-gesture.html:
+        * media/video-play-require-user-gesture.html:
+        * media/video-trackmenu-selection.html:
+        * media/video-volume-slider-drag.html:
+        * media/video-volume-slider.html:
+        * media/video-zoom-controls.html:
+        * media/volume-bar-empty-when-muted.html:
+        * platform/ios/ios/fixed/fixed-back-forward.html:
+        * platform/ios/media/video-play-glyph-composited-outside-overflow-scrolling-touch-container.html:
+        * platform/ios/mediastream/audio-muted-in-background-tab-gpu-process.html:
+        * platform/ios/mediastream/audio-muted-in-background-tab.html:
+        * platform/ios/mediastream/getUserMedia-single-capture-gpu-process.html:
+        * platform/ios/mediastream/getUserMedia-single-capture.html:
+        * platform/ipad/fast/viewport/meta-viewport-ignored.html:
+        * platform/ipad/fast/viewport/viewport-overriden-by-minimum-effective-width-if-ignore-meta-viewport.html:
+        * plugins/crash-restoring-plugin-page-from-page-cache.html:
+        * plugins/frameset-with-plugin-frame.html:
+        * plugins/netscape-plugin-page-cache-works.html:
+        * requestidlecallback/requestidlecallback-in-page-cache.html:
+        * storage/indexeddb/IDBRequest-page-cache.html:
+        * storage/indexeddb/IDBTransaction-page-cache.html:
+        * svg/dom/css-animate-input-foucs-crash.html:
+        * swipe/basic-cached-back-swipe.html:
+        * swipe/main-frame-pinning-requirement.html:
+        * swipe/pushState-cached-back-swipe.html:
+        * swipe/pushState-programmatic-back-while-swiping-crash.html:
+        * swipe/pushstate-with-manual-scrollrestoration.html:
+        * tiled-drawing/scrolling/null-parent-back-crash.html:
+        * tiled-drawing/tiled-drawing-scroll-position-page-cache-restoration.html:
+        * webanimations/animation-page-cache.html:
+        * webrtc/datachannel/datachannel-page-cache-send.html:
+        * webrtc/datachannel/datachannel-page-cache.html:
+        * webrtc/peerconnection-new-candidate-page-cache.html:
+        * webrtc/peerconnection-page-cache-long.html:
+        * webrtc/peerconnection-page-cache.html:
+        * webrtc/video-rotation-no-cvo.html:
+
 2020-10-13  Zalan Bujtas  <zalan@apple.com>
 
         [LFC][IFC] Remove fully collapsed trailing run

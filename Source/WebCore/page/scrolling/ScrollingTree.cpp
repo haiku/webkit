@@ -68,16 +68,20 @@ OptionSet<WheelEventProcessingSteps> ScrollingTree::determineWheelEventProcessin
     // This method is invoked by the event handling thread
     LockHolder lock(m_treeStateMutex);
 
-    LOG_WITH_STREAM(ScrollLatching, stream << "ScrollingTree::shouldHandleWheelEventSynchronously " << wheelEvent << " have latched node " << m_latchingController.latchedNodeForEvent(wheelEvent, m_allowLatching));
-    if (m_latchingController.latchedNodeForEvent(wheelEvent, m_allowLatching))
+    auto latchedNode = m_latchingController.latchedNodeForEvent(wheelEvent, m_allowLatching);
+    LOG_WITH_STREAM(ScrollLatching, stream << "ScrollingTree::shouldHandleWheelEventSynchronously " << wheelEvent << " have latched node " << latchedNode);
+    if (latchedNode)
         return { WheelEventProcessingSteps::ScrollingThread };
 
     m_latchingController.receivedWheelEvent(wheelEvent, m_allowLatching);
 
-    if (!m_treeState.eventTrackingRegions.isEmpty() && m_rootNode) {
-        FloatPoint position = wheelEvent.position();
-        position.move(m_rootNode->viewToContentsOffset(m_treeState.mainFrameScrollPosition));
+    if (!m_rootNode)
+        return { WheelEventProcessingSteps::ScrollingThread };
 
+    FloatPoint position = wheelEvent.position();
+    position.move(m_rootNode->viewToContentsOffset(m_treeState.mainFrameScrollPosition));
+
+    if (!m_treeState.eventTrackingRegions.isEmpty()) {
         const EventNames& names = eventNames();
         IntPoint roundedPosition = roundedIntPoint(position);
 
@@ -89,10 +93,20 @@ OptionSet<WheelEventProcessingSteps> ScrollingTree::determineWheelEventProcessin
         if (isSynchronousDispatchRegion)
             return { WheelEventProcessingSteps::MainThreadForScrolling, WheelEventProcessingSteps::MainThreadForDOMEventDispatch };
     }
+
+#if ENABLE(WHEEL_EVENT_REGIONS)
+    auto eventListenerTypes = eventListenerRegionTypesForPoint(position);
+    if (eventListenerTypes.contains(EventListenerRegionType::NonPassiveWheel))
+        return { WheelEventProcessingSteps::MainThreadForScrolling, WheelEventProcessingSteps::MainThreadForDOMEventDispatch };
+
+    if (eventListenerTypes.contains(EventListenerRegionType::Wheel))
+        return { WheelEventProcessingSteps::ScrollingThread, WheelEventProcessingSteps::MainThreadForDOMEventDispatch };
+#endif
+
     return { WheelEventProcessingSteps::ScrollingThread };
 }
 
-WheelEventHandlingResult ScrollingTree::handleWheelEvent(const PlatformWheelEvent& wheelEvent)
+WheelEventHandlingResult ScrollingTree::handleWheelEvent(const PlatformWheelEvent& wheelEvent, OptionSet<WheelEventProcessingSteps> processingSteps)
 {
     LOG_WITH_STREAM(Scrolling, stream << "\nScrollingTree " << this << " handleWheelEvent " << wheelEvent);
 
@@ -143,6 +157,7 @@ WheelEventHandlingResult ScrollingTree::handleWheelEvent(const PlatformWheelEven
         return handleWheelEventWithNode(wheelEvent, node.get());
     }();
 
+    result.steps.add(processingSteps & WheelEventProcessingSteps::MainThreadForDOMEventDispatch);
     return result;
 }
 

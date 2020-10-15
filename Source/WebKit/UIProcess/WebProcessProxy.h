@@ -223,7 +223,6 @@ public:
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     static void notifyPageStatisticsAndDataRecordsProcessed();
-    static void notifyPageStatisticsTelemetryFinished(API::Object* messageBody);
 
     static void notifyWebsiteDataDeletionForRegistrableDomainsFinished();
     static void notifyWebsiteDataScanForRegistrableDomainsFinished();
@@ -389,6 +388,10 @@ public:
 
 #if ENABLE(ROUTING_ARBITRATION)
     AudioSessionRoutingArbitratorProxy& audioSessionRoutingArbitrator() { return m_routingArbitrator.get(); }
+#endif
+
+#if ENABLE(IPC_TESTING_API)
+    void setIgnoreInvalidMessageForTesting();
 #endif
 
 protected:
@@ -621,6 +624,10 @@ private:
     Optional<AudibleMediaActivity> m_audibleMediaActivity;
 
     ShutdownPreventingScopeCounter m_shutdownPreventingScopeCounter;
+
+#if ENABLE(IPC_TESTING_API)
+    bool m_ignoreInvalidMessageForTesting { false };
+#endif
 };
 
 } // namespace WebKit

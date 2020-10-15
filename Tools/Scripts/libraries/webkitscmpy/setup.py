@@ -55,6 +55,7 @@ setup(
         'webkitscmpy.mocks.local',
         'webkitscmpy.test',
     ],
+    scripts=['git-webkit'],
     install_requires=['python-dateutil', 'webkitcorepy'],
     include_package_data=True,
     zip_safe=False,

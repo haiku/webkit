@@ -570,6 +570,12 @@ WebPageProxy::WebPageProxy(PageClient& pageClient, WebProcessProxy& process, Ref
     m_inspectorDebuggable->init();
 #endif
     m_inspectorController->init();
+
+#if ENABLE(IPC_TESTING_API)
+    if (m_preferences->store().getBoolValueForKey(WebPreferencesKey::ipcTestingAPIEnabledKey()))
+        process.setIgnoreInvalidMessageForTesting();
+#endif
+
 }
 
 WebPageProxy::~WebPageProxy()
@@ -838,6 +844,11 @@ void WebPageProxy::launchProcess(const RegistrableDomain& registrableDomain, Pro
 
     m_process->addExistingWebPage(*this, WebProcessProxy::BeginsUsingDataStore::Yes);
     m_process->addMessageReceiver(Messages::WebPageProxy::messageReceiverName(), m_webPageID, *this);
+
+#if ENABLE(IPC_TESTING_API)
+    if (m_preferences->store().getBoolValueForKey(WebPreferencesKey::ipcTestingAPIEnabledKey()))
+        m_process->setIgnoreInvalidMessageForTesting();
+#endif
 
     finishAttachingToWebProcess(reason);
 
@@ -3076,16 +3087,13 @@ bool WebPageProxy::setIsNavigatingToAppBoundDomainAndCheckIfPermitted(bool isMai
         if (*isNavigatingToAppBoundDomain == NavigatingToAppBoundDomain::No) {
             if (isMainFrame)
                 return false;
-            m_configuration->setWebViewCategory(WebViewCategory::InAppBrowser);
             m_isNavigatingToAppBoundDomain = NavigatingToAppBoundDomain::No;
             return true;
         }
-        m_configuration->setWebViewCategory(WebViewCategory::AppBoundDomain);
         m_isNavigatingToAppBoundDomain = NavigatingToAppBoundDomain::Yes;
     } else {
         if (m_hasExecutedAppBoundBehaviorBeforeNavigation)
             return false;
-        m_configuration->setWebViewCategory(WebViewCategory::InAppBrowser);
         m_isNavigatingToAppBoundDomain = NavigatingToAppBoundDomain::No;
     }
     return true;
@@ -7657,6 +7665,22 @@ void WebPageProxy::resetStateAfterProcessExited(ProcessTerminationReason termina
     m_process->processTerminated();
 }
 
+#if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(COCOA)
+static const Vector<ASCIILiteral>& attachmentElementServices()
+{
+    static const auto services = makeNeverDestroyed(Vector<ASCIILiteral> {
+#if PLATFORM(IOS_FAMILY)
+        "com.apple.frontboard.systemappservices"_s,
+#endif
+        "com.apple.iconservices"_s,
+#if PLATFORM(MAC)
+        "com.apple.iconservices.store"_s,
+#endif
+    });
+    return services;
+}
+#endif
+
 WebPageCreationParameters WebPageProxy::creationParameters(WebProcessProxy& process, DrawingAreaProxy& drawingArea, RefPtr<API::WebsitePolicies>&& websitePolicies)
 {
     WebPageCreationParameters parameters;
@@ -7824,13 +7848,7 @@ WebPageCreationParameters WebPageProxy::creationParameters(WebProcessProxy& proc
 
 #if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(COCOA)
     if (m_preferences->attachmentElementEnabled() && !m_process->hasIssuedAttachmentElementRelatedSandboxExtensions()) {
-        SandboxExtension::Handle handle;
-#if PLATFORM(IOS_FAMILY)
-        SandboxExtension::createHandleForMachLookup("com.apple.frontboard.systemappservices"_s, WTF::nullopt, handle);
-        parameters.frontboardExtensionHandle = WTFMove(handle);
-#endif
-        SandboxExtension::createHandleForMachLookup("com.apple.iconservices"_s, WTF::nullopt, handle);
-        parameters.iconServicesExtensionHandle = WTFMove(handle);
+        parameters.attachmentElementExtensionHandles = SandboxExtension::createHandlesForMachLookup(attachmentElementServices(), WTF::nullopt);
         m_process->setHasIssuedAttachmentElementRelatedSandboxExtensions();
     }
 #endif

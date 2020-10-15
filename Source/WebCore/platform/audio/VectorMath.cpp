@@ -86,9 +86,14 @@ void multiplyComplex(const float* realVector1, const float* imagVector1, const f
     vDSP_zvmul(&sc1, 1, &sc2, 1, &dest, 1, numberOfElementsToProcess, 1);
 }
 
-void multiplyThenAddScalar(const float* inputVector, float scale, float* outputVector, size_t numberOfElementsToProcess)
+void multiplyByScalarThenAddToOutput(const float* inputVector, float scale, float* outputVector, size_t numberOfElementsToProcess)
 {
     vDSP_vsma(inputVector, 1, &scale, outputVector, 1, outputVector, 1, numberOfElementsToProcess);
+}
+
+void addVectorsThenMultiplyByScalar(const float* inputVector1, const float* inputVector2, float scalar, float* outputVector, size_t numberOfElementsToProcess)
+{
+    vDSP_vasm(inputVector1, 1, inputVector2, 1, &scalar, outputVector, 1, numberOfElementsToProcess);
 }
 
 float maximumMagnitude(const float* inputVector, size_t numberOfElementsToProcess)
@@ -123,7 +128,7 @@ static inline bool is16ByteAligned(const float* vector)
     return !(reinterpret_cast<uintptr_t>(vector) & 0x0F);
 }
 
-void multiplyThenAddScalar(const float* inputVector, float scale, float* outputVector, size_t numberOfElementsToProcess)
+void multiplyByScalarThenAddToOutput(const float* inputVector, float scale, float* outputVector, size_t numberOfElementsToProcess)
 {
     size_t n = numberOfElementsToProcess;
 
@@ -684,6 +689,12 @@ void linearToDecibels(const float* inputVector, float* outputVector, size_t numb
 {
     for (size_t i = 0; i < numberOfElementsToProcess; ++i)
         outputVector[i] = AudioUtilities::linearToDecibels(inputVector[i]);
+}
+
+void addVectorsThenMultiplyByScalar(const float* inputVector1, const float* inputVector2, float scalar, float* outputVector, size_t numberOfElementsToProcess)
+{
+    add(inputVector1, inputVector2, outputVector, numberOfElementsToProcess);
+    multiplyByScalar(outputVector, scalar, outputVector, numberOfElementsToProcess);
 }
 
 #endif // USE(ACCELERATE)

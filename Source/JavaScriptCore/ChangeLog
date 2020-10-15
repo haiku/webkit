@@ -1,3 +1,132 @@
+2020-10-15  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        REGRESSION (r268489): test/built-ins/Object/entries/order-after-define-property.js failing on test262 bots
+        https://bugs.webkit.org/show_bug.cgi?id=217738
+
+        Reviewed by Yusuke Suzuki.
+
+        This change fixes an oversight of r268489 that caused Object.entries to
+        return a sparse array if its argument contained non-enumerable properties.
+
+        * builtins/ObjectConstructor.js:
+        (entries):
+
+2020-10-14  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Use @putByValDirect instead of Array.prototype.@push in built-ins
+        https://bugs.webkit.org/show_bug.cgi?id=175432
+
+        Reviewed by Yusuke Suzuki.
+
+        Before this patch, Array.prototype.@push was used to implement List spec type,
+        stacks / queues, and in place of CreateDataProperty [1].
+        It's undesirably observable since elements are pushed using [[Set]],
+        affecting indexed properties on prototypes [2].
+
+        This change introduces @arrayPush() intrinsic to use with lists / stacks / queues.
+        @arrayPush() should only be used with JSArray receivers because "length" isn't
+        incremented. Unlike Array.prototype.@push, it doesn't grow arrays beyond UINT_MAX,
+        which is OK for current use cases. Object.entries microbenchmark is neutral.
+
+        Despite Array.prototype.@shift also performing [[Set]], it's safe to use with
+        non-sparse receivers.
+
+        [1]: https://tc39.es/ecma262/#sec-createarrayfromlist (step 4.a)
+        [2]: https://tc39.es/ecma262/#sec-array.prototype.push (step 5.a)
+
+        * builtins/ArrayPrototype.js:
+        (globalPrivate.sortBucketSort):
+        * builtins/ObjectConstructor.js:
+        (entries):
+        * builtins/RegExpPrototype.js:
+        (globalPrivate.matchSlow):
+        (Symbol.replace):
+        (Symbol.split):
+        * builtins/TypedArrayPrototype.js:
+        (filter):
+        * bytecode/BytecodeIntrinsicRegistry.h:
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::BytecodeIntrinsicNode::emit_intrinsic_arrayPush):
+        * runtime/ArrayPrototype.cpp:
+        (JSC::ArrayPrototype::finishCreation):
+
+2020-10-14  Don Olmstead  <don.olmstead@sony.com>
+
+        Non-unified build fixes, mid October 2020
+        https://bugs.webkit.org/show_bug.cgi?id=217721
+
+        Reviewed by Yusuke Suzuki.
+
+        * API/JSContextRef.cpp:
+        * dfg/DFGDoesGCCheck.cpp:
+        * llint/LLIntExceptions.cpp:
+        * llint/LLIntExceptions.h:
+        * llint/LLIntThunks.h:
+
+2020-10-13  Saam Barati  <sbarati@apple.com>
+
+        JSObject::getPropertyNames should have a stack overflow check
+        https://bugs.webkit.org/show_bug.cgi?id=217677
+        <rdar://problem/69286436>
+
+        Reviewed by Tadeu Zagallo.
+
+        A prototype chain can be long enough where the recursion causes a stack
+        overflow. The attached test case uses $vm to mimic such a prototype chain
+        by using JSProxy to make a cyclic prototype chain. But the same works by
+        making a prototype chain very long, but the test case takes too long to
+        run to justify landing. For posterity, the alternate test case is:
+        
+        ```
+        function makeLongProtoChain(length) {
+            let object = /foo/;
+            for (let i = 0; i < length; ++i) {
+                next = /foo/;
+                next.__proto__ = object;
+                object = next;
+            }
+            return object;
+        }
+        
+        let o = makeLongProtoChain(30000);
+        for (let q in o) {}
+        ```
+
+        * runtime/JSObject.cpp:
+        (JSC::JSObject::getPropertyNames):
+
+2020-10-13  Keith Rollin  <krollin@apple.com>
+
+        Remove leftover MACOSX_DEPLOYMENT_TARGET_macosx support
+        https://bugs.webkit.org/show_bug.cgi?id=217649
+        <rdar://problem/70236877>
+
+        Reviewed by Darin Adler.
+
+        Bug 42796 introduced MACOSX_DEPLOYMENT_TARGET_<PLATFORM> as "support
+        for compiling WebKit against iOS SDKs". Support for the iOS part of
+        this feature was later removed in several changes, including Bug
+        139212, Bug 139463 and Bug 144762. However, vestiges have remained for
+        five or six years in the form of MACOSX_DEPLOYMENT_TARGET_macosx. The
+        inclusion of the platform in MACOSX_DEPLOYMENT_TARGET is no longer
+        needed and can be removed.
+
+        This changes brings most projects in conformance with other projects
+        that don't support including the platform in MACOSX_DEPLOYMENT_TARGET,
+        including WebEditingTester, gtest, WebKitTestRunner, MiniBrowser, and
+        TestWebKitAPI.
+
+        Along the way, remove a couple of left-over references to macOS 10.16,
+        and a couple of places where [sdk=macosx*] was still being used.
+
+        With this change, initialization of MACOSX_DEPLOYMENT_TARGET should be
+        consistent across all projects, with two exceptions: WebKitLauncher
+        (which hardcodes it to 10.12) and libwebrtc's copy of googletest
+        (which hardcodes it to 10.4). The reasons for these hard-coded values
+        is not apparent, so leave them be.
+
+        * Configurations/DebugRelease.xcconfig:
+
 2020-10-12  Yusuke Suzuki  <ysuzuki@apple.com>
 
         JIT operations do not need extern "C"
