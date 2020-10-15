@@ -410,11 +410,15 @@ void GraphicsLayerTextureMapper::commitLayerChanges()
         m_layer.setChildren(rawChildren);
     }
 
-    if (m_changeMask & MaskLayerChange)
-        m_layer.setMaskLayer(&downcast<GraphicsLayerTextureMapper>(maskLayer())->layer());
+    if (m_changeMask & MaskLayerChange) {
+        auto* layer = downcast<GraphicsLayerTextureMapper>(maskLayer());
+        m_layer.setMaskLayer(layer ? &layer->layer() : nullptr);
+    }
 
-    if (m_changeMask & ReplicaLayerChange)
-        m_layer.setReplicaLayer(&downcast<GraphicsLayerTextureMapper>(replicaLayer())->layer());
+    if (m_changeMask & ReplicaLayerChange) {
+        auto* layer = downcast<GraphicsLayerTextureMapper>(replicaLayer());
+        m_layer.setReplicaLayer(layer ? &layer->layer() : nullptr);
+    }
 
     if (m_changeMask & BackdropLayerChange) {
         if (needsBackdrop()) {
@@ -629,11 +633,6 @@ void GraphicsLayerTextureMapper::removeAnimation(const String& animationName)
 
 bool GraphicsLayerTextureMapper::setFilters(const FilterOperations& filters)
 {
-    TextureMapper* textureMapper = m_layer.textureMapper();
-    // TextureMapperImageBuffer does not support CSS filters.
-    if (!textureMapper || textureMapper->accelerationMode() == TextureMapper::SoftwareMode)
-        return false;
-
     bool canCompositeFilters = filtersCanBeComposited(filters);
     if (GraphicsLayer::filters() == filters)
         return canCompositeFilters;
