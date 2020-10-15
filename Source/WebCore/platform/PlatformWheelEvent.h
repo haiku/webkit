@@ -34,6 +34,10 @@
 typedef struct _GdkEventScroll GdkEventScroll;
 #endif
 
+#if PLATFORM(HAIKU)
+class BMessage;
+#endif
+
 namespace WTF {
 class TextStream;
 }
@@ -140,6 +144,9 @@ public:
 #if PLATFORM(GTK)
     explicit PlatformWheelEvent(GdkEventScroll*);
 #endif
+
+#if PLATFORM(HAIKU)
+        explicit PlatformWheelEvent(BMessage*);
 
 #if PLATFORM(COCOA) || PLATFORM(GTK) || USE(LIBWPE)
     bool hasPreciseScrollingDeltas() const { return m_hasPreciseScrollingDeltas; }
