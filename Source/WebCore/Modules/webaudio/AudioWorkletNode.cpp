@@ -36,6 +36,7 @@
 #include "AudioNodeInput.h"
 #include "AudioNodeOutput.h"
 #include "AudioParam.h"
+#include "AudioParamDescriptor.h"
 #include "AudioParamMap.h"
 #include "AudioUtilities.h"
 #include "AudioWorklet.h"
@@ -77,8 +78,8 @@ ExceptionOr<Ref<AudioWorkletNode>> AudioWorkletNode::create(JSC::JSGlobalObject&
         return Exception { InvalidStateError, "No ScriptProcessor was registered with this name"_s };
     auto& parameterDescriptors = it->value;
 
-    if (context.isClosed() || !context.scriptExecutionContext())
-        return Exception { InvalidStateError, "Context is closed"_s };
+    if (!context.scriptExecutionContext())
+        return Exception { InvalidStateError, "Audio context's frame is detached"_s };
 
     auto messageChannel = MessageChannel::create(*context.scriptExecutionContext());
     auto nodeMessagePort = messageChannel->port1();
@@ -170,7 +171,7 @@ void AudioWorkletNode::initializeAudioParameters(const Vector<AudioParamDescript
     }
 
     for (auto& parameterName : m_parameters->map().keys())
-        m_paramValuesMap.add(parameterName, makeUnique<AudioFloatArray>(AudioUtilities::renderQuantumSize));
+        m_paramValuesMap.add(parameterName, makeUnique<AudioFloatArray>());
 }
 
 void AudioWorkletNode::setProcessor(RefPtr<AudioWorkletProcessor>&& processor)
@@ -204,10 +205,15 @@ void AudioWorkletNode::process(size_t framesToProcess)
     for (auto& audioParam : m_parameters->map().values()) {
         auto* paramValues = m_paramValuesMap.get(audioParam->name());
         ASSERT(paramValues);
-        if (audioParam->hasSampleAccurateValues() && audioParam->automationRate() == AutomationRate::ARate)
+        if (audioParam->hasSampleAccurateValues() && audioParam->automationRate() == AutomationRate::ARate) {
+            paramValues->resize(framesToProcess);
             audioParam->calculateSampleAccurateValues(paramValues->data(), framesToProcess);
-        else
-            std::fill(paramValues->data(), paramValues->data() + framesToProcess, audioParam->finalValue());
+        } else {
+            // If no automation is scheduled during this render quantum, the array may have length 1
+            // with the array element being the constant value of the AudioParam for the render quantum.
+            paramValues->resize(1);
+            *paramValues->data() = audioParam->finalValue();
+        }
     }
 
     bool threwException = false;

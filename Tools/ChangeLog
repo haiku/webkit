@@ -1,3 +1,566 @@
+2020-10-15  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitscmpy] Support <identifier>@ abbreviated idiom
+        https://bugs.webkit.org/show_bug.cgi?id=217716
+        <rdar://problem/70299119>
+
+        Rubber-stamped by Aakash Jain.
+
+        * Scripts/libraries/webkitscmpy/webkitscmpy/__init__.py: Bump version.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/commit.py:
+        (Commit):
+        (Commit._parse_identifier): Support <identifier>@ shorthand.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/commit_unittest.py:
+        (TestCommit.test_parse_identifier):
+
+2020-10-15  Aakash Jain  <aakash_jain@apple.com>
+
+        EWS bot should fail if a new test is missing its result
+        https://bugs.webkit.org/show_bug.cgi?id=177723
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/ews-build/steps.py:
+        (RunWebKitTests.evaluateResult):
+        * BuildSlaveSupport/ews-build/steps_unittest.py: Added unit-test.
+
+2020-10-15  Lauro Moura  <lmoura@igalia.com>
+
+        webkitpy: Fix remaining pytest autoinstall imports
+        https://bugs.webkit.org/show_bug.cgi?id=217694
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Bump mini
+        version due to argument rename below.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/autoinstall.py:
+        (Package.__init__): Change argument name to communicate that the first
+        arg is the name of the package to be imported.
+        * Scripts/webkitpy/__init__.py: Some changes:
+        - Downgrade attr to a compatible version with the pytest used.
+        - Fix pytest_timeout import name
+        - Downgrade pytest to 3.x. Version 4.x deprecated direct invocation of
+        fixtures, which is still used by W3C webdriver test code.
+
+        * Scripts/webkitpy/webdriver_tests/pytest_runner.py:
+        (run): Avoid using pytest autoload features to ensure it would import
+        plugins like pytest_timeout, triggering their install.
+
+2020-10-14  Ryosuke Niwa  <rniwa@webkit.org>
+
+        IPC testing JS API should expose a reply and describe the list of arguments for each message
+        https://bugs.webkit.org/show_bug.cgi?id=217565
+
+        Reviewed by Geoffrey Garen.
+
+        Added tests for decoding replies for sync and async messages and one for argument descriptions.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/IPCTestingAPI.mm:
+        (-[IPCTestingAPIDelegate webView:runJavaScriptTextInputPanelWithPrompt:defaultText:initiatedByFrame:completionHandler:]):
+        (-[IPCTestingAPIDelegate _webView:webContentProcessDidTerminateWithReason:]):
+        (IPCTestingAPI.DecodesReplyArgumentsForPrompt):
+        (IPCTestingAPI.DecodesReplyArgumentsForAsyncMessage):
+        (IPCTestingAPI.DescribesArguments):
+
+2020-10-14  Hector Lopez  <hector_i_lopez@apple.com>
+
+        Unreviewed, reverting r268474.
+
+        Revision is causing a number of test failures across iOS and
+        macOS
+
+        Reverted changeset:
+
+        "[Testing] Support configuring any preference from test
+        headers for WebKitTestRunner"
+        https://bugs.webkit.org/show_bug.cgi?id=217645
+        https://trac.webkit.org/changeset/268474
+
+2020-10-14  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Enabling IPC testing API should prevent the termination of WebContent process which sends an invalid IPC
+        https://bugs.webkit.org/show_bug.cgi?id=217698
+
+        Reviewed by Geoffrey Garen.
+
+        Added regression tests.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/IPCTestingAPI.mm:
+        (IPCTestingAPI.CanSendInvalidAsyncMessageWithoutTermination):
+        (IPCTestingAPI.CanSendInvalidMessageWithoutTermination):
+
+2020-10-14  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Add python 3 support - part 1
+        https://bugs.webkit.org/show_bug.cgi?id=217727
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/build.webkit.org-config/steps.py:
+        (UploadBuiltProduct.__init__): Changed 0644 to 0o644.
+        (UploadTestResults.__init__): Ditto.
+        * BuildSlaveSupport/build.webkit.org-config/steps_unittest.py: Removed unused imports.
+        * BuildSlaveSupport/build.webkit.org-config/run-buildbot-test.py: Used .format() instead of % string formatting.
+
+2020-10-14  Sam Weinig  <weinig@apple.com>
+
+        [Testing] Generate test header key map for DumpRenderTree
+        https://bugs.webkit.org/show_bug.cgi?id=217723
+
+        Reviewed by Tim Horton.
+
+        Copy test header command type generation from WebKitTestRunner to DumpRenderTree, to 
+        begin support for using any WebPreference from DumpRenderTree. This does not actually
+        change any behavior yet, just updates the key mapping. 
+
+        * DumpRenderTree/CMakeLists.txt:
+        * DumpRenderTree/DerivedSources-input.xcfilelist:
+        * DumpRenderTree/DerivedSources-output.xcfilelist:
+        * DumpRenderTree/DerivedSources.make:
+        * DumpRenderTree/DumpRenderTree.xcodeproj/project.pbxproj:
+        * DumpRenderTree/Scripts/PreferencesTemplates: Added.
+        * DumpRenderTree/Scripts/PreferencesTemplates/TestOptionsGeneratedKeys.h.erb: Added.
+        * DumpRenderTree/TestOptions.cpp:
+        (WTR::TestOptions::keyTypeMapping):
+        * DumpRenderTree/TestOptions.h:
+        * DumpRenderTree/mac/Configurations/Base.xcconfig:
+
+2020-10-14  Alexey Proskuryakov  <ap@apple.com>
+
+        Remove WebKitLauncher
+        https://bugs.webkit.org/show_bug.cgi?id=217729
+
+        Reviewed by Darin Adler.
+
+        This is part of long defunct nightly build infrastructure.
+
+        * .gitattributes:
+        * BuildSlaveSupport/build-launcher-app: Removed.
+        * Scripts/webkitpy/style/checkers/sdkvariant.py:
+        * WebKitLauncher: Removed.
+
+2020-10-14  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r268431 and r268443.
+        https://bugs.webkit.org/show_bug.cgi?id=217728
+
+        Broke debug builds of GTK, WinCairo and Playstation ports
+
+        Reverted changesets:
+
+        "IPC testing JS API should expose a reply and describe the
+        list of arguments for each message"
+        https://bugs.webkit.org/show_bug.cgi?id=217565
+        https://trac.webkit.org/changeset/268431
+
+        "IPC testing JS API should expose a reply and describe the
+        list of arguments for each message"
+        https://bugs.webkit.org/show_bug.cgi?id=217565
+        https://trac.webkit.org/changeset/268443
+
+2020-10-14  Alex Christensen  <achristensen@webkit.org>
+
+        Disallow ports in file URLs
+        https://bugs.webkit.org/show_bug.cgi?id=217252
+
+        Reviewed by Darin Adler.
+
+        * TestWebKitAPI/Tests/WTF/URLParser.cpp:
+        (TestWebKitAPI::TEST_F):
+
+2020-10-14  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Unreviewed. Update my status to "reviewer" and add WebIDL expertise.
+
+        * Scripts/webkitpy/common/config/contributors.json:
+
+2020-10-14  Keith Rollin  <krollin@apple.com>
+
+        'make debug' fails on the repository root if ccache is installed on mac after r262147
+        https://bugs.webkit.org/show_bug.cgi?id=212469
+        <rdar://problem/70278783>
+
+        Reviewed by David Kilzer.
+
+        ccache is frequently installed in /usr/local/bin. However, when
+        running under XCBuild, $PATH does not include /usr/local/bin. This
+        leaves in a situation where the check for the existence of ccache in
+        Makefile.shared succeeds, but the use of ccache in ccache-wrapper
+        fails. To address this, look for ccache in a few well-known places
+        rather than just relying on $PATH. If it still can't be found, fall
+        back to compiling normally without ccache.
+
+        * ccache/ccache-wrapper:
+
+2020-10-14  Sam Weinig  <weinig@apple.com>
+
+        [Testing] Support configuring any preference from test headers for WebKitTestRunner
+        https://bugs.webkit.org/show_bug.cgi?id=217645
+
+        Reviewed by Tim Horton.
+
+        Support using any preference defined in any of the WebPreference*.yaml configuration files
+        as a test header command rather than limiting it to a hard coded subset by generating the 
+        list of supported commands and their types from the yaml files themselves.
+        
+        This currently only works for WebKitTestRunner, but will be made to work with DumpRenderTree
+        in subsequent changes.
+
+        * WebKitTestRunner/CMakeLists.txt:
+        * WebKitTestRunner/Configurations/Base.xcconfig:
+        * WebKitTestRunner/DerivedSources-input.xcfilelist:
+        * WebKitTestRunner/DerivedSources-output.xcfilelist:
+        * WebKitTestRunner/DerivedSources.make:
+        * WebKitTestRunner/WebKitTestRunner.xcodeproj/project.pbxproj:
+        * WebKitTestRunner/Scripts/PreferencesTemplates: Added.
+        * WebKitTestRunner/Scripts/PreferencesTemplates/TestOptionsGeneratedKeys.h.erb: Added.
+        Add generation of TestOptionsGeneratedKeys.h from the WebPreference*.yaml using
+        the shared GeneratePreferences.rb script in WTF.
+
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::resetPreferencesToConsistentValues):
+        Move preference setting to the bottom of the file to allow any preference
+        to be overriden. Also adds in support for double, uint32_t, and string preferences
+        though none of those are currently being used.
+
+        * WebKitTestRunner/TestOptions.cpp:
+        (WTR::TestOptions::keyTypeMapping):
+        Use generated macro GENERATED_WEB_PREFERENCE_KEY_TYPE_MAPPINGS rather than hardcoding
+        all the preferences types.
+
+        * WebKitTestRunner/TestOptions.h:
+        (WTR::TestOptions::boolWebPreferenceFeatures const):
+        (WTR::TestOptions::doubleWebPreferenceFeatures const):
+        (WTR::TestOptions::uint32WebPreferenceFeatures const):
+        (WTR::TestOptions::stringWebPreferenceFeatures const):
+        Expose accessors for preferences values for use in setting the actual preference
+        values. Rather than setting all preferences, we now only set preferences that have
+        been explicitly requested, using the default value for any that have not.
+
+2020-10-14  Stephan Szabo  <stephan.szabo@sony.com>
+
+        builtins-generator-tests and bindings-generation-tests are reporting "Failed to install configparser-4.0.2!" since r268267 on WinCairo Buildbot
+        https://bugs.webkit.org/show_bug.cgi?id=217586
+
+        Reviewed by Jonathan Bedard.
+
+        Pass proxy environment variables to setup.py so wincairo bots
+        which need the proxy set can reach pypi.org.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py:
+        * Scripts/libraries/webkitcorepy/webkitcorepy/autoinstall.py:
+
+2020-10-14  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Temporarily reduce the number of iOS simulators booted during testing
+        https://bugs.webkit.org/show_bug.cgi?id=217681
+
+        Reviewed by Jonathan Bedard.
+
+        To work around unexpected timouts with iOS 14 (webkit.org/b/217392),
+        increase the estimated memory cost for booting iOS simulators.
+
+        * Scripts/webkitpy/xcode/simulated_device.py:
+        (SimulatedDeviceManager): Remove an obsolete FIXME and change the
+        estimated memory cost for a simulator to 8GB, which reduces the number
+        of booted simulators in our CI from 10 to 8. This change reduced the
+        number of unexpected timeouts seen on our bots from ~20 to 2, and came
+        at a penalty of < 5 minutes to layout test duration.
+
+2020-10-14  Kate Cheney  <katherine_cheney@apple.com>
+
+        Remove ResourceLoadStatistics telemetry
+        https://bugs.webkit.org/show_bug.cgi?id=217665
+        <rdar://problem/69748988>
+
+        Reviewed by Sam Weinig.
+
+        Telemetry calculation in ITP is unused, very complicated, a potential
+        privacy risk, and it causes flaky tests. We should remove it.
+
+        * WebKitTestRunner/InjectedBundle/Bindings/TestRunner.idl:
+        * WebKitTestRunner/InjectedBundle/InjectedBundle.cpp:
+        (WTR::InjectedBundle::didReceiveMessageToPage):
+        * WebKitTestRunner/InjectedBundle/TestRunner.cpp:
+        (WTR::TestRunner::installStatisticsDidRunTelemetryCallback): Deleted.
+        (WTR::TestRunner::statisticsDidRunTelemetryCallback): Deleted.
+        (WTR::TestRunner::statisticsSubmitTelemetry): Deleted.
+        * WebKitTestRunner/InjectedBundle/TestRunner.h:
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::statisticsSubmitTelemetry): Deleted.
+        * WebKitTestRunner/TestController.h:
+        * WebKitTestRunner/TestInvocation.cpp:
+        (WTR::TestInvocation::didReceiveSynchronousMessageFromInjectedBundle):
+
+2020-10-14  Kate Cheney  <katherine_cheney@apple.com>
+
+        Remove _WKWebViewCategory from WKWebViewConfiguration
+        https://bugs.webkit.org/show_bug.cgi?id=217679
+        <rdar://problem/70260337>
+
+        Reviewed by Sam Weinig.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/InAppBrowserPrivacy.mm:
+
+2020-10-14  Aakash Jain  <aakash_jain@apple.com>
+
+        Rename slave to bot for gtk-linux bot names
+        https://bugs.webkit.org/show_bug.cgi?id=217702
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        * BuildSlaveSupport/build.webkit.org-config/config.json:
+
+2020-10-14  Zan Dobersek  <zdobersek@igalia.com>
+
+        Remove ACCELERATED_2D_CANVAS build flags and guarded code
+        https://bugs.webkit.org/show_bug.cgi?id=217603
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Scripts/webkitperl/FeatureList.pm:
+        Remove the ACCELERATED_2D_CANVAS feature flag.
+
+2020-10-14  Diego Pino Garcia  <dpino@igalia.com>
+
+        [webkitpy] Allow passing subtests to GLIB API testrunner
+        https://bugs.webkit.org/show_bug.cgi?id=217466
+
+        Reviewed by Carlos Garcia Campos.
+
+        GLIB API testrunner didn't allow passing a list of subtests to run.
+        That was possible, however, when executing a GLIB API binary directly
+        using knob -p. The patch adds the same option to GLIB API testrunner
+        and passes down the list of subtests accordingly.
+
+        * glib/api_test_runner.py:
+        (TestRunner._run_test_glib):
+        (TestRunner._run_test):
+        (TestRunner.run_tests):
+        (add_options):
+
+2020-10-13  Ryosuke Niwa  <rniwa@webkit.org>
+
+        IPC testing JS API should expose a reply and describe the list of arguments for each message
+        https://bugs.webkit.org/show_bug.cgi?id=217565
+
+        Fixed the tests.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/IPCTestingAPI.mm:
+
+2020-10-13  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitscmpy] Add `git-webkit find` (Follow up fix)
+        https://bugs.webkit.org/show_bug.cgi?id=217534
+        <rdar://problem/70152431>
+
+        Unreviewed follow up fix.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Version bump.
+        * Scripts/libraries/webkitscmpy/setup.py: "program" was not a directory in the landed change.
+
+2020-10-13  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitscmpy] Add `git-webkit find`
+        https://bugs.webkit.org/show_bug.cgi?id=217534
+        <rdar://problem/70152431>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/git-webkit: Added.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Bump version.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/arguments.py:
+        (NoAction.__call__):
+        (CountAction): Create an action to increment or decrement a variable by a value.
+        (CallbackAction): Create an action which will trigger a callback when set.
+        (LoggingGroup): Create a group which allows the user to change logging behavior.
+        * Scripts/libraries/webkitscmpy/git-webkit: Added.
+        * Scripts/libraries/webkitscmpy/setup.py: Add webkitscmpy.program and git-webkit.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/__init__.py: Bump version.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/commit.py:
+        (Commit): Make the 12 character hash based on a class variable.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/local/git.py:
+        (Git.default_branch): Fallback to 'master' or 'main' if the remote isn't available.
+        (Git.find): Use git to match branches and tags to a hash instead of trying to do it ourselves.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/local/scm.py:
+        (Scm.find): Add function to convert generic string arguments to a commit, and then find that commit in
+        the repository.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/local/svn.py:
+        (Svn): Support a few different SVN binary paths.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/mocks/local/git.py: Add rev-parse branch/tag/HEAD -> hash conversion.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/program.py: Added.
+        (Command): Base class for all commands.
+        (Find):
+        (Find.parser): Configure parser for 'find' sub-program.
+        (Find.main): Given an identifier, revision, hash or branch name, find and print the matching commit from
+        (main): Entry point to git-<project> scripts.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/find_unittest.py: Added.
+        (TestFind):
+        (TestFind.test_basic_git):
+        (TestFind.test_basic_git_svn):
+        (TestFind.test_basic_svn):
+        (TestFind.test_branch_tilde):
+        (TestFind.test_identifier_git):
+        (TestFind.test_identifier_git_svn):
+        (TestFind.test_identifier_svn):
+        (TestFind.test_hash):
+        (TestFind.test_revision_svn):
+        (TestFind.test_revision_git_svn):
+        (TestFind.test_standard):
+
+2020-10-12  Ryosuke Niwa  <rniwa@webkit.org>
+
+        IPC testing JS API should expose a reply and describe the list of arguments for each message
+        https://bugs.webkit.org/show_bug.cgi?id=217565
+
+        Reviewed by Geoffrey Garen.
+
+        Added tests for decoding replies for sync and async messages and one for argument descriptions.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/IPCTestingAPI.mm:
+        (-[IPCTestingAPIDelegate webView:runJavaScriptTextInputPanelWithPrompt:defaultText:initiatedByFrame:completionHandler:]):
+        (-[IPCTestingAPIDelegate _webView:webContentProcessDidTerminateWithReason:]):
+        (IPCTestingAPI.DecodesReplyArgumentsForPrompt):
+        (IPCTestingAPI.DecodesReplyArgumentsForAsyncMessage):
+        (IPCTestingAPI.DescribesArguments):
+
+2020-10-13  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Rename slave to worker in config.json
+        https://bugs.webkit.org/show_bug.cgi?id=217672
+
+        Reviewed by Dewei Zhu.
+
+        * BuildSlaveSupport/build.webkit.org-config/config.json: Renamed slaves to workers and slavenames to workernames.
+        Also deleted unused entry for test-slave.
+        * BuildSlaveSupport/build.webkit.org-config/loadConfig.py: Renamed slave to worker.
+        * BuildSlaveSupport/build.webkit.org-config/loadConfig_unittest.py: Ditto.
+        * BuildSlaveSupport/build.webkit.org-config/make_passwords_json.py: Ditto.
+        (create_mock_worker_passwords_dict):
+
+2020-10-13  Ellie Epskamp-Hunt  <eepskamphunt@apple.com>
+
+        Expose a property on WKWebView to know if it's being inspected.
+        https://bugs.webkit.org/show_bug.cgi?id=217629
+        rdar://70073369
+
+        Reviewed by Brian Burg.
+
+        Update the property name in existing tests.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/WKInspectorDelegate.mm:
+        (TEST):
+
+2020-10-13  Keith Rollin  <krollin@apple.com>
+
+        Remove leftover MACOSX_DEPLOYMENT_TARGET_macosx support
+        https://bugs.webkit.org/show_bug.cgi?id=217649
+        <rdar://problem/70236877>
+
+        Reviewed by Darin Adler.
+
+        Bug 42796 introduced MACOSX_DEPLOYMENT_TARGET_<PLATFORM> as "support
+        for compiling WebKit against iOS SDKs". Support for the iOS part of
+        this feature was later removed in several changes, including Bug
+        139212, Bug 139463 and Bug 144762. However, vestiges have remained for
+        five or six years in the form of MACOSX_DEPLOYMENT_TARGET_macosx. The
+        inclusion of the platform in MACOSX_DEPLOYMENT_TARGET is no longer
+        needed and can be removed.
+
+        This changes brings most projects in conformance with other projects
+        that don't support including the platform in MACOSX_DEPLOYMENT_TARGET,
+        including WebEditingTester, gtest, WebKitTestRunner, MiniBrowser, and
+        TestWebKitAPI.
+
+        Along the way, remove a couple of left-over references to macOS 10.16,
+        and a couple of places where [sdk=macosx*] was still being used.
+
+        With this change, initialization of MACOSX_DEPLOYMENT_TARGET should be
+        consistent across all projects, with two exceptions: WebKitLauncher
+        (which hardcodes it to 10.12) and libwebrtc's copy of googletest
+        (which hardcodes it to 10.4). The reasons for these hard-coded values
+        is not apparent, so leave them be.
+
+        * ContentExtensionTester/Configurations/DebugRelease.xcconfig:
+        * DumpRenderTree/mac/Configurations/DebugRelease.xcconfig:
+        * ImageDiff/cg/Configurations/DebugRelease.xcconfig:
+        * lldb/lldbWebKitTester/Configurations/DebugRelease.xcconfig:
+
+2020-10-13  Lauro Moura  <lmoura@igalia.com>
+
+        webkitpy: Log and report webdriver harness errors
+        https://bugs.webkit.org/show_bug.cgi?id=217659
+
+        Reviewed by Jonathan Bedard.
+
+        * Scripts/webkitpy/webdriver_tests/webdriver_test_runner.py:
+        (WebDriverTestRunner.process_results): Report failed harness tests,
+        not just subtests.
+        * Scripts/webkitpy/webdriver_tests/webdriver_test_runner_w3c.py:
+        (WebDriverTestRunnerW3C.run): Print to error log when a test run
+        fails, not just subtests.
+
+2020-10-13  Sam Weinig  <weinig@apple.com>
+
+        [Testing] Rename test header commands to match names in WebPreferences*.yaml
+        https://bugs.webkit.org/show_bug.cgi?id=217654
+
+        Reviewed by Simon Fraser.
+
+        Renames all the test header commands (e.g. useAcceleratedDrawing) to match name in
+        WebPreferences*.yaml files (e.g. AcceleratedDrawingEnabled).
+        
+        Also splits up TestFeatures into test runner specific features (e.g. runSingly) that
+        don't have a WebPreferences counterpart, and WebPreferences specific features. This
+        will allow future patches to support arbritrary WebPreferences more easily.
+
+        * DumpRenderTree/TestOptions.cpp:
+        * DumpRenderTree/TestOptions.h:
+        * DumpRenderTree/mac/DumpRenderTree.mm:
+        (setWebPreferencesForTestOptions):
+        * TestRunnerShared/TestFeatures.cpp:
+        * TestRunnerShared/TestFeatures.h:
+        * WebKitTestRunner/TestController.cpp:
+        * WebKitTestRunner/TestOptions.cpp:
+        * WebKitTestRunner/TestOptions.h:
+        * WebKitTestRunner/cocoa/TestControllerCocoa.mm:
+        * WebKitTestRunner/gtk/TestControllerGtk.cpp:
+        * WebKitTestRunner/mac/TestControllerMac.mm:
+        * WebKitTestRunner/wpe/TestControllerWPE.cpp:
+
+2020-10-13  Peng Liu  <peng.liu6@apple.com>
+
+        Clean up the API tests of CARingBuffer
+        https://bugs.webkit.org/show_bug.cgi?id=217633
+
+        Reviewed by Simon Fraser.
+
+        Remove unused private functions and enable the tests for iOS.
+
+        * TestWebKitAPI/Tests/WebCore/CARingBuffer.cpp:
+        (TestWebKitAPI::CARingBufferTest::audioBufferListSizeForStream): Deleted.
+        (TestWebKitAPI::CARingBufferTest::configureBufferListForStream): Deleted.
+
+2020-10-13  Lauro Moura  <lmoura@igalia.com>
+
+        REGRESSION(r268267) [webkitpy] Add missing deps for pytest when running webdriver tests
+        https://bugs.webkit.org/show_bug.cgi?id=217650
+
+        Reviewed by Jonathan Bedard.
+
+        scandir (needed as os.scandir was added only in py 3.5)
+
+        Also fixed more_itertools autoinstall declaration so the package
+        name, with underscore, is the name of the webkitcorepy package and the
+        dash is used for the pypi package name.
+
+        With these changes the script does not error anymore, although there
+        seems to be some issues with the executor when running tests. They
+        happen to only start and stop the webserver but not actually being
+        run. To be investigated in a separate bug.
+
+        * Scripts/webkitpy/__init__.py:
+
 2020-10-13  Adrian Perez de Castro  <aperez@igalia.com>
 
         [GTK] Add support for gamepad tests

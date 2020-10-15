@@ -181,10 +181,6 @@
 #define ENABLE_ACCESSIBILITY 1
 #endif
 
-#if !defined(ENABLE_ACCELERATED_2D_CANVAS)
-#define ENABLE_ACCELERATED_2D_CANVAS 0
-#endif
-
 #if !defined(ENABLE_OVERFLOW_SCROLLING_TOUCH)
 #define ENABLE_OVERFLOW_SCROLLING_TOUCH 0
 #endif
@@ -317,7 +313,7 @@
 
 #if !defined(ENABLE_IPC_TESTING_API)
 /* Enable IPC testing on all ASAN builds and debug builds. */
-#if ASAN_ENABLED || !defined(NDEBUG)
+#if (ASAN_ENABLED || !defined(NDEBUG)) && PLATFORM(COCOA)
 #define ENABLE_IPC_TESTING_API 1
 #endif
 #endif

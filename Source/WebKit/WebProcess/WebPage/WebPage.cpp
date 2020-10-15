@@ -571,10 +571,8 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
         CrossOriginAccessControlCheckDisabler::singleton().setCrossOriginAccessControlCheckEnabled(false);
 
 #if ENABLE(ATTACHMENT_ELEMENT)
-    if (parameters.frontboardExtensionHandle)
-        SandboxExtension::consumePermanently(*parameters.frontboardExtensionHandle);
-    if (parameters.iconServicesExtensionHandle)
-        SandboxExtension::consumePermanently(*parameters.iconServicesExtensionHandle);
+    if (parameters.attachmentElementExtensionHandles)
+        SandboxExtension::consumePermanently(*parameters.attachmentElementExtensionHandles);
 #endif
 
     m_page = makeUnique<Page>(WTFMove(pageConfiguration));
@@ -2854,25 +2852,26 @@ void WebPage::mouseEvent(const WebMouseEvent& mouseEvent)
     send(Messages::WebPageProxy::DidReceiveEvent(static_cast<uint32_t>(mouseEvent.type()), handled));
 }
 
-static bool handleWheelEvent(const WebWheelEvent& wheelEvent, Page* page)
+static bool handleWheelEvent(const WebWheelEvent& wheelEvent, Page* page, OptionSet<WheelEventProcessingSteps> processingSteps)
 {
     Frame& frame = page->mainFrame();
     if (!frame.view())
         return false;
 
     PlatformWheelEvent platformWheelEvent = platform(wheelEvent);
-    return page->userInputBridge().handleWheelEvent(platformWheelEvent);
+    return page->userInputBridge().handleWheelEvent(platformWheelEvent, processingSteps);
 }
 
-void WebPage::wheelEvent(const WebWheelEvent& wheelEvent)
+void WebPage::wheelEvent(const WebWheelEvent& wheelEvent, OptionSet<WheelEventProcessingSteps> processingSteps)
 {
     m_userActivity.impulse();
 
     CurrentEvent currentEvent(wheelEvent);
 
-    bool handled = handleWheelEvent(wheelEvent, m_page.get());
+    bool handled = handleWheelEvent(wheelEvent, m_page.get(), processingSteps);
 
-    send(Messages::WebPageProxy::DidReceiveEvent(static_cast<uint32_t>(wheelEvent.type()), handled));
+    if (processingSteps.contains(WheelEventProcessingSteps::MainThreadForScrolling))
+        send(Messages::WebPageProxy::DidReceiveEvent(static_cast<uint32_t>(wheelEvent.type()), handled));
 }
 
 static bool handleKeyEvent(const WebKeyboardEvent& keyboardEvent, Page* page)

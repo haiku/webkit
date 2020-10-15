@@ -31,8 +31,9 @@ from webkitscmpy import Contributor
 class Commit(object):
     HASH_RE = re.compile(r'^[a-f0-9A-F]+$')
     REVISION_RE = re.compile(r'^[Rr]?(?P<revision>\d+)$')
-    IDENTIFIER_RE = re.compile(r'^((?P<branch_point>\d+)\.)?(?P<identifier>-?\d+)(@(?P<branch>\S+))?$')
+    IDENTIFIER_RE = re.compile(r'^((?P<branch_point>\d+)\.)?(?P<identifier>-?\d+)(@(?P<branch>\S*))?$')
     NUMBER_RE = re.compile(r'^-?\d*$')
+    HASH_LABEL_SIZE = 12
 
     class Encoder(json.JSONEncoder):
 
@@ -111,7 +112,7 @@ class Commit(object):
                 identifier = match.group('branch_point'), int(match.group('identifier'))
                 if identifier[0]:
                     identifier = int(identifier[0]), identifier[1]
-                branch = match.group('branch')
+                branch = match.group('branch') or None
             elif cls.NUMBER_RE.match(identifier):
                 identifier = None, int(identifier)
             else:
@@ -130,7 +131,7 @@ class Commit(object):
         return (identifier[0], identifier[1], branch)
 
     @classmethod
-    def parse(cls, arg):
+    def parse(cls, arg, do_assert=True):
         if cls._parse_identifier(arg):
             return Commit(identifier=arg)
 
@@ -140,7 +141,9 @@ class Commit(object):
         if cls._parse_hash(arg):
             return Commit(hash=arg)
 
-        raise ValueError("'{}' cannot be converted to a commit object".format(arg))
+        if do_assert:
+            raise ValueError("'{}' cannot be converted to a commit object".format(arg))
+        return None
 
     def __init__(
         self,
@@ -211,7 +214,7 @@ class Commit(object):
                 result += ' on {}'.format(self.branch)
             result += '\n'
         if self.hash:
-            result += '    git hash: {}'.format(self.hash[:12])
+            result += '    git hash: {}'.format(self.hash[:self.HASH_LABEL_SIZE])
             if self.branch:
                 result += ' on {}'.format(self.branch)
             result += '\n'
@@ -242,7 +245,7 @@ class Commit(object):
         if self.revision:
             return 'r{}'.format(self.revision)
         if self.hash:
-            return self.hash[:12]
+            return self.hash[:self.HASH_LABEL_SIZE]
         if self.identifier is not None:
             return str(self.identifier)
         raise ValueError('Incomplete commit format')

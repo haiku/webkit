@@ -45,7 +45,7 @@ class ThreadedScrollingTree : public ScrollingTree {
 public:
     virtual ~ThreadedScrollingTree();
 
-    WheelEventHandlingResult handleWheelEvent(const PlatformWheelEvent&) override;
+    WheelEventHandlingResult handleWheelEvent(const PlatformWheelEvent&, OptionSet<WheelEventProcessingSteps>) override;
 
     bool handleWheelEventAfterMainThread(const PlatformWheelEvent&, ScrollingNodeID);
 
@@ -57,6 +57,8 @@ public:
     void didCompleteRenderingUpdate();
 
     Lock& treeMutex() { return m_treeMutex; }
+
+    bool scrollAnimatorEnabled() const { return m_scrollAnimatorEnabled; }
 
 protected:
     explicit ThreadedScrollingTree(AsyncScrollingCoordinator&);
@@ -103,6 +105,8 @@ private:
 
     // Dynamically allocated because it has to use the ScrollingThread's runloop.
     std::unique_ptr<RunLoop::Timer<ThreadedScrollingTree>> m_delayedRenderingUpdateDetectionTimer;
+
+    bool m_scrollAnimatorEnabled { false };
 };
 
 } // namespace WebCore

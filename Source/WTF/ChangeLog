@@ -1,3 +1,102 @@
+2020-10-14  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Unreviewed build fix. Disable IPC testing API on non-Cocoa platforms.
+
+        * wtf/PlatformEnable.h:
+
+2020-10-14  Alex Christensen  <achristensen@webkit.org>
+
+        Disallow ports in file URLs
+        https://bugs.webkit.org/show_bug.cgi?id=217252
+
+        Reviewed by Darin Adler.
+
+        This matches Chrome and the URL specification.
+        Covered by newly passing web platform tests.
+
+        * wtf/URLParser.cpp:
+        (WTF::URLParser::parsePort):
+
+2020-10-13  Simon Fraser  <simon.fraser@apple.com>
+
+        Allow passive mouse wheel event listeners to not force synchronous scrolling
+        https://bugs.webkit.org/show_bug.cgi?id=158439
+        <rdar://problem/28265360>
+
+        Reviewed by Tim Horton.
+
+        Define ENABLE_WHEEL_EVENT_REGIONS for macOS.
+
+        * wtf/PlatformEnableCocoa.h:
+
+2020-10-14  Chris Dumez  <cdumez@apple.com>
+
+        Enable AudioWorklet by default
+        https://bugs.webkit.org/show_bug.cgi?id=217708
+
+        Reviewed by Eric Carlson.
+
+        Enable AudioWorklet by default on platforms where modern/unprefixed WebAudio
+        is enabled.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-10-14  Zan Dobersek  <zdobersek@igalia.com>
+
+        Remove ACCELERATED_2D_CANVAS build flags and guarded code
+        https://bugs.webkit.org/show_bug.cgi?id=217603
+
+        Reviewed by Carlos Garcia Campos.
+
+        * wtf/PlatformEnable.h:
+        Remove the fallback ENABLE_ACCELERATED_2D_CANVAS definition.
+
+2020-10-13  Chris Dumez  <cdumez@apple.com>
+
+        WebAudio tests are crashing in debug when enabling the GPU process
+        https://bugs.webkit.org/show_bug.cgi?id=217663
+
+        Reviewed by Geoff Garen.
+
+        * wtf/CrossThreadQueue.h:
+        (WTF::CrossThreadQueue<DataType>::waitForMessage):
+        If CrossThreadQueue::kill() gets called while another thread is waiting on a
+        CrossThreadQueue::waitForMessage() call, make it so that waitForMessage()
+        returns a default-constructed DataType instead of crashing trying to
+        dequeue (since the queue is empty).
+
+2020-10-13  Keith Rollin  <krollin@apple.com>
+
+        Remove leftover MACOSX_DEPLOYMENT_TARGET_macosx support
+        https://bugs.webkit.org/show_bug.cgi?id=217649
+        <rdar://problem/70236877>
+
+        Reviewed by Darin Adler.
+
+        Bug 42796 introduced MACOSX_DEPLOYMENT_TARGET_<PLATFORM> as "support
+        for compiling WebKit against iOS SDKs". Support for the iOS part of
+        this feature was later removed in several changes, including Bug
+        139212, Bug 139463 and Bug 144762. However, vestiges have remained for
+        five or six years in the form of MACOSX_DEPLOYMENT_TARGET_macosx. The
+        inclusion of the platform in MACOSX_DEPLOYMENT_TARGET is no longer
+        needed and can be removed.
+
+        This changes brings most projects in conformance with other projects
+        that don't support including the platform in MACOSX_DEPLOYMENT_TARGET,
+        including WebEditingTester, gtest, WebKitTestRunner, MiniBrowser, and
+        TestWebKitAPI.
+
+        Along the way, remove a couple of left-over references to macOS 10.16,
+        and a couple of places where [sdk=macosx*] was still being used.
+
+        With this change, initialization of MACOSX_DEPLOYMENT_TARGET should be
+        consistent across all projects, with two exceptions: WebKitLauncher
+        (which hardcodes it to 10.12) and libwebrtc's copy of googletest
+        (which hardcodes it to 10.4). The reasons for these hard-coded values
+        is not apparent, so leave them be.
+
+        * Configurations/DebugRelease.xcconfig:
+
 2020-10-12  Luming Yin  <luming_yin@apple.com>
 
         [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 

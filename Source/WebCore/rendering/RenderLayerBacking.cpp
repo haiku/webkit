@@ -94,11 +94,7 @@ CanvasCompositingStrategy canvasCompositingStrategy(const RenderObject& renderer
     if (context->isGPUBased())
         return CanvasAsLayerContents;
 
-#if ENABLE(ACCELERATED_2D_CANVAS)
-    return CanvasAsLayerContents;
-#else
     return CanvasPaintedToLayer; // On Mac and iOS we paint accelerated canvases into their layers.
-#endif
 }
 
 // This acts as a cache of what we know about what is painting into this RenderLayerBacking.
@@ -1058,7 +1054,7 @@ bool RenderLayerBacking::updateConfiguration(const RenderLayer* compositingAnces
         updateContentsRects();
     }
 #endif
-#if ENABLE(WEBGL) || ENABLE(ACCELERATED_2D_CANVAS) || ENABLE(WEBGPU) || ENABLE(OFFSCREEN_CANVAS)
+#if ENABLE(WEBGL) || ENABLE(WEBGPU) || ENABLE(OFFSCREEN_CANVAS)
     else if (renderer().isCanvas() && canvasCompositingStrategy(renderer()) == CanvasAsLayerContents) {
         const HTMLCanvasElement* canvas = downcast<HTMLCanvasElement>(renderer().element());
         if (auto* context = canvas->renderingContext())
@@ -1769,6 +1765,11 @@ void RenderLayerBacking::updateEventRegion()
                 // This avoids generating unnecessarily complex event regions. We still need to to do the paint to capture touch-action regions.
                 eventRegionContext.unite(enclosingIntRect(FloatRect(-layerOffset, graphicsLayer.size())), renderer().style());
             }
+        }
+
+        if (m_owningLayer.isRenderViewLayer() && (&graphicsLayer == m_graphicsLayer || &graphicsLayer == m_foregroundLayer)) {
+            // Event handlers on the root cover the entire layer.
+            eventRegionContext.unite(enclosingIntRect(FloatRect(-layerOffset, graphicsLayer.size())), renderer().style());
         }
 
         auto dirtyRect = enclosingIntRect(FloatRect(FloatPoint(graphicsLayer.offsetFromRenderer()), graphicsLayer.size()));
@@ -2773,7 +2774,7 @@ bool RenderLayerBacking::containsPaintedContent(PaintedContentsInfo& contentsInf
         return m_owningLayer.hasVisibleBoxDecorationsOrBackground() || (!(downcast<RenderVideo>(renderer()).supportsAcceleratedRendering()) && m_requiresOwnBackingStore);
 #endif
 
-#if ENABLE(WEBGL) || ENABLE(ACCELERATED_2D_CANVAS) || ENABLE(OFFSCREEN_CANVAS)
+#if ENABLE(WEBGL) || ENABLE(OFFSCREEN_CANVAS)
     if (is<RenderHTMLCanvas>(renderer()) && canvasCompositingStrategy(renderer()) == CanvasAsLayerContents)
         return m_owningLayer.hasVisibleBoxDecorationsOrBackground();
 #endif
@@ -2838,7 +2839,7 @@ void RenderLayerBacking::contentChanged(ContentChangeType changeType)
     if ((changeType == MaskImageChanged) && m_maskLayer)
         m_owningLayer.setNeedsCompositingConfigurationUpdate();
 
-#if ENABLE(WEBGL) || ENABLE(ACCELERATED_2D_CANVAS) || ENABLE(WEBGPU) || ENABLE(OFFSCREEN_CANVAS)
+#if ENABLE(WEBGL) || ENABLE(WEBGPU) || ENABLE(OFFSCREEN_CANVAS)
     if ((changeType == CanvasChanged || changeType == CanvasPixelsChanged) && renderer().isCanvas() && canvasCompositingStrategy(renderer()) == CanvasAsLayerContents) {
         if (changeType == CanvasChanged)
             compositor().scheduleCompositingLayerUpdate();
