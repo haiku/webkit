@@ -804,11 +804,17 @@
        (ipc-posix-name "com.apple.AppleDatabaseChanged"))
 
 ;; CoreFoundation. We don't import com.apple.corefoundation.sb, because it allows unnecessary access to pasteboard.
-(allow mach-lookup
-    (global-name-regex #"^com.apple.distributed_notifications")
 #if !HAVE(CSCHECKFIXDISABLE)
+(allow mach-lookup
     (global-name "com.apple.CoreServices.coreservicesd")
+)
 #endif
+
+(allow mach-lookup
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 110000
+    (with telemetry-backtrace)
+#endif
+    (global-name-regex #"^com.apple.distributed_notifications")
 )
 
 (allow file-read-data
@@ -997,6 +1003,7 @@
             "com.apple.cfprefsd.agent"
             "com.apple.cfprefsd.daemon"
             "com.apple.containermanagerd"
+            "com.apple.coreservices.launchservicesd"
             "com.apple.diagnosticd"
             "com.apple.iconservices"
             "com.apple.iconservices.store"
