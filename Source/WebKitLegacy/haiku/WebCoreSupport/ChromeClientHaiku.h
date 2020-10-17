@@ -114,19 +114,23 @@ namespace WebCore {
 
         PlatformPageClient platformPageClient() const override;
         void contentsSizeChanged(Frame&, const IntSize&) const override;
-		void intrinsicContentsSizeChanged(const IntSize&) const override;
+        void intrinsicContentsSizeChanged(const IntSize&) const override;
         void scrollRectIntoView(const IntRect&) const override;
         void attachViewOverlayGraphicsLayer(WebCore::GraphicsLayer* layer) override;
 
         void setCursor(const Cursor&) override ;
         void setCursorHiddenUntilMouseMoves(bool) override { }
 
-		void didFinishLoadingImageForElement(HTMLImageElement&) override {}
+        void didFinishLoadingImageForElement(HTMLImageElement&) override {}
 
 #if ENABLE(REQUEST_ANIMATION_FRAME) && !USE(REQUEST_ANIMATION_FRAME_TIMER)
         void scheduleAnimation() override;
 #endif
 
+        bool hoverSupportedByPrimaryPointingDevice() const override { return true; }
+        bool hoverSupportedByAnyAvailablePointingDevice() const override { return true; }
+        Optional<PointerCharacteristics> pointerCharacteristicsOfPrimaryPointingDevice() const override { return WebCore::PointerCharacteristics::Fine; }
+        OptionSet<PointerCharacteristics> pointerCharacteristicsOfAllAvailablePointingDevices() const override { return WebCore::PointerCharacteristics::Fine; }
         void mouseDidMoveOverElement(const WebCore::HitTestResult&, unsigned int, const WTF::String&, WebCore::TextDirection) override;
 
         void print(Frame&) override;
@@ -137,7 +141,7 @@ namespace WebCore {
 
         void attachRootGraphicsLayer(Frame&, GraphicsLayer*) override;
         void setNeedsOneShotDrawingSynchronization() override;
-        void scheduleRenderingUpdate() override;
+        void triggerRenderingUpdate() override;
 
         CompositingTriggerFlags allowedCompositingTriggers() const override
         {

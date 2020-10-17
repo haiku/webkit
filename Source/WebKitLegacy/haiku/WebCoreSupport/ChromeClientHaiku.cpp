@@ -506,7 +506,7 @@ void ChromeClientHaiku::setNeedsOneShotDrawingSynchronization()
     notImplemented();
 }
 
-void ChromeClientHaiku::scheduleRenderingUpdate()
+void ChromeClientHaiku::triggerRenderingUpdate()
 {
     // Don't do anything if the view isn't ready yet.
     if (!m_webView->LockLooper())
