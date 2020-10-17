@@ -52,7 +52,6 @@
 #import "ResourceLoadDelegate.h"
 #import "SafeBrowsingWarning.h"
 #import "UIDelegate.h"
-#import "VersionChecks.h"
 #import "VideoFullscreenManagerProxy.h"
 #import "ViewGestureController.h"
 #import "WKBackForwardListInternal.h"
@@ -127,6 +126,7 @@
 #import <WebCore/SharedBuffer.h>
 #import <WebCore/StringUtilities.h>
 #import <WebCore/TextManipulationController.h>
+#import <WebCore/VersionChecks.h>
 #import <WebCore/ViewportArguments.h>
 #import <WebCore/WebViewVisualIdentificationOverlay.h>
 #import <WebCore/WritingMode.h>
@@ -218,7 +218,7 @@ static bool shouldAllowPictureInPictureMediaPlayback()
 
 static bool shouldAllowSettingAnyXHRHeaderFromFileURLs()
 {
-    static bool shouldAllowSettingAnyXHRHeaderFromFileURLs = (WebCore::IOSApplication::isCardiogram() || WebCore::IOSApplication::isNike()) && !linkedOnOrAfter(WebKit::SDKVersion::FirstThatDisallowsSettingAnyXHRHeaderFromFileURLs);
+    static bool shouldAllowSettingAnyXHRHeaderFromFileURLs = (WebCore::IOSApplication::isCardiogram() || WebCore::IOSApplication::isNike()) && !linkedOnOrAfter(WebCore::SDKVersion::FirstThatDisallowsSettingAnyXHRHeaderFromFileURLs);
     return shouldAllowSettingAnyXHRHeaderFromFileURLs;
 }
 
@@ -236,7 +236,7 @@ static bool shouldRequireUserGestureToLoadVideo()
 
 static bool shouldRestrictBaseURLSchemes()
 {
-    static bool shouldRestrictBaseURLSchemes = linkedOnOrAfter(WebKit::SDKVersion::FirstThatRestrictsBaseURLSchemes);
+    static bool shouldRestrictBaseURLSchemes = linkedOnOrAfter(WebCore::SDKVersion::FirstThatRestrictsBaseURLSchemes);
     return shouldRestrictBaseURLSchemes;
 }
 
@@ -310,7 +310,7 @@ static void hardwareKeyboardAvailabilityChangedCallback(CFNotificationCenterRef,
         WKProcessPool *relatedWebViewProcessPool = [relatedWebView->_configuration processPool];
         if (processPool && processPool != relatedWebViewProcessPool)
             [NSException raise:NSInvalidArgumentException format:@"Related web view %@ has process pool %@ but configuration specifies a different process pool %@", relatedWebView, relatedWebViewProcessPool, configuration.processPool];
-        if ([relatedWebView->_configuration websiteDataStore] != [_configuration websiteDataStore] && linkedOnOrAfter(WebKit::SDKVersion::FirstWithExceptionsForRelatedWebViewsUsingDifferentDataStores, WebKit::AssumeSafariIsAlwaysLinkedOnAfter::No))
+        if ([relatedWebView->_configuration websiteDataStore] != [_configuration websiteDataStore] && linkedOnOrAfter(WebCore::SDKVersion::FirstWithExceptionsForRelatedWebViewsUsingDifferentDataStores, WebCore::AssumeSafariIsAlwaysLinkedOnAfter::No))
             [NSException raise:NSInvalidArgumentException format:@"Related web view %@ has data store %@ but configuration specifies a different data store %@", relatedWebView, [relatedWebView->_configuration websiteDataStore], [_configuration websiteDataStore]];
 
         [_configuration setProcessPool:relatedWebViewProcessPool];
@@ -478,7 +478,7 @@ static void hardwareKeyboardAvailabilityChangedCallback(CFNotificationCenterRef,
     pageConfiguration->preferences()->setAllowSettingAnyXHRHeaderFromFileURLs(shouldAllowSettingAnyXHRHeaderFromFileURLs());
     pageConfiguration->preferences()->setShouldDecidePolicyBeforeLoadingQuickLookPreview(!![_configuration _shouldDecidePolicyBeforeLoadingQuickLookPreview]);
 #if ENABLE(DEVICE_ORIENTATION)
-    pageConfiguration->preferences()->setDeviceOrientationPermissionAPIEnabled(linkedOnOrAfter(WebKit::SDKVersion::FirstWithDeviceOrientationAndMotionPermissionAPI));
+    pageConfiguration->preferences()->setDeviceOrientationPermissionAPIEnabled(linkedOnOrAfter(WebCore::SDKVersion::FirstWithDeviceOrientationAndMotionPermissionAPI));
 #endif
 #if USE(SYSTEM_PREVIEW)
     pageConfiguration->preferences()->setSystemPreviewEnabled(!![_configuration _systemPreviewEnabled]);
@@ -526,7 +526,7 @@ static void hardwareKeyboardAvailabilityChangedCallback(CFNotificationCenterRef,
     pageConfiguration->preferences()->setServiceWorkerEntitlementDisabledForTesting(!![_configuration preferences]._serviceWorkerEntitlementDisabledForTesting);
 #endif
 
-    if (!linkedOnOrAfter(WebKit::SDKVersion::FirstWhereSiteSpecificQuirksAreEnabledByDefault))
+    if (!linkedOnOrAfter(WebCore::SDKVersion::FirstWhereSiteSpecificQuirksAreEnabledByDefault))
         pageConfiguration->preferences()->setNeedsSiteSpecificQuirks(false);
 }
 
@@ -780,7 +780,7 @@ static void hardwareKeyboardAvailabilityChangedCallback(CFNotificationCenterRef,
 - (WKNavigation *)reload
 {
     OptionSet<WebCore::ReloadOption> reloadOptions;
-    if (linkedOnOrAfter(WebKit::SDKVersion::FirstWithExpiredOnlyReloadBehavior))
+    if (linkedOnOrAfter(WebCore::SDKVersion::FirstWithExpiredOnlyReloadBehavior))
         reloadOptions.add(WebCore::ReloadOption::ExpiredOnly);
 
     return wrapper(_page->reload(reloadOptions));
@@ -796,6 +796,7 @@ static void hardwareKeyboardAvailabilityChangedCallback(CFNotificationCenterRef,
     _page->stopLoading();
 }
 
+#if USE(APPKIT)
 static WKErrorCode callbackErrorCode(WebKit::CallbackBase::Error error)
 {
     switch (error) {
@@ -813,6 +814,7 @@ static WKErrorCode callbackErrorCode(WebKit::CallbackBase::Error error)
         return WKErrorWebViewInvalidated;
     }
 }
+#endif
 
 - (void)evaluateJavaScript:(NSString *)javaScriptString completionHandler:(void (^)(id, NSError *))completionHandler
 {
@@ -932,41 +934,22 @@ static RetainPtr<NSError> nsErrorFromExceptionDetails(const WebCore::ExceptionDe
             frameID = makeObjectIdentifier<WebCore::FrameIdentifierType>(identifier);
     }
 
-    _page->runJavaScriptInFrameInScriptWorld({ javaScriptString, sourceURL, !!asAsyncFunction, WTFMove(argumentsMap), !!forceUserGesture }, frameID, *world->_contentWorld.get(), [handler](API::SerializedScriptValue* serializedScriptValue, Optional<WebCore::ExceptionDetails> details, WebKit::ScriptValueCallback::Error errorCode) {
+    _page->runJavaScriptInFrameInScriptWorld({ javaScriptString, sourceURL, !!asAsyncFunction, WTFMove(argumentsMap), !!forceUserGesture }, frameID, *world->_contentWorld.get(), [handler] (auto&& result) {
         if (!handler)
             return;
 
-        if (errorCode != WebKit::ScriptValueCallback::Error::None) {
-            auto error = createNSError(callbackErrorCode(errorCode));
-            if (errorCode == WebKit::ScriptValueCallback::Error::OwnerWasInvalidated) {
-                // The OwnerWasInvalidated callback is synchronous. We don't want to call the block from within it
-                // because that can trigger re-entrancy bugs in WebKit.
-                // FIXME: It would be even better if GenericCallback did this for us.
-                dispatch_async(dispatch_get_main_queue(), [handler, error] {
-                    auto rawHandler = (void (^)(id, NSError *))handler.get();
-                    rawHandler(nil, error.get());
-                });
-                return;
-            }
-
-            auto rawHandler = (void (^)(id, NSError *))handler.get();
-            rawHandler(nil, error.get());
-            return;
-        }
-
         auto rawHandler = (void (^)(id, NSError *))handler.get();
-        if (details) {
-            ASSERT(!serializedScriptValue);
-            rawHandler(nil, nsErrorFromExceptionDetails(*details).get());
+        if (!result.has_value()) {
+            rawHandler(nil, nsErrorFromExceptionDetails(result.error()).get());
             return;
         }
 
-        if (!serializedScriptValue) {
+        if (!result.value()) {
             rawHandler(nil, createNSError(WKErrorJavaScriptResultTypeIsUnsupported).get());
             return;
         }
 
-        id body = API::SerializedScriptValue::deserialize(serializedScriptValue->internalRepresentation(), 0);
+        id body = API::SerializedScriptValue::deserialize(result.value()->internalRepresentation(), 0);
         rawHandler(body, nil);
     });
 }
@@ -996,7 +979,7 @@ static RetainPtr<NSError> nsErrorFromExceptionDetails(const WebCore::ExceptionDe
     // contains recent updates. If we ever have a UI-side snapshot mechanism on macOS, we will need to factor
     // in snapshotConfiguration.afterScreenUpdates at that time.
     _page->takeSnapshot(WebCore::enclosingIntRect(rectInViewCoordinates), bitmapSize, WebKit::SnapshotOptionsInViewCoordinates, [handler, snapshotWidth, imageHeight](const WebKit::ShareableBitmap::Handle& imageHandle, WebKit::CallbackBase::Error errorCode) {
-        if (errorCode != WebKit::ScriptValueCallback::Error::None) {
+        if (errorCode != WebKit::CallbackBase::Error::None) {
             auto error = createNSError(callbackErrorCode(errorCode));
             handler(nil, error.get());
             return;
@@ -1024,7 +1007,7 @@ static RetainPtr<NSError> nsErrorFromExceptionDetails(const WebCore::ExceptionDe
         }];
     };
 
-    if ((snapshotConfiguration && !snapshotConfiguration.afterScreenUpdates) || !linkedOnOrAfter(WebKit::SDKVersion::FirstWithSnapshotAfterScreenUpdates)) {
+    if ((snapshotConfiguration && !snapshotConfiguration.afterScreenUpdates) || !linkedOnOrAfter(WebCore::SDKVersion::FirstWithSnapshotAfterScreenUpdates)) {
         callSnapshotRect();
         return;
     }

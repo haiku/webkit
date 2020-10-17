@@ -158,6 +158,11 @@ private:
 
     WebCore::KeyboardUIMode keyboardUIMode() final;
 
+    bool hoverSupportedByPrimaryPointingDevice() const override { return true; }
+    bool hoverSupportedByAnyAvailablePointingDevice() const override { return true; }
+    Optional<WebCore::PointerCharacteristics> pointerCharacteristicsOfPrimaryPointingDevice() const override { return WebCore::PointerCharacteristics::Fine; }
+    OptionSet<WebCore::PointerCharacteristics> pointerCharacteristicsOfAllAvailablePointingDevices() const override { return WebCore::PointerCharacteristics::Fine; }
+
     NSResponder *firstResponder() final;
     void makeFirstResponder(NSResponder *) final;
 
@@ -174,8 +179,7 @@ private:
     void attachRootGraphicsLayer(WebCore::Frame&, WebCore::GraphicsLayer*) override;
     void attachViewOverlayGraphicsLayer(WebCore::GraphicsLayer*) final;
     void setNeedsOneShotDrawingSynchronization() final;
-    void scheduleRenderingUpdate() final;
-    bool needsImmediateRenderingUpdate() const final { return true; }
+    void triggerRenderingUpdate() final;
 
     CompositingTriggerFlags allowedCompositingTriggers() const final
     {

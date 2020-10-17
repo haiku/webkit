@@ -1,3 +1,211 @@
+2020-10-07  Tadeu Zagallo  <tzagallo@apple.com>
+
+        Add maximum depth check to RedBlackTree
+        https://bugs.webkit.org/show_bug.cgi?id=217249
+        <rdar://problem/69432957>
+
+        Reviewed by Saam Barati.
+
+        We limit all tree traversals to 128 levels deep. That's a very conservative upper bound that
+        would work for a tree that used all of the available address space.
+
+        * wtf/RedBlackTree.h:
+
+2020-10-07  Aditya Keerthi  <akeerthi@apple.com>
+
+        REGRESSION: Date/time pickers are not displayed in UIWebViews
+        https://bugs.webkit.org/show_bug.cgi?id=217341
+        <rdar://problem/66881739>
+
+        Reviewed by Wenson Hsieh.
+
+        Date/time inputs were incorrectly disabled by default on
+        PLATFORM(IOS_FAMILY) in WebPreferencesInternal.
+
+        * Scripts/Preferences/WebPreferencesInternal.yaml:
+
+2020-10-06  Simon Fraser  <simon.fraser@apple.com>
+
+        Redundant rendering updates can be scheduled from inside Page::updateRendering()
+        https://bugs.webkit.org/show_bug.cgi?id=216726
+
+        Reviewed by Tim Horton.
+
+        Make it possible to dump Vectors with inline capacity.
+
+        * wtf/text/TextStream.h:
+        (WTF::operator<<):
+
+2020-10-06  Youenn Fablet  <youenn@apple.com>
+
+        Enable video capture in WebProcess by default on MacOS
+        https://bugs.webkit.org/show_bug.cgi?id=217385
+        <rdar://problem/69999542>
+
+        Reviewed by Sam Weinig.
+
+        * Scripts/Preferences/WebPreferencesInternal.yaml:
+
+2020-10-06  Alex Christensen  <achristensen@webkit.org>
+
+        Align URL setters with reasonably behaving other browsers
+        https://bugs.webkit.org/show_bug.cgi?id=217366
+
+        Reviewed by Youenn Fablet.
+
+        Firefox ignores everything after '/', '?', '#', and '\' in special URL schemes when setting the host to a new value.
+        Chrome doesn't add another '/' to the beginning of the path if it's a special scheme and starts with '\'.
+        I think these behaviors make sense, and aligning with these behaviors makes it so there are no tests in url-setters.html
+        that any other browser passes that we don't also pass.
+        Once https://github.com/whatwg/url/issues/551 is resolved this will also be reflected in spec wording.
+
+        * wtf/URL.cpp:
+        (WTF::URL::hasSpecialScheme const):
+        (WTF::forwardSlashHashOrQuestionMark):
+        (WTF::slashHashOrQuestionMark):
+        (WTF::URL::setHost):
+        (WTF::URL::setPath):
+        * wtf/URL.h:
+
+2020-10-05  Sam Weinig  <weinig@apple.com>
+
+        Add implementation of <filesystem> to WTF for macOS 10.14
+        https://bugs.webkit.org/show_bug.cgi?id=217302
+
+        Reviewed by Darin Adler.
+
+        Imports a copy of <filesystem> and its needed implementation files
+        from libc++ (r343838) and modifies them to build outside of  libc++. 
+        This is only needed and only built for versions of macOS < 10.15
+        and can be dropped when we require 10.15.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        * wtf/StdFilesystem.cpp: Added.
+        * wtf/StdFilesystem.h: Added.
+        * LICENSE-libc++.txt: Added.
+
+2020-10-05  Rob Buis  <rbuis@igalia.com>
+
+        WebKit doesn't parse "#" as delimiter for fragment identifier in data URIs
+        https://bugs.webkit.org/show_bug.cgi?id=68089
+
+        Reviewed by Alex Christensen, Ryosuke Niwa, and Darin Adler.
+
+        * wtf/URL.h:
+        * wtf/spi/darwin/dyldSPI.h:
+
+2020-10-05  Aditya Keerthi  <akeerthi@apple.com>
+
+        [Contact Picker API] Introduce bindings for the Contact Picker API
+        https://bugs.webkit.org/show_bug.cgi?id=216793
+        <rdar://problem/69317957>
+
+        Reviewed by Wenson Hsieh.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+        Add experimental preference for the Contact Picker API.
+
+2020-10-05  Sam Weinig  <weinig@apple.com>
+
+        Remove support for enabling subpixel CSSOM values, it's off by default everywhere and known to be not-compatible with the web
+        https://bugs.webkit.org/show_bug.cgi?id=217300
+
+        Reviewed by Simon Fraser.
+
+        Remove preference for toggling subpixel CSSOM values.
+
+        * Scripts/Preferences/WebPreferences.yaml:
+
+2020-10-05  Alex Christensen  <achristensen@webkit.org>
+
+        URLParser should fail to parse URLs with hosts containing invalid punycode encodings
+        https://bugs.webkit.org/show_bug.cgi?id=217285
+
+        Reviewed by Darin Adler.
+
+        URLParser has a fast path for parsing hosts that are all ASCII, but that does not validate hosts that are invalid punycode, such as "xn--".
+        Since all punycode encoded strings start with "xn--", if the input string starts with "xn--" then skip the fast path and let ICU decide if it's valid.
+
+        * wtf/URLParser.cpp:
+        (WTF::URLParser::domainToASCII):
+        (WTF::URLParser::startsWithXNDashDash):
+        (WTF::URLParser::parseHostAndPort):
+        * wtf/URLParser.h:
+
+2020-10-05  Alex Christensen  <achristensen@webkit.org>
+
+        When appending a Windows drive letter to a file URL, remove any path we may have copied from the base URL
+        https://bugs.webkit.org/show_bug.cgi?id=217284
+
+        Reviewed by Darin Adler.
+
+        This fixes a web platform test and adds another to verify that we remove the entire path, not just the last segment like we do with ..
+        Edge has implemented this, and in order to have a platform-independent URL we should do it too.
+
+        * wtf/URLParser.cpp:
+        (WTF::URLParser::isWindowsDriveLetter):
+        (WTF::URLParser::appendWindowsDriveLetter):
+        (WTF::URLParser::parse):
+
+2020-10-05  Alex Christensen  <achristensen@webkit.org>
+
+        Fix UTF-8 encoding in URL parsing
+        https://bugs.webkit.org/show_bug.cgi?id=217289
+
+        Reviewed by Darin Adler.
+
+        This matches the behavior of Firefox and the Unicode and whatwg encoding specifications.
+
+        * wtf/URLParser.cpp:
+        (WTF::URLParser::utf8PercentEncode):
+        (WTF::URLParser::utf8QueryEncode):
+        (WTF::URLParser::parseHostAndPort):
+
+2020-10-03  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Introduce JITOperationList to validate JIT-caged pointers
+        https://bugs.webkit.org/show_bug.cgi?id=217261
+
+        Reviewed by Saam Barati.
+
+        * wtf/PlatformCallingConventions.h:
+        * wtf/PlatformEnable.h:
+
+2020-10-03  Alex Christensen  <achristensen@webkit.org>
+
+        Add extra slash after empty host copied from base URL if path is also empty
+        https://bugs.webkit.org/show_bug.cgi?id=217278
+
+        Reviewed by Darin Adler.
+
+        * wtf/URLParser.cpp:
+        (WTF::URLParser::parse):
+
+2020-10-03  Alex Christensen  <achristensen@webkit.org>
+
+        "http:" should not be a valid URL
+        https://bugs.webkit.org/show_bug.cgi?id=217250
+
+        Reviewed by Brady Eidson.
+
+        Same with https, ws, wss, and for some reason ftp.
+        This matches the URL specification and Chrome and Firefox.
+
+        * wtf/URLParser.cpp:
+        (WTF::URLParser::parse):
+
+2020-10-03  Aditya Keerthi  <akeerthi@apple.com>
+
+        [macOS] Enable date, time, and datetime-local input types
+        https://bugs.webkit.org/show_bug.cgi?id=217229
+        <rdar://problem/69882757>
+
+        Reviewed by Sam Weinig.
+
+        * Scripts/Preferences/WebPreferencesInternal.yaml:
+
 2020-10-02  Alex Christensen  <achristensen@webkit.org>
 
         Copy host from base file URL

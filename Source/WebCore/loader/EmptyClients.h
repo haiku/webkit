@@ -102,6 +102,11 @@ class EmptyChromeClient : public ChromeClient {
 
     KeyboardUIMode keyboardUIMode() final { return KeyboardAccessDefault; }
 
+    bool hoverSupportedByPrimaryPointingDevice() const final { return false; };
+    bool hoverSupportedByAnyAvailablePointingDevice() const final { return false; }
+    Optional<PointerCharacteristics> pointerCharacteristicsOfPrimaryPointingDevice() const final { return WTF::nullopt; };
+    OptionSet<PointerCharacteristics> pointerCharacteristicsOfAllAvailablePointingDevices() const final { return { }; }
+
     void invalidateRootView(const IntRect&) final { }
     void invalidateContentsAndRootView(const IntRect&) override { }
     void invalidateContentsForSlowScroll(const IntRect&) final { }
@@ -155,7 +160,7 @@ class EmptyChromeClient : public ChromeClient {
     void attachRootGraphicsLayer(Frame&, GraphicsLayer*) final { }
     void attachViewOverlayGraphicsLayer(GraphicsLayer*) final { }
     void setNeedsOneShotDrawingSynchronization() final { }
-    void scheduleRenderingUpdate() final { }
+    void triggerRenderingUpdate() final { }
 
 #if PLATFORM(WIN)
     void setLastSetCursorToCurrentCursor() final { }

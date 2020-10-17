@@ -33,16 +33,18 @@
 namespace WebCore {
 
 class RenderLineBreak;
+class RenderObject;
 class RenderText;
 
 namespace LayoutIntegration {
 
+class LineIterator;
 class LineRunIterator;
 class TextRunIterator;
 
 struct EndIterator { };
 
-class Run {
+class PathRun {
 public:
     using PathVariant = Variant<
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
@@ -51,11 +53,16 @@ public:
         LegacyPath
     >;
 
-    Run(PathVariant&&);
+    PathRun(PathVariant&&);
 
     bool isText() const;
 
     FloatRect rect() const;
+
+    float logicalLeft() const { return isHorizontal() ? rect().x() : rect().y(); }
+    float logicalRight() const { return isHorizontal() ? rect().maxX() : rect().maxY(); }
+    float logicalWidth() const { return isHorizontal() ? rect().width() : rect().height(); }
+    float logicalHeight() const { return isHorizontal() ? rect().height() : rect().width(); }
 
     float baseline() const;
 
@@ -72,6 +79,8 @@ public:
     unsigned char bidiLevel() const;
     TextDirection direction() const { return bidiLevel() % 2 ? TextDirection::RTL : TextDirection::LTR; }
     bool isLeftToRightDirection() const { return direction() == TextDirection::LTR; }
+
+    const RenderObject& renderer() const;
 
     // For intermediate porting steps only.
     InlineBox* legacyInlineBox() const;
@@ -90,9 +99,9 @@ protected:
     PathVariant m_pathVariant;
 };
 
-class TextRun : public Run {
+class PathTextRun : public PathRun {
 public:
-    TextRun(PathVariant&&);
+    PathTextRun(PathVariant&&);
 
     bool hasHyphen() const;
     StringView text() const;
@@ -105,13 +114,13 @@ public:
     bool isLastTextRunOnLine() const;
     bool isLastTextRun() const;
 
-    InlineTextBox* legacyInlineBox() const { return downcast<InlineTextBox>(Run::legacyInlineBox()); }
+    InlineTextBox* legacyInlineBox() const { return downcast<InlineTextBox>(PathRun::legacyInlineBox()); }
 };
 
 class RunIterator {
 public:
     RunIterator() : m_run(LegacyPath { nullptr, { } }) { };
-    RunIterator(Run::PathVariant&&);
+    RunIterator(PathRun::PathVariant&&);
 
     explicit operator bool() const { return !atEnd(); }
 
@@ -121,8 +130,8 @@ public:
     bool operator==(EndIterator) const { return atEnd(); }
     bool operator!=(EndIterator) const { return !atEnd(); }
 
-    const Run& operator*() const { return m_run; }
-    const Run* operator->() const { return &m_run; }
+    const PathRun& operator*() const { return m_run; }
+    const PathRun* operator->() const { return &m_run; }
 
     bool atEnd() const;
 
@@ -131,21 +140,23 @@ public:
     LineRunIterator nextOnLineIgnoringLineBreak() const;
     LineRunIterator previousOnLineIgnoringLineBreak() const;
 
+    LineIterator line() const;
+
 protected:
     void setAtEnd();
 
-    Run m_run;
+    PathRun m_run;
 };
 
 class TextRunIterator : public RunIterator {
 public:
     TextRunIterator() { }
-    TextRunIterator(Run::PathVariant&&);
+    TextRunIterator(PathRun::PathVariant&&);
 
     TextRunIterator& operator++() { return traverseNextTextRun(); }
 
-    const TextRun& operator*() const { return get(); }
-    const TextRun* operator->() const { return &get(); }
+    const PathTextRun& operator*() const { return get(); }
+    const PathTextRun* operator->() const { return &get(); }
 
     TextRunIterator& traverseNextTextRun();
     TextRunIterator& traverseNextTextRunInTextOrder();
@@ -154,14 +165,14 @@ public:
     TextRunIterator nextTextRunInTextOrder() const { return TextRunIterator(*this).traverseNextTextRunInTextOrder(); }
 
 private:
-    const TextRun& get() const { return downcast<TextRun>(m_run); }
+    const PathTextRun& get() const { return downcast<PathTextRun>(m_run); }
 };
 
 class LineRunIterator : public RunIterator {
 public:
     LineRunIterator() { }
     LineRunIterator(const RunIterator&);
-    LineRunIterator(Run::PathVariant&&);
+    LineRunIterator(PathRun::PathVariant&&);
 
     LineRunIterator& operator++() { return traverseNextOnLine(); }
 
@@ -194,136 +205,143 @@ LineRunIterator lineRun(const RunIterator&);
 
 // -----------------------------------------------
 
-inline Run::Run(PathVariant&& path)
+inline PathRun::PathRun(PathVariant&& path)
     : m_pathVariant(WTFMove(path))
 {
 }
 
-inline bool Run::isText() const
+inline bool PathRun::isText() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.isText();
     });
 }
 
-inline FloatRect Run::rect() const
+inline FloatRect PathRun::rect() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.rect();
     });
 }
 
-inline float Run::baseline() const
+inline float PathRun::baseline() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.baseline();
     });
 }
 
-inline bool Run::isHorizontal() const
+inline bool PathRun::isHorizontal() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.isHorizontal();
     });
 }
 
-inline bool Run::dirOverride() const
+inline bool PathRun::dirOverride() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.dirOverride();
     });
 }
 
-inline bool Run::isLineBreak() const
+inline bool PathRun::isLineBreak() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.isLineBreak();
     });
 }
 
-inline bool Run::useLineBreakBoxRenderTreeDumpQuirk() const
+inline bool PathRun::useLineBreakBoxRenderTreeDumpQuirk() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.useLineBreakBoxRenderTreeDumpQuirk();
     });
 }
 
-inline unsigned Run::minimumCaretOffset() const
+inline unsigned PathRun::minimumCaretOffset() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.minimumCaretOffset();
     });
 }
 
-inline unsigned Run::maximumCaretOffset() const
+inline unsigned PathRun::maximumCaretOffset() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.maximumCaretOffset();
     });
 }
 
-inline unsigned char Run::bidiLevel() const
+inline unsigned char PathRun::bidiLevel() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.bidiLevel();
     });
 }
 
-inline InlineBox* Run::legacyInlineBox() const
+inline const RenderObject& PathRun::renderer() const
+{
+    return WTF::switchOn(m_pathVariant, [](auto& path) -> const RenderObject& {
+        return path.renderer();
+    });
+}
+
+inline InlineBox* PathRun::legacyInlineBox() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.legacyInlineBox();
     });
 }
 
-inline bool TextRun::hasHyphen() const
+inline bool PathTextRun::hasHyphen() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.hasHyphen();
     });
 }
 
-inline TextRun::TextRun(PathVariant&& path)
-    : Run(WTFMove(path))
+inline PathTextRun::PathTextRun(PathVariant&& path)
+    : PathRun(WTFMove(path))
 {
 }
 
-inline StringView TextRun::text() const
+inline StringView PathTextRun::text() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.text();
     });
 }
 
-inline unsigned TextRun::localStartOffset() const
+inline unsigned PathTextRun::localStartOffset() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.localStartOffset();
     });
 }
 
-inline unsigned TextRun::localEndOffset() const
+inline unsigned PathTextRun::localEndOffset() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.localEndOffset();
     });
 }
 
-inline unsigned TextRun::length() const
+inline unsigned PathTextRun::length() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.length();
     });
 }
 
-inline bool TextRun::isLastTextRunOnLine() const
+inline bool PathTextRun::isLastTextRunOnLine() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.isLastTextRunOnLine();
     });
 }
 
-inline bool TextRun::isLastTextRun() const
+inline bool PathTextRun::isLastTextRun() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
         return path.isLastTextRun();
@@ -333,8 +351,8 @@ inline bool TextRun::isLastTextRun() const
 }
 }
 
-SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::LayoutIntegration::TextRun)
-static bool isType(const WebCore::LayoutIntegration::Run& run) { return run.isText(); }
+SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::LayoutIntegration::PathTextRun)
+static bool isType(const WebCore::LayoutIntegration::PathRun& run) { return run.isText(); }
 SPECIALIZE_TYPE_TRAITS_END()
 
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::LayoutIntegration::TextRunIterator)

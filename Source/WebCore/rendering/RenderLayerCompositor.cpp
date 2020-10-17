@@ -526,7 +526,7 @@ void RenderLayerCompositor::scheduleRenderingUpdate()
 {
     ASSERT(!m_flushingLayers);
 
-    page().scheduleRenderingUpdate();
+    page().scheduleRenderingUpdate(RenderingUpdateStep::LayerFlush);
 }
 
 FloatRect RenderLayerCompositor::visibleRectForLayerFlushing() const
@@ -2266,7 +2266,9 @@ String RenderLayerCompositor::layerTreeAsText(LayerTreeFlags flags)
         return String();
 
     flushPendingLayerChanges(true);
-    page().scheduleImmediateRenderingUpdate();
+    // We need to trigger an update because the flushPendingLayerChanges() will have pushed changes to platform layers,
+    // which may cause painting to happen in the current runloop.
+    page().triggerRenderingUpdateForTesting();
 
     LayerTreeAsTextBehavior layerTreeBehavior = LayerTreeAsTextBehaviorNormal;
     if (flags & LayerTreeFlagsIncludeDebugInfo)

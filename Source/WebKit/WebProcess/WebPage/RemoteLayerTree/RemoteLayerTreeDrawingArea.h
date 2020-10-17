@@ -65,8 +65,7 @@ private:
 
     WebCore::GraphicsLayerFactory* graphicsLayerFactory() override;
     void setRootCompositingLayer(WebCore::GraphicsLayer*) override;
-    void scheduleRenderingUpdate() override;
-    void scheduleImmediateRenderingUpdate() override;
+    void triggerRenderingUpdate() override;
     void attachViewOverlayGraphicsLayer(WebCore::GraphicsLayer*) override;
 
     void addTransactionCallbackID(CallbackID) override;
@@ -114,6 +113,7 @@ private:
 
     void addCommitHandlers();
     void updateRendering();
+    void startRenderingUpdateTimer();
 
     WebCore::TiledBacking* mainFrameTiledBacking() const;
 

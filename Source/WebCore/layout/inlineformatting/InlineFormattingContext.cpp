@@ -149,7 +149,7 @@ void InlineFormattingContext::lineLayout(InlineItems& inlineItems, LineBuilder::
         size_t overflowContentLength { 0 };
     };
     Optional<PreviousLine> previousLine;
-    auto floatingContext = FloatingContext { root(), *this, formattingState().floatingState() };
+    auto floatingContext = FloatingContext { *this, formattingState().floatingState() };
     auto isFirstLine = formattingState().lines().isEmpty();
 
     auto lineBuilder = LineBuilder { *this, floatingContext, root(), inlineItems };
@@ -165,7 +165,11 @@ void InlineFormattingContext::lineLayout(InlineItems& inlineItems, LineBuilder::
         if (!lineContentRange.isEmpty()) {
             ASSERT(needsLayoutRange.start < lineContentRange.end);
             isFirstLine = false;
-            lineLogicalTop = lineLogicalRect.bottom();
+            lineLogicalTop = geometry().logicalTopForNextLine(lineContent, lineLogicalRect.bottom(), floatingContext);
+            if (lineContent.isLastLineWithInlineContent) {
+                // The final content height of this inline formatting context should include the cleared floats as well.
+                formattingState().setClearGapAfterLastLine(lineLogicalTop - lineLogicalRect.bottom());
+            }
             // When the trailing content is partial, we need to reuse the last InlineTextItem.
             auto lastInlineItemNeedsPartialLayout = lineContent.partialTrailingContentLength;
             if (lastInlineItemNeedsPartialLayout) {
@@ -258,7 +262,7 @@ InlineLayoutUnit InlineFormattingContext::computedIntrinsicWidthForConstraint(In
 {
     auto& inlineItems = formattingState().inlineItems();
     auto maximumLineWidth = InlineLayoutUnit { };
-    auto floatingContext = FloatingContext { root(), *this, formattingState().floatingState() };
+    auto floatingContext = FloatingContext { *this, formattingState().floatingState() };
     auto lineBuilder = LineBuilder { *this, floatingContext, root(), inlineItems };
     auto layoutRange = LineBuilder::InlineItemRange { 0 , inlineItems.size() };
     while (!layoutRange.isEmpty()) {
@@ -414,7 +418,7 @@ InlineRect InlineFormattingContext::computeGeometryForLineContent(const LineBuil
     auto updateFloatGeometry = [&] {
         if (lineContent.floats.isEmpty())
             return;
-        auto floatingContext = FloatingContext { root(), *this, formattingState.floatingState() };
+        auto floatingContext = FloatingContext { *this, formattingState.floatingState() };
         // Move floats to their final position.
         for (const auto& floatCandidate : lineContent.floats) {
             auto& floatBox = floatCandidate.item->layoutBox();

@@ -117,6 +117,9 @@ struct WebProcessCreationParameters {
     bool shouldSuppressMemoryPressureHandler { false };
     bool shouldUseFontSmoothing { true };
     bool fullKeyboardAccessEnabled { false };
+#if HAVE(UIKIT_WITH_MOUSE_SUPPORT) && PLATFORM(IOS)
+    bool hasMouseDevice { false };
+#endif
     bool memoryCacheDisabled { false };
     bool attrStyleEnabled { false };
     bool useGPUProcessForMediaEnabled { false };
@@ -218,6 +221,7 @@ struct WebProcessCreationParameters {
 
 #if PLATFORM(COCOA)
     SandboxExtension::HandleArray mediaExtensionHandles; // FIXME(207716): Remove when GPU process is complete.
+    SandboxExtension::HandleArray gpuIOKitExtensionHandles;
 #if ENABLE(CFPREFS_DIRECT_MODE)
     Optional<SandboxExtension::HandleArray> preferencesExtensionHandles;
 #endif

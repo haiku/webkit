@@ -360,7 +360,8 @@ PASS Parsing: <sc:\../> against <about:blank>
 PASS Parsing: <sc::a@example.net> against <about:blank>
 PASS Parsing: <wow:%NBD> against <about:blank>
 PASS Parsing: <wow:%1G> against <about:blank>
-FAIL Parsing: <wow:￿> against <about:blank> assert_equals: href expected "wow:%EF%BF%BF" but got "wow:%EF%BF%BD"
+PASS Parsing: <wow:￿> against <about:blank>
+PASS Parsing: <http://example.com/U+d800�U+dffeU+dfff﷐﷏﷯ﷰ￾￿?U+d800�U+dffeU+dfff﷐﷏﷯ﷰ￾￿> against <about:blank>
 PASS Parsing: <http://a<b> against <about:blank>
 PASS Parsing: <http://a>b> against <about:blank>
 PASS Parsing: <http://a^b> against <about:blank>
@@ -388,9 +389,7 @@ a\rg> against <about:blank>
 PASS Parsing: <?a=b&c=d> against <http://example.org/foo/bar>
 PASS Parsing: <??a=b&c=d> against <http://example.org/foo/bar>
 PASS Parsing: <http:> against <http://example.org/foo/bar>
-FAIL Parsing: <http:> against <https://example.org/foo/bar> assert_throws_js: function "function () {
-          bURL(expected.input, expected.base)
-        }" did not throw
+PASS Parsing: <http:> against <https://example.org/foo/bar>
 PASS Parsing: <sc:> against <https://example.org/foo/bar>
 PASS Parsing: <http://foo.bar/baz?qux#foobar> against <about:blank>
 PASS Parsing: <http://foo.bar/baz?qux#foo"bar> against <about:blank>
@@ -449,7 +448,8 @@ PASS Parsing: </..//localhost//pig> against <file://lion/>
 PASS Parsing: <file://> against <file://ape/>
 PASS Parsing: </rooibos> against <file://tea/>
 PASS Parsing: </?chai> against <file://tea/>
-FAIL Parsing: <C|> against <file://host/dir/file> assert_equals: href expected "file://host/C:" but got "file://host/dir/C|"
+PASS Parsing: <C|> against <file://host/dir/file>
+PASS Parsing: <C|> against <file://host/D:/dir1/dir2/file>
 PASS Parsing: <C|#> against <file://host/dir/file>
 PASS Parsing: <C|?> against <file://host/dir/file>
 PASS Parsing: <C|/> against <file://host/dir/file>
@@ -567,7 +567,7 @@ PASS Parsing: <a//> against <about:blank>
 PASS Parsing: <test-a-colon.html> against <a:>
 PASS Parsing: <test-a-colon-b.html> against <a:b>
 PASS Parsing: <test-a-colon-slash.html> against <a:/>
-FAIL Parsing: <test-a-colon-slash-slash.html> against <a://> assert_equals: href expected "a:///test-a-colon-slash-slash.html" but got "a://test-a-colon-slash-slash.html"
+PASS Parsing: <test-a-colon-slash-slash.html> against <a://>
 PASS Parsing: <test-a-colon-slash-b.html> against <a:/b>
 PASS Parsing: <test-a-colon-slash-slash-b.html> against <a://b>
 PASS Parsing: <http://example.org/test?a#b\0c> against <about:blank>
@@ -580,9 +580,7 @@ PASS Parsing: <file://a­b/p> against <about:blank>
 PASS Parsing: <file://a%C2%ADb/p> against <about:blank>
 PASS Parsing: <file://­/p> against <about:blank>
 PASS Parsing: <file://%C2%AD/p> against <about:blank>
-FAIL Parsing: <file://xn--/p> against <about:blank> assert_throws_js: function "function () {
-          bURL(expected.input, expected.base)
-        }" did not throw
+PASS Parsing: <file://xn--/p> against <about:blank>
 PASS Parsing: <#link> against <https://example.org/##link>
 PASS Parsing: <non-special:cannot-be-a-base-url-\0~> against <about:blank>
 PASS Parsing: <https://www.example.com/path{path.html?query'=query#fragment<fragment> against <about:blank>

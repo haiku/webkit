@@ -463,15 +463,6 @@ void FrameView::setFrameRect(const IntRect& newRect)
     setCurrentScrollType(oldScrollType);
 }
 
-bool FrameView::scheduleAnimation()
-{
-    auto* page = frame().page();
-    if (!page)
-        return false;
-    page->chrome().scheduleAnimation();
-    return true;
-}
-
 FrameFlattening FrameView::effectiveFrameFlattening() const
 {
 #if PLATFORM(IOS_FAMILY)
@@ -5444,7 +5435,7 @@ void FrameView::setViewExposedRect(Optional<FloatRect> viewExposedRect)
     }
 
     if (auto* page = frame().page()) {
-        page->scheduleRenderingUpdate();
+        page->scheduleRenderingUpdate(RenderingUpdateStep::LayerFlush);
         page->pageOverlayController().didChangeViewExposedRect();
     }
 }

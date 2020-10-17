@@ -57,6 +57,7 @@ VPATH = \
     $(WebCore)/Modules/async-clipboard \
     $(WebCore)/Modules/beacon \
     $(WebCore)/Modules/cache \
+    $(WebCore)/Modules/contact-picker \
     $(WebCore)/Modules/credentialmanagement \
     $(WebCore)/Modules/encryptedmedia \
     $(WebCore)/Modules/encryptedmedia/legacy \
@@ -166,6 +167,11 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/cache/DOMCacheStorage.idl \
     $(WebCore)/Modules/cache/DOMWindow+Caches.idl \
     $(WebCore)/Modules/cache/WorkerGlobalScope+Caches.idl \
+    $(WebCore)/Modules/contact-picker/ContactInfo.idl \
+    $(WebCore)/Modules/contact-picker/ContactProperty.idl \
+    $(WebCore)/Modules/contact-picker/ContactsManager.idl \
+    $(WebCore)/Modules/contact-picker/ContactsSelectOptions.idl \
+    $(WebCore)/Modules/contact-picker/Navigator+Contacts.idl \
     $(WebCore)/Modules/credentialmanagement/BasicCredential.idl \
     $(WebCore)/Modules/credentialmanagement/CredentialCreationOptions.idl \
     $(WebCore)/Modules/credentialmanagement/CredentialRequestOptions.idl \
@@ -401,6 +407,7 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/webaudio/AudioNode.idl \
     $(WebCore)/Modules/webaudio/AudioNodeOptions.idl \
     $(WebCore)/Modules/webaudio/AudioParam.idl \
+    $(WebCore)/Modules/webaudio/AudioParamDescriptor.idl \
     $(WebCore)/Modules/webaudio/AudioParamMap.idl \
     $(WebCore)/Modules/webaudio/AudioProcessingEvent.idl \
     $(WebCore)/Modules/webaudio/AudioProcessingEventInit.idl \
@@ -412,6 +419,7 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/webaudio/AudioWorkletNodeOptions.idl \
     $(WebCore)/Modules/webaudio/AudioWorkletProcessor.idl \
     $(WebCore)/Modules/webaudio/AudioWorkletProcessorConstructor.idl \
+    $(WebCore)/Modules/webaudio/AutomationRate.idl \
     $(WebCore)/Modules/webaudio/BaseAudioContext.idl \
     $(WebCore)/Modules/webaudio/BiquadFilterNode.idl \
     $(WebCore)/Modules/webaudio/BiquadFilterOptions.idl \
@@ -745,7 +753,11 @@ JS_BINDING_IDLS = \
     $(WebCore)/dom/DocumentOrShadowRoot+PointerLock.idl \
     $(WebCore)/dom/DocumentType.idl \
     $(WebCore)/dom/DragEvent.idl \
+    $(WebCore)/dom/Element+CSSOMView.idl \
     $(WebCore)/dom/Element+DOMParsing.idl \
+    $(WebCore)/dom/Element+Fullscreen.idl \
+    $(WebCore)/dom/Element+PointerEvents.idl \
+    $(WebCore)/dom/Element+PointerLock.idl \
     $(WebCore)/dom/Element.idl \
     $(WebCore)/dom/ElementContentEditable.idl \
     $(WebCore)/dom/ErrorEvent.idl \
@@ -755,8 +767,8 @@ JS_BINDING_IDLS = \
     $(WebCore)/dom/EventModifierInit.idl \
     $(WebCore)/dom/EventTarget.idl \
     $(WebCore)/dom/FocusEvent.idl \
-    $(WebCore)/dom/GlobalEventHandlers.idl \
     $(WebCore)/dom/GlobalEventHandlers+PointerEvents.idl \
+    $(WebCore)/dom/GlobalEventHandlers.idl \
     $(WebCore)/dom/HashChangeEvent.idl \
     $(WebCore)/dom/IdleDeadline.idl \
     $(WebCore)/dom/IdleRequestCallback.idl \
@@ -789,6 +801,8 @@ JS_BINDING_IDLS = \
     $(WebCore)/dom/ProcessingInstruction.idl \
     $(WebCore)/dom/ProgressEvent.idl \
     $(WebCore)/dom/PromiseRejectionEvent.idl \
+    $(WebCore)/dom/Range+CSSOMView.idl \
+    $(WebCore)/dom/Range+DOMParsing.idl \
     $(WebCore)/dom/Range.idl \
     $(WebCore)/dom/RequestAnimationFrameCallback.idl \
     $(WebCore)/dom/SecurityPolicyViolationEvent.idl \
@@ -833,6 +847,7 @@ JS_BINDING_IDLS = \
     $(WebCore)/html/HTMLAudioElement.idl \
     $(WebCore)/html/HTMLBRElement.idl \
     $(WebCore)/html/HTMLBaseElement.idl \
+    $(WebCore)/html/HTMLBodyElement+Compat.idl \
     $(WebCore)/html/HTMLBodyElement.idl \
     $(WebCore)/html/HTMLButtonElement.idl \
     $(WebCore)/html/HTMLCanvasElement.idl \
@@ -860,6 +875,7 @@ JS_BINDING_IDLS = \
     $(WebCore)/html/HTMLHtmlElement.idl \
     $(WebCore)/html/HTMLHyperlinkElementUtils.idl \
     $(WebCore)/html/HTMLIFrameElement.idl \
+    $(WebCore)/html/HTMLImageElement+CSSOMView.idl \
     $(WebCore)/html/HTMLImageElement.idl \
     $(WebCore)/html/HTMLInputElement.idl \
     $(WebCore)/html/HTMLKeygenElement.idl \
@@ -869,8 +885,8 @@ JS_BINDING_IDLS = \
     $(WebCore)/html/HTMLLinkElement.idl \
     $(WebCore)/html/HTMLMapElement.idl \
     $(WebCore)/html/HTMLMarqueeElement.idl \
+    $(WebCore)/html/HTMLMediaElement+AudioOutput.idl \
     $(WebCore)/html/HTMLMediaElement.idl \
-    $(WebCore)/html/HTMLMediaElementAudioOutput.idl \
     $(WebCore)/html/HTMLMenuElement.idl \
     $(WebCore)/html/HTMLMenuItemElement.idl \
     $(WebCore)/html/HTMLMetaElement.idl \
@@ -1029,10 +1045,16 @@ JS_BINDING_IDLS = \
     $(WebCore)/page/BarProp.idl \
     $(WebCore)/page/Crypto.idl \
     $(WebCore)/page/DOMSelection.idl \
+    $(WebCore)/page/DOMWindow+CSSOM.idl \
+    $(WebCore)/page/DOMWindow+CSSOMView.idl \
+    $(WebCore)/page/DOMWindow+Compat.idl \
+    $(WebCore)/page/DOMWindow+DeviceMotion.idl \
+    $(WebCore)/page/DOMWindow+DeviceOrientation.idl \
+    $(WebCore)/page/DOMWindow+RequestIdleCallback.idl \
+    $(WebCore)/page/DOMWindow+Selection.idl \
+    $(WebCore)/page/DOMWindow+VisualViewport.idl \
     $(WebCore)/page/DOMWindow.idl \
     $(WebCore)/page/EventSource.idl \
-    $(WebCore)/page/GlobalCrypto.idl \
-    $(WebCore)/page/GlobalPerformance.idl \
     $(WebCore)/page/History.idl \
     $(WebCore)/page/IntersectionObserver.idl \
     $(WebCore)/page/IntersectionObserverCallback.idl \
@@ -1085,7 +1107,11 @@ JS_BINDING_IDLS = \
     $(WebCore)/page/WebKitNamespace.idl \
     $(WebCore)/page/WebKitPoint.idl \
     $(WebCore)/page/WindowEventHandlers.idl \
+    $(WebCore)/page/WindowLocalStorage.idl \
+    $(WebCore)/page/WindowOrWorkerGlobalScope+Crypto.idl \
+    $(WebCore)/page/WindowOrWorkerGlobalScope+Performance.idl \
     $(WebCore)/page/WindowOrWorkerGlobalScope.idl \
+    $(WebCore)/page/WindowSessionStorage.idl \
     $(WebCore)/page/WorkerNavigator.idl \
     $(WebCore)/plugins/DOMMimeType.idl \
     $(WebCore)/plugins/DOMMimeTypeArray.idl \
@@ -1754,16 +1780,7 @@ SERVICEWORKERGLOBALSCOPE_CONSTRUCTORS_FILE = ServiceWorkerGlobalScopeConstructor
 WORKLETGLOBALSCOPE_CONSTRUCTORS_FILE = WorkletGlobalScopeConstructors.idl
 PAINTWORKLETGLOBALSCOPE_CONSTRUCTORS_FILE = PaintWorkletGlobalScopeConstructors.idl
 AUDIOWORKLETGLOBALSCOPE_CONSTRUCTORS_FILE = AudioWorkletGlobalScopeConstructors.idl
-IDL_FILES_TMP = idl_files.tmp
 IDL_ATTRIBUTES_FILE = $(WebCore)/bindings/scripts/IDLAttributes.json
-
-# The following lines get a newline character stored in a variable.
-# See <http://stackoverflow.com/questions/7039811/how-do-i-process-extremely-long-lists-of-files-in-a-make-recipe>.
-define NL
-
-
-endef
-
 
 IDL_INTERMEDIATE_FILES = \
     $(SUPPLEMENTAL_MAKEFILE_DEPS) \
@@ -1780,9 +1797,8 @@ IDL_INTERMEDIATE_FILES = \
 IDL_INTERMEDIATE_PATTERNS = $(subst .,%,$(IDL_INTERMEDIATE_FILES))
 
 $(IDL_INTERMEDIATE_PATTERNS) : $(PREPROCESS_IDLS_SCRIPTS) $(IDL_ATTRIBUTES_FILE) $(JS_BINDING_IDLS) $(FEATURE_AND_PLATFORM_DEFINE_DEPENDENCIES) DerivedSources.make $(FEATURE_AND_PLATFORM_DEFINE_DEPENDENCIES)
-	$(foreach f,$(JS_BINDING_IDLS),@echo $(f)>>$(IDL_FILES_TMP)$(NL))
-	$(PERL) $(WebCore)/bindings/scripts/preprocess-idls.pl --defines "$(FEATURE_AND_PLATFORM_DEFINES) LANGUAGE_JAVASCRIPT" --idlFileNamesList $(IDL_FILES_TMP) --idlAttributesFile $(IDL_ATTRIBUTES_FILE) --supplementalDependencyFile $(SUPPLEMENTAL_DEPENDENCY_FILE) --isoSubspacesHeaderFile $(ISO_SUBSPACES_HEADER_FILE) --windowConstructorsFile $(WINDOW_CONSTRUCTORS_FILE) --workerGlobalScopeConstructorsFile $(WORKERGLOBALSCOPE_CONSTRUCTORS_FILE) --dedicatedWorkerGlobalScopeConstructorsFile $(DEDICATEDWORKERGLOBALSCOPE_CONSTRUCTORS_FILE) --serviceWorkerGlobalScopeConstructorsFile $(SERVICEWORKERGLOBALSCOPE_CONSTRUCTORS_FILE) --workletGlobalScopeConstructorsFile $(WORKLETGLOBALSCOPE_CONSTRUCTORS_FILE) --paintWorkletGlobalScopeConstructorsFile $(PAINTWORKLETGLOBALSCOPE_CONSTRUCTORS_FILE) --audioWorkletGlobalScopeConstructorsFile $(AUDIOWORKLETGLOBALSCOPE_CONSTRUCTORS_FILE) --supplementalMakefileDeps $(SUPPLEMENTAL_MAKEFILE_DEPS)
-	$(DELETE) $(IDL_FILES_TMP)
+	$(shell echo $(JS_BINDING_IDLS) | tr " " "\n" > IDLFileNamesList.txt)
+	$(PERL) $(WebCore)/bindings/scripts/preprocess-idls.pl --defines "$(FEATURE_AND_PLATFORM_DEFINES) LANGUAGE_JAVASCRIPT" --idlFileNamesList IDLFileNamesList.txt --idlAttributesFile $(IDL_ATTRIBUTES_FILE) --supplementalDependencyFile $(SUPPLEMENTAL_DEPENDENCY_FILE) --isoSubspacesHeaderFile $(ISO_SUBSPACES_HEADER_FILE) --windowConstructorsFile $(WINDOW_CONSTRUCTORS_FILE) --workerGlobalScopeConstructorsFile $(WORKERGLOBALSCOPE_CONSTRUCTORS_FILE) --dedicatedWorkerGlobalScopeConstructorsFile $(DEDICATEDWORKERGLOBALSCOPE_CONSTRUCTORS_FILE) --serviceWorkerGlobalScopeConstructorsFile $(SERVICEWORKERGLOBALSCOPE_CONSTRUCTORS_FILE) --workletGlobalScopeConstructorsFile $(WORKLETGLOBALSCOPE_CONSTRUCTORS_FILE) --paintWorkletGlobalScopeConstructorsFile $(PAINTWORKLETGLOBALSCOPE_CONSTRUCTORS_FILE) --audioWorkletGlobalScopeConstructorsFile $(AUDIOWORKLETGLOBALSCOPE_CONSTRUCTORS_FILE) --supplementalMakefileDeps $(SUPPLEMENTAL_MAKEFILE_DEPS)
 
 JS%.cpp JS%.h : %.idl $(JS_BINDINGS_SCRIPTS) $(IDL_ATTRIBUTES_FILE) $(IDL_INTERMEDIATE_FILES) $(FEATURE_AND_PLATFORM_DEFINE_DEPENDENCIES)
 	$(PERL) $(WebCore)/bindings/scripts/generate-bindings.pl $(IDL_COMMON_ARGS) --defines "$(FEATURE_AND_PLATFORM_DEFINES) LANGUAGE_JAVASCRIPT" --generator JS --idlAttributesFile $(IDL_ATTRIBUTES_FILE) --supplementalDependencyFile $(SUPPLEMENTAL_DEPENDENCY_FILE) $<

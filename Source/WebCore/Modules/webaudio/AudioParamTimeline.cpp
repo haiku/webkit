@@ -65,13 +65,13 @@ static bool hasSetTargetConverged(float value, float target, Seconds currentTime
 
 ExceptionOr<void> AudioParamTimeline::setValueAtTime(float value, Seconds time)
 {
-    auto locker = holdLock(m_eventsMutex);
+    auto locker = holdLock(m_eventsLock);
     return insertEvent(ParamEvent::createSetValueEvent(value, time));
 }
 
 ExceptionOr<void> AudioParamTimeline::linearRampToValueAtTime(float targetValue, Seconds endTime, float currentValue, Seconds currentTime)
 {
-    auto locker = holdLock(m_eventsMutex);
+    auto locker = holdLock(m_eventsLock);
 
     // Linear ramp events need a preceding event so that they have an initial value.
     if (m_events.isEmpty())
@@ -82,7 +82,7 @@ ExceptionOr<void> AudioParamTimeline::linearRampToValueAtTime(float targetValue,
 
 ExceptionOr<void> AudioParamTimeline::exponentialRampToValueAtTime(float targetValue, Seconds endTime, float currentValue, Seconds currentTime)
 {
-    auto locker = holdLock(m_eventsMutex);
+    auto locker = holdLock(m_eventsLock);
 
     // Exponential ramp events need a preceding event so that they have an initial value.
     if (m_events.isEmpty())
@@ -93,7 +93,7 @@ ExceptionOr<void> AudioParamTimeline::exponentialRampToValueAtTime(float targetV
 
 ExceptionOr<void> AudioParamTimeline::setTargetAtTime(float target, Seconds time, float timeConstant)
 {
-    auto locker = holdLock(m_eventsMutex);
+    auto locker = holdLock(m_eventsLock);
     // If timeConstant is 0, we instantly jump to the target value, so insert a SetValueEvent instead of SetTargetEvent.
     if (!timeConstant)
         return insertEvent(ParamEvent::createSetValueEvent(target, time));
@@ -102,7 +102,7 @@ ExceptionOr<void> AudioParamTimeline::setTargetAtTime(float target, Seconds time
 
 ExceptionOr<void> AudioParamTimeline::setValueCurveAtTime(Vector<float>&& curve, Seconds time, Seconds duration)
 {
-    auto locker = holdLock(m_eventsMutex);
+    auto locker = holdLock(m_eventsLock);
 
     float curveEndValue = curve.last();
     auto result = insertEvent(ParamEvent::createSetValueCurveEvent(WTFMove(curve), time, duration));
@@ -137,7 +137,7 @@ ExceptionOr<void> AudioParamTimeline::insertEvent(UniqueRef<ParamEvent> event)
     if (!isValid)
         return { };
         
-    ASSERT(m_eventsMutex.isLocked());
+    ASSERT(m_eventsLock.isLocked());
 
     unsigned i = 0;
     auto insertTime = event->time();
@@ -178,7 +178,7 @@ ExceptionOr<void> AudioParamTimeline::insertEvent(UniqueRef<ParamEvent> event)
 
 void AudioParamTimeline::cancelScheduledValues(Seconds cancelTime)
 {
-    auto locker = holdLock(m_eventsMutex);
+    auto locker = holdLock(m_eventsLock);
 
     // Remove all events whose start time is greater than or equal to the cancel time.
     // Also handle the special case where the cancel time lies in the middle of a
@@ -207,7 +207,7 @@ void AudioParamTimeline::cancelScheduledValues(Seconds cancelTime)
 
 ExceptionOr<void> AudioParamTimeline::cancelAndHoldAtTime(Seconds cancelTime)
 {
-    auto locker = holdLock(m_eventsMutex);
+    auto locker = holdLock(m_eventsLock);
 
     // Find the first event at or just past cancelTime.
     size_t i = m_events.findMatching([&](auto& event) {
@@ -319,8 +319,8 @@ void AudioParamTimeline::removeCancelledEvents(size_t firstEventToRemove)
 Optional<float> AudioParamTimeline::valueForContextTime(BaseAudioContext& context, float defaultValue, float minValue, float maxValue)
 {
     {
-        std::unique_lock<Lock> lock(m_eventsMutex, std::try_to_lock);
-        if (!lock.owns_lock() || !m_events.size() || Seconds { context.currentTime() } < m_events[0]->time())
+        auto locker = tryHoldLock(m_eventsLock);
+        if (!locker || !m_events.size() || Seconds { context.currentTime() } < m_events[0]->time())
             return WTF::nullopt;
     }
 
@@ -337,8 +337,8 @@ Optional<float> AudioParamTimeline::valueForContextTime(BaseAudioContext& contex
 float AudioParamTimeline::valuesForTimeRange(size_t startFrame, size_t endFrame, float defaultValue, float minValue, float maxValue, float* values, unsigned numberOfValues, double sampleRate, double controlRate)
 {
     // We can't contend the lock in the realtime audio thread.
-    std::unique_lock<Lock> lock(m_eventsMutex, std::try_to_lock);
-    if (!lock.owns_lock()) {
+    auto locker = tryHoldLock(m_eventsLock);
+    if (!locker) {
         if (values) {
             for (unsigned i = 0; i < numberOfValues; ++i)
                 values[i] = defaultValue;
@@ -349,7 +349,7 @@ float AudioParamTimeline::valuesForTimeRange(size_t startFrame, size_t endFrame,
     float value = valuesForTimeRangeImpl(startFrame, endFrame, defaultValue, values, numberOfValues, sampleRate, controlRate);
 
     // Clamp values based on range allowed by AudioParam's min and max values.
-    VectorMath::vclip(values, 1, &minValue, &maxValue, values, 1, numberOfValues);
+    VectorMath::clamp(values, minValue, maxValue, values, numberOfValues);
 
     return value;
 }
@@ -659,13 +659,10 @@ void AudioParamTimeline::processLinearRamp(float* values, unsigned& writeIndex, 
         values[writeIndex + 1] = 1;
         values[writeIndex + 2] = 2;
         values[writeIndex + 3] = 3;
-        float scalar = samplingPeriod;
-        VectorMath::vsmul(values + writeIndex, 1, &scalar, values + writeIndex, 1, 4);
-        scalar = currentFrame * samplingPeriod - time1.value();
-        VectorMath::vsadd(values + writeIndex, 1, &scalar, values + writeIndex, 1, 4);
-        scalar = k * valueDelta;
-        VectorMath::vsmul(values + writeIndex, 1, &scalar, values + writeIndex, 1, 4);
-        VectorMath::vsadd(values + writeIndex, 1, &value1, values + writeIndex, 1, 4);
+        VectorMath::multiplyByScalar(values + writeIndex, samplingPeriod, values + writeIndex, 4);
+        VectorMath::addScalar(values + writeIndex, currentFrame * samplingPeriod - time1.value(), values + writeIndex, 4);
+        VectorMath::multiplyByScalar(values + writeIndex, k * valueDelta, values + writeIndex, 4);
+        VectorMath::addScalar(values + writeIndex, value1, values + writeIndex, 4);
 
         float inc = 4 * samplingPeriod * k * valueDelta;
 
@@ -677,7 +674,7 @@ void AudioParamTimeline::processLinearRamp(float* values, unsigned& writeIndex, 
         // Process 4 loop steps.
         writeIndex += 4;
         for (; writeIndex < fillToFrameTrunc; writeIndex += 4)
-            VectorMath::vsadd(values + writeIndex - 4, 1, &inc, values + writeIndex, 1, 4);
+            VectorMath::addScalar(values + writeIndex - 4, inc, values + writeIndex, 4);
     }
     // Update |value| with the last value computed so that the .value attribute of the AudioParam gets
     // the correct linear ramp value, in case the following loop doesn't execute.
@@ -717,8 +714,8 @@ void AudioParamTimeline::processSetTarget(float* values, unsigned& writeIndex, u
         for (; writeIndex < fillToFrameTrunc; writeIndex += 4) {
             delta = target - value;
 
-            VectorMath::vsmul(&cVector[0], 1, &delta, &values[writeIndex], 1, 4);
-            VectorMath::vsadd(&values[writeIndex], 1, &value, &values[writeIndex], 1, 4);
+            VectorMath::multiplyByScalar(&cVector[0], delta, &values[writeIndex], 4);
+            VectorMath::addScalar(&values[writeIndex], value, &values[writeIndex], 4);
 
             value += delta * c3;
         }

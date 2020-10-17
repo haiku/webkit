@@ -36,6 +36,7 @@
 
 namespace API {
 class Data;
+class DownloadClient;
 class FrameInfo;
 }
 
@@ -49,11 +50,11 @@ class ResourceResponse;
 
 namespace WebKit {
 
-class DownloadID;
 class DownloadProxyMap;
 class WebPageProxy;
-class WebProcessPool;
 class WebsiteDataStore;
+
+enum class AllowOverwrite : bool;
 
 struct FrameInfoData;
 
@@ -101,7 +102,7 @@ public:
     API::FrameInfo& frameInfo() { return m_frameInfo.get(); }
 
 private:
-    explicit DownloadProxy(DownloadProxyMap&, WebsiteDataStore&, WebProcessPool&, const WebCore::ResourceRequest&, const FrameInfoData&, WebPageProxy*);
+    explicit DownloadProxy(DownloadProxyMap&, WebsiteDataStore&, API::DownloadClient&, const WebCore::ResourceRequest&, const FrameInfoData&, WebPageProxy*);
 
     // IPC::MessageReceiver
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) override;
@@ -117,11 +118,11 @@ private:
     void didFail(const WebCore::ResourceError&, const IPC::DataReference& resumeData);
     void didCancel(const IPC::DataReference& resumeData);
     void willSendRequest(WebCore::ResourceRequest&& redirectRequest, const WebCore::ResourceResponse& redirectResponse);
-    void decideDestinationWithSuggestedFilenameAsync(DownloadID, const String& suggestedFilename);
+    void decideDestinationWithSuggestedFilename(const String& suggestedFilename, CompletionHandler<void(String, SandboxExtension::Handle, AllowOverwrite)>&&);
 
     DownloadProxyMap& m_downloadProxyMap;
     RefPtr<WebsiteDataStore> m_dataStore;
-    RefPtr<WebProcessPool> m_processPool;
+    Ref<API::DownloadClient> m_client;
     DownloadID m_downloadID;
 
     RefPtr<API::Data> m_resumeData;

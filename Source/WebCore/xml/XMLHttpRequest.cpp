@@ -181,9 +181,9 @@ ExceptionOr<Document*> XMLHttpRequest::responseXML()
             m_responseDocument = nullptr;
         } else {
             if (isHTML)
-                m_responseDocument = HTMLDocument::create(nullptr, m_response.url());
+                m_responseDocument = HTMLDocument::create(nullptr, context.settings(), m_response.url());
             else
-                m_responseDocument = XMLDocument::create(nullptr, m_response.url());
+                m_responseDocument = XMLDocument::create(nullptr, context.settings(), m_response.url());
             m_responseDocument->overrideLastModified(m_response.lastModified());
             m_responseDocument->setContextDocument(context);
             m_responseDocument->setSecurityOriginPolicy(context.securityOriginPolicy());
@@ -209,7 +209,7 @@ Ref<Blob> XMLHttpRequest::createResponseBlob()
     if (m_binaryResponseBuilder)
         data.append(m_binaryResponseBuilder->data(), m_binaryResponseBuilder->size());
     m_binaryResponseBuilder = nullptr;
-    String normalizedContentType = Blob::normalizedContentType(responseMIMEType()); // responseMIMEType defaults to text/xml which may be incorrect.
+    String normalizedContentType = Blob::normalizedContentType(responseMIMEType(FinalMIMEType::Yes)); // responseMIMEType defaults to text/xml which may be incorrect.
     return Blob::create(scriptExecutionContext(), WTFMove(data), normalizedContentType);
 }
 
@@ -842,21 +842,19 @@ String XMLHttpRequest::getResponseHeader(const String& name) const
     return m_response.httpHeaderField(name);
 }
 
-String XMLHttpRequest::responseMIMEType() const
+String XMLHttpRequest::responseMIMEType(FinalMIMEType finalMIMEType) const
 {
-    String mimeType = extractMIMETypeFromMediaType(m_mimeTypeOverride);
-    if (mimeType.isEmpty()) {
+    String contentType = m_mimeTypeOverride;
+    if (contentType.isEmpty()) {
         // Same logic as externalEntityMimeTypeAllowed() in XMLDocumentParserLibxml2.cpp. Keep them in sync.
-        String contentType;
         if (m_response.isInHTTPFamily())
             contentType = m_response.httpHeaderField(HTTPHeaderName::ContentType);
         else
             contentType = m_response.mimeType();
-        if (auto parsedContentType = ParsedContentType::create(contentType))
-            return parsedContentType->mimeType();
-        return "text/xml"_s;
     }
-    return mimeType;
+    if (auto parsedContentType = ParsedContentType::create(contentType))
+        return finalMIMEType == FinalMIMEType::Yes ? parsedContentType->serialize() : parsedContentType->mimeType();
+    return "text/xml"_s;
 }
 
 int XMLHttpRequest::status() const

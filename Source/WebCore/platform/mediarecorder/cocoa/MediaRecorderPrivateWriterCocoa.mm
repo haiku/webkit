@@ -356,6 +356,7 @@ void MediaRecorderPrivateWriter::flushCompressedSampleBuffers(CompletionHandler<
         return;
     }
 
+    ASSERT(!m_isFlushingSamples);
     m_isFlushingSamples = true;
     auto block = makeBlockPtr([this, weakThis = makeWeakPtr(*this), hasPendingAudioSamples, hasPendingVideoSamples, audioSampleQueue = WTFMove(m_pendingAudioSampleQueue), videoSampleQueue = WTFMove(m_pendingVideoSampleQueue), completionHandler = WTFMove(completionHandler)]() mutable {
         if (!weakThis) {
@@ -398,7 +399,7 @@ void MediaRecorderPrivateWriter::clear()
 
     m_data = nullptr;
     if (auto completionHandler = WTFMove(m_fetchDataCompletionHandler))
-        completionHandler(nullptr);
+        completionHandler(nullptr, 0);
 }
 
 
@@ -427,7 +428,7 @@ void MediaRecorderPrivateWriter::appendVideoSampleBuffer(MediaSample& sample)
 {
     if (!m_firstVideoFrame) {
         m_firstVideoFrame = true;
-        m_firstVideoSampleTime = CMClockGetTime(CMClockGetHostTimeClock());
+        m_resumedVideoTime = CMClockGetTime(CMClockGetHostTimeClock());
         if (sample.videoRotation() != MediaSample::VideoRotation::None || sample.videoMirrored()) {
             m_videoTransform = CGAffineTransformMakeRotation(static_cast<int>(sample.videoRotation()) * M_PI / 180);
             if (sample.videoMirrored())
@@ -435,7 +436,8 @@ void MediaRecorderPrivateWriter::appendVideoSampleBuffer(MediaSample& sample)
         }
     }
 
-    CMTime sampleTime = CMTimeSubtract(CMClockGetTime(CMClockGetHostTimeClock()), m_firstVideoSampleTime);
+    auto sampleTime = CMTimeSubtract(CMClockGetTime(CMClockGetHostTimeClock()), m_resumedVideoTime);
+    sampleTime = CMTimeAdd(sampleTime, m_currentVideoDuration);
     if (auto bufferWithCurrentTime = copySampleBufferWithCurrentTimeStamp(sample.platformSample().sample.cmSampleBuffer, sampleTime))
         m_videoCompressor->addSampleBuffer(bufferWithCurrentTime.get());
 }
@@ -521,7 +523,7 @@ void MediaRecorderPrivateWriter::stopRecording()
             if (m_writer)
                 m_writer.clear();
             if (m_fetchDataCompletionHandler)
-                m_fetchDataCompletionHandler(std::exchange(m_data, nullptr));
+                m_fetchDataCompletionHandler(std::exchange(m_data, nullptr), 0);
         };
 
         if (!m_hasStartedWriting) {
@@ -545,7 +547,7 @@ void MediaRecorderPrivateWriter::stopRecording()
     });
 }
 
-void MediaRecorderPrivateWriter::fetchData(CompletionHandler<void(RefPtr<SharedBuffer>&&)>&& completionHandler)
+void MediaRecorderPrivateWriter::fetchData(CompletionHandler<void(RefPtr<SharedBuffer>&&, double)>&& completionHandler)
 {
     if (m_isStopping) {
         m_fetchDataCompletionHandler = WTFMove(completionHandler);
@@ -555,7 +557,7 @@ void MediaRecorderPrivateWriter::fetchData(CompletionHandler<void(RefPtr<SharedB
     if (m_hasStartedWriting) {
         flushCompressedSampleBuffers([this, weakThis = makeWeakPtr(this), completionHandler = WTFMove(completionHandler)]() mutable {
             if (!weakThis) {
-                completionHandler(nullptr);
+                completionHandler(nullptr, 0);
                 return;
             }
 
@@ -565,17 +567,29 @@ void MediaRecorderPrivateWriter::fetchData(CompletionHandler<void(RefPtr<SharedB
 
             callOnMainThread([this, weakThis = WTFMove(weakThis), completionHandler = WTFMove(completionHandler)]() mutable {
                 if (!weakThis) {
-                    completionHandler(nullptr);
+                    completionHandler(nullptr, 0);
                     return;
                 }
 
-                completionHandler(std::exchange(m_data, nullptr));
+                completionHandler(std::exchange(m_data, nullptr), m_timeCode);
+                updateTimeCode();
             });
         });
         return;
     }
 
-    completionHandler(std::exchange(m_data, nullptr));
+    completionHandler(std::exchange(m_data, nullptr), m_timeCode);
+    updateTimeCode();
+}
+
+void MediaRecorderPrivateWriter::updateTimeCode()
+{
+    if (m_hasAudio) {
+        m_timeCode = CMTimeGetSeconds(m_currentAudioSampleTime);
+        return;
+    }
+    auto sampleTime = CMTimeSubtract(CMClockGetTime(CMClockGetHostTimeClock()), m_resumedVideoTime);
+    m_timeCode = CMTimeGetSeconds(CMTimeAdd(sampleTime, m_currentVideoDuration));
 }
 
 void MediaRecorderPrivateWriter::appendData(const char* data, size_t size)
@@ -594,6 +608,17 @@ void MediaRecorderPrivateWriter::appendData(Ref<SharedBuffer>&& buffer)
         return;
     }
     m_data->append(WTFMove(buffer));
+}
+
+void MediaRecorderPrivateWriter::pause()
+{
+    auto recordingDuration = CMTimeSubtract(CMClockGetTime(CMClockGetHostTimeClock()), m_resumedVideoTime);
+    m_currentVideoDuration = CMTimeAdd(recordingDuration, m_currentVideoDuration);
+}
+
+void MediaRecorderPrivateWriter::resume()
+{
+    m_resumedVideoTime = CMClockGetTime(CMClockGetHostTimeClock());
 }
 
 const String& MediaRecorderPrivateWriter::mimeType() const

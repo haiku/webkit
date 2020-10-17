@@ -43,18 +43,16 @@ class Text;
 struct BoundaryPoint;
 struct SimpleRange;
 
-namespace LayoutIntegration {
-class RunIterator;
-}
-
 enum PositionMoveType {
     CodePoint,       // Move by a single code point.
     Character,       // Move to the next Unicode character break.
     BackwardDeletion // Subject to platform conventions.
 };
 
+struct InlineRunAndOffset;
+
 struct InlineBoxAndOffset {
-    InlineBoxAndOffset(LayoutIntegration::RunIterator, unsigned offset);
+    InlineBoxAndOffset(InlineRunAndOffset);
 
     InlineBox* box { nullptr };
     int offset { 0 };
@@ -178,6 +176,9 @@ public:
     bool isRenderedCharacter() const;
     bool rendersInDifferentPosition(const Position&) const;
 
+    InlineRunAndOffset inlineRunAndOffset(Affinity) const;
+    InlineRunAndOffset inlineRunAndOffset(Affinity, TextDirection primaryDirection) const;
+
     InlineBoxAndOffset inlineBoxAndOffset(Affinity) const;
     InlineBoxAndOffset inlineBoxAndOffset(Affinity, TextDirection primaryDirection) const;
 
@@ -207,6 +208,8 @@ public:
     // This is a tentative enhancement of operator== to account for different position types.
     // FIXME: Combine this function with operator==
     bool equals(const Position&) const;
+
+    void ensureLineBoxes() const;
 
 private:
     // For creating legacy editing positions: (Anchor type will be determined from editingIgnoresContent(node))

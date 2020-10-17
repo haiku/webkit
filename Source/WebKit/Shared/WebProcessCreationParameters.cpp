@@ -85,6 +85,9 @@ void WebProcessCreationParameters::encode(IPC::Encoder& encoder) const
 #endif
     encoder << textCheckerState;
     encoder << fullKeyboardAccessEnabled;
+#if HAVE(UIKIT_WITH_MOUSE_SUPPORT) && PLATFORM(IOS)
+    encoder << hasMouseDevice;
+#endif
     encoder << defaultRequestTimeoutInterval;
     encoder << backForwardCacheCapacity;
 #if PLATFORM(COCOA)
@@ -180,6 +183,7 @@ void WebProcessCreationParameters::encode(IPC::Encoder& encoder) const
 #if PLATFORM(COCOA)
     // FIXME(207716): The following should be removed when the GPU process is complete.
     encoder << mediaExtensionHandles;
+    encoder << gpuIOKitExtensionHandles;
 #if ENABLE(CFPREFS_DIRECT_MODE)
     encoder << preferencesExtensionHandles;
 #endif
@@ -293,6 +297,10 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
         return false;
     if (!decoder.decode(parameters.fullKeyboardAccessEnabled))
         return false;
+#if HAVE(UIKIT_WITH_MOUSE_SUPPORT) && PLATFORM(IOS)
+    if (!decoder.decode(parameters.hasMouseDevice))
+        return false;
+#endif
     if (!decoder.decode(parameters.defaultRequestTimeoutInterval))
         return false;
     if (!decoder.decode(parameters.backForwardCacheCapacity))
@@ -493,6 +501,12 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!mediaExtensionHandles)
         return false;
     parameters.mediaExtensionHandles = WTFMove(*mediaExtensionHandles);
+
+    Optional<SandboxExtension::HandleArray> gpuIOKitExtensionHandles;
+    decoder >> gpuIOKitExtensionHandles;
+    if (!gpuIOKitExtensionHandles)
+        return false;
+    parameters.gpuIOKitExtensionHandles = WTFMove(*gpuIOKitExtensionHandles);
     // FIXME(207716): End region to remove.
 
 #if ENABLE(CFPREFS_DIRECT_MODE)

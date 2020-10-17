@@ -506,6 +506,26 @@ KeyboardUIMode WebChromeClient::keyboardUIMode()
     return m_page.keyboardUIMode();
 }
 
+bool WebChromeClient::hoverSupportedByPrimaryPointingDevice() const
+{
+    return m_page.hoverSupportedByPrimaryPointingDevice();
+}
+
+bool WebChromeClient::hoverSupportedByAnyAvailablePointingDevice() const
+{
+    return m_page.hoverSupportedByAnyAvailablePointingDevice();
+}
+
+Optional<PointerCharacteristics> WebChromeClient::pointerCharacteristicsOfPrimaryPointingDevice() const
+{
+    return m_page.pointerCharacteristicsOfPrimaryPointingDevice();
+}
+
+OptionSet<PointerCharacteristics> WebChromeClient::pointerCharacteristicsOfAllAvailablePointingDevices() const
+{
+    return m_page.pointerCharacteristicsOfAllAvailablePointingDevices();
+}
+
 #if ENABLE(POINTER_LOCK)
 
 bool WebChromeClient::requestPointerLock()
@@ -910,10 +930,10 @@ void WebChromeClient::setNeedsOneShotDrawingSynchronization()
     notImplemented();
 }
 
-void WebChromeClient::scheduleRenderingUpdate()
+void WebChromeClient::triggerRenderingUpdate()
 {
     if (m_page.drawingArea())
-        m_page.drawingArea()->scheduleRenderingUpdate();
+        m_page.drawingArea()->triggerRenderingUpdate();
 }
 
 void WebChromeClient::contentRuleListNotification(const URL& url, const ContentRuleListResults& results)

@@ -327,7 +327,7 @@ bool CSSPropertyParser::parseValueStart(CSSPropertyID propertyID, bool important
     if (CSSVariableParser::containsValidVariableReferences(originalRange, m_context)) {
         auto variable = CSSVariableReferenceValue::create(originalRange);
         if (isShorthand)
-            addExpandedPropertyForValue(propertyID, CSSPendingSubstitutionValue::create(propertyID, WTFMove(variable)), important);
+            addExpandedPropertyForValue(propertyID, CSSPendingSubstitutionValue::create(propertyID, WTFMove(variable), m_context.baseURL), important);
         else
             addProperty(propertyID, CSSPropertyInvalid, WTFMove(variable), important);
         return true;
@@ -2016,6 +2016,198 @@ static RefPtr<CSSValue> consumeTransform(CSSParserTokenRange& range, CSSParserMo
             return nullptr;
         list->append(parsedTransformValue.releaseNonNull());
     } while (!range.atEnd());
+
+    return list;
+}
+
+static RefPtr<CSSValue> consumeTranslate(CSSParserTokenRange& range, CSSParserMode cssParserMode)
+{
+    if (range.peek().id() == CSSValueNone)
+        return consumeIdent(range);
+
+    RefPtr<CSSValueList> list = CSSValueList::createSpaceSeparated();
+
+    // https://drafts.csswg.org/css-transforms-2/#propdef-translate
+    //
+    // The translate property accepts 1-3 values, each specifying a translation against one axis, in the order X, Y, then Z.
+    // If only one or two values are given, this specifies a 2d translation, equivalent to the translate() function. If the second
+    // value is missing, it defaults to 0px. If three values are given, this specifies a 3d translation, equivalent to the
+    // translate3d() function.
+
+    RefPtr<CSSValue> x = consumeLengthOrPercent(range, cssParserMode, ValueRangeAll);
+    if (!x)
+        return list;
+
+    // If we got this far we have a valid x value, so we can directly add it to the list.
+    list->append(*x);
+
+    range.consumeWhitespace();
+    RefPtr<CSSValue> y = consumeLengthOrPercent(range, cssParserMode, ValueRangeAll);
+    if (!y)
+        return list;
+
+    // If we have a calc() or non-zero y value, we can directly add it to the list. We only
+    // want to add a zero y value if a non-zero z value is specified.
+    if (is<CSSPrimitiveValue>(y)) {
+        auto& yPrimitiveValue = downcast<CSSPrimitiveValue>(*y);
+        if (yPrimitiveValue.isCalculated() || !*yPrimitiveValue.isZero())
+            list->append(*y);
+    }
+
+    range.consumeWhitespace();
+    RefPtr<CSSValue> z = consumeLength(range, cssParserMode, ValueRangeAll);
+
+    if (is<CSSPrimitiveValue>(z)) {
+        auto& zPrimitiveValue = downcast<CSSPrimitiveValue>(*z);
+        // If the z value is a zero value, we have nothing left to add to the list.
+        if (!zPrimitiveValue.isCalculated() && *zPrimitiveValue.isZero())
+            return list;
+        // Add the zero value for y if we did not already add a y value.
+        if (list->length() == 1)
+            list->append(CSSPrimitiveValue::create(0, CSSUnitType::CSS_PX));
+        list->append(*z);
+    }
+
+    return list;
+}
+
+static RefPtr<CSSValue> consumeScale(CSSParserTokenRange& range, CSSParserMode)
+{
+    if (range.peek().id() == CSSValueNone)
+        return consumeIdent(range);
+
+    // https://www.w3.org/TR/css-transforms-2/#propdef-scale
+    //
+    // The scale property accepts 1-3 values, each specifying a scale along one axis, in order X, Y, then Z.
+    //
+    // If only the X value is given, the Y value defaults to the same value.
+    //
+    // If one or two values are given, this specifies a 2d scaling, equivalent to the scale() function.
+    // If three values are given, this specifies a 3d scaling, equivalent to the scale3d() function.
+
+    RefPtr<CSSValueList> list = CSSValueList::createSpaceSeparated();
+
+    RefPtr<CSSValue> x = consumeNumber(range, ValueRangeAll);
+    if (!x)
+        return list;
+    list->append(*x);
+    range.consumeWhitespace();
+
+    RefPtr<CSSValue> y = consumeNumber(range, ValueRangeAll);
+    if (!y)
+        return list;
+
+    // If the x and y values are the same, the y value is not needed.
+    if (downcast<CSSPrimitiveValue>(*x).floatValue() != downcast<CSSPrimitiveValue>(*y).floatValue())
+        list->append(*y);
+    range.consumeWhitespace();
+
+    RefPtr<CSSValue> z = consumeNumber(range, ValueRangeAll);
+    if (!z)
+        return list;
+    if (downcast<CSSPrimitiveValue>(*z).floatValue() != 1.0) {
+        // We only need to append the z value if it's set to something other than 1.
+        // In case y was not added yet, because it was equal to x, we must append it
+        // prior to appending z.
+        if (list->length() == 1)
+            list->append(*y);
+        list->append(*z);
+    }
+
+    return list;
+}
+
+static RefPtr<CSSValue> consumeRotate(CSSParserTokenRange& range, CSSParserMode cssParserMode)
+{
+    if (range.peek().id() == CSSValueNone)
+        return consumeIdent(range);
+
+    RefPtr<CSSValueList> list = CSSValueList::createSpaceSeparated();
+
+    // https://www.w3.org/TR/css-transforms-2/#propdef-rotate
+    //
+    // The rotate property accepts an angle to rotate an element, and optionally an axis to rotate it around.
+    //
+    // If the axis is omitted, this specifies a 2d rotation, equivalent to the rotate() function.
+    //
+    // Otherwise, it specifies a 3d rotation: if x, y, or z is given, it specifies a rotation around that axis,
+    // equivalent to the rotateX()/etc 3d transform functions. Alternately, the axis can be specified explicitly
+    // by giving three numbers representing the x, y, and z components of an origin-centered vector, equivalent
+    // to the rotate3d() function.
+
+    RefPtr<CSSValue> angle;
+    RefPtr<CSSValue> axisIdentifier;
+
+    while (!range.atEnd()) {
+        // First, attempt to parse a number, which might be in a series of 3 specifying the rotation axis.
+        RefPtr<CSSValue> parsedValue = consumeNumber(range, ValueRangeAll);
+        if (parsedValue) {
+            // If we've encountered an axis identifier, then this valus is invalid.
+            if (axisIdentifier)
+                return nullptr;
+            list->append(*parsedValue);
+            range.consumeWhitespace();
+            continue;
+        }
+
+        // Then, attempt to parse an angle. We try this as a fallback rather than the first option because
+        // a unitless 0 angle would be consumed as an angle.
+        parsedValue = consumeAngle(range, cssParserMode, UnitlessQuirk::Forbid);
+        if (parsedValue) {
+            // If we had already parsed an angle or numbers but not 3 in a row, this value is invalid.
+            if (angle || (list->length() && list->length() != 3))
+                return nullptr;
+            angle = parsedValue;
+            range.consumeWhitespace();
+            continue;
+        }
+
+        // Finally, attempt to parse one of the axis identifiers.
+        parsedValue = consumeIdent<CSSValueX, CSSValueY, CSSValueZ>(range);
+        // If we failed to find one of those identifiers or one was already specified, or we'd previously
+        // encountered numbers to specify a rotation axis, then this value is invalid.
+        if (!parsedValue || axisIdentifier || list->length())
+            return nullptr;
+        axisIdentifier = parsedValue;
+        range.consumeWhitespace();
+    }
+
+    // We must have an angle to have a valid value.
+    if (!angle)
+        return nullptr;
+
+    if (list->length() == 3) {
+        // The first valid case is if we have 3 items in the list, meaning we parsed three consecutive number values
+        // to specify the rotation axis. In that case, we must not also have encountered an axis identifier.
+        ASSERT(!axisIdentifier);
+
+        // No we must check the values since if we have a vector in the x, y or z axis alone we must serialize to the
+        // matching identifier.
+        auto x = downcast<CSSPrimitiveValue>(*list->itemWithoutBoundsCheck(0)).doubleValue();
+        auto y = downcast<CSSPrimitiveValue>(*list->itemWithoutBoundsCheck(1)).doubleValue();
+        auto z = downcast<CSSPrimitiveValue>(*list->itemWithoutBoundsCheck(2)).doubleValue();
+
+        if (x == 1 && !y && !z) {
+            list = CSSValueList::createSpaceSeparated();
+            list->append(CSSPrimitiveValue::createIdentifier(CSSValueX));
+        } else if (!x && y == 1 && !z) {
+            list = CSSValueList::createSpaceSeparated();
+            list->append(CSSPrimitiveValue::createIdentifier(CSSValueY));
+        } else if (!x && !y && z == 1) {
+            list = CSSValueList::createSpaceSeparated();
+            list->append(CSSPrimitiveValue::createIdentifier(CSSValueZ));
+        }
+
+        // Finally, we must append the angle.
+        list->append(*angle);
+    } else if (!list->length()) {
+        // The second valid case is if we have no item in the list, meaning we have either an optional rotation axis
+        // using an identifier. In that case, we must add the axis identifier is specified and then add the angle.
+        if (axisIdentifier)
+            list->append(*axisIdentifier);
+        list->append(*angle);
+    } else
+        return nullptr;
 
     return list;
 }
@@ -3827,10 +4019,12 @@ static RefPtr<CSSValue> consumeColorScheme(CSSParserTokenRange& range)
 RefPtr<CSSValue> CSSPropertyParser::parseSingleValue(CSSPropertyID property, CSSPropertyID currentShorthand)
 {
     if (CSSParserFastPaths::isKeywordPropertyID(property)) {
-        if (!CSSParserFastPaths::isValidKeywordPropertyAndValue(property, m_range.peek().id(), m_context))
-            return nullptr;
+        if (CSSParserFastPaths::isValidKeywordPropertyAndValue(property, m_range.peek().id(), m_context))
+            return consumeIdent(m_range);
 
-        return consumeIdent(m_range);
+        // Some properties need to fall back onto the regular parser.
+        if (!CSSParserFastPaths::isPartialKeywordPropertyID(property))
+            return nullptr;
     }
     switch (property) {
     case CSSPropertyWillChange:
@@ -4100,6 +4294,18 @@ RefPtr<CSSValue> CSSPropertyParser::parseSingleValue(CSSPropertyID property, CSS
         return consumePositionY(m_range, m_context.mode);
     case CSSPropertyTransformOriginZ:
         return consumeLength(m_range, m_context.mode, ValueRangeAll);
+    case CSSPropertyTranslate:
+        if (!m_context.individualTransformPropertiesEnabled)
+            return nullptr;
+        return consumeTranslate(m_range, m_context.mode);
+    case CSSPropertyScale:
+        if (!m_context.individualTransformPropertiesEnabled)
+            return nullptr;
+        return consumeScale(m_range, m_context.mode);
+    case CSSPropertyRotate:
+        if (!m_context.individualTransformPropertiesEnabled)
+            return nullptr;
+        return consumeRotate(m_range, m_context.mode);
     case CSSPropertyFill:
     case CSSPropertyStroke:
         return consumePaintStroke(m_range, m_context.mode);
@@ -4282,6 +4488,9 @@ RefPtr<CSSValue> CSSPropertyParser::parseSingleValue(CSSPropertyID property, CSS
     case CSSPropertyColorScheme:
         return consumeColorScheme(m_range);
 #endif
+    case CSSPropertyListStyleType:
+        // All the keyword values for the list-style-type property are handled by the CSSParserFastPaths.
+        return consumeString(m_range);
     default:
         return nullptr;
     }

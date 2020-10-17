@@ -91,7 +91,7 @@ using namespace WebCore;
 #endif
 
 #if !PLATFORM(COCOA)
-MediaPlayerPrivateRemote::MediaPlayerPrivateRemote(MediaPlayer* player, MediaPlayerEnums::MediaEngineIdentifier engineIdentifier, MediaPlayerPrivateRemoteIdentifier playerIdentifier, RemoteMediaPlayerManager& manager)
+MediaPlayerPrivateRemote::MediaPlayerPrivateRemote(MediaPlayer* player, MediaPlayerEnums::MediaEngineIdentifier engineIdentifier, MediaPlayerIdentifier playerIdentifier, RemoteMediaPlayerManager& manager)
     : m_player(player)
 #if !RELEASE_LOG_DISABLED
     , m_logger(player->mediaPlayerLogger())
@@ -249,11 +249,6 @@ bool MediaPlayerPrivateRemote::hasVideo() const
 bool MediaPlayerPrivateRemote::hasAudio() const
 {
     return m_cachedState.hasAudio;
-}
-
-std::unique_ptr<PlatformTimeRanges> MediaPlayerPrivateRemote::seekable() const
-{
-    return makeUnique<PlatformTimeRanges>(m_cachedState.minTimeSeekable, m_cachedState.maxTimeSeekable);
 }
 
 std::unique_ptr<PlatformTimeRanges> MediaPlayerPrivateRemote::buffered() const
@@ -499,11 +494,11 @@ void MediaPlayerPrivateRemote::removeRemoteTextTrack(TrackPrivateRemoteIdentifie
     }
 }
 
-void MediaPlayerPrivateRemote::remoteTextTrackConfigurationChanged(TrackPrivateRemoteIdentifier id, TextTrackPrivateRemoteConfiguration&& configuration)
+void MediaPlayerPrivateRemote::remoteTextTrackConfigurationChanged(TrackPrivateRemoteIdentifier identifier, TextTrackPrivateRemoteConfiguration&& configuration)
 {
-    ASSERT(m_textTracks.contains(id));
+    ASSERT(m_textTracks.contains(identifier));
 
-    if (auto track = m_textTracks.get(id))
+    if (auto track = m_textTracks.get(identifier))
         track->updateConfiguration(WTFMove(configuration));
 }
 
@@ -602,21 +597,21 @@ void MediaPlayerPrivateRemote::addRemoteVideoTrack(TrackPrivateRemoteIdentifier 
     m_player->addVideoTrack(addResult.iterator->value);
 }
 
-void MediaPlayerPrivateRemote::removeRemoteVideoTrack(TrackPrivateRemoteIdentifier id)
+void MediaPlayerPrivateRemote::removeRemoteVideoTrack(TrackPrivateRemoteIdentifier identifier)
 {
-    ASSERT(m_videoTracks.contains(id));
+    ASSERT(m_videoTracks.contains(identifier));
 
-    if (auto* track = m_videoTracks.get(id)) {
+    if (auto* track = m_videoTracks.get(identifier)) {
         m_player->removeVideoTrack(*track);
-        m_videoTracks.remove(id);
+        m_videoTracks.remove(identifier);
     }
 }
 
-void MediaPlayerPrivateRemote::remoteVideoTrackConfigurationChanged(TrackPrivateRemoteIdentifier id, TrackPrivateRemoteConfiguration&& configuration)
+void MediaPlayerPrivateRemote::remoteVideoTrackConfigurationChanged(TrackPrivateRemoteIdentifier identifier, TrackPrivateRemoteConfiguration&& configuration)
 {
-    ASSERT(m_videoTracks.contains(id));
+    ASSERT(m_videoTracks.contains(identifier));
 
-    if (auto track = m_videoTracks.get(id))
+    if (auto track = m_videoTracks.get(identifier))
         track->updateConfiguration(WTFMove(configuration));
 }
 
@@ -1155,6 +1150,11 @@ WTFLogChannel& MediaPlayerPrivateRemote::logChannel() const
     return LogMedia;
 }
 #endif
+
+MediaPlayerIdentifier MediaPlayerPrivateRemote::identifier() const
+{
+    return m_id;
+}
 
 } // namespace WebKit
 

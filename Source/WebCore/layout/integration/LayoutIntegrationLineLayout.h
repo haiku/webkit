@@ -32,6 +32,7 @@
 #include "LayoutPoint.h"
 #include "LayoutState.h"
 #include "RenderObjectEnums.h"
+#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
@@ -43,13 +44,11 @@ class RenderBlockFlow;
 class RenderLineBreak;
 struct PaintInfo;
 
-namespace Display {
-struct InlineContent;
-}
-
 namespace LayoutIntegration {
 
-class LineLayout {
+struct InlineContent;
+
+class LineLayout : public CanMakeWeakPtr<LineLayout> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     LineLayout(const RenderBlockFlow&);
@@ -71,7 +70,7 @@ public:
     void adjustForPagination(RenderBlockFlow&);
     void collectOverflow(RenderBlockFlow&);
 
-    const Display::InlineContent* displayInlineContent() const { return m_displayInlineContent.get(); }
+    const InlineContent* inlineContent() const { return m_inlineContent.get(); }
     bool isPaginated() const { return !!m_paginatedHeight; }
 
     void paint(PaintInfo&, const LayoutPoint& paintOffset);
@@ -80,13 +79,15 @@ public:
     TextRunIterator textRunsFor(const RenderText&) const;
     RunIterator runFor(const RenderElement&) const;
 
+    const RenderObject* rendererForLayoutBox(const Layout::Box&) const;
+
     static void releaseCaches(RenderView&);
 
 private:
     void prepareLayoutState();
     void prepareFloatingState();
-    void constructDisplayContent();
-    Display::InlineContent& ensureDisplayInlineContent();
+    void constructContent();
+    InlineContent& ensureInlineContent();
 
     const Layout::ContainerBox& rootLayoutBox() const;
     Layout::ContainerBox& rootLayoutBox();
@@ -97,7 +98,7 @@ private:
     BoxTree m_boxTree;
     Layout::LayoutState m_layoutState;
     Layout::InlineFormattingState& m_inlineFormattingState;
-    RefPtr<Display::InlineContent> m_displayInlineContent;
+    RefPtr<InlineContent> m_inlineContent;
     Optional<LayoutUnit> m_paginatedHeight;
 };
 

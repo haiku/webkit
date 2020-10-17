@@ -52,6 +52,7 @@
 #include <wtf/Threading.h>
 #include <wtf/UniqueRef.h>
 #include <wtf/Vector.h>
+#include <wtf/WeakPtr.h>
 #include <wtf/text/AtomStringHash.h>
 
 namespace WebCore {
@@ -87,6 +88,8 @@ class SecurityOrigin;
 class StereoPannerNode;
 class WaveShaperNode;
 
+struct AudioParamDescriptor;
+
 template<typename IDLType> class DOMPromiseDeferred;
 
 // AudioContext is the cornerstone of the web audio API and all AudioNodes are created from it.
@@ -107,6 +110,9 @@ class BaseAudioContext
     WTF_MAKE_ISO_ALLOCATED(BaseAudioContext);
 public:
     virtual ~BaseAudioContext();
+
+    using WeakValueType = MediaCanStartListener::WeakValueType;
+    using MediaCanStartListener::weakPtrFactory;
 
     // Reconcile ref/deref which are defined both in ThreadSafeRefCounted and EventTarget.
     using ThreadSafeRefCounted::ref;
@@ -317,6 +323,9 @@ public:
 
     PeriodicWave& periodicWave(OscillatorType);
 
+    void addAudioParamDescriptors(const String& processorName, Vector<AudioParamDescriptor>&&);
+    const HashMap<String, Vector<AudioParamDescriptor>>& parameterDescriptorMap() const { return m_parameterDescriptorMap; }
+
 protected:
     explicit BaseAudioContext(Document&, const AudioContextOptions& = { });
     BaseAudioContext(Document&, unsigned numberOfChannels, RefPtr<AudioBuffer>&& renderTarget);
@@ -464,6 +473,8 @@ private:
     RefPtr<PendingActivity<BaseAudioContext>> m_pendingActivity;
 
     AudioIOPosition m_outputPosition;
+
+    HashMap<String, Vector<AudioParamDescriptor>> m_parameterDescriptorMap;
 
     // [[suspended by user]] flag in the specification:
     // https://www.w3.org/TR/webaudio/#dom-audiocontext-suspended-by-user-slot

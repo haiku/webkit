@@ -30,6 +30,7 @@
 
 #include "BlockFormattingState.h"
 #include "FlexFormattingState.h"
+#include "FloatingContext.h"
 #include "FloatingState.h"
 #include "InlineFormattingState.h"
 #include "LayoutContext.h"
@@ -168,9 +169,10 @@ Optional<LayoutUnit> FormattingContext::Geometry::computedWidth(const Box& layou
     return { };
 }
 
-LayoutUnit FormattingContext::Geometry::contentHeightForFormattingContextRoot(const Box& layoutBox) const
+LayoutUnit FormattingContext::Geometry::contentHeightForFormattingContextRoot(const ContainerBox& formattingContextRoot) const
 {
-    ASSERT((isHeightAuto(layoutBox) || layoutBox.establishesTableFormattingContext() || layoutBox.isTableCell()) && (layoutBox.establishesFormattingContext() || layoutBox.isDocumentBox()));
+    ASSERT(formattingContextRoot.establishesFormattingContext());
+    ASSERT(isHeightAuto(formattingContextRoot) || formattingContextRoot.establishesTableFormattingContext() || formattingContextRoot.isTableCell());
 
     // 10.6.7 'Auto' heights for block formatting context roots
 
@@ -181,56 +183,49 @@ LayoutUnit FormattingContext::Geometry::contentHeightForFormattingContextRoot(co
     // In addition, if the element has any floating descendants whose bottom margin edge is below the element's bottom content edge,
     // then the height is increased to include those edges. Only floats that participate in this block formatting context are taken
     // into account, e.g., floats inside absolutely positioned descendants or other floats are not.
-    if (!is<ContainerBox>(layoutBox) || !downcast<ContainerBox>(layoutBox).hasInFlowOrFloatingChild())
+    if (!formattingContextRoot.hasInFlowOrFloatingChild())
         return { };
 
     auto& layoutState = this->layoutState();
     auto& formattingContext = this->formattingContext();
-    auto& boxGeometry = formattingContext.geometryForBox(layoutBox);
+    auto& boxGeometry = formattingContext.geometryForBox(formattingContextRoot);
     auto borderAndPaddingTop = boxGeometry.borderTop() + boxGeometry.paddingTop().valueOr(0);
     auto top = borderAndPaddingTop;
     auto bottom = borderAndPaddingTop;
-    auto& formattingRootContainer = downcast<ContainerBox>(layoutBox);
-    if (formattingRootContainer.establishesInlineFormattingContext()) {
-        auto& lines = layoutState.establishedInlineFormattingState(formattingRootContainer).lines();
-        // Even empty containers generate one line. 
+    if (formattingContextRoot.establishesInlineFormattingContext()) {
+        auto& inlineFormattingState = layoutState.establishedInlineFormattingState(formattingContextRoot);
+        auto& lines = inlineFormattingState.lines();
+        // Even empty containers generate one line.
         ASSERT(!lines.isEmpty());
         top = lines.first().logicalTop();
-        bottom = lines.last().logicalBottom();
-    } else if (formattingRootContainer.establishesFlexFormattingContext()) {
-        auto& lines = layoutState.establishedFlexFormattingState(formattingRootContainer).lines();
+        bottom = lines.last().logicalBottom() + inlineFormattingState.clearGapAfterLastLine();
+    } else if (formattingContextRoot.establishesFlexFormattingContext()) {
+        auto& lines = layoutState.establishedFlexFormattingState(formattingContextRoot).lines();
         ASSERT(!lines.isEmpty());
         // FIXME: Move flex over to layout geometry.
-        top = lines.first().rect().y();
-        bottom = lines.last().rect().maxY();
-    } else if (formattingRootContainer.establishesBlockFormattingContext() || formattingRootContainer.establishesTableFormattingContext() || formattingRootContainer.isDocumentBox()) {
-        if (formattingRootContainer.hasInFlowChild()) {
-            auto& firstBoxGeometry = formattingContext.geometryForBox(*formattingRootContainer.firstInFlowChild(), EscapeReason::NeedsGeometryFromEstablishedFormattingContext);
-            auto& lastBoxGeometry = formattingContext.geometryForBox(*formattingRootContainer.lastInFlowChild(), EscapeReason::NeedsGeometryFromEstablishedFormattingContext);
+        top = lines.first().top();
+        bottom = lines.last().bottom();
+    } else if (formattingContextRoot.establishesBlockFormattingContext() || formattingContextRoot.establishesTableFormattingContext()) {
+        if (formattingContextRoot.hasInFlowChild()) {
+            auto& firstBoxGeometry = formattingContext.geometryForBox(*formattingContextRoot.firstInFlowChild(), EscapeReason::NeedsGeometryFromEstablishedFormattingContext);
+            auto& lastBoxGeometry = formattingContext.geometryForBox(*formattingContextRoot.lastInFlowChild(), EscapeReason::NeedsGeometryFromEstablishedFormattingContext);
             top = firstBoxGeometry.logicalRectWithMargin().top();
             bottom = lastBoxGeometry.logicalRectWithMargin().bottom();
         }
     } else
         ASSERT_NOT_REACHED();
 
-    auto* formattingContextRoot = &formattingRootContainer;
-    // TODO: The document renderer is not a formatting context root by default at all. Need to find out what it is.
-    if (!layoutBox.establishesFormattingContext()) {
-        ASSERT(layoutBox.isDocumentBox());
-        formattingContextRoot = &layoutBox.formattingContextRoot();
-    }
-
-    auto& floatingState = layoutState.establishedFormattingState(*formattingContextRoot).floatingState();
-    auto floatBottom = floatingState.bottom(*formattingContextRoot);
+    auto floatingContext = FloatingContext { formattingContext, layoutState.establishedFormattingState(formattingContextRoot).floatingState() };
+    auto floatBottom = floatingContext.bottom();
     if (floatBottom) {
-        bottom = std::max<LayoutUnit>(*floatBottom, bottom);
-        auto floatTop = floatingState.top(*formattingContextRoot);
+        bottom = std::max(*floatBottom, bottom);
+        auto floatTop = floatingContext.top();
         ASSERT(floatTop);
-        top = std::min<LayoutUnit>(*floatTop, top);
+        top = std::min(*floatTop, top);
     }
-
     auto computedHeight = bottom - top;
-    LOG_WITH_STREAM(FormattingContextLayout, stream << "[Height] -> content height for formatting context root -> height(" << computedHeight << "px) layoutBox("<< &layoutBox << ")");
+
+    LOG_WITH_STREAM(FormattingContextLayout, stream << "[Height] -> content height for formatting context root -> height(" << computedHeight << "px) layoutBox("<< &formattingContextRoot << ")");
     return computedHeight;
 }
 
@@ -357,7 +352,7 @@ LayoutUnit FormattingContext::Geometry::shrinkToFitWidth(const Box& formattingRo
     return std::min(std::max(intrinsicWidthConstraints.minimum, availableWidth), intrinsicWidthConstraints.maximum);
 }
 
-VerticalGeometry FormattingContext::Geometry::outOfFlowNonReplacedVerticalGeometry(const Box& layoutBox, const HorizontalConstraints& horizontalConstraints, const VerticalConstraints& verticalConstraints, const OverrideVerticalValues& overrideVerticalValues) const
+VerticalGeometry FormattingContext::Geometry::outOfFlowNonReplacedVerticalGeometry(const ContainerBox& layoutBox, const HorizontalConstraints& horizontalConstraints, const VerticalConstraints& verticalConstraints, const OverrideVerticalValues& overrideVerticalValues) const
 {
     ASSERT(layoutBox.isOutOfFlowPositioned() && !layoutBox.isReplacedBox());
     ASSERT(verticalConstraints.logicalHeight);
@@ -476,7 +471,7 @@ VerticalGeometry FormattingContext::Geometry::outOfFlowNonReplacedVerticalGeomet
     return { *top, *bottom, { *height, usedVerticalMargin } };
 }
 
-HorizontalGeometry FormattingContext::Geometry::outOfFlowNonReplacedHorizontalGeometry(const Box& layoutBox, const HorizontalConstraints& horizontalConstraints, const OverrideHorizontalValues& overrideHorizontalValues)
+HorizontalGeometry FormattingContext::Geometry::outOfFlowNonReplacedHorizontalGeometry(const ContainerBox& layoutBox, const HorizontalConstraints& horizontalConstraints, const OverrideHorizontalValues& overrideHorizontalValues)
 {
     ASSERT(layoutBox.isOutOfFlowPositioned() && !layoutBox.isReplacedBox());
     
@@ -827,7 +822,27 @@ ContentHeightAndMargin FormattingContext::Geometry::complicatedCases(const Box& 
     // #2
     if (!height) {
         ASSERT(isHeightAuto(layoutBox));
-        height = contentHeightForFormattingContextRoot(layoutBox);
+        if (!is<ContainerBox>(layoutBox) || !downcast<ContainerBox>(layoutBox).hasInFlowOrFloatingChild())
+            height = 0_lu;
+        else if (layoutBox.isDocumentBox() && !layoutBox.establishesFormattingContext()) {
+            auto& documentBox = downcast<ContainerBox>(layoutBox);
+            auto top = formattingContext().geometryForBox(*documentBox.firstInFlowChild()).logicalRectWithMargin().top();
+            auto bottom = formattingContext().geometryForBox(*documentBox.lastInFlowChild()).logicalRectWithMargin().bottom();
+            // This is a special (quirk?) behavior since the document box is not a formatting context root and
+            // all the float boxes end up at the ICB level.
+            auto& initialContainingBlock = documentBox.formattingContextRoot();
+            auto floatingContext = FloatingContext { formattingContext(), layoutState().establishedFormattingState(initialContainingBlock).floatingState() };
+            if (auto floatBottom = floatingContext.bottom()) {
+                bottom = std::max<LayoutUnit>(*floatBottom, bottom);
+                auto floatTop = floatingContext.top();
+                ASSERT(floatTop);
+                top = std::min<LayoutUnit>(*floatTop, top);
+            }
+            height = bottom - top;
+        } else {
+            ASSERT(layoutBox.establishesFormattingContext());
+            height = contentHeightForFormattingContextRoot(downcast<ContainerBox>(layoutBox));
+        }
     }
 
     ASSERT(height);
@@ -888,7 +903,7 @@ VerticalGeometry FormattingContext::Geometry::outOfFlowVerticalGeometry(const Bo
     ASSERT(layoutBox.isOutOfFlowPositioned());
 
     if (!layoutBox.isReplacedBox())
-        return outOfFlowNonReplacedVerticalGeometry(layoutBox, horizontalConstraints, verticalConstraints, overrideVerticalValues);
+        return outOfFlowNonReplacedVerticalGeometry(downcast<ContainerBox>(layoutBox), horizontalConstraints, verticalConstraints, overrideVerticalValues);
     return outOfFlowReplacedVerticalGeometry(downcast<ReplacedBox>(layoutBox), horizontalConstraints, verticalConstraints, overrideVerticalValues);
 }
 
@@ -897,7 +912,7 @@ HorizontalGeometry FormattingContext::Geometry::outOfFlowHorizontalGeometry(cons
     ASSERT(layoutBox.isOutOfFlowPositioned());
 
     if (!layoutBox.isReplacedBox())
-        return outOfFlowNonReplacedHorizontalGeometry(layoutBox, horizontalConstraints, overrideHorizontalValues);
+        return outOfFlowNonReplacedHorizontalGeometry(downcast<ContainerBox>(layoutBox), horizontalConstraints, overrideHorizontalValues);
     return outOfFlowReplacedHorizontalGeometry(downcast<ReplacedBox>(layoutBox), horizontalConstraints, verticalConstraints, overrideHorizontalValues);
 }
 

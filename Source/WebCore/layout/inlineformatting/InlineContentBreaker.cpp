@@ -37,7 +37,7 @@
 namespace WebCore {
 namespace Layout {
 
-static inline bool isTextContentOnly(const InlineContentBreaker::ContinuousContent& continuousContent)
+static inline bool isTextContent(const InlineContentBreaker::ContinuousContent& continuousContent)
 {
     // <span>text</span> is considered a text run even with the [container start][container end] inline items.
     // Due to commit boundary rules, we just need to check the first non-typeless inline item (can't have both [img] and [text])
@@ -50,7 +50,7 @@ static inline bool isTextContentOnly(const InlineContentBreaker::ContinuousConte
     return false;
 }
 
-static inline bool isVisuallyEmptyWhitespaceContentOnly(const InlineContentBreaker::ContinuousContent& continuousContent)
+static inline bool isVisuallyEmptyWhitespaceContent(const InlineContentBreaker::ContinuousContent& continuousContent)
 {
     // [<span></span> ] [<span> </span>] [ <span style="padding: 0px;"></span>] are all considered visually empty whitespace content.
     // [<span style="border: 1px solid red"></span> ] while this is whitespace content only, it is not considered visually empty.
@@ -99,7 +99,7 @@ static inline Optional<size_t> lastContentRunIndex(const InlineContentBreaker::C
 
 static inline bool isWrappingAllowed(const RenderStyle& style)
 {
-    // Do not try to push overflown 'pre' and 'no-wrap' content to next line.
+    // Do not try to wrap overflown 'pre' and 'no-wrap' content to next line.
     return style.whiteSpace() != WhiteSpace::Pre && style.whiteSpace() != WhiteSpace::NoWrap;
 }
 
@@ -159,7 +159,7 @@ InlineContentBreaker::Result InlineContentBreaker::processInlineContent(const Co
         if (auto lastLineWrapOpportunityIndex = lastWrapOpportunityIndex(candidateContent.runs())) {
             auto isEligibleLineWrapOpportunity = [&] (auto& candidateItem) {
                 // Just check for leading collapsible whitespace for now.
-                if (!lineStatus.lineIsEmpty || !candidateItem.isText() || !downcast<InlineTextItem>(candidateItem).isWhitespace())
+                if (!lineStatus.isEmpty || !candidateItem.isText() || !downcast<InlineTextItem>(candidateItem).isWhitespace())
                     return true;
                 return shouldKeepBeginningOfLineWhitespace(candidateItem.style());
             };
@@ -168,6 +168,14 @@ InlineContentBreaker::Result InlineContentBreaker::processInlineContent(const Co
                 result.lastWrapOpportunityItem = &lastWrapOpportunityCandidateItem;
                 m_hasWrapOpportunityAtPreviousPosition = true;
             }
+        }
+    } else if (result.action == Result::Action::Wrap) {
+        if (lineStatus.trailingSoftHyphenWidth && isTextContent(candidateContent)) {
+            // A trailing soft hyphen with a wrapped text content turns into a visible hyphen.
+            // Let's check if there's enough space for the hyphen character.
+            auto hyphenOverflows = *lineStatus.trailingSoftHyphenWidth > lineStatus.availableWidth; 
+            auto action = hyphenOverflows ? Result::Action::RevertToLastNonOverflowingWrapOpportunity : Result::Action::WrapWithHyphen;
+            result = { action, IsEndOfLine::Yes };
         }
     }
     return result;
@@ -186,13 +194,13 @@ InlineContentBreaker::Result InlineContentBreaker::processOverflowingContent(con
 
     ASSERT(continuousContent.logicalWidth() > lineStatus.availableWidth);
     if (continuousContent.hasTrailingCollapsibleContent()) {
-        ASSERT(isTextContentOnly(continuousContent));
+        ASSERT(isTextContent(continuousContent));
         auto IsEndOfLine = isContentWrappingAllowed(continuousContent) ? IsEndOfLine::Yes : IsEndOfLine::No;
         // First check if the content fits without the trailing collapsible part.
         if (continuousContent.nonCollapsibleLogicalWidth() <= lineStatus.availableWidth)
             return { Result::Action::Keep, IsEndOfLine };
         // Now check if we can trim the line too.
-        if (lineStatus.lineHasFullyCollapsibleTrailingRun && continuousContent.isFullyCollapsible()) {
+        if (lineStatus.hasFullyCollapsibleTrailingRun && continuousContent.isFullyCollapsible()) {
             // If this new content is fully collapsible, it should surely fit.
             return { Result::Action::Keep, IsEndOfLine };
         }
@@ -202,41 +210,41 @@ InlineContentBreaker::Result InlineContentBreaker::processOverflowingContent(con
         if (continuousContent.logicalWidth() <= lineStatus.availableWidth + lineStatus.collapsibleWidth)
             return { Result::Action::Keep };
     }
-    if (isVisuallyEmptyWhitespaceContentOnly(continuousContent) && shouldKeepEndOfLineWhitespace(continuousContent)) {
+    if (isVisuallyEmptyWhitespaceContent(continuousContent) && shouldKeepEndOfLineWhitespace(continuousContent)) {
         // This overflowing content apparently falls into the remove/hang end-of-line-spaces category.
         // see https://www.w3.org/TR/css-text-3/#white-space-property matrix
         return { Result::Action::Keep };
     }
 
-    if (isTextContentOnly(continuousContent)) {
+    if (isTextContent(continuousContent)) {
         if (auto trailingContent = processOverflowingTextContent(continuousContent, lineStatus)) {
             if (!trailingContent->runIndex && trailingContent->hasOverflow) {
                 // We tried to break the content but the available space can't even accommodate the first character.
-                // 1. Push the content over to the next line when we've got content on the line already.
+                // 1. Wrap the content over to the next line when we've got content on the line already.
                 // 2. Keep the first character on the empty line (or keep the whole run if it has only one character).
-                if (!lineStatus.lineIsEmpty)
-                    return { Result::Action::Push, IsEndOfLine::Yes, { } };
+                if (!lineStatus.isEmpty)
+                    return { Result::Action::Wrap, IsEndOfLine::Yes };
                 auto leadingTextRunIndex = *firstTextRunIndex(continuousContent);
                 auto& inlineTextItem = downcast<InlineTextItem>(continuousContent.runs()[leadingTextRunIndex].inlineItem);
                 ASSERT(inlineTextItem.length());
                 if (inlineTextItem.length() == 1)
                     return Result { Result::Action::Keep, IsEndOfLine::Yes };
                 auto firstCharacterWidth = TextUtil::width(inlineTextItem, inlineTextItem.start(), inlineTextItem.start() + 1);
-                auto firstCharacterRun = PartialRun { 1, firstCharacterWidth, false };
+                auto firstCharacterRun = PartialRun { 1, firstCharacterWidth };
                 return { Result::Action::Break, IsEndOfLine::Yes, Result::PartialTrailingContent { leadingTextRunIndex, firstCharacterRun } };
             }
             auto trailingPartialContent = Result::PartialTrailingContent { trailingContent->runIndex, trailingContent->partialRun };
             return { Result::Action::Break, IsEndOfLine::Yes, trailingPartialContent };
         }
     }
-    // If we are not allowed to break this overflowing content, we still need to decide whether keep it or push it to the next line.
-    if (lineStatus.lineIsEmpty) {
+    // If we are not allowed to break this overflowing content, we still need to decide whether keep it or wrap it to the next line.
+    if (lineStatus.isEmpty) {
         ASSERT(!m_hasWrapOpportunityAtPreviousPosition);
         return { Result::Action::Keep, IsEndOfLine::No };
     }
     // Now either wrap here or at an earlier position, or not wrap at all.
     if (isContentWrappingAllowed(continuousContent))
-        return { Result::Action::Push, IsEndOfLine::Yes };
+        return { Result::Action::Wrap, IsEndOfLine::Yes };
     if (m_hasWrapOpportunityAtPreviousPosition)
         return { Result::Action::RevertToLastWrapOpportunity, IsEndOfLine::Yes };
     return { Result::Action::Keep, IsEndOfLine::No };
@@ -341,10 +349,10 @@ Optional<InlineContentBreaker::PartialRun> InlineContentBreaker::tryBreakingText
             // let's just return the entire run when it is intended to fit on the line.
             ASSERT(inlineTextItem.length());
             auto trailingPartialRunWidth = TextUtil::width(inlineTextItem, inlineTextItem.start(), inlineTextItem.end() - 1, logicalLeft);
-            return PartialRun { inlineTextItem.length() - 1, trailingPartialRunWidth, false };
+            return PartialRun { inlineTextItem.length() - 1, trailingPartialRunWidth };
         }
         auto splitData = TextUtil::split(inlineTextItem.inlineTextBox(), inlineTextItem.start(), inlineTextItem.length(), overflowingRun.logicalWidth, availableWidth, logicalLeft);
-        return PartialRun { splitData.length, splitData.logicalWidth, false };
+        return PartialRun { splitData.length, splitData.logicalWidth };
     }
 
     if (breakRule == WordBreakRule::OnlyHyphenationAllowed) {
@@ -359,7 +367,6 @@ Optional<InlineContentBreaker::PartialRun> InlineContentBreaker::tryBreakingText
             return { };
 
         unsigned leftSideLength = runLength;
-        // FIXME: We might want to cache the hyphen width.
         auto& fontCascade = style.fontCascade();
         auto hyphenWidth = InlineLayoutUnit { fontCascade.width(TextRun { StringView { style.hyphenString() } }) };
         if (!findLastBreakablePosition) {
@@ -376,8 +383,8 @@ Optional<InlineContentBreaker::PartialRun> InlineContentBreaker::tryBreakingText
         if (!hyphenLocation || hyphenLocation < limitBefore)
             return { };
         // hyphenLocation is relative to the start of this InlineItemText.
-        auto trailingPartialRunWidthWithHyphen = TextUtil::width(inlineTextItem, inlineTextItem.start(), inlineTextItem.start() + hyphenLocation) + hyphenWidth; 
-        return PartialRun { hyphenLocation, trailingPartialRunWidthWithHyphen, true };
+        auto trailingPartialRunWidthWithHyphen = TextUtil::width(inlineTextItem, inlineTextItem.start(), inlineTextItem.start() + hyphenLocation); 
+        return PartialRun { hyphenLocation, trailingPartialRunWidthWithHyphen, hyphenWidth };
     }
 
     ASSERT(breakRule == WordBreakRule::NoBreak);

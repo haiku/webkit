@@ -43,12 +43,12 @@ partial interface Document {
     [CEReactions] attribute DOMString dir;
     [CEReactions, DOMJIT=Getter, ImplementedAs=bodyOrFrameset] attribute HTMLElement? body;
     readonly attribute HTMLHeadElement? head;
-    readonly attribute HTMLCollection images; // Should be [SameObject].
-    readonly attribute HTMLCollection embeds; // Should be [SameObject].
-    readonly attribute HTMLCollection plugins; // Should be [SameObject].
-    readonly attribute HTMLCollection links; // Should be [SameObject].
-    readonly attribute HTMLCollection forms; // Should be [SameObject].
-    readonly attribute HTMLCollection scripts; // Should be [SameObject].
+    [SameObject] readonly attribute HTMLCollection images;
+    [SameObject] readonly attribute HTMLCollection embeds;
+    [SameObject] readonly attribute HTMLCollection plugins;
+    [SameObject] readonly attribute HTMLCollection links;
+    [SameObject] readonly attribute HTMLCollection forms;
+    [SameObject] readonly attribute HTMLCollection scripts;
     NodeList getElementsByName([AtomString] DOMString elementName);
     // currentScript is specified to use type HTMLOrSVGScriptElement?, but implemented using
     // shared base type Element? to optimize implementation without an observable difference.
@@ -68,7 +68,7 @@ partial interface Document {
     [ImplementedAs=windowProxy] readonly attribute WindowProxy? defaultView;
     boolean hasFocus();
     [CEReactions] attribute DOMString designMode;
-    [CEReactions] boolean execCommand(DOMString commandId, optional boolean showUI = false, optional DOMString? value = null); // FIXME: value should not be nullable.
+    [CEReactions] boolean execCommand(DOMString commandId, optional boolean showUI = false, optional DOMString value = "");
     boolean queryCommandEnabled(DOMString commandId);
     boolean queryCommandIndeterm(DOMString commandId);
     boolean queryCommandState(DOMString commandId);

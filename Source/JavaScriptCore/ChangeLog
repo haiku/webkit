@@ -1,3 +1,193 @@
+2020-10-05  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] More consistent PtrTagging for code types
+        https://bugs.webkit.org/show_bug.cgi?id=217362
+
+        Reviewed by Mark Lam.
+
+        1. Avoid tagging JIT code with OperationPtrTag. OperationPtrTag should be used only for operations (C++ code).
+        2. Avoid mixing JIT and C++ code for the same tagged pointers. For exception trampoline, in JIT mode, we should have
+           JIT trampoline thunk which goes to LLInt bytecode handler code.
+
+        * bytecode/BytecodeList.rb:
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::finishCreation):
+        (JSC::CodeBlock::finalizeUnconditionally):
+        * dfg/DFGCapabilities.cpp:
+        (JSC::DFG::capabilityLevel):
+        * dfg/DFGJITCompiler.cpp:
+        (JSC::DFG::JITCompiler::compileExceptionHandlers):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileMathIC):
+        * jit/ICStats.h:
+        * jit/JIT.cpp:
+        (JSC::JIT::compileWithoutLinking):
+        (JSC::JIT::link):
+        (JSC::JIT::privateCompileExceptionHandlers):
+        * jit/JIT.h:
+        (JSC::CallRecord::CallRecord):
+        * jit/JITCall.cpp:
+        (JSC::JIT::compileTailCall):
+        (JSC::JIT::compileOpCall):
+        (JSC::JIT::compileOpCallSlowCase):
+        * jit/JITCall32_64.cpp:
+        (JSC::JIT::compileOpCall):
+        (JSC::JIT::compileOpCallSlowCase):
+        * jit/JITExceptions.cpp:
+        (JSC::genericUnwind):
+        * jit/JITInlines.h:
+        (JSC::JIT::emitNakedNearCall):
+        (JSC::JIT::emitNakedNearTailCall):
+        (JSC::JIT::emitNakedCall): Deleted.
+        (JSC::JIT::emitNakedTailCall): Deleted.
+        * jit/JITPropertyAccess.cpp:
+        (JSC::JIT::privateCompilePutByVal):
+        (JSC::JIT::privateCompilePutPrivateNameWithCachedId):
+        (JSC::JIT::privateCompilePutByValWithCachedId):
+        * jit/SlowPathCall.h:
+        (JSC::JITSlowPathCall::call):
+        * llint/LLIntData.h:
+        (JSC::LLInt::getWide16CodeRef):
+        (JSC::LLInt::getWide32CodeRef):
+        (JSC::LLInt::getCodeFunctionPtr):
+        (JSC::LLInt::getWide16CodeFunctionPtr):
+        (JSC::LLInt::getWide32CodeFunctionPtr):
+        * llint/LLIntEntrypoint.cpp:
+        (JSC::LLInt::setFunctionEntrypoint):
+        (JSC::LLInt::setEvalEntrypoint):
+        (JSC::LLInt::setProgramEntrypoint):
+        (JSC::LLInt::setModuleProgramEntrypoint):
+        * llint/LLIntExceptions.cpp:
+        (JSC::LLInt::callToThrow):
+        (JSC::LLInt::handleUncaughtException):
+        (JSC::LLInt::catcher):
+        * llint/LLIntExceptions.h:
+        * llint/LLIntSlowPaths.cpp:
+        * llint/LLIntThunks.cpp:
+        (JSC::LLInt::generateThunkWithJumpTo):
+        (JSC::LLInt::functionForCallEntryThunk):
+        (JSC::LLInt::functionForConstructEntryThunk):
+        (JSC::LLInt::functionForCallArityCheckThunk):
+        (JSC::LLInt::functionForConstructArityCheckThunk):
+        (JSC::LLInt::evalEntryThunk):
+        (JSC::LLInt::programEntryThunk):
+        (JSC::LLInt::moduleProgramEntryThunk):
+        (JSC::LLInt::wasmFunctionEntryThunk):
+        (JSC::LLInt::callToThrowThunk):
+        (JSC::LLInt::handleUncaughtExceptionThunk):
+        (JSC::LLInt::catcherThunk):
+        * llint/LLIntThunks.h:
+        * llint/LowLevelInterpreter32_64.asm:
+        * llint/LowLevelInterpreter64.asm:
+        * runtime/SamplingProfiler.cpp:
+        (JSC::SamplingProfiler::processUnverifiedStackTraces):
+        * wasm/WasmOperations.cpp:
+        (JSC::Wasm::JSC_DEFINE_JIT_OPERATION):
+
+2020-10-05  Ross Kirsling  <ross.kirsling@sony.com>
+
+        %TypedArray%.from must do mapping and putting in lockstep
+        https://bugs.webkit.org/show_bug.cgi?id=217349
+
+        Reviewed by Yusuke Suzuki.
+
+        %TypedArray%.from first turns the input iterator into a list to find the size for the resulting typed array,
+        then it fills the typed array with the list elements.
+
+        If a map function is provided, however, it must be called during the *second* phase, not the first,
+        because if an element throws upon valueOf, that should prevent all further calls of the map function.
+
+        * builtins/TypedArrayConstructor.js:
+        (from):
+
+2020-10-05  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unrevewed, fix crash for ASan debug builds
+        https://bugs.webkit.org/show_bug.cgi?id=217261
+
+        Reviewed by Saam Barati.
+
+        This function touches memory region which ASan cannot understand whether this is safe.
+        And ASan makes pointer fat so that it will see some null pointers.
+
+        * assembler/JITOperationList.cpp:
+        (JSC::addPointers):
+
+2020-10-05  Keith Miller  <keith_miller@apple.com>
+
+        Add JSC option to trigger a hardware breakpoint when debugger expressions are reached.
+        https://bugs.webkit.org/show_bug.cgi?id=217334
+
+        Reviewed by Yusuke Suzuki.
+
+        * interpreter/Interpreter.cpp:
+        (JSC::Interpreter::debug):
+        * runtime/JSGlobalObject.h:
+        (JSC::JSGlobalObject::defaultCodeGenerationMode const):
+        * runtime/OptionsList.h:
+
+2020-10-05  David Kilzer  <ddkilzer@apple.com>
+
+        Build fix: Use JSC_DEFINE_HOST_FUNCTION_WITH_ATTRIBUTES() with SUPPRESS_ASAN
+        <rdar://problem/69954783>
+
+        * tools/JSDollarVM.cpp:
+        (JSC::JSC_DEFINE_HOST_FUNCTION_WITH_ATTRIBUTES):
+        - Change `SUPPRESS_ASAN JSC_DEFINE_HOST_FUNCTION()` to
+          `JSC_DEFINE_HOST_FUNCTION_WITH_ATTRIBUTES(..., SUPPRESS_ASAN, ...)`
+          to fix the build.
+
+2020-10-03  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Introduce JITOperationList to validate JIT-caged pointers
+        https://bugs.webkit.org/show_bug.cgi?id=217261
+
+        Reviewed by Saam Barati.
+
+        This patch adds JITOperationList, which manages all the host-function & jit-operation pointers.
+        And we can now query whether the given pointer is registered in this table.
+        Currently, as a test, we are verifying that host-function is registered in this table when creating NativeExecutable in debug build.
+
+        * CMakeLists.txt:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * assembler/JITOperationList.cpp: Added.
+        (JSC::JITOperationList::initialize):
+        (JSC::addPointers):
+        (JSC::JITOperationList::populatePointersInJavaScriptCore):
+        (JSC::JITOperationList::populatePointersInEmbedder):
+        * assembler/JITOperationList.h: Added.
+        (JSC::JITOperationList::contains const):
+        (JSC::JITOperationList::assertIsHostFunction):
+        (JSC::JITOperationList::assertIsJITOperation):
+        (JSC::JITOperationList::instance):
+        * assembler/MacroAssemblerARM64.cpp:
+        * assembler/MacroAssemblerARMv7.cpp:
+        * assembler/MacroAssemblerMIPS.cpp:
+        * assembler/MacroAssemblerX86Common.cpp:
+        * jsc.cpp:
+        (jscmain):
+        * runtime/InitializeThreading.cpp:
+        (JSC::initialize):
+        * runtime/JSGenericTypedArrayViewPrototypeFunctions.h:
+        (JSC::genericTypedArrayViewProtoFuncSet):
+        (JSC::genericTypedArrayViewProtoFuncCopyWithin):
+        (JSC::genericTypedArrayViewProtoFuncIncludes):
+        (JSC::genericTypedArrayViewProtoFuncIndexOf):
+        (JSC::genericTypedArrayViewProtoFuncJoin):
+        (JSC::genericTypedArrayViewProtoFuncLastIndexOf):
+        (JSC::genericTypedArrayViewProtoGetterFuncBuffer):
+        (JSC::genericTypedArrayViewProtoGetterFuncLength):
+        (JSC::genericTypedArrayViewProtoGetterFuncByteLength):
+        (JSC::genericTypedArrayViewProtoGetterFuncByteOffset):
+        (JSC::genericTypedArrayViewProtoFuncReverse):
+        (JSC::genericTypedArrayViewPrivateFuncSort):
+        (JSC::genericTypedArrayViewProtoFuncSlice):
+        (JSC::genericTypedArrayViewPrivateFuncSubarrayCreate):
+        (JSC::JSC_DEFINE_HOST_FUNCTION): Deleted.
+        * runtime/VM.cpp:
+        (JSC::VM::getHostFunction):
+
 2020-10-02  Ross Kirsling  <ross.kirsling@sony.com>
 
         [JSC] Add Array#item to @@unscopables

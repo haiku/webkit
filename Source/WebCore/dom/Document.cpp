@@ -532,11 +532,11 @@ static inline int currentOrientation(Frame* frame)
     return 0;
 }
 
-Document::Document(Frame* frame, const URL& url, DocumentClassFlags documentClasses, unsigned constructionFlags)
+Document::Document(Frame* frame, const Settings& settings, const URL& url, DocumentClassFlags documentClasses, unsigned constructionFlags)
     : ContainerNode(*this, CreateDocument)
     , TreeScope(*this)
     , FrameDestructionObserver(frame)
-    , m_settings(frame ? Ref<Settings>(frame->settings()) : Settings::create(nullptr))
+    , m_settings(settings)
     , m_quirks(makeUniqueRef<Quirks>(*this))
     , m_cachedResourceLoader(m_frame ? Ref<CachedResourceLoader>(m_frame->loader().activeDocumentLoader()->cachedResourceLoader()) : CachedResourceLoader::create(nullptr))
     , m_domTreeVersion(++s_globalTreeVersion)
@@ -560,7 +560,7 @@ Document::Document(Frame* frame, const URL& url, DocumentClassFlags documentClas
     , m_fullscreenManager { makeUniqueRef<FullscreenManager>(*this) }
 #endif
 #if ENABLE(INTERSECTION_OBSERVER)
-    , m_intersectionObserversInitialUpdateTimer(*this, &Document::scheduleTimedRenderingUpdate)
+    , m_intersectionObserversInitialUpdateTimer(*this, &Document::intersectionObserversInitialUpdateTimerFired)
 #endif
     , m_loadEventDelayTimer(*this, &Document::loadEventDelayTimerFired)
 #if PLATFORM(IOS_FAMILY) && ENABLE(DEVICE_ORIENTATION)
@@ -610,14 +610,11 @@ Document::Document(Frame* frame, const URL& url, DocumentClassFlags documentClas
         nodeListAndCollectionCount = 0;
 
     InspectorInstrumentation::addEventListenersToNode(*this);
-#if ENABLE(MEDIA_STREAM)
-    m_settings->setLegacyGetUserMediaEnabled(quirks().shouldEnableLegacyGetUserMedia());
-#endif
 }
 
 Ref<Document> Document::create(Document& contextDocument)
 {
-    auto document = adoptRef(*new Document(nullptr, URL()));
+    auto document = adoptRef(*new Document(nullptr, contextDocument.m_settings, URL()));
     document->setContextDocument(contextDocument);
     document->setSecurityOriginPolicy(contextDocument.securityOriginPolicy());
     return document;
@@ -625,7 +622,7 @@ Ref<Document> Document::create(Document& contextDocument)
 
 Ref<Document> Document::createNonRenderedPlaceholder(Frame& frame, const URL& url)
 {
-    return adoptRef(*new Document(&frame, url, DefaultDocumentClass, NonRenderedPlaceholder));
+    return adoptRef(*new Document(&frame, frame.settings(), url, DefaultDocumentClass, NonRenderedPlaceholder));
 }
 
 Document::~Document()
@@ -4010,10 +4007,10 @@ Ref<Document> Document::cloneDocumentWithoutChildren() const
 {
     if (isXMLDocument()) {
         if (isXHTMLDocument())
-            return XMLDocument::createXHTML(nullptr, url());
-        return XMLDocument::create(nullptr, url());
+            return XMLDocument::createXHTML(nullptr, m_settings, url());
+        return XMLDocument::create(nullptr, m_settings, url());
     }
-    return create(url());
+    return create(m_settings, url());
 }
 
 void Document::cloneDataFromDocument(const Document& other)
@@ -4077,13 +4074,13 @@ void Document::updateViewportUnitsOnResize()
 void Document::setNeedsDOMWindowResizeEvent()
 {
     m_needsDOMWindowResizeEvent = true;
-    scheduleTimedRenderingUpdate();
+    scheduleRenderingUpdate(RenderingUpdateStep::Resize);
 }
 
 void Document::setNeedsVisualViewportResize()
 {
     m_needsVisualViewportResizeEvent = true;
-    scheduleTimedRenderingUpdate();
+    scheduleRenderingUpdate(RenderingUpdateStep::Resize);
 }
 
 // https://drafts.csswg.org/cssom-view/#run-the-resize-steps
@@ -4113,7 +4110,7 @@ void Document::addPendingScrollEventTarget(ContainerNode& target)
         return;
 
     if (targets.isEmpty())
-        scheduleTimedRenderingUpdate();
+        scheduleRenderingUpdate(RenderingUpdateStep::Scroll);
 
     targets.append(target);
 }
@@ -4121,7 +4118,7 @@ void Document::addPendingScrollEventTarget(ContainerNode& target)
 void Document::setNeedsVisualViewportScrollEvent()
 {
     if (!m_needsVisualViewportScrollEvent)
-        scheduleTimedRenderingUpdate();
+        scheduleRenderingUpdate(RenderingUpdateStep::Scroll);
     m_needsVisualViewportScrollEvent = true;
 }
 
@@ -6437,10 +6434,10 @@ void Document::resumeScriptedAnimationControllerCallbacks()
         m_scriptedAnimationController->resume();
 }
 
-void Document::serviceRequestAnimationFrameCallbacks(ReducedResolutionSeconds timestamp)
+void Document::serviceRequestAnimationFrameCallbacks()
 {
-    if (m_scriptedAnimationController)
-        m_scriptedAnimationController->serviceRequestAnimationFrameCallbacks(timestamp);
+    if (m_scriptedAnimationController && domWindow())
+        m_scriptedAnimationController->serviceRequestAnimationFrameCallbacks(domWindow()->frozenNowTimestamp());
 }
 
 void Document::windowScreenDidChange(PlatformDisplayID displayID)
@@ -7142,9 +7139,9 @@ Document& Document::ensureTemplateDocument()
         return const_cast<Document&>(*document);
 
     if (isHTMLDocument())
-        m_templateDocument = HTMLDocument::create(nullptr, aboutBlankURL());
+        m_templateDocument = HTMLDocument::create(nullptr, m_settings, aboutBlankURL());
     else
-        m_templateDocument = create(aboutBlankURL());
+        m_templateDocument = create(m_settings, aboutBlankURL());
 
     m_templateDocument->setContextDocument(contextDocument());
     m_templateDocument->setTemplateDocumentHost(this); // balanced in dtor.
@@ -7533,13 +7530,23 @@ void Document::removeDynamicMediaQueryDependentImage(HTMLImageElement& element)
     m_dynamicMediaQueryDependentImages.remove(element);
 }
 
-void Document::scheduleTimedRenderingUpdate()
+#if ENABLE(INTERSECTION_OBSERVER)
+void Document::intersectionObserversInitialUpdateTimerFired()
+{
+    scheduleRenderingUpdate(RenderingUpdateStep::IntersectionObservations);
+}
+#endif
+
+void Document::scheduleRenderingUpdate(OptionSet<RenderingUpdateStep> requestedSteps)
 {
 #if ENABLE(INTERSECTION_OBSERVER)
-    m_intersectionObserversInitialUpdateTimer.stop();
+    if (m_intersectionObserversInitialUpdateTimer.isActive()) {
+        m_intersectionObserversInitialUpdateTimer.stop();
+        requestedSteps.add(RenderingUpdateStep::IntersectionObservations);
+    }
 #endif
     if (auto page = this->page())
-        page->scheduleTimedRenderingUpdate();
+        page->scheduleRenderingUpdate(requestedSteps);
 }
 
 #if ENABLE(INTERSECTION_OBSERVER)
@@ -7764,7 +7771,7 @@ void Document::updateIntersectionObservations()
 void Document::scheduleInitialIntersectionObservationUpdate()
 {
     if (m_readyState == Complete)
-        scheduleTimedRenderingUpdate();
+        scheduleRenderingUpdate(RenderingUpdateStep::IntersectionObservations);
     else if (!m_intersectionObserversInitialUpdateTimer.isActive())
         m_intersectionObserversInitialUpdateTimer.startOneShot(intersectionObserversInitialUpdateDelay);
 }
@@ -7856,7 +7863,7 @@ void Document::updateResizeObservations(Page& page)
         getParserLocation(url, line, column);
         reportException("ResizeObserver loop completed with undelivered notifications.", line, column, url, nullptr, nullptr);
         // Starting a new schedule the next round of notify.
-        scheduleTimedRenderingUpdate();
+        scheduleRenderingUpdate(RenderingUpdateStep::ResizeObservations);
     }
 }
 
@@ -8138,6 +8145,16 @@ DocumentTimelinesController& Document::ensureTimelinesController()
     if (!m_timelinesController)
         m_timelinesController = makeUnique<DocumentTimelinesController>(*this);
     return *m_timelinesController.get();
+}
+
+void Document::updateAnimationsAndSendEvents()
+{
+    auto domWindow = this->domWindow();
+    if (!domWindow)
+        return;
+
+    if (auto* timelinesController = this->timelinesController())
+        timelinesController->updateAnimationsAndSendEvents(domWindow->frozenNowTimestamp());
 }
 
 DocumentTimeline& Document::timeline()

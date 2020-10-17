@@ -27,20 +27,20 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
-#include "DisplayInlineContent.h"
+#include "LayoutIntegrationInlineContent.h"
 
 namespace WebCore {
 
 namespace LayoutIntegration {
 
-static FloatPoint linePosition(float left, float top)
+inline FloatRect verticallyRoundedRect(const FloatRect& rect)
 {
-    return FloatPoint(left, roundf(top));
+    return { FloatPoint(rect.x(), roundf(rect.y())), rect.size() };
 }
 
 class ModernPath {
 public:
-    ModernPath(const Display::InlineContent& inlineContent, size_t startIndex)
+    ModernPath(const InlineContent& inlineContent, size_t startIndex)
         : m_inlineContent(&inlineContent)
         , m_runIndex(startIndex)
     {
@@ -53,7 +53,7 @@ public:
 
     bool isText() const { return !!run().textContent(); }
 
-    FloatRect rect() const;
+    FloatRect rect() const { return verticallyRoundedRect(run().rect()); }
 
     float baseline() const { return line().baseline(); }
 
@@ -98,6 +98,11 @@ public:
             return true;
         return &run().layoutBox() != &runs()[m_runIndex + 1].layoutBox();
     };
+
+    const RenderObject& renderer() const
+    {
+        return *m_inlineContent->rendererForLayoutBox(run().layoutBox());
+    }
 
     void traverseNextTextRun()
     {
@@ -144,8 +149,8 @@ public:
     }
 
     bool operator==(const ModernPath& other) const { return m_inlineContent == other.m_inlineContent && m_runIndex == other.m_runIndex; }
-    bool atEnd() const { return m_runIndex == runs().size() || !run().hasUnderlyingLayout(); }
 
+    bool atEnd() const { return m_runIndex == runs().size() || !run().hasUnderlyingLayout(); }
     void setAtEnd() { m_runIndex = runs().size(); }
 
     InlineBox* legacyInlineBox() const
@@ -155,20 +160,15 @@ public:
     }
 
 private:
-    const Display::InlineContent::Runs& runs() const { return m_inlineContent->runs; }
-    const Display::Run& run() const { return runs()[m_runIndex]; }
-    const Display::Line& line() const { return m_inlineContent->lineForRun(run()); }
+    friend class RunIterator;
 
-    RefPtr<const Display::InlineContent> m_inlineContent;
+    const InlineContent::Runs& runs() const { return m_inlineContent->runs; }
+    const Run& run() const { return runs()[m_runIndex]; }
+    const Line& line() const { return m_inlineContent->lineForRun(run()); }
+
+    RefPtr<const InlineContent> m_inlineContent;
     size_t m_runIndex { 0 };
 };
-
-inline FloatRect ModernPath::rect() const
-{
-    auto rect = run().rect();
-    auto position = linePosition(rect.x(), rect.y());
-    return { position, rect.size() };
-}
 
 }
 }

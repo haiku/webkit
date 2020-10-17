@@ -62,7 +62,7 @@ void BlockFormattingContext::layoutInFlowContent(InvalidationState& invalidation
     LOG_WITH_STREAM(FormattingContextLayout, stream << "[Start] -> block formatting context -> formatting root(" << &root() << ")");
     auto& formattingRoot = root();
     ASSERT(formattingRoot.hasInFlowOrFloatingChild());
-    auto floatingContext = FloatingContext { formattingRoot, *this, formattingState().floatingState() };
+    auto floatingContext = FloatingContext { *this, formattingState().floatingState() };
 
     LayoutQueue layoutQueue;
     enum class LayoutDirection { Child, Sibling };
@@ -304,15 +304,13 @@ void BlockFormattingContext::computeVerticalPositionForFloatClear(const Floating
     if (floatingContext.isEmpty())
         return;
     auto verticalPositionAndClearance = floatingContext.verticalPositionWithClearance(layoutBox);
-    if (!verticalPositionAndClearance.position) {
-        ASSERT(!verticalPositionAndClearance.clearance);
+    if (!verticalPositionAndClearance)
         return;
-    }
 
     auto& boxGeometry = formattingState().boxGeometry(layoutBox);
-    ASSERT(*verticalPositionAndClearance.position >= boxGeometry.logicalTop());
-    boxGeometry.setLogicalTop(*verticalPositionAndClearance.position);
-    if (verticalPositionAndClearance.clearance)
+    ASSERT(verticalPositionAndClearance->position >= boxGeometry.logicalTop());
+    boxGeometry.setLogicalTop(verticalPositionAndClearance->position);
+    if (verticalPositionAndClearance->clearance)
         formattingState().setHasClearance(layoutBox);
     // FIXME: Reset the margin values on the ancestors/previous siblings now that the float avoider with clearance does not margin collapse anymore.
 }

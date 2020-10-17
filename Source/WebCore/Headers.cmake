@@ -258,6 +258,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     bindings/js/ScriptWrappableInlines.h
     bindings/js/SerializedScriptValue.h
     bindings/js/StringAdaptors.h
+    bindings/js/WebCoreJITOperations.h
     bindings/js/WebCoreTypedArrayController.h
     bindings/js/WindowProxy.h
 
@@ -525,6 +526,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     editing/FontShadow.h
     editing/FrameSelection.h
     editing/HTMLInterchange.h
+    editing/InlineRunAndOffset.h
     editing/SelectionRectGatherer.h
     editing/SerializedAttachmentData.h
     editing/SmartReplace.h
@@ -703,17 +705,17 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     layout/LayoutUnits.h
     layout/MarginTypes.h
 
-    layout/displaytree/DisplayInlineContent.h
-    layout/displaytree/DisplayLine.h
-    layout/displaytree/DisplayRect.h
-    layout/displaytree/DisplayRun.h
-
     layout/inlineformatting/InlineRect.h
 
+    layout/integration/LayoutIntegrationInlineContent.h
+    layout/integration/LayoutIntegrationLine.h
+    layout/integration/LayoutIntegrationLineIterator.h
+    layout/integration/LayoutIntegrationLineIteratorLegacyPath.h
+    layout/integration/LayoutIntegrationLineIteratorModernPath.h
+    layout/integration/LayoutIntegrationRun.h
     layout/integration/LayoutIntegrationRunIterator.h
     layout/integration/LayoutIntegrationRunIteratorLegacyPath.h
     layout/integration/LayoutIntegrationRunIteratorModernPath.h
-
     layout/layouttree/LayoutBox.h
 
     loader/AdClickAttribution.h
@@ -854,6 +856,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     page/PerformanceLoggingClient.h
     page/PlugInClient.h
     page/PointerCaptureController.h
+    page/PointerCharacteristics.h
     page/PointerLockController.h
     page/PostMessageOptions.h
     page/PrewarmInformation.h
@@ -1187,6 +1190,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/MediaPlaybackTargetPicker.h
     platform/graphics/MediaPlayer.h
     platform/graphics/MediaPlayerEnums.h
+    platform/graphics/MediaPlayerIdentifier.h
     platform/graphics/MediaPlayerPrivate.h
     platform/graphics/MediaUsageInfo.h
     platform/graphics/NativeImage.h
@@ -1253,9 +1257,12 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/opentype/OpenTypeVerticalData.h
 
     platform/graphics/transforms/AffineTransform.h
+    platform/graphics/transforms/RotateTransformOperation.h
+    platform/graphics/transforms/ScaleTransformOperation.h
     platform/graphics/transforms/TransformOperation.h
     platform/graphics/transforms/TransformOperations.h
     platform/graphics/transforms/TransformationMatrix.h
+    platform/graphics/transforms/TranslateTransformOperation.h
 
     platform/mediarecorder/MediaRecorderPrivate.h
 
@@ -1519,6 +1526,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     workers/WorkerAnimationController.h
     workers/WorkerDebuggerProxy.h
     workers/WorkerLoaderProxy.h
+    workers/WorkerOrWorkletThread.h
     workers/WorkerRunLoop.h
     workers/WorkerScriptLoader.h
     workers/WorkerScriptLoaderClient.h

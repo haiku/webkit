@@ -29,12 +29,13 @@
 #pragma once
 
 #if ENABLE(WEB_AUDIO)
+#include "AudioWorkletThread.h"
 #include "WorkletGlobalScope.h"
 
 namespace WebCore {
 
-class AudioWorkletProcessorConstructor;
 class AudioWorkletThread;
+class JSAudioWorkletProcessorConstructor;
 
 struct WorkletParameters;
 
@@ -47,19 +48,30 @@ public:
     }
     ~AudioWorkletGlobalScope();
 
-    void registerProcessor(String&& name, Ref<AudioWorkletProcessorConstructor>&&);
-    size_t currentFrame() { return 0; }
-    double currentTime() const { return 0; }
-    float sampleRate() const { return 44100; }
+    ExceptionOr<void> registerProcessor(String&& name, Ref<JSAudioWorkletProcessorConstructor>&&);
 
-    Thread* underlyingThread() const final;
+    void setCurrentFrame(float currentFrame) { m_currentFrame = currentFrame; }
+    size_t currentFrame() const { return m_currentFrame; }
+
+    float sampleRate() const { return m_sampleRate; }
+
+    double currentTime() const { return m_sampleRate > 0.0 ? m_currentFrame / static_cast<double>(m_sampleRate) : 0.0; }
+
+    AudioWorkletThread& thread() { return m_thread.get(); }
+    void prepareForTermination();
+
+    void postTask(Task&&) final;
 
 private:
     AudioWorkletGlobalScope(AudioWorkletThread&, const WorkletParameters&);
 
     bool isAudioWorkletGlobalScope() const final { return true; }
+    AudioWorkletThread* workerOrWorkletThread() final { return m_thread.ptr(); }
 
     Ref<AudioWorkletThread> m_thread;
+    size_t m_currentFrame { 0 };
+    const float m_sampleRate;
+    HashMap<String, RefPtr<JSAudioWorkletProcessorConstructor>> m_processorConstructorMap;
 };
 
 } // namespace WebCore

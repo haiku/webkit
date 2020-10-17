@@ -126,11 +126,11 @@
 
 #if PLATFORM(COCOA)
 #include "DefaultWebBrowserChecks.h"
-#include "VersionChecks.h"
 #include <WebCore/GameControllerGamepadProvider.h>
 #include <WebCore/HIDGamepadProvider.h>
 #include <WebCore/MultiGamepadProvider.h>
 #include <WebCore/PowerSourceNotifier.h>
+#include <WebCore/VersionChecks.h>
 #endif
 
 #if PLATFORM(MAC)
@@ -243,7 +243,6 @@ WebProcessPool::WebProcessPool(API::ProcessPoolConfiguration& configuration)
     , m_defaultPageGroup(WebPageGroup::create())
     , m_injectedBundleClient(makeUnique<API::InjectedBundleClient>())
     , m_automationClient(makeUnique<API::AutomationClient>())
-    , m_downloadClient(makeUniqueRef<API::DownloadClient>())
     , m_historyClient(makeUnique<API::LegacyContextHistoryClient>())
     , m_visitedLinkStore(VisitedLinkStore::create())
 #if PLATFORM(MAC)
@@ -384,9 +383,9 @@ void WebProcessPool::setHistoryClient(std::unique_ptr<API::LegacyContextHistoryC
         m_historyClient = WTFMove(historyClient);
 }
 
-void WebProcessPool::setDownloadClient(UniqueRef<API::DownloadClient>&& downloadClient)
+void WebProcessPool::setLegacyDownloadClient(RefPtr<API::DownloadClient>&& client)
 {
-    m_downloadClient = WTFMove(downloadClient);
+    m_legacyDownloadClient = WTFMove(client);
 }
 
 void WebProcessPool::setAutomationClient(std::unique_ptr<API::AutomationClient>&& automationClient)
@@ -1029,7 +1028,7 @@ Ref<WebPageProxy> WebProcessPool::createWebPage(PageClient& pageClient, Ref<API:
 
     bool enableProcessSwapOnCrossSiteNavigation = page->preferences().processSwapOnCrossSiteNavigationEnabled();
 #if PLATFORM(IOS_FAMILY)
-    if (WebCore::IOSApplication::isFirefox() && !linkedOnOrAfter(WebKit::SDKVersion::FirstWithProcessSwapOnCrossSiteNavigation))
+    if (WebCore::IOSApplication::isFirefox() && !linkedOnOrAfter(WebCore::SDKVersion::FirstWithProcessSwapOnCrossSiteNavigation))
         enableProcessSwapOnCrossSiteNavigation = false;
 #endif
 

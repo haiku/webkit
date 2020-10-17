@@ -83,6 +83,7 @@
 #include <WebCore/UserContentURLPattern.h>
 #include <wtf/Algorithms.h>
 #include <wtf/CallbackAggregator.h>
+#include <wtf/CryptographicallyRandomNumber.h>
 #include <wtf/OptionSet.h>
 #include <wtf/ProcessPrivilege.h>
 #include <wtf/RunLoop.h>
@@ -104,7 +105,6 @@
 
 #if USE(SOUP)
 #include "NetworkSessionSoup.h"
-#include <WebCore/DNSResolveQueueSoup.h>
 #include <WebCore/SoupNetworkSession.h>
 #endif
 
@@ -170,13 +170,6 @@ NetworkProcess::NetworkProcess(AuxiliaryProcessInitializationParameters&& parame
 #endif
 #if PLATFORM(COCOA) && ENABLE(LEGACY_CUSTOM_PROTOCOL_MANAGER)
     LegacyCustomProtocolManager::networkProcessCreated(*this);
-#endif
-
-#if USE(SOUP)
-    // FIXME: Do not use the default session ID.
-    DNSResolveQueueSoup::setGlobalDefaultSoupSessionAccessor([this]() -> SoupSession* {
-        return static_cast<NetworkSessionSoup&>(*networkSession(PAL::SessionID::defaultSessionID())).soupSession();
-    });
 #endif
 
     NetworkStateNotifier::singleton().addListener([weakThis = makeWeakPtr(*this)](bool isOnLine) {
@@ -2097,30 +2090,38 @@ void NetworkProcess::continueWillSendRequest(DownloadID downloadID, WebCore::Res
 
 void NetworkProcess::pendingDownloadCanceled(DownloadID downloadID)
 {
-    downloadProxyConnection()->send(Messages::DownloadProxy::DidCancel({ }), downloadID.downloadID());
+    downloadProxyConnection()->send(Messages::DownloadProxy::DidCancel({ }), downloadID.toUInt64());
 }
 
 void NetworkProcess::findPendingDownloadLocation(NetworkDataTask& networkDataTask, ResponseCompletionHandler&& completionHandler, const ResourceResponse& response)
 {
-    uint64_t destinationID = networkDataTask.pendingDownloadID().downloadID();
+    uint64_t destinationID = networkDataTask.pendingDownloadID().toUInt64();
     downloadProxyConnection()->send(Messages::DownloadProxy::DidReceiveResponse(response), destinationID);
-
-    downloadManager().willDecidePendingDownloadDestination(networkDataTask, WTFMove(completionHandler));
 
     // As per https://html.spec.whatwg.org/#as-a-download (step 2), the filename from the Content-Disposition header
     // should override the suggested filename from the download attribute.
     String suggestedFilename = response.isAttachmentWithFilename() ? response.suggestedFilename() : networkDataTask.suggestedFilename();
     suggestedFilename = MIMETypeRegistry::appendFileExtensionIfNecessary(suggestedFilename, response.mimeType());
 
-    downloadProxyConnection()->send(Messages::DownloadProxy::DecideDestinationWithSuggestedFilenameAsync(networkDataTask.pendingDownloadID(), suggestedFilename), destinationID);
-}
+    downloadProxyConnection()->sendWithAsyncReply(Messages::DownloadProxy::DecideDestinationWithSuggestedFilename(suggestedFilename), [this, protectedThis = makeRef(*this), completionHandler = WTFMove(completionHandler), networkDataTask = makeRef(networkDataTask)] (String&& destination, SandboxExtension::Handle&& sandboxExtensionHandle, AllowOverwrite allowOverwrite) mutable {
+        auto downloadID = networkDataTask->pendingDownloadID();
+        if (destination.isEmpty()) {
+            downloadManager().cancelDownload(downloadID);
+            completionHandler(PolicyAction::Ignore);
+            return;
+        }
+        networkDataTask->setPendingDownloadLocation(destination, WTFMove(sandboxExtensionHandle), allowOverwrite == AllowOverwrite::Yes);
+        completionHandler(PolicyAction::Download);
+        if (networkDataTask->state() == NetworkDataTask::State::Canceling || networkDataTask->state() == NetworkDataTask::State::Completed)
+            return;
 
-void NetworkProcess::continueDecidePendingDownloadDestination(DownloadID downloadID, String destination, SandboxExtension::Handle&& sandboxExtensionHandle, bool allowOverwrite)
-{
-    if (destination.isEmpty())
-        downloadManager().cancelDownload(downloadID);
-    else
-        downloadManager().continueDecidePendingDownloadDestination(downloadID, destination, WTFMove(sandboxExtensionHandle), allowOverwrite);
+        if (downloadManager().download(downloadID)) {
+            // The completion handler already called dataTaskBecameDownloadTask().
+            return;
+        }
+
+        downloadManager().downloadDestinationDecided(downloadID, WTFMove(networkDataTask));
+    }, destinationID);
 }
 
 void NetworkProcess::setCacheModelSynchronouslyForTesting(CacheModel cacheModel, CompletionHandler<void()>&& completionHandler)

@@ -61,6 +61,7 @@ void Line::initialize(InlineLayoutUnit horizontalConstraint)
     m_contentLogicalWidth = { };
     m_isVisuallyEmpty = true;
     m_runs.clear();
+    m_trailingSoftHyphenWidth = { };
     m_trimmableTrailingContent.reset();
     m_lineIsVisuallyEmptyBeforeTrimmableTrailingContent = { };
 }
@@ -211,34 +212,24 @@ void Line::moveLogicalRight(InlineLayoutUnit delta)
 
 void Line::append(const InlineItem& inlineItem, InlineLayoutUnit logicalWidth)
 {
-    appendWith(inlineItem, { logicalWidth, false });
-}
-
-void Line::appendPartialTrailingTextItem(const InlineTextItem& inlineTextItem, InlineLayoutUnit logicalWidth, bool needsHyphen)
-{
-    appendWith(inlineTextItem, { logicalWidth, needsHyphen });
-}
-
-void Line::appendWith(const InlineItem& inlineItem, const InlineRunDetails& inlineRunDetails)
-{
     if (inlineItem.isText())
-        appendTextContent(downcast<InlineTextItem>(inlineItem), inlineRunDetails.logicalWidth, inlineRunDetails.needsHyphen);
+        appendTextContent(downcast<InlineTextItem>(inlineItem), logicalWidth);
     else if (inlineItem.isLineBreak())
         appendLineBreak(inlineItem);
     else if (inlineItem.isWordBreakOpportunity())
         appendWordBreakOpportunity(inlineItem);
     else if (inlineItem.isContainerStart())
-        appendInlineContainerStart(inlineItem, inlineRunDetails.logicalWidth);
+        appendInlineContainerStart(inlineItem, logicalWidth);
     else if (inlineItem.isContainerEnd())
-        appendInlineContainerEnd(inlineItem, inlineRunDetails.logicalWidth);
+        appendInlineContainerEnd(inlineItem, logicalWidth);
     else if (inlineItem.layoutBox().isReplacedBox())
-        appendReplacedInlineBox(inlineItem, inlineRunDetails.logicalWidth);
+        appendReplacedInlineBox(inlineItem, logicalWidth);
     else if (inlineItem.isBox())
-        appendNonReplacedInlineBox(inlineItem, inlineRunDetails.logicalWidth);
+        appendNonReplacedInlineBox(inlineItem, logicalWidth);
     else
         ASSERT_NOT_REACHED();
 
-    // Check if this freshly appended content makes the line visually non-empty.
+    // Check if this newly appended content makes the line visually non-empty.
     if (m_isVisuallyEmpty && !m_runs.isEmpty() && isRunVisuallyNonEmpty(m_runs.last()))
         m_isVisuallyEmpty = false;
 }
@@ -269,8 +260,9 @@ void Line::appendInlineContainerEnd(const InlineItem& inlineItem, InlineLayoutUn
     appendNonBreakableSpace(inlineItem, contentLogicalRight(), logicalWidth);
 }
 
-void Line::appendTextContent(const InlineTextItem& inlineTextItem, InlineLayoutUnit logicalWidth, bool needsHyphen)
+void Line::appendTextContent(const InlineTextItem& inlineTextItem, InlineLayoutUnit logicalWidth)
 {
+    auto& style = inlineTextItem.style();
     auto willCollapseCompletely = [&] {
         if (!inlineTextItem.isCollapsible())
             return false;
@@ -290,7 +282,7 @@ void Line::appendTextContent(const InlineTextItem& inlineTextItem, InlineLayoutU
             ASSERT(run.isContainerStart() || run.isContainerEnd() || run.isWordBreakOpportunity());
         }
         // Leading whitespace.
-        return !isWhitespacePreserved(inlineTextItem.style());
+        return !isWhitespacePreserved(style);
     };
 
     if (willCollapseCompletely())
@@ -300,19 +292,14 @@ void Line::appendTextContent(const InlineTextItem& inlineTextItem, InlineLayoutU
     if (!m_runs.isEmpty()) {
         auto& lastRun = m_runs.last();
         inlineTextItemNeedsNewRun = lastRun.hasCollapsedTrailingWhitespace() || !lastRun.isText() || &lastRun.layoutBox() != &inlineTextItem.layoutBox();
-        if (!inlineTextItemNeedsNewRun) {
+        if (!inlineTextItemNeedsNewRun)
             lastRun.expand(inlineTextItem, logicalWidth);
-            if (needsHyphen) {
-                ASSERT(!lastRun.textContent()->needsHyphen());
-                lastRun.setNeedsHyphen();
-            }
-        }
     }
     if (inlineTextItemNeedsNewRun)
-        m_runs.append({ inlineTextItem, contentLogicalWidth(), logicalWidth, needsHyphen });
+        m_runs.append({ inlineTextItem, contentLogicalWidth(), logicalWidth });
     m_contentLogicalWidth += logicalWidth;
     // Set the trailing trimmable content.
-    if (inlineTextItem.isWhitespace() && !TextUtil::shouldPreserveTrailingWhitespace(inlineTextItem.style())) {
+    if (inlineTextItem.isWhitespace() && !TextUtil::shouldPreserveTrailingWhitespace(style)) {
         m_trimmableTrailingContent.addFullyTrimmableContent(m_runs.size() - 1, logicalWidth);
         // If we ever trim this content, we need to know if the line visibility state needs to be recomputed.
         if (m_trimmableTrailingContent.isEmpty())
@@ -321,8 +308,9 @@ void Line::appendTextContent(const InlineTextItem& inlineTextItem, InlineLayoutU
     }
     // Any non-whitespace, no-trimmable content resets the existing trimmable.
     m_trimmableTrailingContent.reset();
-    if (!formattingContext().layoutState().shouldIgnoreTrailingLetterSpacing() && !inlineTextItem.isWhitespace() && inlineTextItem.style().letterSpacing() > 0)
-        m_trimmableTrailingContent.addPartiallyTrimmableContent(m_runs.size() - 1, inlineTextItem.style().letterSpacing());
+    if (!formattingContext().layoutState().shouldIgnoreTrailingLetterSpacing() && !inlineTextItem.isWhitespace() && style.letterSpacing() > 0)
+        m_trimmableTrailingContent.addPartiallyTrimmableContent(m_runs.size() - 1, style.letterSpacing());
+    m_trailingSoftHyphenWidth = inlineTextItem.hasTrailingSoftHyphen() ? makeOptional(style.fontCascade().width(TextRun { StringView { style.hyphenString() } })) : WTF::nullopt;
 }
 
 void Line::appendNonReplacedInlineBox(const InlineItem& inlineItem, InlineLayoutUnit logicalWidth)
@@ -333,6 +321,7 @@ void Line::appendNonReplacedInlineBox(const InlineItem& inlineItem, InlineLayout
     m_runs.append({ inlineItem, contentLogicalWidth() + horizontalMargin.start, logicalWidth });
     m_contentLogicalWidth += logicalWidth + horizontalMargin.start + horizontalMargin.end;
     m_trimmableTrailingContent.reset();
+    m_trailingSoftHyphenWidth = { };
 }
 
 void Line::appendReplacedInlineBox(const InlineItem& inlineItem, InlineLayoutUnit logicalWidth)
@@ -344,6 +333,7 @@ void Line::appendReplacedInlineBox(const InlineItem& inlineItem, InlineLayoutUni
 
 void Line::appendLineBreak(const InlineItem& inlineItem)
 {
+    m_trailingSoftHyphenWidth = { };
     if (inlineItem.isHardLineBreak())
         return m_runs.append({ inlineItem, contentLogicalWidth(), 0_lu });
     // Soft line breaks (preserved new line characters) require inline text boxes for compatibility reasons.
@@ -387,6 +377,15 @@ bool Line::isRunVisuallyNonEmpty(const Run& run) const
 
     ASSERT_NOT_REACHED();
     return false;
+}
+
+void Line::addTrailingHyphen(InlineLayoutUnit hyphenLogicalWidth)
+{
+    ASSERT(!m_runs.isEmpty());
+    auto& lastRun = m_runs.last();
+    ASSERT(lastRun.isText());
+    lastRun.setNeedsHyphen(hyphenLogicalWidth);
+    m_contentLogicalWidth += hyphenLogicalWidth;
 }
 
 const InlineFormattingContext& Line::formattingContext() const
@@ -465,17 +464,17 @@ Line::Run::Run(const InlineSoftLineBreakItem& softLineBreakItem, InlineLayoutUni
     : m_type(softLineBreakItem.type())
     , m_layoutBox(&softLineBreakItem.layoutBox())
     , m_logicalLeft(logicalLeft)
-    , m_textContent({ softLineBreakItem.position(), 1, softLineBreakItem.inlineTextBox().content(), false })
+    , m_textContent({ softLineBreakItem.position(), 1, softLineBreakItem.inlineTextBox().content() })
 {
 }
 
-Line::Run::Run(const InlineTextItem& inlineTextItem, InlineLayoutUnit logicalLeft, InlineLayoutUnit logicalWidth, bool needsHyphen)
+Line::Run::Run(const InlineTextItem& inlineTextItem, InlineLayoutUnit logicalLeft, InlineLayoutUnit logicalWidth)
     : m_type(InlineItem::Type::Text)
     , m_layoutBox(&inlineTextItem.layoutBox())
     , m_logicalLeft(logicalLeft)
     , m_logicalWidth(logicalWidth)
     , m_trailingWhitespaceType(trailingWhitespaceType(inlineTextItem))
-    , m_textContent({ inlineTextItem.start(), m_trailingWhitespaceType == TrailingWhitespace::Collapsed ? 1 : inlineTextItem.length(), inlineTextItem.inlineTextBox().content(), needsHyphen })
+    , m_textContent({ inlineTextItem.start(), m_trailingWhitespaceType == TrailingWhitespace::Collapsed ? 1 : inlineTextItem.length(), inlineTextItem.inlineTextBox().content() })
 {
     if (m_trailingWhitespaceType != TrailingWhitespace::None) {
         m_trailingWhitespaceWidth = logicalWidth;

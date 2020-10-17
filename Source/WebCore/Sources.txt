@@ -37,6 +37,8 @@ Modules/cache/DOMCacheStorage.cpp
 Modules/cache/DOMWindowCaches.cpp
 Modules/cache/WorkerCacheStorageConnection.cpp
 Modules/cache/WorkerGlobalScopeCaches.cpp
+Modules/contact-picker/ContactsManager.cpp
+Modules/contact-picker/NavigatorContacts.cpp
 Modules/credentialmanagement/BasicCredential.cpp
 Modules/credentialmanagement/CredentialsContainer.cpp
 Modules/credentialmanagement/NavigatorCredentials.cpp
@@ -594,6 +596,7 @@ bindings/js/ScriptState.cpp
 bindings/js/ScriptWrappable.cpp
 bindings/js/SerializedScriptValue.cpp
 bindings/js/StructuredClone.cpp
+bindings/js/WebCoreJITOperations.cpp
 bindings/js/WebCoreJSClientData.cpp
 bindings/js/WebCoreTypedArrayController.cpp
 bindings/js/WindowProxy.cpp
@@ -1450,7 +1453,6 @@ layout/blockformatting/BlockMarginCollapse.cpp
 layout/blockformatting/PrecomputedBlockMarginCollapse.cpp
 layout/blockformatting/tablewrapper/TableWrapperBlockFormattingContext.cpp
 layout/blockformatting/tablewrapper/TableWrapperBlockFormattingContextQuirks.cpp
-layout/displaytree/DisplayInlineContent.cpp
 layout/displaytree/DisplayPainter.cpp
 layout/flexformatting/FlexFormattingContext.cpp
 layout/flexformatting/FlexFormattingContextGeometry.cpp
@@ -1471,6 +1473,8 @@ layout/inlineformatting/InlineTextItem.cpp
 layout/inlineformatting/text/TextUtil.cpp
 layout/integration/LayoutIntegrationBoxTree.cpp
 layout/integration/LayoutIntegrationCoverage.cpp
+layout/integration/LayoutIntegrationInlineContent.cpp
+layout/integration/LayoutIntegrationLineIterator.cpp
 layout/integration/LayoutIntegrationLineLayout.cpp
 layout/integration/LayoutIntegrationPagination.cpp
 layout/integration/LayoutIntegrationRunIterator.cpp
@@ -2677,6 +2681,7 @@ JSAudioListener.cpp
 JSAudioNode.cpp
 JSAudioNodeOptions.cpp
 JSAudioParam.cpp
+JSAudioParamDescriptor.cpp
 JSAudioParamMap.cpp
 JSAudioProcessingEvent.cpp
 JSAudioProcessingEventInit.cpp
@@ -2696,6 +2701,7 @@ JSAuthenticatorAssertionResponse.cpp
 JSAuthenticatorAttestationResponse.cpp
 JSAuthenticatorResponse.cpp
 JSAuthenticatorTransport.cpp
+JSAutomationRate.cpp
 JSBarProp.cpp
 JSBaseAudioContext.cpp
 JSBasicCredential.cpp
@@ -2778,6 +2784,10 @@ JSCompositionEvent.cpp
 JSComputedEffectTiming.cpp
 JSConstantSourceNode.cpp
 JSConstantSourceOptions.cpp
+JSContactInfo.cpp
+JSContactProperty.cpp
+JSContactsManager.cpp
+JSContactsSelectOptions.cpp
 JSConvolverNode.cpp
 JSConvolverOptions.cpp
 JSCountQueuingStrategy.cpp
@@ -2950,8 +2960,6 @@ JSGeolocationCoordinates.cpp
 JSGeolocationPosition.cpp
 JSGeolocationPositionError.cpp
 JSGetAnimationsOptions.cpp
-JSGlobalCrypto.cpp
-JSGlobalPerformance.cpp
 JSHTMLAllCollection.cpp
 JSHTMLAnchorElement.cpp
 JSHTMLAppletElement.cpp

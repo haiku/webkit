@@ -1,3 +1,174 @@
+2020-10-06  Devin Rousso  <drousso@apple.com>
+
+        Move platform logic for CSS `hover` and `pointer` media queries outside of WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=217413
+
+        Reviewed by Tim Horton.
+
+        * WebCoreSupport/WebChromeClient.h:
+        (WebChromeClient::hoverSupportedByPrimaryPointingDevice const): Added.
+        (WebChromeClient::pointerCharacteristicsOfPrimaryPointingDevice const): Added.
+        Mouse devices are always supported.
+
+2020-10-06  Devin Rousso  <drousso@apple.com>
+
+        CSS hover and "pointer: fine" media queries do not evaluate to true with iOS 13.4 mouse support
+        https://bugs.webkit.org/show_bug.cgi?id=209292
+        <rdar://problem/60663124>
+
+        Reviewed by Tim Horton.
+
+        * WebCoreSupport/WebChromeClient.h:
+        (WebChromeClient::hoverSupportedByAnyAvailablePointingDevice const): Added.
+        (WebChromeClient::pointerCharacteristicsOfAllAvailablePointingDevices const): Added.
+        Mouse devices are always supported.
+
+2020-10-06  Simon Fraser  <simon.fraser@apple.com>
+
+        Redundant rendering updates can be scheduled from inside Page::updateRendering()
+        https://bugs.webkit.org/show_bug.cgi?id=216726
+
+        Reviewed by Tim Horton.
+
+        Provide the flags.
+
+        * WebView/WebView.mm:
+        (-[WebView _scheduleRenderingUpdateForPendingTileCacheRepaint]):
+
+2020-10-05  Simon Fraser  <simon.fraser@apple.com>
+
+        Use the "triggerRenderingUpdate" terminology in ChromeClient
+        https://bugs.webkit.org/show_bug.cgi?id=217355
+
+        Reviewed by Tim Horton.
+
+        ChromeClient confusingly had both scheduleRenderingUpdate() and scheduleTimedRenderingUpdate().
+        The former is for triggering an update soon, and the latter is a normal schedule, used by
+        SVGImages because they have their own Page.
+
+        Rename the one that the WebKits have to implement to triggerRenderingUpdate().
+
+        * WebCoreSupport/WebChromeClient.h:
+        * WebCoreSupport/WebChromeClient.mm:
+        (WebChromeClient::triggerRenderingUpdate):
+        (WebChromeClient::scheduleRenderingUpdate): Deleted.
+
+2020-10-05  Simon Fraser  <simon.fraser@apple.com>
+
+        ChromeClient::needsImmediateRenderingUpdate() only existing to work around a WebKit1 bug
+        https://bugs.webkit.org/show_bug.cgi?id=217338
+
+        Reviewed by Said Abou-Hallawa.
+
+        WebViewLayerFlushScheduler has a bug where scheduling inside the callback would fail
+        because the RunLoopObserver was always invalidated at the end of the callback.
+
+        If we fix this, we can remove ChromeClient::needsImmediateRenderingUpdate() which I believe
+        only existed to work around this bug.
+
+        * WebCoreSupport/WebChromeClient.h:
+        * WebView/WebViewData.h:
+        * WebView/WebViewData.mm:
+        (WebViewLayerFlushScheduler::schedule):
+        (WebViewLayerFlushScheduler::layerFlushCallback):
+
+2020-10-05  Aditya Keerthi  <akeerthi@apple.com>
+
+        [Contact Picker API] Introduce bindings for the Contact Picker API
+        https://bugs.webkit.org/show_bug.cgi?id=216793
+        <rdar://problem/69317957>
+
+        Reviewed by Wenson Hsieh.
+
+        Added plumbing to support the associated experimental test option.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences contactPickerAPIEnabled]):
+        (-[WebPreferences setContactPickerAPIEnabled:]):
+        * WebView/WebPreferencesPrivate.h:
+
+2020-10-05  Sam Weinig  <weinig@apple.com>
+
+        Remove support for enabling subpixel CSSOM values, it's off by default everywhere and known to be not-compatible with the web
+        https://bugs.webkit.org/show_bug.cgi?id=217300
+
+        Reviewed by Simon Fraser.
+
+        Deprecate SPI for enabling subpixel CSSOM values. It is not web compatible.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences setSubpixelCSSOMElementMetricsEnabled:]):
+        (-[WebPreferences subpixelCSSOMElementMetricsEnabled]):
+        * WebView/WebPreferencesPrivate.h:
+
+2020-10-05  Alex Christensen  <achristensen@webkit.org>
+
+        Unify linkedOnOrAfter duplicate code and use SPI/WebCoreTestSupport instead of NSUserDefaults
+        https://bugs.webkit.org/show_bug.cgi?id=217239
+
+        Reviewed by Darin Adler.
+
+        * DefaultDelegates/WebDefaultUIDelegate.mm:
+        (-[WebDefaultUIDelegate webView:dragDestinationActionMaskForDraggingInfo:]):
+        * Misc/WebIconDatabase.mm:
+        (+[WebIconDatabase sharedIconDatabase]):
+        * Misc/WebKitVersionChecks.h:
+        * Misc/WebKitVersionChecks.mm:
+        (WebKitLinkTimeVersion):
+        (linkedOnOrAfter): Deleted.
+        * WebView/WebPreferencesDefaultValues.mm:
+        (WebKit::defaultPassiveTouchListenersAsDefaultOnDocument):
+        (WebKit::defaultShouldRestrictBaseURLSchemes):
+
+2020-10-03  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Introduce JITOperationList to validate JIT-caged pointers
+        https://bugs.webkit.org/show_bug.cgi?id=217261
+
+        Reviewed by Saam Barati.
+
+        * History/WebBackForwardList.mm:
+        (+[WebBackForwardList initialize]):
+        * History/WebHistoryItem.mm:
+        (+[WebHistoryItem initialize]):
+        * Misc/WebCache.mm:
+        (+[WebCache initialize]):
+        * Misc/WebElementDictionary.mm:
+        (+[WebElementDictionary initialize]):
+        * Misc/WebIconDatabase.mm:
+        * Misc/WebStringTruncator.mm:
+        (+[WebStringTruncator initialize]):
+        * Plugins/Hosted/WebHostedNetscapePluginView.mm:
+        (+[WebHostedNetscapePluginView initialize]):
+        * Plugins/WebBaseNetscapePluginView.mm:
+        * Plugins/WebBasePluginPackage.mm:
+        (+[WebBasePluginPackage initialize]):
+        * Plugins/WebNetscapePluginView.mm:
+        (+[WebNetscapePluginView initialize]):
+        * WebCoreSupport/WebEditorClient.mm:
+        (+[WebUndoStep initialize]):
+        * WebCoreSupport/WebFrameLoaderClient.mm:
+        (+[WebFramePolicyListener initialize]):
+        * WebView/WebArchive.mm:
+        (+[WebArchivePrivate initialize]):
+        * WebView/WebDataSource.mm:
+        (+[WebDataSource initialize]):
+        * WebView/WebHTMLView.mm:
+        (+[WebHTMLViewPrivate initialize]):
+        (+[WebHTMLView initialize]):
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        * WebView/WebResource.mm:
+        (+[WebResourcePrivate initialize]):
+        * WebView/WebTextIterator.mm:
+        (+[WebTextIteratorPrivate initialize]):
+        * WebView/WebView.mm:
+        (+[WebView initialize]):
+        * WebView/WebViewData.mm:
+        (+[WebViewPrivate initialize]):
+
 2020-10-01  Chris Dumez  <cdumez@apple.com>
 
         Add basic infrastructure for AudioWorklet

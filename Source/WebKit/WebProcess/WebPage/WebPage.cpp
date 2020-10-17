@@ -582,8 +582,7 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     updatePreferences(parameters.store);
 
 #if PLATFORM(IOS_FAMILY) || ENABLE(ROUTING_ARBITRATION)
-    if (!m_page->settings().useGPUProcessForMediaEnabled())
-        DeprecatedGlobalSettings::setShouldManageAudioSessionCategory(true);
+    DeprecatedGlobalSettings::setShouldManageAudioSessionCategory(true);
 #endif
 
     m_backgroundColor = parameters.backgroundColor;
@@ -3464,23 +3463,33 @@ KeyboardUIMode WebPage::keyboardUIMode()
     return static_cast<KeyboardUIMode>((fullKeyboardAccessEnabled ? KeyboardAccessFull : KeyboardAccessDefault) | (m_tabToLinks ? KeyboardAccessTabsToLinks : 0));
 }
 
-void WebPage::runJavaScript(WebFrame* frame, RunJavaScriptParameters&& parameters, ContentWorldIdentifier worldIdentifier, CallbackID callbackID)
+void WebPage::runJavaScript(WebFrame* frame, RunJavaScriptParameters&& parameters, ContentWorldIdentifier worldIdentifier, CompletionHandler<void(const IPC::DataReference&, const Optional<WebCore::ExceptionDetails>&)>&& completionHandler)
 {
     // NOTE: We need to be careful when running scripts that the objects we depend on don't
     // disappear during script execution.
 
     if (!frame || !frame->coreFrame()) {
-        send(Messages::WebPageProxy::ScriptValueCallback({ }, ExceptionDetails { "Unable to execute JavaScript: Target frame could not be found in the page"_s, 0, 0, ExceptionDetails::Type::InvalidTargetFrame }, callbackID));
+        completionHandler({ }, ExceptionDetails { "Unable to execute JavaScript: Target frame could not be found in the page"_s, 0, 0, ExceptionDetails::Type::InvalidTargetFrame });
         return;
     }
 
     auto* world = m_userContentController->worldForIdentifier(worldIdentifier);
     if (!world) {
-        send(Messages::WebPageProxy::ScriptValueCallback({ }, ExceptionDetails { "Unable to execute JavaScript: Cannot find specified content world"_s }, callbackID));
+        completionHandler({ }, ExceptionDetails { "Unable to execute JavaScript: Cannot find specified content world"_s });
         return;
     }
 
-    auto resolveFunction = [protectedThis = makeRef(*this), this, world = makeRef(*world), frame = makeRef(*frame), callbackID](ValueOrException result) {
+#if ENABLE(APP_BOUND_DOMAINS)
+    if (frame->shouldEnableInAppBrowserPrivacyProtections()) {
+        completionHandler({ }, ExceptionDetails { "Unable to execute JavaScript in a frame that is not in an app-bound domain"_s, 0, 0, ExceptionDetails::Type::AppBoundDomain });
+        if (auto* document = m_page->mainFrame().document())
+            document->addConsoleMessage(MessageSource::Security, MessageLevel::Warning, "Ignoring user script injection for non-app bound domain.");
+        RELEASE_LOG_ERROR_IF_ALLOWED(Loading, "runJavaScript: Ignoring user script injection for non app-bound domain");
+        return;
+    }
+#endif
+
+    auto resolveFunction = [world = makeRef(*world), frame = makeRef(*frame), completionHandler = WTFMove(completionHandler)] (ValueOrException result) mutable {
         RefPtr<SerializedScriptValue> serializedResultValue;
         if (result) {
             serializedResultValue = SerializedScriptValue::create(frame->jsContextForWorld(world.ptr()),
@@ -3495,22 +3504,13 @@ void WebPage::runJavaScript(WebFrame* frame, RunJavaScriptParameters&& parameter
         if (!result)
             details = result.error();
 
-        send(Messages::WebPageProxy::ScriptValueCallback(dataReference, details, callbackID));
+        completionHandler(dataReference, details);
     };
-#if ENABLE(APP_BOUND_DOMAINS)
-    if (frame->shouldEnableInAppBrowserPrivacyProtections()) {
-        send(Messages::WebPageProxy::ScriptValueCallback({ }, ExceptionDetails { "Unable to execute JavaScript in a frame that is not in an app-bound domain"_s, 0, 0, ExceptionDetails::Type::AppBoundDomain }, callbackID));
-        if (auto* document = m_page->mainFrame().document())
-            document->addConsoleMessage(MessageSource::Security, MessageLevel::Warning, "Ignoring user script injection for non-app bound domain.");
-        RELEASE_LOG_ERROR_IF_ALLOWED(Loading, "runJavaScript: Ignoring user script injection for non app-bound domain");
-        return;
-    }
-#endif
     JSLockHolder lock(commonVM());
     frame->coreFrame()->script().executeAsynchronousUserAgentScriptInWorld(world->coreWorld(), WTFMove(parameters), WTFMove(resolveFunction));
 }
 
-void WebPage::runJavaScriptInFrameInScriptWorld(RunJavaScriptParameters&& parameters, Optional<WebCore::FrameIdentifier> frameID, const std::pair<ContentWorldIdentifier, String>& worldData, CallbackID callbackID)
+void WebPage::runJavaScriptInFrameInScriptWorld(RunJavaScriptParameters&& parameters, Optional<WebCore::FrameIdentifier> frameID, const std::pair<ContentWorldIdentifier, String>& worldData, CompletionHandler<void(const IPC::DataReference&, const Optional<WebCore::ExceptionDetails>&)>&& completionHandler)
 {
     auto* webFrame = frameID ? WebProcess::singleton().webFrame(*frameID) : &mainWebFrame();
 
@@ -3520,7 +3520,7 @@ void WebPage::runJavaScriptInFrameInScriptWorld(RunJavaScriptParameters&& parame
             frame->loader().client().dispatchGlobalObjectAvailable(coreWorld);
     }
 
-    runJavaScript(webFrame, WTFMove(parameters), worldData.first, callbackID);
+    runJavaScript(webFrame, WTFMove(parameters), worldData.first, WTFMove(completionHandler));
 }
 
 void WebPage::getContentsAsString(ContentAsStringIncludesChildFrames includeChildFrames, CallbackID callbackID)
@@ -6372,7 +6372,7 @@ void WebPage::scheduleFullEditorStateUpdate()
     m_hasPendingEditorStateUpdate = true;
     // FIXME: Scheduling a compositing layer flush here can be more expensive than necessary.
     // Instead, we should just compute and send post-layout editor state during the next frame.
-    m_drawingArea->scheduleRenderingUpdate();
+    m_drawingArea->triggerRenderingUpdate();
 }
 
 #if HAVE(TOUCH_BAR)
@@ -6814,6 +6814,11 @@ void WebPage::frameBecameRemote(FrameIdentifier frameID, GlobalFrameIdentifier&&
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
 void WebPage::hasStorageAccess(RegistrableDomain&& subFrameDomain, RegistrableDomain&& topFrameDomain, WebFrame& frame, CompletionHandler<void(bool)>&& completionHandler)
 {
+    if (hasPageLevelStorageAccess(topFrameDomain, subFrameDomain)) {
+        completionHandler(true);
+        return;
+    }
+
     WebProcess::singleton().ensureNetworkProcessConnection().connection().sendWithAsyncReply(Messages::NetworkConnectionToWebProcess::HasStorageAccess(WTFMove(subFrameDomain), WTFMove(topFrameDomain), frame.frameID(), m_identifier), WTFMove(completionHandler));
 }
 
@@ -6843,6 +6848,11 @@ bool WebPage::hasPageLevelStorageAccess(const RegistrableDomain& topLevelDomain,
 {
     auto it = m_domainsWithPageLevelStorageAccess.find(topLevelDomain);
     return it != m_domainsWithPageLevelStorageAccess.end() && it->value == resourceDomain;
+}
+
+void WebPage::clearPageLevelStorageAccess()
+{
+    m_domainsWithPageLevelStorageAccess.clear();
 }
 
 void WebPage::wasLoadedWithDataTransferFromPrevalentResource()

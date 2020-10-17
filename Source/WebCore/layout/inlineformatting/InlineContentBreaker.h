@@ -43,22 +43,24 @@ public:
     struct PartialRun {
         size_t length { 0 };
         InlineLayoutUnit logicalWidth { 0 };
-        bool needsHyphen { false };
+        Optional<InlineLayoutUnit> hyphenWidth { };
     };
     enum class IsEndOfLine { No, Yes };
     struct Result {
         enum class Action {
             Keep, // Keep content on the current line.
             Break, // Partial content is on the current line.
-            Push, // Content is pushed to the next line.
-            RevertToLastWrapOpportunity // The current content overflows and can't get wrapped. The content needs to be reverted back to the last wrapping opportunity.
+            Wrap, // Content is wrapped to the next line.
+            WrapWithHyphen, // Content is wrapped to the next line and the current line ends with a visible hyphen.
+            // The current content overflows and can't get broken up into smaller bits.
+            RevertToLastWrapOpportunity, // The content needs to be reverted back to the last wrap opportunity.
+            RevertToLastNonOverflowingWrapOpportunity // The content needs to be reverted back to a wrap opportunity that still fits the line.
         };
         struct PartialTrailingContent {
             size_t trailingRunIndex { 0 };
             Optional<PartialRun> partialRun; // nullopt partial run means the trailing run is a complete run.
         };
         Action action { Action::Keep };
-    
         IsEndOfLine isEndOfLine { IsEndOfLine::No };
         Optional<PartialTrailingContent> partialTrailingContent { };
         const InlineItem* lastWrapOpportunityItem { nullptr };
@@ -107,8 +109,9 @@ public:
     struct LineStatus {
         InlineLayoutUnit availableWidth { 0 };
         InlineLayoutUnit collapsibleWidth { 0 };
-        bool lineHasFullyCollapsibleTrailingRun { false };
-        bool lineIsEmpty { true };
+        Optional<InlineLayoutUnit> trailingSoftHyphenWidth;
+        bool hasFullyCollapsibleTrailingRun { false };
+        bool isEmpty { true };
     };
     Result processInlineContent(const ContinuousContent&, const LineStatus&);
 

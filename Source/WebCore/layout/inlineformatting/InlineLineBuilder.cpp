@@ -34,6 +34,7 @@
 #include "LayoutBoxGeometry.h"
 #include "LayoutState.h"
 #include "TextUtil.h"
+#include <wtf/unicode/CharacterNames.h>
 
 namespace WebCore {
 namespace Layout {
@@ -56,6 +57,8 @@ static inline bool endsWithSoftWrapOpportunity(const InlineTextItem& currentText
     auto previousContentLength = previousContent.length();
     // FIXME: We should look into the entire uncommitted content for more text context.
     UChar lastCharacter = previousContentLength ? previousContent[previousContentLength - 1] : 0;
+    if (lastCharacter == softHyphen && currentTextItem.style().hyphens() == Hyphens::None)
+        return false;
     UChar secondToLastCharacter = previousContentLength > 1 ? previousContent[previousContentLength - 2] : 0;
     lineBreakIterator.setPriorContext(lastCharacter, secondToLastCharacter);
     // Now check if we can break right at the inline item boundary.
@@ -427,7 +430,7 @@ LineBuilder::UsedConstraints LineBuilder::constraintsForLine(const FormattingCon
     if (!m_floatingContext.isEmpty()) {
         // FIXME: Add support for variable line height, where the intrusive floats should be probed as the line height grows.
         auto floatConstraints = m_floatingContext.constraints(toLayoutUnit(lineLogicalTop), toLayoutUnit(lineLogicalTop + *initialConstraints.vertical.logicalHeight));
-        // Check if these constraints actually put limitation on the line.
+        // Check if these values actually constrain the line.
         if (floatConstraints.left && floatConstraints.left->x <= lineLogicalLeft)
             floatConstraints.left = { };
 
@@ -444,8 +447,8 @@ LineBuilder::UsedConstraints LineBuilder::constraintsForLine(const FormattingCon
             ASSERT(floatConstraints.left->x >= lineLogicalLeft);
             lineLogicalLeft = floatConstraints.left->x;
         } else if (floatConstraints.right) {
-            ASSERT(floatConstraints.right->x >= lineLogicalLeft);
-            lineLogicalRight = floatConstraints.right->x;
+            // Right float boxes may overflow the containing block on the left.
+            lineLogicalRight = std::max(lineLogicalLeft, floatConstraints.right->x);
         }
     }
 
@@ -592,7 +595,7 @@ LineBuilder::Result LineBuilder::handleFloatsAndInlineContent(InlineContentBreak
     // Check if this new content fits.
     auto availableWidth = m_line.availableWidth() - floatContent.intrusiveWidth();
     auto isLineConsideredEmpty = m_line.isVisuallyEmpty() && !m_contentIsConstrainedByFloat;
-    auto lineStatus = InlineContentBreaker::LineStatus { availableWidth, m_line.trimmableTrailingWidth(), m_line.isTrailingRunFullyTrimmable(), isLineConsideredEmpty };
+    auto lineStatus = InlineContentBreaker::LineStatus { availableWidth, m_line.trimmableTrailingWidth(), m_line.trailingSoftHyphenWidth(), m_line.isTrailingRunFullyTrimmable(), isLineConsideredEmpty };
     auto result = inlineContentBreaker.processInlineContent(continuousInlineContent, lineStatus);
     if (result.lastWrapOpportunityItem)
         m_wrapOpportunityList.append(result.lastWrapOpportunityItem);
@@ -604,16 +607,29 @@ LineBuilder::Result LineBuilder::handleFloatsAndInlineContent(InlineContentBreak
         commitFloats(lineCandidate);
         return { result.isEndOfLine, { candidateRuns.size(), false } };
     }
-    if (result.action == InlineContentBreaker::Result::Action::Push) {
+    if (result.action == InlineContentBreaker::Result::Action::Wrap) {
         ASSERT(result.isEndOfLine == InlineContentBreaker::IsEndOfLine::Yes);
         // This continuous content can't be placed on the current line. Nothing to commit at this time.
+        return { InlineContentBreaker::IsEndOfLine::Yes };
+    }
+    if (result.action == InlineContentBreaker::Result::Action::WrapWithHyphen) {
+        ASSERT(result.isEndOfLine == InlineContentBreaker::IsEndOfLine::Yes);
+        // This continuous content can't be placed on the current line, nothing to commit.
+        // However we need to make sure that the current line gains a trailing hyphen.
+        ASSERT(m_line.trailingSoftHyphenWidth());
+        m_line.addTrailingHyphen(*m_line.trailingSoftHyphenWidth());
         return { InlineContentBreaker::IsEndOfLine::Yes };
     }
     if (result.action == InlineContentBreaker::Result::Action::RevertToLastWrapOpportunity) {
         ASSERT(result.isEndOfLine == InlineContentBreaker::IsEndOfLine::Yes);
         // Not only this content can't be placed on the current line, but we even need to revert the line back to an earlier position.
         ASSERT(!m_wrapOpportunityList.isEmpty());
-        return { InlineContentBreaker::IsEndOfLine::Yes, { rebuildLine(layoutRange), true } };
+        return { InlineContentBreaker::IsEndOfLine::Yes, { rebuildLine(layoutRange, *m_wrapOpportunityList.last()), true } };
+    }
+    if (result.action == InlineContentBreaker::Result::Action::RevertToLastNonOverflowingWrapOpportunity) {
+        ASSERT(result.isEndOfLine == InlineContentBreaker::IsEndOfLine::Yes);
+        ASSERT(!m_wrapOpportunityList.isEmpty());
+        return { InlineContentBreaker::IsEndOfLine::Yes, { rebuildLineForTrailingSoftHyphen(layoutRange), true } };
     }
     if (result.action == InlineContentBreaker::Result::Action::Break) {
         ASSERT(result.isEndOfLine == InlineContentBreaker::IsEndOfLine::Yes);
@@ -648,7 +664,9 @@ void LineBuilder::commitPartialContent(const InlineContentBreaker::ContinuousCon
             if (auto partialRun = partialTrailingContent.partialRun) {
                 auto& trailingInlineTextItem = downcast<InlineTextItem>(runs[partialTrailingContent.trailingRunIndex].inlineItem);
                 auto partialTrailingTextItem = trailingInlineTextItem.left(partialRun->length);
-                m_line.appendPartialTrailingTextItem(partialTrailingTextItem, partialRun->logicalWidth, partialRun->needsHyphen);
+                m_line.append(partialTrailingTextItem, partialRun->logicalWidth);
+                if (auto hyphenWidth = partialRun->hyphenWidth)
+                    m_line.addTrailingHyphen(*hyphenWidth);
                 return;
             }
             // The partial run is the last content to commit.
@@ -659,32 +677,50 @@ void LineBuilder::commitPartialContent(const InlineContentBreaker::ContinuousCon
     }
 }
 
-size_t LineBuilder::rebuildLine(const InlineItemRange& layoutRange)
+size_t LineBuilder::rebuildLine(const InlineItemRange& layoutRange, const InlineItem& lastInlineItemToAdd)
 {
     ASSERT(!m_wrapOpportunityList.isEmpty());
     // We might already have added intrusive floats. They shrink the avilable horizontal space for the line.
     // Let's just reuse what the line has at this point.
     m_line.initialize(m_line.horizontalConstraint());
-    auto* lastWrapOpportunityItem = m_wrapOpportunityList.last();
     auto currentItemIndex = layoutRange.start;
-    auto logicalRight = InlineLayoutUnit { };
     if (m_partialLeadingTextItem) {
-        auto logicalWidth = inlineItemWidth(*m_partialLeadingTextItem, logicalRight);
-        m_line.append(*m_partialLeadingTextItem, logicalWidth);
-        logicalRight += logicalWidth;
-        if (&m_partialLeadingTextItem.value() == lastWrapOpportunityItem)
+        m_line.append(*m_partialLeadingTextItem, inlineItemWidth(*m_partialLeadingTextItem, { }));
+        if (&m_partialLeadingTextItem.value() == &lastInlineItemToAdd)
             return 1;
         ++currentItemIndex;
     }
     for (; currentItemIndex < layoutRange.end; ++currentItemIndex) {
         auto& inlineItem = m_inlineItems[currentItemIndex];
-        auto logicalWidth = inlineItemWidth(inlineItem, logicalRight);
-        m_line.append(inlineItem, logicalWidth);
-        logicalRight += logicalWidth;
-        if (&inlineItem == lastWrapOpportunityItem)
+        m_line.append(inlineItem, inlineItemWidth(inlineItem, m_line.contentLogicalWidth()));
+        if (&inlineItem == &lastInlineItemToAdd)
             return currentItemIndex - layoutRange.start + 1;
     }
     return layoutRange.size();
+}
+
+size_t LineBuilder::rebuildLineForTrailingSoftHyphen(const InlineItemRange& layoutRange)
+{
+    ASSERT(!m_wrapOpportunityList.isEmpty());
+    // Revert all the way back to a wrap opportunity when either a soft hyphen fits or no hyphen is required.
+    for (auto i = m_wrapOpportunityList.size(); i-- > 1;) {
+        auto& softWrapOpportunityItem = *m_wrapOpportunityList[i];
+        // FIXME: If this turns out to be a perf issue, we could also traverse the wrap list and keep adding the items
+        // while watching the available width very closely.
+        auto committedCount = rebuildLine(layoutRange, softWrapOpportunityItem);
+        auto trailingSoftHyphenWidth = m_line.trailingSoftHyphenWidth();
+        // Check if the trailing hyphen now fits the line (or we don't need hyhen anymore).
+        if (!trailingSoftHyphenWidth || trailingSoftHyphenWidth <= m_line.availableWidth()) {
+            if (trailingSoftHyphenWidth)
+                m_line.addTrailingHyphen(*trailingSoftHyphenWidth);
+            return committedCount;
+        }
+    }
+    // Have at least some content on the line.
+    auto committedCount = rebuildLine(layoutRange, *m_wrapOpportunityList.first());
+    if (auto trailingSoftHyphenWidth = m_line.trailingSoftHyphenWidth())
+        m_line.addTrailingHyphen(*trailingSoftHyphenWidth);
+    return committedCount;
 }
 
 bool LineBuilder::isLastLineWithInlineContent(const InlineItemRange& lineRange, size_t lastInlineItemIndex, bool hasPartialTrailingContent) const

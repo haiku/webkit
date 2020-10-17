@@ -57,21 +57,41 @@ public:
     };
     WEBCORE_EXPORT static AudioVideoSelectedTracks selectTracks(MediaStreamPrivate&);
 
-    using FetchDataCallback = CompletionHandler<void(RefPtr<SharedBuffer>&&, const String& mimeType)>;
+    using FetchDataCallback = CompletionHandler<void(RefPtr<SharedBuffer>&&, const String& mimeType, double)>;
     virtual void fetchData(FetchDataCallback&&) = 0;
-    virtual void stopRecording() = 0;
     virtual const String& mimeType() const = 0;
+
+    void stop();
+    void pause(CompletionHandler<void()>&&);
+    void resume(CompletionHandler<void()>&&);
 
     using StartRecordingCallback = CompletionHandler<void(ExceptionOr<String>&&)>;
     virtual void startRecording(StartRecordingCallback&& callback) { callback(String(mimeType())); }
+
+    void trackMutedChanged(MediaStreamTrackPrivate& track) { checkTrackState(track); }
+    void trackEnabledChanged(MediaStreamTrackPrivate& track) { checkTrackState(track); }
 
 protected:
     void setAudioSource(RefPtr<RealtimeMediaSource>&&);
     void setVideoSource(RefPtr<RealtimeMediaSource>&&);
 
+    void checkTrackState(const MediaStreamTrackPrivate&);
+
+    bool shouldMuteAudio() const { return m_shouldMuteAudio; }
+    bool shouldMuteVideo() const { return m_shouldMuteVideo; }
+
 private:
+    virtual void stopRecording() = 0;
+    virtual void pauseRecording(CompletionHandler<void()>&&) = 0;
+    virtual void resumeRecording(CompletionHandler<void()>&&) = 0;
+
+private:
+    bool m_shouldMuteAudio { false };
+    bool m_shouldMuteVideo { false };
     RefPtr<RealtimeMediaSource> m_audioSource;
     RefPtr<RealtimeMediaSource> m_videoSource;
+    RefPtr<RealtimeMediaSource> m_pausedAudioSource;
+    RefPtr<RealtimeMediaSource> m_pausedVideoSource;
 };
 
 inline void MediaRecorderPrivate::setAudioSource(RefPtr<RealtimeMediaSource>&& audioSource)

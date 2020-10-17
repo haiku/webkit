@@ -26,6 +26,8 @@
 #include "config.h"
 #include "LayoutIntegrationRunIterator.h"
 
+
+#include "LayoutIntegrationLineIterator.h"
 #include "LayoutIntegrationLineLayout.h"
 #include "RenderBlockFlow.h"
 #include "RenderLineBreak.h"
@@ -33,7 +35,7 @@
 namespace WebCore {
 namespace LayoutIntegration {
 
-RunIterator::RunIterator(Run::PathVariant&& pathVariant)
+RunIterator::RunIterator(PathRun::PathVariant&& pathVariant)
     : m_run(WTFMove(pathVariant))
 {
 }
@@ -82,7 +84,20 @@ LineRunIterator RunIterator::previousOnLineIgnoringLineBreak() const
     return LineRunIterator(*this).traversePreviousOnLineIgnoringLineBreak();
 }
 
-TextRunIterator::TextRunIterator(Run::PathVariant&& pathVariant)
+LineIterator RunIterator::line() const
+{
+    return WTF::switchOn(m_run.m_pathVariant, [](const LegacyPath& path) {
+        return LineIterator(LegacyLinePath(&path.rootInlineBox()));
+    }
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+    , [](const ModernPath& path) {
+        return LineIterator(ModernLinePath(*path.m_inlineContent, path.run().lineIndex()));
+    }
+#endif
+    );
+}
+
+TextRunIterator::TextRunIterator(PathRun::PathVariant&& pathVariant)
     : RunIterator(WTFMove(pathVariant))
 {
 }
@@ -103,7 +118,7 @@ TextRunIterator& TextRunIterator::traverseNextTextRunInTextOrder()
     return *this;
 }
 
-LineRunIterator::LineRunIterator(Run::PathVariant&& pathVariant)
+LineRunIterator::LineRunIterator(PathRun::PathVariant&& pathVariant)
     : RunIterator(WTFMove(pathVariant))
 {
 }
@@ -212,13 +227,13 @@ LineRunIterator lineRun(const RunIterator& runIterator)
 }
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-ModernPath& Run::modernPath()
+ModernPath& PathRun::modernPath()
 {
     return WTF::get<ModernPath>(m_pathVariant);
 }
 #endif
 
-LegacyPath& Run::legacyPath()
+LegacyPath& PathRun::legacyPath()
 {
     return WTF::get<LegacyPath>(m_pathVariant);
 }

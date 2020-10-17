@@ -116,6 +116,7 @@
 #import <WebCore/PlatformKeyboardEvent.h>
 #import <WebCore/PlatformMouseEvent.h>
 #import <WebCore/PointerCaptureController.h>
+#import <WebCore/PointerCharacteristics.h>
 #import <WebCore/Quirks.h>
 #import <WebCore/Range.h>
 #import <WebCore/RenderBlock.h>
@@ -1015,7 +1016,9 @@ void WebPage::didConcludeEditDrag()
 
 void WebPage::didFinishLoadingImageForElement(WebCore::HTMLImageElement& element)
 {
-    m_pendingImageElementsForDropSnapshot.remove(&element);
+    if (!m_pendingImageElementsForDropSnapshot.remove(&element))
+        return;
+
     bool shouldSendSnapshot = m_pendingImageElementsForDropSnapshot.isEmpty();
     m_page->dragController().finalizeDroppedImagePlaceholder(element, [protectedThis = makeRefPtr(this), shouldSendSnapshot] {
         if (shouldSendSnapshot)
@@ -3444,7 +3447,7 @@ void WebPage::dynamicViewportSizeUpdate(const FloatSize& viewLayoutSize, const W
     shrinkToFitContent();
 #endif
 
-    m_drawingArea->scheduleRenderingUpdate();
+    m_drawingArea->triggerRenderingUpdate();
 
     m_pendingDynamicViewportSizeUpdateID = dynamicViewportSizeUpdateID;
 }
@@ -3984,6 +3987,40 @@ String WebPage::platformUserAgent(const URL&) const
         return standardUserAgentWithApplicationName({ }, "12_1_3");
 
     return String();
+}
+
+static bool hasMouseDevice()
+{
+#if HAVE(UIKIT_WITH_MOUSE_SUPPORT) && PLATFORM(IOS)
+    return WebProcess::singleton().hasMouseDevice();
+#elif HAVE(UIKIT_WITH_MOUSE_SUPPORT) && PLATFORM(MACCATALYST)
+    return true;
+#else
+    return false;
+#endif
+}
+
+bool WebPage::hoverSupportedByPrimaryPointingDevice() const
+{
+    return false;
+}
+
+bool WebPage::hoverSupportedByAnyAvailablePointingDevice() const
+{
+    return hasMouseDevice();
+}
+
+Optional<PointerCharacteristics> WebPage::pointerCharacteristicsOfPrimaryPointingDevice() const
+{
+    return PointerCharacteristics::Coarse;
+}
+
+OptionSet<PointerCharacteristics> WebPage::pointerCharacteristicsOfAllAvailablePointingDevices() const
+{
+    OptionSet<PointerCharacteristics> result(PointerCharacteristics::Coarse);
+    if (hasMouseDevice())
+        result.add(PointerCharacteristics::Fine);
+    return result;
 }
 
 void WebPage::hardwareKeyboardAvailabilityChanged(bool keyboardIsAttached)

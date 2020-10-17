@@ -65,12 +65,17 @@ public:
     unsigned localEndOffset() const { return inlineTextBox()->end(); }
     unsigned length() const { return inlineTextBox()->len(); }
 
-    inline bool isLastTextRunOnLine() const
+    bool isLastTextRunOnLine() const
     {
         auto* next = nextInlineTextBoxInTextOrder();
         return !next || &inlineTextBox()->root() != &next->root();
     }
-    inline bool isLastTextRun() const { return !nextInlineTextBoxInTextOrder(); };
+    bool isLastTextRun() const { return !nextInlineTextBoxInTextOrder(); };
+
+    const RenderObject& renderer() const
+    {
+        return m_inlineBox->renderer();
+    }
 
     void traverseNextTextRun() { m_inlineBox = inlineTextBox()->nextTextBox(); }
     void traverseNextTextRunInTextOrder()
@@ -91,11 +96,12 @@ public:
     }
 
     bool operator==(const LegacyPath& other) const { return m_inlineBox == other.m_inlineBox; }
-    bool atEnd() const { return !m_inlineBox; }
 
+    bool atEnd() const { return !m_inlineBox; }
     void setAtEnd() { m_inlineBox = nullptr; }
 
     InlineBox* legacyInlineBox() const { return const_cast<InlineBox*>(m_inlineBox); }
+    const RootInlineBox& rootInlineBox() const { return m_inlineBox->root(); }
 
 private:
     const InlineTextBox* inlineTextBox() const { return downcast<InlineTextBox>(m_inlineBox); }

@@ -39,6 +39,7 @@
 #include "ImageBuffer.h"
 #include "InputMode.h"
 #include "MediaProducer.h"
+#include "PointerCharacteristics.h"
 #include "PopupMenu.h"
 #include "PopupMenuClient.h"
 #include "RegistrableDomain.h"
@@ -177,6 +178,11 @@ public:
     virtual bool runJavaScriptPrompt(Frame&, const String& message, const String& defaultValue, String& result) = 0;
     virtual void setStatusbarText(const String&) = 0;
     virtual KeyboardUIMode keyboardUIMode() = 0;
+
+    virtual bool hoverSupportedByPrimaryPointingDevice() const = 0;
+    virtual bool hoverSupportedByAnyAvailablePointingDevice() const = 0;
+    virtual Optional<PointerCharacteristics> pointerCharacteristicsOfPrimaryPointingDevice() const = 0;
+    virtual OptionSet<PointerCharacteristics> pointerCharacteristicsOfAllAvailablePointingDevices() const = 0;
 
     virtual bool supportsImmediateInvalidation() { return false; }
     virtual void invalidateRootView(const IntRect&) = 0;
@@ -323,11 +329,12 @@ public:
     // Sets a flag to specify that the next time content is drawn to the window,
     // the changes appear on the screen in synchrony with updates to GraphicsLayers.
     virtual void setNeedsOneShotDrawingSynchronization() = 0;
-    // Sets a flag to specify that the view needs to be updated, so we need
-    // to do an eager layout before the drawing.
-    virtual void scheduleRenderingUpdate() = 0;
-    virtual bool scheduleTimedRenderingUpdate() { return false; }
-    virtual bool needsImmediateRenderingUpdate() const { return false; }
+
+    // Makes a rendering update happen soon, typically in the current runloop.
+    virtual void triggerRenderingUpdate() = 0;
+    // Schedule a rendering update that coordinates with display refresh. Returns true if scheduled. (This is only used by SVGImageChromeClient.)
+    virtual bool scheduleRenderingUpdate() { return false; }
+
     // Returns whether or not the client can render the composited layer,
     // regardless of the settings.
     virtual bool allowsAcceleratedCompositing() const { return true; }

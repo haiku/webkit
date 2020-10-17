@@ -501,9 +501,6 @@ simpleLineLayoutDebugBordersEnabled:
 contentChangeObserverEnabled:
   initial: defaultContentChangeObserverEnabled()
 
-subpixelCSSOMElementMetricsEnabled:
-  initial: false
-
 useGiantTiles:
   initial: false
 
@@ -704,7 +701,7 @@ storageAccessAPIEnabled:
   initial: true
 
 storageAccessAPIPerPageScopeEnabled:
-  initial: false
+  initial: true
 
 timeWithoutMouseMovementBeforeHidingControls:
   type: Seconds
@@ -943,10 +940,6 @@ isLoggedInAPIEnabled:
 enterKeyHintEnabled:
   initial: false
 
-legacyGetUserMediaEnabled:
-  initial: false
-  conditional: ENABLE(MEDIA_STREAM)
-
 # FIXME: Seems to be unused. Remove once verified.
 isInAppBrowserPrivacyEnabled:
   initial: false
@@ -1050,6 +1043,9 @@ webShareFileAPIEnabled:
   initial: false
 
 undoManagerAPIEnabled:
+  initial: false
+
+contactPickerAPIEnabled:
   initial: false
 
 intersectionObserverEnabled:

@@ -29,6 +29,7 @@
 #pragma once
 
 #if ENABLE(WEB_AUDIO)
+#include "WorkerOrWorkletThread.h"
 #include "WorkerRunLoop.h"
 #include "WorkletParameters.h"
 #include <wtf/Forward.h>
@@ -39,25 +40,34 @@
 namespace WebCore {
 
 class AudioWorkletGlobalScope;
+class AudioWorkletMessagingProxy;
 
-class AudioWorkletThread : public ThreadSafeRefCounted<AudioWorkletThread> {
+class AudioWorkletThread : public ThreadSafeRefCounted<AudioWorkletThread>, public WorkerOrWorkletThread {
 public:
-    static Ref<AudioWorkletThread> create(const WorkletParameters& parameters)
+    static Ref<AudioWorkletThread> create(AudioWorkletMessagingProxy& messagingProxy, const WorkletParameters& parameters)
     {
-        return adoptRef(*new AudioWorkletThread(parameters));
+        return adoptRef(*new AudioWorkletThread(messagingProxy, parameters));
     }
+    ~AudioWorkletThread();
+
+    AudioWorkletGlobalScope* globalScope() const { return m_workletGlobalScope.get(); }
 
     void start();
+    void stop();
 
-    WorkerRunLoop& runLoop() { return m_runLoop; }
-    Thread* thread() const { return m_thread.get(); }
+    // WorkerOrWorkletThread.
+    WorkerRunLoop& runLoop() final { return m_runLoop; }
+    WorkerLoaderProxy& workerLoaderProxy() final;
+    Thread* thread() const final { return m_thread.get(); }
+    AudioWorkletMessagingProxy& messagingProxy() { return m_messagingProxy; }
 
 private:
-    explicit AudioWorkletThread(const WorkletParameters&);
+    AudioWorkletThread(AudioWorkletMessagingProxy&, const WorkletParameters&);
 
     void runEventLoop();
     void workletThread();
 
+    AudioWorkletMessagingProxy& m_messagingProxy;
     RefPtr<Thread> m_thread;
     WorkerRunLoop m_runLoop;
     WorkletParameters m_parameters;

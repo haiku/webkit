@@ -28,7 +28,7 @@
 
 #import "AutomationClient.h"
 #import "CacheModel.h"
-#import "DownloadClient.h"
+#import "LegacyDownloadClient.h"
 #import "Logging.h"
 #import "PluginProcessManager.h"
 #import "SandboxUtilities.h"
@@ -55,6 +55,7 @@
 #import <wtf/BlockPtr.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/WeakObjCPtr.h>
+#import <wtf/cocoa/RuntimeApplicationChecksCocoa.h>
 #import <wtf/cocoa/VectorCocoa.h>
 
 #if PLATFORM(IOS_FAMILY)
@@ -347,7 +348,7 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
 - (void)_setDownloadDelegate:(id <_WKDownloadDelegate>)downloadDelegate
 {
     _downloadDelegate = downloadDelegate;
-    _processPool->setDownloadClient(makeUniqueRef<WebKit::DownloadClient>(downloadDelegate));
+    _processPool->setLegacyDownloadClient(adoptRef(*new WebKit::LegacyDownloadClient(downloadDelegate)));
 }
 
 - (id <_WKAutomationDelegate>)_automationDelegate
@@ -516,6 +517,11 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
 #if ENABLE(GAMEPAD)
     WebKit::UIGamepadProvider::setUsesGameControllerFramework();
 #endif
+}
+
++ (void)_setLinkedOnOrAfterEverythingForTesting
+{
+    setApplicationSDKVersion(std::numeric_limits<uint32_t>::max());
 }
 
 - (BOOL)_isCookieStoragePartitioningEnabled

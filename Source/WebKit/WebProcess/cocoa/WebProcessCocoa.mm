@@ -68,6 +68,7 @@
 #import <WebCore/SWContextManager.h>
 #import <WebCore/SystemBattery.h>
 #import <WebCore/UTIUtilities.h>
+#import <WebCore/VersionChecks.h>
 #import <algorithm>
 #import <dispatch/dispatch.h>
 #import <objc/runtime.h>
@@ -298,6 +299,10 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
         });
     }
 
+#if HAVE(UIKIT_WITH_MOUSE_SUPPORT) && PLATFORM(IOS)
+    m_hasMouseDevice = parameters.hasMouseDevice;
+#endif
+
     WebCore::setScreenProperties(parameters.screenProperties);
 
 #if PLATFORM(MAC) && ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
@@ -327,6 +332,7 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
 
     // FIXME(207716): The following should be removed when the GPU process is complete.
     SandboxExtension::consumePermanently(parameters.mediaExtensionHandles);
+    SandboxExtension::consumePermanently(parameters.gpuIOKitExtensionHandles);
 
 #if ENABLE(CFPREFS_DIRECT_MODE)
     if (parameters.preferencesExtensionHandles) {

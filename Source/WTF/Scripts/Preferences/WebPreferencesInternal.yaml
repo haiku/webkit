@@ -170,7 +170,7 @@ CaptureVideoInUIProcessEnabled:
   exposed: [ WebKit ]
   defaultValue:
     WebKit:
-      default: WebKit::defaultCaptureVideoInUIProcessEnabled()
+      default: false
 
 DOMPasteAccessRequestsEnabled:
   type: bool
@@ -298,10 +298,11 @@ InputTypeDateEnabled:
   condition: ENABLE(INPUT_TYPE_DATE)
   defaultValue:
     WebKitLegacy:
+      "PLATFORM(IOS_FAMILY)": true
       default: false
     WebKit:
-      "!PLATFORM(MAC) && !PLATFORM(MACCATALYST) && !PLATFORM(APPLETV)": true
-      default: false
+      "PLATFORM(MACCATALYST) || PLATFORM(APPLETV)": false
+      default: true
   
 InputTypeDateTimeLocalEnabled:
   type: bool
@@ -310,10 +311,11 @@ InputTypeDateTimeLocalEnabled:
   condition: ENABLE(INPUT_TYPE_DATETIMELOCAL)
   defaultValue:
     WebKitLegacy:
+      "PLATFORM(IOS_FAMILY)": true
       default: false
     WebKit:
-      "!PLATFORM(MAC) && !PLATFORM(MACCATALYST) && !PLATFORM(APPLETV)": true
-      default: false
+      "PLATFORM(MACCATALYST) || PLATFORM(APPLETV)": false
+      default: true
 
 InputTypeMonthEnabled:
   type: bool
@@ -322,6 +324,7 @@ InputTypeMonthEnabled:
   condition: ENABLE(INPUT_TYPE_MONTH)
   defaultValue:
     WebKitLegacy:
+      "PLATFORM(IOS_FAMILY)": true
       default: false
     WebKit:
       "!PLATFORM(MAC) && !PLATFORM(MACCATALYST) && !PLATFORM(APPLETV)": true
@@ -334,10 +337,11 @@ InputTypeTimeEnabled:
   condition: ENABLE(INPUT_TYPE_TIME)
   defaultValue:
     WebKitLegacy:
+      "PLATFORM(IOS_FAMILY)": true
       default: false
     WebKit:
-      "!PLATFORM(MAC) && !PLATFORM(MACCATALYST) && !PLATFORM(APPLETV)": true
-      default: false
+      "PLATFORM(MACCATALYST) || PLATFORM(APPLETV)": false
+      default: true
 
 InputTypeWeekEnabled:
   type: bool

@@ -1,3 +1,94 @@
+2020-10-05  Federico Bucchi  <fbucchi@apple.com>
+
+        Web Inspector: Uncaught Exception: TypeError: undefined is not an object (evaluating 'error.message')
+        https://bugs.webkit.org/show_bug.cgi?id=217232
+        <rdar://problem/69888156>
+
+        Reviewed by Devin Rousso.
+
+        Add optional chaining for error to check its existence before using error.message
+
+        * UserInterface/Models/Resource.js:
+
+2020-10-05  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Uncaught Exception: TypeError: undefined is not an object (evaluating 'breakpoint.disabled = true')
+        https://bugs.webkit.org/show_bug.cgi?id=217241
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Controllers/DOMManager.js:
+        (WI.DOMManager.prototype.removeBreakpointForEventListener):
+        It's possible for there to not be a breakpoint for a given event listener.
+
+2020-10-05  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Sources: add a + to the Local Overrides section
+        https://bugs.webkit.org/show_bug.cgi?id=217235
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/SourcesNavigationSidebarPanel.js:
+        (WI.SourcesNavigationSidebarPanel):
+        (WI.SourcesNavigationSidebarPanel.prototype._populateCreateLocalOverrideContextMenu): Added.
+        (WI.SourcesNavigationSidebarPanel.prototype._populateCreateResourceContextMenu):
+
+2020-10-05  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: unable to create local override for resource that failed to load
+        https://bugs.webkit.org/show_bug.cgi?id=217234
+        <rdar://problem/69888143>
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Models/Resource.js:
+        (WI.Resource.prototype.async createLocalResourceOverride):
+        Wrap the `WI.SourceCode.prototype.requestContent` call in a `try` in case the content is not
+        able to be fetched. If so, determine the MIME from the URL and fall back to `""`.
+
+        * UserInterface/Views/ResourceContentView.js:
+        (WI.ResourceContentView.prototype.requestLocalResourceOverrideInitialContent):
+        (WI.ResourceContentView.prototype.async _getContentForLocalResourceOverrideFromFile):
+        Drive-by: drop `initial` from the parameter name as it's not really necessary.
+
+        * UserInterface/Views/TextResourceContentView.js:
+        (WI.TextResourceContentView.prototype.requestLocalResourceOverrideInitialContent):
+        Drive-by: include the `mimeType` and `base64Encoded` of the related `WI.Resource`.
+
+2020-10-05  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(?): cannot edit Event Breakpoint
+        https://bugs.webkit.org/show_bug.cgi?id=217244
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Models/EventBreakpoint.js:
+        (WI.EventBreakpoint.get supportsEditing):
+        (WI.EventBreakpoint.prototype.get editable):
+        Move the specific listener breakpoint logic to the `prototype` function as `this` won't
+        exist in the `static` function (not to mention it's not possible to create a specific
+        listener breakpoint "at will" like it is for global event breakpoints).
+
+        * UserInterface/Models/URLBreakpoint.js:
+        (WI.URLBreakpoint.get supportsEditing): Added.
+        (WI.URLBreakpoint.prototype.get editable):
+        (WI.URLBreakpoint.get editable): Deleted.
+        * UserInterface/Views/URLBreakpointPopover.js:
+        (WI.URLBreakpointPopover.get supportsEditing):
+        Drive-by: update naming to match `WI.EventBreakpoint`.
+
+2020-10-05  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Make text selectable in CPU timeline content view
+        https://bugs.webkit.org/show_bug.cgi?id=216999
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/CPUTimelineView.css:
+        (.timeline-view.cpu > .content > .overview .legend):
+        * UserInterface/Views/CPUUsageCombinedView.css:
+        (.cpu-usage-combined-view > .details):
+
 2020-09-28  Devin Rousso  <drousso@apple.com>
 
         Web Inspector: add checkbox to local override popover to allow it to skip the network
