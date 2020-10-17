@@ -119,5 +119,10 @@ float Font::platformWidthForGlyph(Glyph glyph) const
     return escapements[0] * m_platformData.font()->Size();
 }
 
+bool Font::platformSupportsCodePoint(UChar32 character, Optional<UChar32> variation) const
+{
+    return variation ? false : glyphForCharacter(character);
+}
+
 } // namespace WebCore
 

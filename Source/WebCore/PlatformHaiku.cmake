@@ -66,6 +66,7 @@ list(APPEND WebCore_SOURCES
   platform/graphics/haiku/ComplexTextControllerHaiku.cpp
   platform/graphics/haiku/FontCacheHaiku.cpp
   platform/graphics/haiku/FontCustomPlatformData.cpp
+  platform/graphics/haiku/FontDescriptionHaiku.cpp
   platform/graphics/haiku/FontPlatformDataHaiku.cpp
   platform/graphics/haiku/FloatPointHaiku.cpp
   platform/graphics/haiku/FloatRectHaiku.cpp

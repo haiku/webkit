@@ -138,14 +138,14 @@ bool EditorClientHaiku::shouldInsertText(const String& text, const Optional<Simp
 }
 
 bool EditorClientHaiku::shouldChangeSelectedRange(const Optional<SimpleRange>& fromRange, const Optional<SimpleRange>& toRange,
-    EAffinity affinity, bool stillSelecting)
+    Affinity affinity, bool stillSelecting)
 {
     BMessage message(EDITOR_CHANGE_SELECTED_RANGE);
     if (fromRange)
         message.AddPointer("from", &*fromRange);
     if (toRange)
         message.AddPointer("to", &*toRange);
-    message.AddInt32("affinity", affinity);
+    message.AddInt32("affinity", (int32)affinity);
     message.AddInt32("stillEditing", stillSelecting);
     dispatchMessage(message);
     return true;

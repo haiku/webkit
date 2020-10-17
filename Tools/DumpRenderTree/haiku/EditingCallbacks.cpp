@@ -81,12 +81,12 @@ static const char* insertActionString(WebCore::EditorInsertAction action)
     return "WebViewInsertActionTyped";
 }
 
-static const char* selectionAffinityString(WebCore::EAffinity affinity)
+static const char* selectionAffinityString(WebCore::Affinity affinity)
 {
     switch (affinity) {
-    case WebCore::UPSTREAM:
+    case WebCore::Affinity::Upstream:
         return "NSSelectionAffinityUpstream";
-    case WebCore::DOWNSTREAM:
+    case WebCore::Affinity::Downstream:
         return "NSSelectionAffinityDownstream";
     }
     ASSERT_NOT_REACHED();
@@ -135,7 +135,7 @@ static void shouldDeleteRange(WebCore::SimpleRange* range)
 
 static void shouldChangeSelectedRange(WebCore::SimpleRange* fromRange,
     WebCore::SimpleRange* toRange,
-    WebCore::EAffinity affinity, bool stillSelecting)
+    WebCore::Affinity affinity, bool stillSelecting)
 {
     if (!done && gTestRunner->dumpEditingCallbacks()) {
         printf("EDITING DELEGATE: shouldChangeSelectedDOMRange:%s toDOMRange:%s affinity:%s stillSelecting:%s\n",
@@ -232,7 +232,7 @@ bool handleEditingCallback(BMessage* message)
             WebCore::SimpleRange* toRange = NULL;
             message->FindPointer("from", (void**)&fromRange);
             message->FindPointer("to", (void**)&toRange);
-            WebCore::EAffinity affinity = (WebCore::EAffinity)message->FindInt32("affinity");
+            WebCore::Affinity affinity = (WebCore::Affinity)message->FindInt32("affinity");
             bool stillSelecting = message->FindBool("stillSelecting");
             shouldChangeSelectedRange(fromRange, toRange, affinity, stillSelecting);
             return true;

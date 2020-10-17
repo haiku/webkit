@@ -29,6 +29,8 @@
 #include "config.h"
 #include "DumpRenderTree.h"
 
+// ScriptController must be before NotImplemented...
+#include "ScriptController.h"
 
 #include "AccessibilityController.h"
 #include "DumpRenderTreeClient.h"
@@ -36,9 +38,7 @@
 #include "EventSender.h"
 #include "Frame.h"
 #include <GCController.h>
-#include "NotImplemented.h"
 #include "PixelDumpSupport.h"
-#include "ScriptController.h"
 #include "TestRunner.h"
 #include "WebCoreTestSupport.h"
 #include "WebFrame.h"
@@ -755,10 +755,10 @@ void DumpRenderTreeApp::didClearWindowObjectInWorld(WebCore::DOMWrapperWorld&, J
 {
     JSValueRef exception = 0;
 
-    gTestRunner->makeWindowObject(context, windowObject, &exception);
+    gTestRunner->makeWindowObject(context);
     ASSERT(!exception);
 
-    m_gcController->makeWindowObject(context, windowObject, &exception);
+    m_gcController->makeWindowObject(context);
     ASSERT(!exception);
 
     //m_accessibilityController->makeWindowObject(context, windowObject, &exception);
