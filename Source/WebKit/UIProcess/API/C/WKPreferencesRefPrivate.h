@@ -508,8 +508,8 @@ WK_EXPORT void WKPreferencesSetWebAuthenticationEnabled(WKPreferencesRef, bool f
 WK_EXPORT bool WKPreferencesGetWebAuthenticationEnabled(WKPreferencesRef);
 
 // Defaults to false
-WK_EXPORT void WKPreferencesSetWebAuthenticationLocalAuthenticatorEnabled(WKPreferencesRef, bool flag);
-WK_EXPORT bool WKPreferencesGetWebAuthenticationLocalAuthenticatorEnabled(WKPreferencesRef);
+WK_EXPORT void WKPreferencesSetWebAuthenticationModernEnabled(WKPreferencesRef, bool flag);
+WK_EXPORT bool WKPreferencesGetWebAuthenticationModernEnabled(WKPreferencesRef);
 
 // Defaults to true.
 WK_EXPORT void WKPreferencesSetInvisibleMediaAutoplayPermitted(WKPreferencesRef, bool flag);

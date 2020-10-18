@@ -440,6 +440,7 @@ public:
     PlatformWidget platformWidget() const override { return nullptr; }
 #if PLATFORM(COCOA)
     RemoteAXObjectRef remoteParentObject() const override;
+    FloatRect convertRectToPlatformSpace(const FloatRect&, AccessibilityConversionSpace) const override;
 #endif
     Widget* widgetForAttachmentView() const override { return nullptr; }
     Page* page() const override;
@@ -729,7 +730,7 @@ public:
     bool hasApplePDFAnnotationAttribute() const override { return hasAttribute(HTMLNames::x_apple_pdf_annotationAttr); }
 #endif
 
-#if PLATFORM(COCOA) && !PLATFORM(IOS_FAMILY)
+#if PLATFORM(MAC)
     bool caretBrowsingEnabled() const override;
     void setCaretBrowsingEnabled(bool) override;
 #endif

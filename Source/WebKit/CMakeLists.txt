@@ -71,6 +71,7 @@ set(WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/UIProcess/WebAuthentication"
     "${WEBKIT_DIR}/UIProcess/WebAuthentication/Mock"
     "${WEBKIT_DIR}/UIProcess/WebsiteData"
+    "${WEBKIT_DIR}/WebAuthnProcess"
     "${WEBKIT_DIR}/WebProcess"
     "${WEBKIT_DIR}/WebProcess/ApplePay"
     "${WEBKIT_DIR}/WebProcess/ApplicationCache"
@@ -126,7 +127,7 @@ set(WebKit_MESSAGES_IN_FILES
     GPUProcess/GPUConnectionToWebProcess
     GPUProcess/GPUProcess
 
-    GPUProcess/graphics/RemoteRenderingBackendProxy
+    GPUProcess/graphics/RemoteRenderingBackend
 
     GPUProcess/media/RemoteAudioDestinationManager
     GPUProcess/media/RemoteAudioSessionProxy
@@ -218,11 +219,12 @@ set(WebKit_MESSAGES_IN_FILES
 
     WebProcess/GPU/GPUProcessConnection
 
-    WebProcess/GPU/graphics/RemoteRenderingBackend
+    WebProcess/GPU/graphics/RemoteRenderingBackendProxy
 
     WebProcess/GPU/media/MediaPlayerPrivateRemote
     WebProcess/GPU/media/RemoteAudioDestinationProxy
     WebProcess/GPU/media/RemoteAudioSession
+    WebProcess/GPU/media/RemoteAudioSourceProviderManager
     WebProcess/GPU/media/RemoteCDMInstanceSession
     WebProcess/GPU/media/RemoteLegacyCDMSession
 

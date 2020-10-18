@@ -1,3 +1,652 @@
+2020-10-17  David Kilzer  <ddkilzer@apple.com>
+
+        REGRESSION (r191637): Fix -Wmisleading-indentation warnings in open source clang
+        <https://webkit.org/b/217882>
+
+        Reviewed by Tim Horton.
+
+        * UIProcess/Cocoa/WebViewImpl.mm:
+        (WebKit::WebViewImpl::accessibilityAttributeValue):
+        - Fix indentation of source to match what it is doing.
+
+2020-10-16  Said Abou-Hallawa  <sabouhallawa@apple.com>
+
+        [GPU Process] Introduce RemoteResourceCacheProxy to manage the resources in the GPU Process
+        https://bugs.webkit.org/show_bug.cgi?id=217554
+
+        Reviewed by Simon Fraser.
+
+        RemoteResourceCache will be responsible for caching the remote resources.
+        RemoteRenderingBackend will delegate all the resource caching to its
+        RemoteResourceCache.
+
+        We can get rid of RemoteImageBufferMessageHandler because all it does is
+        is sending messages to WebProcess. Removing it will simplify the interface
+        of RemoteImageBuffer. Sending the messages will be moved to RemoteRenderingBackend.
+
+        Rename flushDrawingContext() to flushDisplayList() because the name is 
+        confusing. This function flushes a DisplayList to the context. No
+        DrawingContext is involved here and there is another function with the
+        same name which does not take any argument.
+
+        Rename ImageBufferFlushIdentifier to DisplayListFlushIdentifier to make
+        more general name and be ready for GPU DOM rendering.
+
+        Rename the RemoteRenderingBackendProxy messages: CreateImageBufferBackend
+        and CommitImageBufferFlushContext to be ImageBufferBackendWasCreated and
+        FlushDisplayListWasCommitted. We need to include passive verbs in them to
+        reflect that the actions were taken place in the GPU Process. They are
+        sent only to inform the Web Process with the current state.
+
+        * GPUProcess/graphics/RemoteImageBuffer.h:
+        (WebKit::RemoteImageBuffer::RemoteImageBuffer):
+        (WebKit::RemoteImageBuffer::apply):
+        * GPUProcess/graphics/RemoteRenderingBackend.cpp:
+        (WebKit::RemoteRenderingBackend::gpuConnectionToWebProcess const):
+        (WebKit::RemoteRenderingBackend::imageBufferBackendWasCreated):
+        (WebKit::RemoteRenderingBackend::flushDisplayListWasCommitted):
+        (WebKit::RemoteRenderingBackend::createImageBuffer):
+        (WebKit::RemoteRenderingBackend::flushDisplayList):
+        (WebKit::RemoteRenderingBackend::flushDisplayListAndCommit):
+        (WebKit::RemoteRenderingBackend::getImageData):
+        We should call the completion handler even if the ImageBuffer was not found.
+
+        (WebKit::RemoteRenderingBackend::releaseRemoteResource):
+        (WebKit::RemoteRenderingBackend::flushImageBufferDrawingContext): Deleted.
+        (WebKit::RemoteRenderingBackend::flushImageBufferDrawingContextAndCommit): Deleted.
+        * GPUProcess/graphics/RemoteRenderingBackend.h:
+        (WebKit::RemoteRenderingBackend::renderingBackendIdentifier const): Deleted.
+        * GPUProcess/graphics/RemoteRenderingBackend.messages.in:
+        * GPUProcess/graphics/RemoteResourceCache.cpp: Renamed from Source/WebKit/GPUProcess/graphics/RemoteImageBufferMessageHandler.cpp.
+        (WebKit::RemoteResourceCache::cacheImageBuffer):
+        (WebKit::RemoteResourceCache::cachedImageBuffer):
+        (WebKit::RemoteResourceCache::releaseRemoteResource):
+        * GPUProcess/graphics/RemoteResourceCache.h: Renamed from Source/WebKit/GPUProcess/graphics/RemoteImageBufferMessageHandler.h.
+        * Scripts/webkit/messages.py:
+        * Sources.txt:
+        * WebKit.xcodeproj/project.pbxproj:
+        * WebProcess/GPU/graphics/DisplayListFlushIdentifier.h: Renamed from Source/WebKit/WebProcess/GPU/graphics/ImageBufferFlushIdentifier.h.
+        * WebProcess/GPU/graphics/RemoteImageBufferMessageHandlerProxy.cpp:
+        (WebKit::RemoteImageBufferMessageHandlerProxy::waitForImageBufferBackendWasCreated):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::waitForFlushDisplayListWasCommitted):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::flushDisplayList):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::flushDisplayListAndWaitCommit):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::commitFlushContext):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::waitForCreateImageBufferBackend): Deleted.
+        (WebKit::RemoteImageBufferMessageHandlerProxy::waitForCommitImageBufferFlushContext): Deleted.
+        (WebKit::RemoteImageBufferMessageHandlerProxy::flushDrawingContext): Deleted.
+        (WebKit::RemoteImageBufferMessageHandlerProxy::flushDrawingContextAndWaitCommit): Deleted.
+        * WebProcess/GPU/graphics/RemoteImageBufferMessageHandlerProxy.h:
+        * WebProcess/GPU/graphics/RemoteImageBufferProxy.h:
+        * WebProcess/GPU/graphics/RemoteRenderingBackendProxy.cpp:
+        (WebKit::RemoteRenderingBackendProxy::waitForImageBufferBackendWasCreated):
+        (WebKit::RemoteRenderingBackendProxy::waitForFlushDisplayListWasCommitted):
+        (WebKit::RemoteRenderingBackendProxy::imageBufferBackendWasCreated):
+        (WebKit::RemoteRenderingBackendProxy::flushDisplayListWasCommitted):
+        (WebKit::RemoteRenderingBackendProxy::waitForCreateImageBufferBackend): Deleted.
+        (WebKit::RemoteRenderingBackendProxy::waitForCommitImageBufferFlushContext): Deleted.
+        (WebKit::RemoteRenderingBackendProxy::createImageBufferBackend): Deleted.
+        (WebKit::RemoteRenderingBackendProxy::commitImageBufferFlushContext): Deleted.
+        * WebProcess/GPU/graphics/RemoteRenderingBackendProxy.h:
+        * WebProcess/GPU/graphics/RemoteRenderingBackendProxy.messages.in:
+
+2020-10-16  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Add system trace points for flushing remote image buffers
+        https://bugs.webkit.org/show_bug.cgi?id=217853
+
+        Reviewed by Simon Fraser.
+
+        Add trace points to capture drawing context flushes. This encapsulates time spent encoding display lists in
+        preparation for IPC.
+
+        * WebProcess/GPU/graphics/RemoteImageBufferMessageHandlerProxy.cpp:
+        (WebKit::RemoteImageBufferMessageHandlerProxy::flushDrawingContext):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::flushDrawingContextAndWaitCommit):
+
+2020-10-16  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: rename `Highlight` so it doesn't conflict with CSS `Highlight`
+        https://bugs.webkit.org/show_bug.cgi?id=217858
+
+        Reviewed by Megan Gardner.
+
+        No new tests as there is no behavior change since this is purely a rename.
+
+        * Scripts/webkit/messages.py:
+        * Shared/WebCoreArgumentCoders.h:
+        * Shared/WebCoreArgumentCoders.cpp:
+        (IPC::ArgumentCoder<InspectorOverlay::Highlight>::encode): Added.
+        (IPC::ArgumentCoder<InspectorOverlay::Highlight>::decode): Added.
+        (IPC::ArgumentCoder<Highlight>::encode): Deleted.
+        (IPC::ArgumentCoder<Highlight>::decode): Deleted.
+
+        * WebProcess/Inspector/WebInspectorClient.cpp:
+        (WebKit::WebInspectorClient::highlight):
+        * WebProcess/WebPage/WebPage.h:
+        * WebProcess/WebPage/ios/WebPageIOS.mm:
+        (WebKit::WebPage::showInspectorHighlight):
+
+        * UIProcess/ios/WKContentView.h:
+        * UIProcess/ios/WKContentView.mm:
+        (-[WKContentView _showInspectorHighlight:]):
+        * UIProcess/WebPageProxy.messages.in:
+        * UIProcess/WebPageProxy.h:
+        * UIProcess/ios/WebPageProxyIOS.mm:
+        (WebKit::WebPageProxy::showInspectorHighlight):
+        * UIProcess/PageClient.h:
+        * UIProcess/ios/PageClientImplIOS.h:
+        * UIProcess/ios/PageClientImplIOS.mm:
+        (WebKit::PageClientImpl::showInspectorHighlight):
+        * UIProcess/Inspector/ios/WKInspectorHighlightView.h:
+        * UIProcess/Inspector/ios/WKInspectorHighlightView.mm:
+        (-[WKInspectorHighlightView _layoutForNodeHighlight:offset:]):
+        (-[WKInspectorHighlightView _layoutForNodeListHighlight:]):
+        (-[WKInspectorHighlightView _layoutForRectsHighlight:]):
+        (-[WKInspectorHighlightView update:]):
+
+2020-10-16  Ryosuke Niwa  <rniwa@webkit.org>
+
+        IPC testing API should expose whether a given IPC message has sync reply or not
+        https://bugs.webkit.org/show_bug.cgi?id=217861
+
+        Reviewed by Darin Adler.
+
+        This patch adds IPC.messages.*.isSync to indicate whether a given IPC message has a sync reply or not.
+
+        Test: TestWebKitAPI.IPCTestingAPI.AlertIsSyncMessage
+
+        * Platform/IPC/MessageArgumentDescriptions.h:
+        * Scripts/webkit/messages.py:
+        (generate_js_value_conversion_function): Fixed a typo.
+        (generate_js_argument_descriptions): Ditto.
+        (generate_message_argument_description_implementation): Generate messageIsSync function.
+        * WebProcess/WebPage/IPCTestingAPI.cpp:
+        (WebKit::JSIPC::wrapperClass): Updated the class name to match the implementation.
+        (WebKit::IPCTestingAPI::JSIPC::messages): Added isSync as a boolean property on message description.
+
+2020-10-16  Peng Liu  <peng.liu6@apple.com>
+
+        [Media in GPU Process] Use CARingBuffer to transfer audio data of an audio destination from a web process to the GPU Process
+        https://bugs.webkit.org/show_bug.cgi?id=217715
+
+        Reviewed by Jer Noble.
+
+        The current implementation of RemoteAudioDestination essentially runs the
+        AudioDestinationCocoa in the GPU process, which is not good because we are adding
+        AudioWorklet stuff into AudioDestinationCocoa, but the AudioWorklet stuff is
+        irrelevant to the GPU process.
+
+        What really needs to run in the GPU process (for Cocoa platforms at least) is the
+        audio output unit. This patch adds WebCore::AudioOutputUnitAdaptor and
+        WebCore::AudioUnitRenderer to implement that. With this patch, RemoteAudioDestination
+        in the GPU process is an AudioUnitRenderer and it embeds an AudioOutputUnitAdaptor
+        like AudioDestinationCocoa does in the Web process. Essentially, we run AudioOutputUnitAdaptor
+        remotely from the AudioDestinationCocoa's perspective.
+
+        Also, in the current implementation, the RemoteAudioDestinationProxy in a Web
+        process transfers audio data to the RemoteAudioDestination in the GPU process
+        with IPC messages (RemoteAudioBusData). This is not efficient because of the
+        large number of IPC messages for audio samples.
+
+        With this patch, RemoteAudioDestinationProxy (Web process) transfers audio samples
+        to RemoteAudioDestination(GPU process) with a CARingBuffer providing shared
+        buffers for the Web process and the GPU process.
+
+        * GPUProcess/media/RemoteAudioDestinationManager.cpp:
+        (WebKit::RemoteAudioDestination::create):
+        (WebKit::RemoteAudioDestination::~RemoteAudioDestination):
+        (WebKit::RemoteAudioDestination::audioSamplesStorageChanged):
+        (WebKit::RemoteAudioDestination::start):
+        (WebKit::RemoteAudioDestination::stop):
+        (WebKit::RemoteAudioDestination::isPlaying const):
+        (WebKit::RemoteAudioDestination::RemoteAudioDestination):
+        (WebKit::RemoteAudioDestination::storage):
+        (WebKit::RemoteAudioDestination::render):
+        (WebKit::RemoteAudioDestinationManager::createAudioDestination):
+        (WebKit::RemoteAudioDestinationManager::audioSamplesStorageChanged):
+        (WebKit::RemoteAudioDestination::isPlaying): Deleted.
+        (WebKit::RemoteAudioDestination::framesPerBuffer const): Deleted.
+        * GPUProcess/media/RemoteAudioDestinationManager.h:
+        (WebKit::RemoteAudioDestinationManager::didReceiveSyncMessageFromWebProcess):
+        * GPUProcess/media/RemoteAudioDestinationManager.messages.in:
+        Add a message AudioSamplesStorageChanged to support using CARingBuffer to
+        transmit audio samples to the GPU process.
+
+        * WebKit.xcodeproj/project.pbxproj:
+
+        * WebProcess/GPU/media/RemoteAudioBusData.h: Removed.
+
+        * WebProcess/GPU/media/RemoteAudioDestinationProxy.cpp:
+        (WebKit::RemoteAudioDestinationProxy::RemoteAudioDestinationProxy):
+        (WebKit::RemoteAudioDestinationProxy::start):
+        (WebKit::RemoteAudioDestinationProxy::stop):
+        (WebKit::RemoteAudioDestinationProxy::requestBuffer):
+        (WebKit::RemoteAudioDestinationProxy::renderOnRenderingThead):
+        (WebKit::RemoteAudioDestinationProxy::storageChanged):
+        (WebKit::RemoteAudioDestinationProxy::renderBuffer): Deleted.
+        (WebKit::RemoteAudioDestinationProxy::didChangeIsPlaying): Deleted.
+        * WebProcess/GPU/media/RemoteAudioDestinationProxy.h:
+        RemoteAudioDestinationProxy is a subclass of AudioDestinationCocoa. It pulls audio
+        samples from the WebAudio side and use a CARingBuffer to push audio samples to
+        the audio output unit (managed by RemoteAudioDestination) in the GPU process.
+        * WebProcess/GPU/media/RemoteAudioDestinationProxy.messages.in:
+        Add a message RequestBuffer, which can be used by RemoteAudioDestination to ask
+        for (pull) audio samples.
+
+        * WebProcess/GPU/webrtc/AudioMediaStreamTrackRenderer.cpp:
+        (WebKit::AudioMediaStreamTrackRenderer::pushSamples): A minor fix to get rid of
+        a type conversion.
+
+2020-10-16  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Add an experimental feature flag: WebAuthenticationModernEnabled
+        https://bugs.webkit.org/show_bug.cgi?id=217843
+        <rdar://problem/70384187>
+
+        Reviewed by Brent Fulgham.
+
+        * UIProcess/API/C/WKPreferences.cpp:
+        (WKPreferencesSetWebAuthenticationModernEnabled):
+        (WKPreferencesGetWebAuthenticationModernEnabled):
+        * UIProcess/API/C/WKPreferencesRefPrivate.h:
+
+2020-10-16  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Remove experimental feature flag: WebAuthenticationLocalAuthenticatorEnabled
+        https://bugs.webkit.org/show_bug.cgi?id=217796
+        <rdar://problem/70358912>
+
+        Reviewed by Brent Fulgham.
+
+        * UIProcess/API/C/WKPreferences.cpp:
+        (WKPreferencesSetWebAuthenticationLocalAuthenticatorEnabled): Deleted.
+        (WKPreferencesGetWebAuthenticationLocalAuthenticatorEnabled): Deleted.
+        * UIProcess/API/C/WKPreferencesRefPrivate.h:
+        * UIProcess/WebAuthentication/AuthenticatorManager.cpp:
+        (WebKit::AuthenticatorManager::filterTransports const):
+        (WebKit::WebCore::isFeatureEnabled): Deleted.
+
+2020-10-16  Said Abou-Hallawa  <sabouhallawa@apple.com>
+
+        [GPU Process] Exchange RemoteImageBuffer and RemoteImageBufferProxy
+        https://bugs.webkit.org/show_bug.cgi?id=217809
+
+        Reviewed by Simon Fraser.
+
+        The names of the GPU rendering classes have been confusing. RemoteImageBuffer
+        should be the real object in the GPU Process because it owns the backend.
+        And RemoteImageBufferProxy should be a proxy to this object in the Web
+        Process. So we are going to exchange the following classes:
+
+        -- RemoteImageBuffer <-> RemoteImageBufferProxy
+        -- RemoteRenderingBackend <-> RemoteRenderingBackendProxy
+        -- RemoteImageBufferMessageHandler <-> RemoteImageBufferMessageHandlerProxy
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources.make:
+        * GPUProcess/GPUConnectionToWebProcess.cpp:
+        (WebKit::GPUConnectionToWebProcess::createRenderingBackend):
+        (WebKit::GPUConnectionToWebProcess::releaseRenderingBackend):
+        * GPUProcess/GPUConnectionToWebProcess.h:
+        * GPUProcess/graphics/PlatformRemoteImageBuffer.h: Renamed from Source/WebKit/WebProcess/GPU/graphics/PlatformRemoteImageBuffer.h.
+        * GPUProcess/graphics/RemoteImageBuffer.h: Renamed from Source/WebKit/GPUProcess/graphics/RemoteImageBufferProxy.h.
+        (WebKit::RemoteImageBuffer::create):
+        (WebKit::RemoteImageBuffer::RemoteImageBuffer):
+        (WebKit::RemoteImageBuffer::~RemoteImageBuffer):
+        (WebKit::RemoteImageBuffer::apply):
+        * GPUProcess/graphics/RemoteImageBufferMessageHandler.cpp: Renamed from Source/WebKit/GPUProcess/graphics/RemoteImageBufferMessageHandlerProxy.cpp.
+        (WebKit::RemoteImageBufferMessageHandler::RemoteImageBufferMessageHandler):
+        (WebKit::RemoteImageBufferMessageHandler::createBackend):
+        (WebKit::RemoteImageBufferMessageHandler::commitFlushContext):
+        * GPUProcess/graphics/RemoteImageBufferMessageHandler.h: Renamed from Source/WebKit/GPUProcess/graphics/RemoteImageBufferMessageHandlerProxy.h.
+        (WebKit::RemoteImageBufferMessageHandler::backend):
+        * GPUProcess/graphics/RemoteRenderingBackend.cpp: Renamed from Source/WebKit/GPUProcess/graphics/RemoteRenderingBackendProxy.cpp.
+        (WebKit::RemoteRenderingBackend::create):
+        (WebKit::RemoteRenderingBackend::RemoteRenderingBackend):
+        (WebKit::RemoteRenderingBackend::~RemoteRenderingBackend):
+        (WebKit::RemoteRenderingBackend::messageSenderConnection const):
+        (WebKit::RemoteRenderingBackend::messageSenderDestinationID const):
+        (WebKit::RemoteRenderingBackend::createImageBuffer):
+        (WebKit::RemoteRenderingBackend::releaseRemoteResource):
+        (WebKit::RemoteRenderingBackend::getImageData):
+        (WebKit::RemoteRenderingBackend::flushImageBufferDrawingContext):
+        (WebKit::RemoteRenderingBackend::flushImageBufferDrawingContextAndCommit):
+        (WebKit::RemoteRenderingBackend::gpuConnectionToWebProcess const):
+        * GPUProcess/graphics/RemoteRenderingBackend.h: Renamed from Source/WebKit/GPUProcess/graphics/RemoteRenderingBackendProxy.h.
+        (WebKit::RemoteRenderingBackend::renderingBackendIdentifier const):
+        * GPUProcess/graphics/RemoteRenderingBackend.messages.in: Renamed from Source/WebKit/GPUProcess/graphics/RemoteRenderingBackendProxy.messages.in.
+        * GPUProcess/media/RemoteCDMInstanceSessionProxy.cpp:
+        * Sources.txt:
+        * WebKit.xcodeproj/project.pbxproj:
+        * WebProcess/GPU/graphics/PlatformRemoteImageBufferProxy.h: Renamed from Source/WebKit/GPUProcess/graphics/PlatformRemoteImageBufferProxy.h.
+        * WebProcess/GPU/graphics/RemoteImageBufferMessageHandler.cpp: Removed.
+        * WebProcess/GPU/graphics/RemoteImageBufferMessageHandlerProxy.cpp: Added.
+        (WebKit::RemoteImageBufferMessageHandlerProxy::RemoteImageBufferMessageHandlerProxy):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::~RemoteImageBufferMessageHandlerProxy):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::getImageData const):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::waitForCreateImageBufferBackend):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::waitForCommitImageBufferFlushContext):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::flushDrawingContext):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::flushDrawingContextAndWaitCommit):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::commitFlushContext):
+        * WebProcess/GPU/graphics/RemoteImageBufferMessageHandlerProxy.h: Renamed from Source/WebKit/WebProcess/GPU/graphics/RemoteImageBufferMessageHandler.h.
+        (WebKit::RemoteImageBufferMessageHandlerProxy::remoteResourceIdentifier const):
+        (WebKit::RemoteImageBufferMessageHandlerProxy::isPendingFlush const):
+        * WebProcess/GPU/graphics/RemoteImageBufferProxy.h: Renamed from Source/WebKit/WebProcess/GPU/graphics/RemoteImageBuffer.h.
+        (WebKit::RemoteImageBufferProxy::create):
+        (WebKit::RemoteImageBufferProxy::~RemoteImageBufferProxy):
+        (WebKit::RemoteImageBufferProxy::RemoteImageBufferProxy):
+        (WebKit::RemoteImageBufferProxy::putImageData):
+        * WebProcess/GPU/graphics/RemoteRenderingBackendProxy.cpp: Renamed from Source/WebKit/WebProcess/GPU/graphics/RemoteRenderingBackend.cpp.
+        (WebKit::RemoteRenderingBackendProxy::create):
+        (WebKit::RemoteRenderingBackendProxy::RemoteRenderingBackendProxy):
+        (WebKit::RemoteRenderingBackendProxy::~RemoteRenderingBackendProxy):
+        (WebKit::RemoteRenderingBackendProxy::messageSenderConnection const):
+        (WebKit::RemoteRenderingBackendProxy::messageSenderDestinationID const):
+        (WebKit::RemoteRenderingBackendProxy::waitForCreateImageBufferBackend):
+        (WebKit::RemoteRenderingBackendProxy::waitForCommitImageBufferFlushContext):
+        (WebKit::RemoteRenderingBackendProxy::createImageBuffer):
+        (WebKit::RemoteRenderingBackendProxy::releaseRemoteResource):
+        (WebKit::RemoteRenderingBackendProxy::createImageBufferBackend):
+        (WebKit::RemoteRenderingBackendProxy::commitImageBufferFlushContext):
+        * WebProcess/GPU/graphics/RemoteRenderingBackendProxy.h: Renamed from Source/WebKit/WebProcess/GPU/graphics/RemoteRenderingBackend.h.
+        (WebKit::RemoteRenderingBackendProxy::renderingBackendIdentifier const):
+        * WebProcess/GPU/graphics/RemoteRenderingBackendProxy.messages.in: Renamed from Source/WebKit/WebProcess/GPU/graphics/RemoteRenderingBackend.messages.in.
+        * WebProcess/WebCoreSupport/WebChromeClient.cpp:
+        (WebKit::WebChromeClient::ensureRemoteRenderingBackendProxy const):
+        (WebKit::WebChromeClient::createImageBuffer const):
+        (WebKit::WebChromeClient::ensureRemoteRenderingBackend const): Deleted.
+        * WebProcess/WebCoreSupport/WebChromeClient.h:
+
+2020-10-16  Eric Carlson  <eric.carlson@apple.com>
+
+        [GPU Process] Implement VideoPlaybackMetrics
+        https://bugs.webkit.org/show_bug.cgi?id=217439
+        <rdar://problem/60179370>
+
+        Reviewed by Jer Noble.
+
+        * GPUProcess/media/RemoteMediaPlayerProxy.cpp:
+        (WebKit::RemoteMediaPlayerProxy::outOfBandTrackSources):
+        (WebKit::RemoteMediaPlayerProxy::updateCachedState):
+        (WebKit::RemoteMediaPlayerProxy::setShouldUpdatePlaybackMetrics):
+        * GPUProcess/media/RemoteMediaPlayerProxy.h:
+        * GPUProcess/media/RemoteMediaPlayerProxy.messages.in:
+        * WebProcess/GPU/media/MediaPlayerPrivateRemote.cpp:
+        (WebKit::MediaPlayerPrivateRemote::videoPlaybackQualityMetrics):
+        * WebProcess/GPU/media/MediaPlayerPrivateRemote.h:
+        * WebProcess/GPU/media/RemoteMediaPlayerState.h:
+        (WebKit::RemoteMediaPlayerState::encode const):
+        (WebKit::RemoteMediaPlayerState::decode):
+
+2020-10-16  Eric Carlson  <eric.carlson@apple.com>
+
+        [GPU Process] Implement mediaPlayerGetRawCookies
+        https://bugs.webkit.org/show_bug.cgi?id=217739
+        <rdar://problem/70313370>
+
+        Reviewed by Youenn Fablet.
+
+        * GPUProcess/media/RemoteMediaPlayerProxy.cpp:
+        (WebKit::RemoteMediaPlayerProxy::mediaPlayerGetRawCookies const):
+        * GPUProcess/media/RemoteMediaPlayerProxy.h:
+        * WebProcess/GPU/media/MediaPlayerPrivateRemote.cpp:
+        (WebKit::MediaPlayerPrivateRemote::getRawCookies const):
+        * WebProcess/GPU/media/MediaPlayerPrivateRemote.h:
+        * WebProcess/GPU/media/MediaPlayerPrivateRemote.messages.in:
+
+2020-10-16  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Implement a dummy WebAuthnProcess
+        https://bugs.webkit.org/show_bug.cgi?id=217559
+        <rdar://problem/70168749>
+
+        Reviewed by Brent Fulgham.
+
+        Previous patch r268248 introduces a new daemon to handle all WebAuthn requests. However, after more deeper investigations, the daemon
+        story is not very compelling for WebKit. Here are the two major road blockers:
+        1) The major one is on macOS. New daemons cannot be installed without a system update. It means relocatable Safari (e.g. STP)
+        and staged Safari on downlevel OSes will not get this feature. And relocatable STP can only utilize the system daemon. This
+        seems a bummer especially for the STP case given it is heavily used to test latest web features.
+        2) Additional plumbing is needed for testing and engineering builds. This problem is specific to WebKit and is on both macOS and iOS.
+        WebKit doesn't build roots to test engineering builds, which is required to update the plist on the above location. Hence, a separate
+        configuration is needed to generate a different plist that points to the right engineering binary and additional scripts will be needed
+        to ask launchd to load the plist before running any tests. Some extra exercises are probably needed to not confuse launchd about the
+        engineering binary and system binary as well.
+
+        Given the above constraints, a new architecture is proposed to make the daemon a WebKit XPC service/process instead and leave the launchd
+        event handler to a new Safari daemon. The launchd related feature is only on iOS and therefore it really doesn't make sense to overcome
+        all the above macOS constraints. Having different architectures on iOS (a daemon) and on macOS (a XPC service) accordingly will introduce
+        tons of overhead for maintainance as well. That's why relying on a Safari daemon to do the job is the most reasonable option.
+
+        This patch therefore focuses on making the WebAuthn process happen and removes the WebAuthn daemon.
+
+        * CMakeLists.txt:
+        * Configurations/WebAuthnService.xcconfig: Renamed from Source/WebKit/Configurations/WebAuthenticationAgent.xcconfig.
+        * Configurations/WebKit.xcconfig:
+        * Daemons/WebAuthenticationAgent/WebAuthenticationAgent.entitlements: Removed.
+        * Daemons/WebAuthenticationAgent/com.apple.webkit.WebAuthenticationAgent.plist: Removed.
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        Paperwork for building the new WebAuthn process.
+
+        * Platform/ExtraPrivateSymbolsForTAPI.h:
+        * Shared/AuxiliaryProcess.h:
+        * Shared/EntryPointUtilities/Cocoa/XPCService/XPCServiceEntryPoint.h:
+        * Shared/EntryPointUtilities/Cocoa/XPCService/XPCServiceMain.mm:
+        (WebKit::XPCServiceEventHandler):
+        * Shared/mac/AuxiliaryProcessMac.mm:
+        (WebKit::processStorageClass):
+        (WebKit::sandboxDirectory):
+        Paperwork for introducing the new WebAuthn process. Mostly copied from GPU process.
+
+        * Sources.txt:
+        * SourcesCocoa.txt:
+        Paperwork for building the new WebAuthn process.
+
+        * UIProcess/AuxiliaryProcessProxy.cpp:
+        (WebKit::AuxiliaryProcessProxy::getLaunchOptions):
+        * UIProcess/Launcher/ProcessLauncher.h:
+        * UIProcess/Launcher/mac/ProcessLauncherMac.mm:
+        (WebKit::serviceName):
+        (WebKit::shouldLeakBoost):
+        * UIProcess/WebAuthentication/WebAuthnProcessProxy.cpp: Added.
+        (WebKit::WebAuthnProcessProxy::singleton):
+        (WebKit::WebAuthnProcessProxy::WebAuthnProcessProxy):
+        (WebKit::WebAuthnProcessProxy::getLaunchOptions):
+        (WebKit::WebAuthnProcessProxy::connectionWillOpen):
+        (WebKit::WebAuthnProcessProxy::processWillShutDown):
+        (WebKit::WebAuthnProcessProxy::getWebAuthnProcessConnection):
+        (WebKit::WebAuthnProcessProxy::webAuthnProcessCrashed):
+        (WebKit::WebAuthnProcessProxy::didClose):
+        (WebKit::WebAuthnProcessProxy::didReceiveInvalidMessage):
+        (WebKit::WebAuthnProcessProxy::didFinishLaunching):
+        (WebKit::WebAuthnProcessProxy::updateProcessAssertion):
+        * UIProcess/WebAuthentication/WebAuthnProcessProxy.h: Added.
+        * UIProcess/WebAuthentication/WebAuthnProcessProxy.messages.in: Added.
+        * UIProcess/WebProcessPool.cpp:
+        (WebKit::WebProcessPool::getWebAuthnProcessConnection):
+        * UIProcess/WebProcessPool.h:
+        * UIProcess/WebProcessProxy.cpp:
+        (WebKit::WebProcessProxy::getWebAuthnProcessConnection):
+        * UIProcess/WebProcessProxy.h:
+        * UIProcess/WebProcessProxy.messages.in:
+        * WebAuthnProcess/EntryPoint/Cocoa/XPCService/WebAuthnService/Info-OSX.plist: Copied from Source/WebKit/Daemons/WebAuthenticationAgent/Info.plist.
+        * WebAuthnProcess/EntryPoint/Cocoa/XPCService/WebAuthnService/Info-iOS.plist: Renamed from Source/WebKit/Daemons/WebAuthenticationAgent/Info.plist.
+        * WebAuthnProcess/EntryPoint/Cocoa/XPCService/WebAuthnServiceEntryPoint.mm: Copied from Source/WebKit/Daemons/WebAuthenticationAgent/main.mm.
+        (WebKit::WebAuthnServiceInitializerDelegate::WebAuthnServiceInitializerDelegate):
+        (WebKit::initializeAuxiliaryProcess<WebAuthnProcess>):
+        (WEBAUTHEN_SERVICE_INITIALIZER):
+        * WebAuthnProcess/WebAuthnConnectionToWebProcess.cpp: Added.
+        (WebKit::WebAuthnConnectionToWebProcess::create):
+        (WebKit::WebAuthnConnectionToWebProcess::WebAuthnConnectionToWebProcess):
+        (WebKit::WebAuthnConnectionToWebProcess::~WebAuthnConnectionToWebProcess):
+        (WebKit::WebAuthnConnectionToWebProcess::didClose):
+        (WebKit::WebAuthnConnectionToWebProcess::didReceiveInvalidMessage):
+        * WebAuthnProcess/WebAuthnConnectionToWebProcess.h: Copied from Source/WebKit/Daemons/WebAuthenticationAgent/main.mm.
+        (WebKit::WebAuthnConnectionToWebProcess::connection):
+        (WebKit::WebAuthnConnectionToWebProcess::WebAuthnProcessProcess):
+        (WebKit::WebAuthnConnectionToWebProcess::webProcessIdentifier const):
+        * WebAuthnProcess/WebAuthnConnectionToWebProcess.messages.in: Added.
+        * WebAuthnProcess/WebAuthnProcess.cpp: Added.
+        (WebKit::WebAuthnProcess::WebAuthnProcess):
+        (WebKit::WebAuthnProcess::~WebAuthnProcess):
+        (WebKit::WebAuthnProcess::createWebAuthnConnectionToWebProcess):
+        (WebKit::WebAuthnProcess::removeWebAuthnConnectionToWebProcess):
+        (WebKit::WebAuthnProcess::connectionToWebProcessClosed):
+        (WebKit::WebAuthnProcess::shouldTerminate):
+        (WebKit::WebAuthnProcess::didClose):
+        (WebKit::WebAuthnProcess::lowMemoryHandler):
+        (WebKit::WebAuthnProcess::initializeWebAuthnProcess):
+        (WebKit::WebAuthnProcess::prepareToSuspend):
+        (WebKit::WebAuthnProcess::processDidResume):
+        (WebKit::WebAuthnProcess::resume):
+        (WebKit::WebAuthnProcess::processDidTransitionToForeground):
+        (WebKit::WebAuthnProcess::processDidTransitionToBackground):
+        (WebKit::WebAuthnProcess::webProcessConnection const):
+        * WebAuthnProcess/WebAuthnProcess.h: Added.
+        * WebAuthnProcess/WebAuthnProcess.messages.in: Added.
+        * WebAuthnProcess/WebAuthnProcessCreationParameters.cpp: Copied from Source/WebKit/Daemons/WebAuthenticationAgent/main.mm.
+        (WebKit::WebAuthnProcessCreationParameters::encode const):
+        (WebKit::WebAuthnProcessCreationParameters::decode):
+        * WebAuthnProcess/WebAuthnProcessCreationParameters.h: Copied from Source/WebKit/Daemons/WebAuthenticationAgent/main.mm.
+        * WebAuthnProcess/ios/WebAuthnProcessIOS.mm: Copied from Source/WebKit/Daemons/WebAuthenticationAgent/main.mm.
+        (WebKit::WebAuthnProcess::initializeProcess):
+        (WebKit::WebAuthnProcess::initializeProcessName):
+        (WebKit::WebAuthnProcess::initializeSandbox):
+        * WebAuthnProcess/mac/WebAuthnProcessMac.mm: Added.
+        (WebKit::WebAuthnProcess::initializeProcess):
+        (WebKit::WebAuthnProcess::initializeProcessName):
+        (WebKit::WebAuthnProcess::initializeSandbox):
+        Paperwork for introducing the new WebAuthn process. Mostly copied from GPU process.
+
+        * WebAuthnProcess/mac/com.apple.WebKit.WebAuthnProcess.sb.in: Added.
+        The sandbox profile is originally from the GPU Process with IOKit related rules removed. Will tighten it again after the process is fully functional.
+
+        * WebKit.xcodeproj/project.pbxproj:
+        Paperwork for building the new WebAuthn process.
+
+        * WebProcess/WebAuthentication/WebAuthnProcessConnection.cpp: Copied from Source/WebKit/Daemons/WebAuthenticationAgent/main.mm.
+        (WebKit::WebAuthnProcessConnection::WebAuthnProcessConnection):
+        (WebKit::WebAuthnProcessConnection::~WebAuthnProcessConnection):
+        (WebKit::WebAuthnProcessConnection::didClose):
+        (WebKit::WebAuthnProcessConnection::didReceiveInvalidMessage):
+        * WebProcess/WebAuthentication/WebAuthnProcessConnection.h: Renamed from Source/WebKit/Daemons/WebAuthenticationAgent/main.mm.
+        (WebKit::WebAuthnProcessConnection::create):
+        (WebKit::WebAuthnProcessConnection::connection):
+        * WebProcess/WebAuthentication/WebAuthnProcessConnection.messages.in: Added.
+        * WebProcess/WebAuthentication/WebAuthnProcessConnectionInfo.h: Added.
+        (WebKit::WebAuthnProcessConnectionInfo::identifier const):
+        (WebKit::WebAuthnProcessConnectionInfo::releaseIdentifier):
+        (WebKit::WebAuthnProcessConnectionInfo::encode const):
+        (WebKit::WebAuthnProcessConnectionInfo::decode):
+        * WebProcess/WebProcess.cpp:
+        (WebKit::getWebAuthnProcessConnection):
+        (WebKit::WebProcess::ensureWebAuthnProcessConnection):
+        (WebKit::WebProcess::webAuthnProcessConnectionClosed):
+        * WebProcess/WebProcess.h:
+        (WebKit::WebProcess::existingWebAuthnProcessConnection):
+        Paperwork for introducing the new WebAuthn process. Mostly copied from GPU process.
+
+2020-10-16  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Remove the "alg" field in the attestation statement
+        https://bugs.webkit.org/show_bug.cgi?id=217720
+        <rdar://problem/70349734>
+
+        Reviewed by Brent Fulgham.
+
+        This old field was used in an unreleased old attestation statement format and is not used by
+        the final attestation statement format that will be added to the spec:
+        https://github.com/w3c/webauthn/pull/1491.
+
+        Therefore, remove it to resolve confusion.
+
+        Covered by existing tests.
+
+        * UIProcess/WebAuthentication/Cocoa/LocalAuthenticator.mm:
+        (WebKit::LocalAuthenticator::continueMakeCredentialAfterAttested):
+
+2020-10-16  Youenn Fablet  <youenn@apple.com>
+
+        Add support for GPUProcess WebAudio media element providers
+        https://bugs.webkit.org/show_bug.cgi?id=217704
+
+        Reviewed by Eric Carlson.
+
+        Introduce RemoteAudioSourceProviderManager which receives IPC messages from GPU process for web audio data.
+        RemoteAudioSourceProviderManager sends it to the identified RemoteAudioSourceProvider.
+
+        Introduce RemoteAudioSourceProviderProxy which is a client to the AV AudioSourceProviderAVFObjC.
+        RemoteAudioSourceProviderProxy will send IPC messages to RemoteAudioSourceProviderManager to send audio data and description.
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * GPUProcess/media/RemoteAudioSourceProviderProxy.cpp: Added.
+        (WebKit::RemoteAudioSourceProviderProxy::create):
+        (WebKit::RemoteAudioSourceProviderProxy::RemoteAudioSourceProviderProxy):
+        (WebKit::RemoteAudioSourceProviderProxy::createRingBuffer):
+        (WebKit::RemoteAudioSourceProviderProxy::newAudioSamples):
+        (WebKit::RemoteAudioSourceProviderProxy::storageChanged):
+        * GPUProcess/media/RemoteAudioSourceProviderProxy.h: Added.
+        * GPUProcess/media/RemoteMediaPlayerProxy.cpp:
+        (WebKit::RemoteMediaPlayerProxy::~RemoteMediaPlayerProxy):
+        (WebKit::RemoteMediaPlayerProxy::createAudioSourceProvider):
+        (WebKit::RemoteMediaPlayerProxy::setShouldEnableAudioSourceProvider):
+        * GPUProcess/media/RemoteMediaPlayerProxy.h:
+        * GPUProcess/media/RemoteMediaPlayerProxy.messages.in:
+        * SourcesCocoa.txt:
+        * WebKit.xcodeproj/project.pbxproj:
+        * WebProcess/GPU/GPUProcessConnection.cpp:
+        (WebKit::GPUProcessConnection::audioSourceProviderManager):
+        * WebProcess/GPU/GPUProcessConnection.h:
+        * WebProcess/GPU/media/RemoteAudioSourceProvider.cpp:
+        (WebKit::RemoteAudioSourceProvider::create):
+        (WebKit::RemoteAudioSourceProvider::RemoteAudioSourceProvider):
+        (WebKit::RemoteAudioSourceProvider::close):
+        (WebKit::RemoteAudioSourceProvider::hasNewClient):
+        * WebProcess/GPU/media/RemoteAudioSourceProviderManager.cpp: Added.
+        (WebKit::RemoteAudioSourceProviderManager::RemoteAudioSourceProviderManager):
+        (WebKit::RemoteAudioSourceProviderManager::~RemoteAudioSourceProviderManager):
+        (WebKit::RemoteAudioSourceProviderManager::setConnection):
+        (WebKit::RemoteAudioSourceProviderManager::addProvider):
+        (WebKit::RemoteAudioSourceProviderManager::removeProvider):
+        (WebKit::RemoteAudioSourceProviderManager::dispatchToThread):
+        (WebKit::RemoteAudioSourceProviderManager::audioStorageChanged):
+        (WebKit::RemoteAudioSourceProviderManager::audioSamplesAvailable):
+        (WebKit::RemoteAudioSourceProviderManager::RemoteAudio::RemoteAudio):
+        (WebKit::RemoteAudioSourceProviderManager::RemoteAudio::setStorage):
+        (WebKit::RemoteAudioSourceProviderManager::RemoteAudio::audioSamplesAvailable):
+        * WebProcess/GPU/media/RemoteAudioSourceProviderManager.h: Added.
+        (WebKit::RemoteAudioSourceProviderManager::create):
+        * WebProcess/GPU/media/RemoteAudioSourceProviderManager.messages.in: Added.
+        * WebProcess/cocoa/RemoteCaptureSampleManager.cpp:
+
+2020-10-15  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Move AppAttestInternal related code from WKA to OpenSource
+        https://bugs.webkit.org/show_bug.cgi?id=217790
+        <rdar://problem/59613406>
+
+        Reviewed by Brent Fulgham.
+
+        Covered by manual testing.
+
+        * Platform/spi/Cocoa/AppAttestSPI.h: Copied from Source/WebKit/UIProcess/WebAuthentication/Cocoa/AppAttestInternalSoftLink.mm.
+        * SourcesCocoa.txt:
+        * UIProcess/WebAuthentication/Cocoa/AppAttestInternalSoftLink.h: Added.
+        * UIProcess/WebAuthentication/Cocoa/AppAttestInternalSoftLink.mm: Added.
+        * UIProcess/WebAuthentication/Cocoa/LocalConnection.mm:
+        (WebKit::LocalConnection::getAttestation const):
+        * UIProcess/WebAuthentication/Cocoa/LocalService.mm:
+        (WebKit::LocalService::isAvailable):
+        * WebKit.xcodeproj/project.pbxproj:
+
 2020-10-15  David Kilzer  <ddkilzer@apple.com>
 
         v2: WebKit::XPCServiceEventHandler block should call exit() on the main thread

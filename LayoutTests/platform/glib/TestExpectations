@@ -90,6 +90,8 @@ webkit.org/b/207711 [ Debug ] accessibility/roles-exposed.html [ Timeout ]
 
 webkit.org/b/217260 accessibility/spinbutton-crash.html [ Failure ]
 
+webkit.org/b/217817 accessibility/text-element-path.html [ Failure ]
+
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of Accessibility-related bugs
 #////////////////////////////////////////////////////////////////////////////////////////
@@ -154,6 +156,9 @@ webkit.org/b/133122 crypto/workers/subtle/aes-cfb-import-key-wrap-key.html [ Ski
 
 webkit.org/b/188041 http/wpt/crypto/unwrap-rsa-key-crash.any.worker.html [ Failure Timeout Pass ]
 webkit.org/b/188041 http/wpt/crypto/unwrap-rsa-key-crash.any.html [ Timeout Pass ]
+
+webkit.org/b/217699 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-promises.https.html [ Crash Pass ]
+webkit.org/b/217699 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/cors-check.https.html [ Failure ]
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of Crypto tests
@@ -259,6 +264,10 @@ webkit.org/b/216171 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-d
 
 webkit.org/b/216118 webaudio/convolver-setBuffer-different-samplerate.html [ Skip ]
 webkit.org/b/216118 webaudio/convolver-setBuffer-null.html [ Skip ]
+
+webkit.org/b/217829 media/video-orientation-canvas.html [ Failure ]
+
+webkit.org/b/217845 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-stereopanner-interface/no-dezippering.html [ Failure ]
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of GStreamer-related bugs
@@ -630,6 +639,11 @@ webkit.org/b/211887 [ Debug ] webgl/1.0.3/conformance/more/functions/texSubImage
 
 webkit.org/b/216071 fast/canvas/webgl/move-canvas-in-document-while-clean.html [ ImageOnlyFailure ]
 
+webkit.org/b/217813 webgl/conformance/extensions/ext-texture-compression-rgtc.html [ Failure ]
+webkit.org/b/217813 webgl/conformance/extensions/s3tc-and-rgtc.html [ Failure ]
+
+webkit.org/b/217816 webgl/conformance2/uniforms/gl-uniform-arrays-sub-source.html [ Failure ]
+
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of WebGL-related bugs
 #////////////////////////////////////////////////////////////////////////////////////////
@@ -818,6 +832,9 @@ webkit.org/b/216358 imported/w3c/web-platform-tests/css/css-fonts/font-feature-r
 
 # Failing since r266665.
 webkit.org/b/216359 fast/text/emoji-synthesis.html [ ImageOnlyFailure ]
+
+# Failing since added in r268138.
+webkit.org/b/217815 imported/w3c/web-platform-tests/css/css-masking/clip-path/clip-path-filter-order.html [ ImageOnlyFailure ]
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of WPT-related bugs

@@ -1079,8 +1079,12 @@ size_t MediaPlayerPrivateRemote::extraMemoryCost() const
 
 Optional<VideoPlaybackQualityMetrics> MediaPlayerPrivateRemote::videoPlaybackQualityMetrics()
 {
-    notImplemented();
-    return WTF::nullopt;
+    if (!m_wantPlaybackQualityMetrics) {
+        m_wantPlaybackQualityMetrics = true;
+        connection().send(Messages::RemoteMediaPlayerProxy::SetShouldUpdatePlaybackMetrics(true), m_id);
+    }
+
+    return m_cachedState.videoMetrics;
 }
 
 #if ENABLE(AVF_CAPTIONS)
@@ -1158,6 +1162,13 @@ void MediaPlayerPrivateRemote::activeSourceBuffersChanged()
 {
     m_player->activeSourceBuffersChanged();
 }
+
+#if PLATFORM(IOS_FAMILY)
+void MediaPlayerPrivateRemote::getRawCookies(const URL& url, WebCore::MediaPlayerClient::GetRawCookiesCallback&& completionHandler) const
+{
+    m_player->getRawCookies(url, WTFMove(completionHandler));
+}
+#endif
 
 #if !RELEASE_LOG_DISABLED
 WTFLogChannel& MediaPlayerPrivateRemote::logChannel() const

@@ -1,3 +1,37 @@
+2020-10-16  Darin Adler  <darin@apple.com>
+
+        Add AbstractRange
+        https://bugs.webkit.org/show_bug.cgi?id=217846
+
+        Reviewed by Ryosuke Niwa.
+
+        * web-platform-tests/dom/idlharness.window-expected.txt:
+        Updated test result for progression.
+
+2020-10-16  Karl Rackler  <rackler@apple.com>
+
+        Unreviewed, reverting r268178.
+
+        This reverts commit r268178 because it caused a test failure.
+
+        Reverted changeset:
+
+        "Fix image-loading-lazy-multiple-times.html"
+        https://bugs.webkit.org/show_bug.cgi?id=216979
+        https://trac.webkit.org/changeset/268178
+
+2020-10-16  Antoine Quint  <graouts@webkit.org>
+
+        Support accelerated animation of individual transform CSS properties
+        https://bugs.webkit.org/show_bug.cgi?id=217842
+        <rdar://problem/70391914>
+
+        Reviewed by Dean Jackson.
+
+        * web-platform-tests/css/css-transforms/animation/rotate-interpolation-expected.txt:
+        * web-platform-tests/css/css-transforms/animation/scale-interpolation-expected.txt:
+        * web-platform-tests/css/css-transforms/animation/translate-interpolation-expected.txt:
+
 2020-10-15  Sam Weinig  <weinig@apple.com>
 
         CSSStyleDeclaration breaks JS spec (properties not showing up in Object.getOwnPropertyNames)

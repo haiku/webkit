@@ -856,14 +856,14 @@ bool WKPreferencesGetWebAuthenticationEnabled(WKPreferencesRef preferencesRef)
     return toImpl(preferencesRef)->webAuthenticationEnabled();
 }
 
-void WKPreferencesSetWebAuthenticationLocalAuthenticatorEnabled(WKPreferencesRef preferencesRef, bool flag)
+void WKPreferencesSetWebAuthenticationModernEnabled(WKPreferencesRef preferencesRef, bool flag)
 {
-    toImpl(preferencesRef)->setWebAuthenticationLocalAuthenticatorEnabled(flag);
+    toImpl(preferencesRef)->setWebAuthenticationModernEnabled(flag);
 }
 
-bool WKPreferencesGetWebAuthenticationLocalAuthenticatorEnabled(WKPreferencesRef preferencesRef)
+bool WKPreferencesGetWebAuthenticationModernEnabled(WKPreferencesRef preferencesRef)
 {
-    return toImpl(preferencesRef)->webAuthenticationLocalAuthenticatorEnabled();
+    return toImpl(preferencesRef)->webAuthenticationModernEnabled();
 }
 
 void WKPreferencesSetInvisibleMediaAutoplayPermitted(WKPreferencesRef preferencesRef, bool flag)
