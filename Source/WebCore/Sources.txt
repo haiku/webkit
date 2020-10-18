@@ -467,6 +467,7 @@ bindings/js/GCController.cpp
 bindings/js/IDBBindingUtilities.cpp
 bindings/js/JSAbortControllerCustom.cpp
 bindings/js/JSAbortSignalCustom.cpp
+bindings/js/JSAbstractRangeCustom.cpp
 bindings/js/JSAnimationEffectCustom.cpp
 bindings/js/JSAnimationTimelineCustom.cpp
 bindings/js/JSAttrCustom.cpp
@@ -816,6 +817,7 @@ display/DisplayTreeBuilder.cpp
 display/DisplayView.cpp
 dom/AbortController.cpp
 dom/AbortSignal.cpp
+dom/AbstractRange.cpp
 dom/ActiveDOMCallback.cpp
 dom/ActiveDOMObject.cpp
 dom/AllDescendantsCollection.cpp
@@ -1895,6 +1897,7 @@ platform/graphics/Gradient.cpp
 platform/graphics/GradientImage.cpp
 platform/graphics/GraphicsContext.cpp
 platform/graphics/GraphicsContextGL.cpp
+platform/graphics/GraphicsContextGLImageExtractor.cpp
 platform/graphics/GraphicsContextImpl.cpp
 platform/graphics/GraphicsLayer.cpp
 platform/graphics/GraphicsLayerTransform.cpp
@@ -2654,6 +2657,7 @@ JSANGLEInstancedArrays.cpp
 JSAbortAlgorithm.cpp
 JSAbortController.cpp
 JSAbortSignal.cpp
+JSAbstractRange.cpp
 JSAbstractWorker.cpp
 JSAddressErrors.cpp
 JSAesCbcCfbParams.cpp

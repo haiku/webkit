@@ -1,3 +1,240 @@
+2020-10-17  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak SDK] flatpakutils.py reports "KeyError: 'gcc'" error if using with icecc and toolchains aren't generated yet
+        https://bugs.webkit.org/show_bug.cgi?id=217799
+
+        Reviewed by Fujii Hironori.
+
+        * flatpak/flatpakutils.py:
+        (WebkitFlatpak.run_in_sandbox): Gracefully exit with an error message when the icecc
+        configuration failed to complete.
+
+2020-10-16  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Add system trace points for flushing remote image buffers
+        https://bugs.webkit.org/show_bug.cgi?id=217853
+
+        Reviewed by Simon Fraser.
+
+        See WebKit ChangeLog for more details.
+
+        * Tracing/SystemTracePoints.plist:
+
+2020-10-16  Ryosuke Niwa  <rniwa@webkit.org>
+
+        IPC testing API should expose whether a given IPC message has sync reply or not
+        https://bugs.webkit.org/show_bug.cgi?id=217861
+
+        Reviewed by Darin Adler.
+
+        Added a test for IPC.messages.*.isSync using RunJavaScriptAlert.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/IPCTestingAPI.mm:
+        (createWebViewWithIPCTestingAPI): Extracted to share more code between tests.
+        (IPCTestingAPI.AlertIsSyncMessage): Added.
+
+2020-10-16  Antoine Quint  <graouts@webkit.org>
+
+        Enable individual CSS transform properties by default
+        https://bugs.webkit.org/show_bug.cgi?id=217849
+        <rdar://problem/70052493>
+
+        Reviewed by Dean Jackson.
+
+        * DumpRenderTree/mac/DumpRenderTree.mm:
+        (enableExperimentalFeatures):
+        * DumpRenderTree/win/DumpRenderTree.cpp:
+        (enableExperimentalFeatures):
+
+2020-10-16  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Remove experimental feature flag: WebAuthenticationLocalAuthenticatorEnabled
+        https://bugs.webkit.org/show_bug.cgi?id=217796
+        <rdar://problem/70358912>
+
+        Reviewed by Brent Fulgham.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/_WKWebAuthenticationPanel.mm:
+        (TestWebKitAPI::TEST):
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::resetPreferencesToConsistentValues):
+        * WebKitTestRunner/TestOptions.cpp:
+        (WTR::boolDefaultsMap):
+        (WTR::keyTypeMap):
+        * WebKitTestRunner/TestOptions.h:
+        (WTR::TestOptions::enableWebAuthentication const):
+        (WTR::TestOptions::enableWebAuthenticationLocalAuthenticator const): Deleted.
+
+2020-10-16  Matt Lewis  <jlewis3@apple.com>
+
+        Move EWS to new SDKs: iOS 14.
+        https://bugs.webkit.org/show_bug.cgi?id=217840
+
+        Reviewed by Aakash Jain.
+
+        * BuildSlaveSupport/ews-build/config.json:
+
+2020-10-16  Sam Weinig  <weinig@apple.com>
+
+        [Testing] Support configuring any preference from test headers for WebKitTestRunner
+        https://bugs.webkit.org/show_bug.cgi?id=217645
+
+        Reviewed by Tim Horton.
+
+        Support using any preference defined in any of the WebPreference*.yaml configuration files
+        as a test header command rather than limiting it to a hard coded subset by generating the 
+        list of supported commands and their types from the yaml files themselves.
+        
+        This currently only works for WebKitTestRunner, but will be made to work with DumpRenderTree
+        in subsequent changes.
+
+        * WebKitTestRunner/CMakeLists.txt:
+        * WebKitTestRunner/Configurations/Base.xcconfig:
+        * WebKitTestRunner/DerivedSources-input.xcfilelist:
+        * WebKitTestRunner/DerivedSources-output.xcfilelist:
+        * WebKitTestRunner/DerivedSources.make:
+        * WebKitTestRunner/WebKitTestRunner.xcodeproj/project.pbxproj:
+        * WebKitTestRunner/Scripts/PreferencesTemplates: Added.
+        * WebKitTestRunner/Scripts/PreferencesTemplates/TestOptionsGeneratedKeys.h.erb: Added.
+        Add generation of TestOptionsGeneratedKeys.h from the WebPreference*.yaml using
+        the shared GeneratePreferences.rb script in WTF.
+
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::resetPreferencesToConsistentValues):
+        Move preference setting to the bottom of the file to allow any preference
+        to be overriden. Also adds in support for double, uint32_t, and string preferences
+        though none of those are currently being used.
+
+        * WebKitTestRunner/TestOptions.cpp:
+        (WTR::TestOptions::keyTypeMapping):
+        Use generated macro GENERATED_WEB_PREFERENCE_KEY_TYPE_MAPPINGS rather than hardcoding
+        all the preferences types.
+
+        * WebKitTestRunner/TestOptions.h:
+        (WTR::TestOptions::boolWebPreferenceFeatures const):
+        (WTR::TestOptions::doubleWebPreferenceFeatures const):
+        (WTR::TestOptions::uint32WebPreferenceFeatures const):
+        (WTR::TestOptions::stringWebPreferenceFeatures const):
+        Expose accessors for preferences values for use in setting the actual preference
+        values. Rather than setting all preferences, we now only set preferences that have
+        been explicitly requested, using the default value for any that have not.
+
+2020-10-16  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org Rename slave to worker in steps.py
+        https://bugs.webkit.org/show_bug.cgi?id=217836
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/build.webkit.org-config/steps.py: Renamed slave to worker.
+        * BuildSlaveSupport/build.webkit.org-config/steps_unittest.py: Ditto.
+
+2020-10-16  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitpy] Use webkitcorepy's autoinstaller for plint 
+        https://bugs.webkit.org/show_bug.cgi?id=217793
+        <rdar://problem/70356095>
+
+        Rubber-stamped by Aakash Jain.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Bump version.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/autoinstall.py:
+        (AutoInstall): Support multiple aliases to a single library.
+        (AutoInstall.register):
+        (AutoInstall.install):
+        (AutoInstall.install_everything):
+        * Scripts/webkitpy/__init__.py: Add pylint, map install zope.interface when zope is imported. 
+        * Scripts/webkitpy/style/checkers/python.py:
+        (Pylinter.run):
+        * Scripts/webkitpy/thirdparty/__init__.py:
+        (AutoinstallImportHook.find_module): Remove _install_pylint().
+        (AutoinstallImportHook._install_pylint): Deleted.
+        * Scripts/webkitpy/thirdparty/__init___unittest.py:
+        (ThirdpartyTest.test_imports): mechanize and pylint are managed by the new autoinstaller.
+
+2020-10-16  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] buildbot checkconfig fails when passwords.json is missing
+        https://bugs.webkit.org/show_bug.cgi?id=217831
+
+        Reviewed by Darin Adler.
+
+        * BuildSlaveSupport/build.webkit.org-config/master.cfg: Set is_test_mode_enabled based on BUILDBOT_TESTING env variable.
+        * BuildSlaveSupport/build.webkit.org-config/loadConfig.py: Renamed test_mode_is_enabled to is_test_mode_enabled to
+        be consistent with EWS code.
+        * BuildSlaveSupport/build.webkit.org-config/steps_unittest.py: Ditto.
+
+2020-10-16  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Add copyright message to steps_unittest.py
+        https://bugs.webkit.org/show_bug.cgi?id=217830
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/build.webkit.org-config/steps_unittest.py:
+
+2020-10-16  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Remove SVNMirror
+        https://bugs.webkit.org/show_bug.cgi?id=217823
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/build.webkit.org-config/factories.py: Removed SVNMirror.
+        * BuildSlaveSupport/build.webkit.org-config/steps.py: Ditto.
+        * BuildSlaveSupport/build.webkit.org-config/loadConfig.py: Ditto.
+        (WaitForSVNServer): Deleted.
+        (WaitForSVNServer.evaluateCommand): Deleted.
+        * BuildSlaveSupport/build.webkit.org-config/steps_unittest.py:
+        * BuildSlaveSupport/wait-for-SVN-server.py: Removed.
+
+2020-10-16  Carlos Alberto Lopez Perez  <clopez@igalia.com>
+
+        [JHBuild] Update libwpe and wpebackend-fdo and add libmanette to minimal moduleset
+        https://bugs.webkit.org/show_bug.cgi?id=217825
+
+        Reviewed by Adrian Perez de Castro.
+
+        libmanette 0.2.4 is required for enabling gamepad support, which
+        defaults to on since r268389 for developer builds. The version
+        shipped by ubuntu-20.04 is not enough (0.2.3), so we should include
+        this on the minimal moduleset which is used to generate the bundle
+        products on the packaging bots.
+
+        Seize to also update the libwpe and wpebackend-fdo libraries.
+
+        * gtk/jhbuild.modules:
+        * jhbuild/jhbuild-minimal.modules:
+        * wpe/jhbuild.modules:
+
+2020-10-16  Sam Sneddon  <gsnedders@apple.com>
+
+        Match webkitpy.port.base.Port's merging of .webarchive/.txt
+        https://bugs.webkit.org/show_bug.cgi?id=217795
+
+        Reviewed by Alexey Proskuryakov.
+
+        * Scripts/check-for-duplicated-platform-test-results:
+        (check_duplicate): Check for both .webarchive and .txt
+        (check_platform): Don't call the function that probably just threw
+
+2020-10-16  Carlos Alberto Lopez Perez  <clopez@igalia.com>
+
+        Ensure the tests are run with US/Pacific time zone
+        https://bugs.webkit.org/show_bug.cgi?id=186612
+
+        Reviewed by Michael Catanzaro.
+
+        Some tests fail if the time zone is not set to US/Pacific, and
+        this causes issues for contributors living outside of that timezone.
+        Ideally we should fix those tests, but in the meantime setting this
+        environment variable before starting the layout tests seems like
+        an acceptable workaround. Note that something similar is also
+        already done for the JSC tests.
+
+        * Scripts/webkitpy/port/base.py:
+        (Port.setup_environ_for_server):
+
 2020-10-15  Sam Weinig  <weinig@apple.com>
 
         Attempt to fix the build.

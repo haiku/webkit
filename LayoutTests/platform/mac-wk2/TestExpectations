@@ -1312,13 +1312,11 @@ webkit.org/b/216634 imported/w3c/web-platform-tests/service-workers/service-work
 #<rdar://66842535> [ macOS ] webgl/2.0.0/conformance/textures/misc/texture-upload-size.html is a flaky failure
 webgl/2.0.0/conformance/textures/misc/texture-upload-size.html [ Pass Failure ]
 
-webkit.org/b/217001 [ Catalina ] fast/scrolling/latching/latched-scroll-into-nonfast-region.html [ Pass Failure ]
+webkit.org/b/217001 [ Mojave+ ] fast/scrolling/latching/latched-scroll-into-nonfast-region.html [ Pass Failure ]
 
 webkit.org/b/217193 [ Mojave+ Release ] inspector/console/queryHolders.html [ Pass Failure ]
 
 webkit.org/b/217262 [ Catalina ] imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-peerconnection.https.html [ Pass Failure ]
-
-webkit.org/b/217525 [ Debug ] imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-stop.html [ Pass Crash ]
 
 webkit.org/b/217525 [ Debug ] imported/w3c/web-platform-tests/mediacapture-record/idlharness.window.html [ Pass Crash ]
 
@@ -1326,3 +1324,4 @@ webkit.org/b/217540 compositing/animation/repaint-after-clearing-shared-backing.
 
 webkit.org/b/217686 inspector/page/overrideSetting-ITPDebugModeEnabled.html [ Pass Failure ]
 
+webkit.org/b/217857 [ Debug ] imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-stop.html [ Skip ]

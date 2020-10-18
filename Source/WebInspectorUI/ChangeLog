@@ -1,3 +1,75 @@
+2020-10-16  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(r266669): DOMBreakpoint.js:106:23: CONSOLE ASSERT ERROR domNode should not change once set
+        https://bugs.webkit.org/show_bug.cgi?id=217865
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Models/DOMBreakpoint.js:
+        (WI.DOMBreakpoint.prototype.set domNode):
+        Adjust the assertion such that `null` is allowed if `_domNode` is already `null`.
+
+        * UserInterface/Base/Utilities.js:
+        (xor): Added.
+        Global utility function for doing a non-bitwise or that returns `false` if both values are
+        truthy/falsy and the truthy value if only one is truthy.
+
+2020-10-16  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(r266885): Controllers/ConsoleManager.js:177:27: CONSOLE ASSERT ERROR
+        https://bugs.webkit.org/show_bug.cgi?id=217863
+
+        Reviewed by Timothy Hatcher.
+
+        r266885 changed `Console.getLoggingChannels` to return any `Console.ChannelSource` that
+        existed, rather than a hardcoded list. Remove the similarly hardcoded list in the frontend.
+
+        * UserInterface/Controllers/ConsoleManager.js:
+        (WI.ConsoleManager):
+        (WI.ConsoleManager.prototype.initializeLogChannels):
+        (WI.ConsoleManager.prototype.get logChannelSources): Deleted.
+
+        * UserInterface/Views/LogContentView.js:
+        (WI.LogContentView.prototype._messageAdded):
+
+2020-10-16  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(r266885): LoggingChannel.js:31:23: CONSOLE ASSERT ERROR
+        https://bugs.webkit.org/show_bug.cgi?id=217864
+
+        Reviewed by Timothy Hatcher.
+
+        r266885 changed `Console.getLoggingChannels` to return any `Console.ChannelSource` that
+        existed, rather than a hardcoded list. Remove the similarly hardcoded list in the frontend.
+
+        * UserInterface/Models/LoggingChannel.js:
+        (WI.LoggingChannel):
+
+2020-10-16  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(r266480): line-based JavaScript breakpoint tree element titles also show the file name
+        https://bugs.webkit.org/show_bug.cgi?id=217859
+
+        Reviewed by Timothy Hatcher.
+
+        r266480 changed it such that `WI.BreakpointTreeElement` would only call `updateTitles` if
+        the constructor was not provided a `title` while also adding a fallback for `title` in the
+        constructor of `WI.JavaScriptBreakpointTreeElement`, ensuring that it would always be set
+        by the time it reached `WI.BreakpointTreeElement`, meaning that `updateTitles` would never
+        be called.
+
+        Since `updateTitles` was only implemented by `WI.JavaScriptBreakpointTreeElement`, remove
+        it from `WI.BreakpointTreeElement` and ensure that it is always called for non-special
+        JavaScript breakpoints (in addition to whenever the `WI.SourceCodeLocation` changes).
+
+        * UserInterface/Views/BreakpointTreeElement.js:
+        (WI.BreakpointTreeElement.prototype.updateTitles): Deleted.
+        * UserInterface/Views/JavaScriptBreakpointTreeElement.js:
+        (WI.JavaScriptBreakpointTreeElement):
+        (WI.JavaScriptBreakpointTreeElement.prototype._updateTitles): Added.
+        (WI.JavaScriptBreakpointTreeElement.prototype._breakpointLocationDidChange):
+        (WI.JavaScriptBreakpointTreeElement.prototype.updateTitles): Deleted.
+
 2020-10-14  Devin Rousso  <drousso@apple.com>
 
         Web Inspector: REGRESSION(r267148): new Big Sur styles are not used

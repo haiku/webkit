@@ -149,6 +149,10 @@ public:
     void currentPlaybackTargetIsWirelessChanged(bool);
 #endif
 
+#if PLATFORM(IOS_FAMILY)
+    void getRawCookies(const URL&, WebCore::MediaPlayerClient::GetRawCookiesCallback&&) const;
+#endif
+
 private:
 
 #if !RELEASE_LOG_DISABLED
@@ -394,6 +398,7 @@ private:
     bool m_seeking { false };
     bool m_isCurrentPlaybackTargetWireless { false };
     bool m_invalid { false };
+    bool m_wantPlaybackQualityMetrics { false };
 };
 
 } // namespace WebKit

@@ -32,6 +32,7 @@
 #include "GPUConnectionToWebProcess.h"
 #include "LayerHostingContext.h"
 #include "MediaPlayerPrivateRemoteMessages.h"
+#include "RemoteAudioSourceProviderProxy.h"
 #include "RemoteAudioTrackProxy.h"
 #include "RemoteLegacyCDMFactoryProxy.h"
 #include "RemoteLegacyCDMSessionProxy.h"
@@ -59,6 +60,10 @@
 #include <WebCore/MediaPlaybackTargetMock.h>
 #endif
 
+#if PLATFORM(COCOA)
+#include <WebCore/AudioSourceProviderAVFObjC.h>
+#endif
+
 namespace WebKit {
 
 using namespace WebCore;
@@ -82,6 +87,7 @@ RemoteMediaPlayerProxy::~RemoteMediaPlayerProxy()
 {
     if (m_performTaskAtMediaTimeCompletionHandler)
         m_performTaskAtMediaTimeCompletionHandler(WTF::nullopt);
+    setShouldEnableAudioSourceProvider(false);
 }
 
 void RemoteMediaPlayerProxy::invalidate()
@@ -374,6 +380,11 @@ String RemoteMediaPlayerProxy::mediaPlayerSourceApplicationIdentifier() const
 String RemoteMediaPlayerProxy::mediaPlayerNetworkInterfaceName() const
 {
     return m_configuration.networkInterfaceName;
+}
+
+void RemoteMediaPlayerProxy::mediaPlayerGetRawCookies(const URL& url, WebCore::MediaPlayerClient::GetRawCookiesCallback&& completionHandler) const
+{
+    m_webProcessConnection->sendWithAsyncReply(Messages::MediaPlayerPrivateRemote::GetRawCookies(url), WTFMove(completionHandler), m_id);
 }
 #endif
 
@@ -671,14 +682,6 @@ Vector<RefPtr<PlatformTextTrack>> RemoteMediaPlayerProxy::outOfBandTrackSources(
 
 #endif
 
-#if PLATFORM(IOS_FAMILY)
-bool RemoteMediaPlayerProxy::mediaPlayerGetRawCookies(const URL&, Vector<Cookie>&) const
-{
-    notImplemented();
-    return false;
-}
-#endif
-
 double RemoteMediaPlayerProxy::mediaPlayerRequestedPlaybackRate() const
 {
     notImplemented();
@@ -737,6 +740,9 @@ void RemoteMediaPlayerProxy::updateCachedState()
     m_cachedState.loadingProgressed = m_player->didLoadingProgress();
     m_cachedState.hasAudio = m_player->hasAudio();
     m_cachedState.hasVideo = m_player->hasVideo();
+
+    if (m_shouldUpdatePlaybackMetrics)
+        m_cachedState.videoMetrics = m_player->videoPlaybackQualityMetrics();
 
     if (m_bufferedChanged) {
         m_bufferedChanged = false;
@@ -876,6 +882,33 @@ void RemoteMediaPlayerProxy::performTaskAtMediaTime(const MediaTime& taskTime, W
 void RemoteMediaPlayerProxy::wouldTaintOrigin(struct WebCore::SecurityOriginData originData, CompletionHandler<void(Optional<bool>)>&& completionHandler)
 {
     completionHandler(m_player->wouldTaintOrigin(originData.securityOrigin()));
+}
+
+void RemoteMediaPlayerProxy::setShouldUpdatePlaybackMetrics(bool should)
+{
+    m_shouldUpdatePlaybackMetrics = should;
+}
+
+void RemoteMediaPlayerProxy::createAudioSourceProvider()
+{
+#if ENABLE(WEB_AUDIO) && PLATFORM(COCOA)
+    if (!m_player)
+        return;
+
+    auto* provider = m_player->audioSourceProvider();
+    if (!provider || !is<AudioSourceProviderAVFObjC>(provider))
+        return;
+
+    m_remoteAudioSourceProvider = RemoteAudioSourceProviderProxy::create(m_id, m_webProcessConnection.copyRef(), downcast<AudioSourceProviderAVFObjC>(*provider));
+#endif
+}
+
+void RemoteMediaPlayerProxy::setShouldEnableAudioSourceProvider(bool shouldEnable)
+{
+#if ENABLE(WEB_AUDIO) && PLATFORM(COCOA)
+    if (auto* provider = m_player->audioSourceProvider())
+        provider->setClient(shouldEnable ? m_remoteAudioSourceProvider.get() : nullptr);
+#endif
 }
 
 } // namespace WebKit

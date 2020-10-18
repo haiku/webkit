@@ -1,4 +1,26 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
+#
+# Copyright (C) 2011-2020 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
 import os
@@ -16,8 +38,8 @@ class BuildBotConfigLoader(object):
         # When files are passed to the python interpreter on the command line (e.g. python test.py) __file__ is a relative path.
         absolute_file_path = os.path.abspath(__file__)
         webkit_org_config_dir = os.path.dirname(absolute_file_path)
-        build_slave_support_dir = os.path.dirname(webkit_org_config_dir)
-        webkit_tools_dir = os.path.dirname(build_slave_support_dir)
+        worker_support_dir = os.path.dirname(webkit_org_config_dir)
+        webkit_tools_dir = os.path.dirname(worker_support_dir)
         scripts_dir = os.path.join(webkit_tools_dir, 'Scripts')
         sys.path.append(scripts_dir)
 
@@ -339,7 +361,7 @@ Crashed
     TestWTF.WTF.StringConcatenate_Unsigned
         **FAIL** WTF.StringConcatenate_Unsigned
 
-        C:\\cygwin\\home\\buildbot\\slave\\win-release\\build\\Tools\\TestWebKitAPI\\Tests\\WTF\\StringConcatenate.cpp:84
+        C:\\cygwin\\home\\buildbot\\worker\\win-release\\build\\Tools\\TestWebKitAPI\\Tests\\WTF\\StringConcatenate.cpp:84
         Value of: makeString("hello ", static_cast<unsigned short>(42) , " world")
           Actual: hello 42 world
         Expected: "hello * world"
@@ -366,7 +388,7 @@ Crashed
     TestWTF.WTF.StringConcatenate_Unsigned
         **FAIL** WTF.StringConcatenate_Unsigned
 
-        C:\\cygwin\\home\\buildbot\\slave\\win-release\\build\\Tools\\TestWebKitAPI\\Tests\\WTF\\StringConcatenate.cpp:84
+        C:\\cygwin\\home\\buildbot\\worker\\win-release\\build\\Tools\\TestWebKitAPI\\Tests\\WTF\\StringConcatenate.cpp:84
         Value of: makeString("hello ", static_cast<unsigned short>(42) , " world")
           Actual: hello 42 world
         Expected: "hello * world"
@@ -375,7 +397,7 @@ Crashed
     TestWTF.WTF_Expected.Unexpected
         **FAIL** WTF_Expected.Unexpected
 
-        C:\cygwin\home\buildbot\slave\win-release\build\Tools\TestWebKitAPI\Tests\WTF\Expected.cpp:96
+        C:\\cygwin\\home\\buildbot\\worker\\win-release\\build\\Tools\\TestWebKitAPI\\Tests\\WTF\\Expected.cpp:96
         Value of: s1
           Actual: oops
         Expected: s0
@@ -443,7 +465,7 @@ Crashed
     TestWTF.WTF.StringConcatenate_Unsigned
         **FAIL** WTF.StringConcatenate_Unsigned
 
-        C:\\cygwin\\home\\buildbot\\slave\\win-release\\build\\Tools\\TestWebKitAPI\\Tests\\WTF\\StringConcatenate.cpp:84
+        C:\\cygwin\\home\\buildbot\\worker\\win-release\\build\\Tools\\TestWebKitAPI\\Tests\\WTF\\StringConcatenate.cpp:84
         Value of: makeString("hello ", static_cast<unsigned short>(42) , " world")
           Actual: hello 42 world
         Expected: "hello * world"
@@ -452,7 +474,7 @@ Crashed
     TestWTF.WTF_Expected.Unexpected
         **FAIL** WTF_Expected.Unexpected
 
-        C:\cygwin\home\buildbot\slave\win-release\build\Tools\TestWebKitAPI\Tests\WTF\Expected.cpp:96
+        C:\\cygwin\\home\\buildbot\\worker\\win-release\\build\\Tools\\TestWebKitAPI\\Tests\\WTF\\Expected.cpp:96
         Value of: s1
           Actual: oops
         Expected: s0
@@ -465,31 +487,6 @@ Timeout
 
 Testing completed, Exit status: 3
 """)
-
-
-class SVNMirrorTest(unittest.TestCase):
-    def setUp(self):
-        self.config = json.load(open('config.json'))
-
-    def get_SVNMirrorFromConfig(self, builderName):
-        SVNMirror = None
-        for builder in self.config['builders']:
-            if builder['name'] == builderName:
-                SVNMirror = builder.pop('SVNMirror', 'https://svn.webkit.org/repository/webkit/')
-        return SVNMirror
-
-    def test_CheckOutSource(self):
-        # SVN mirror feature isn't unittestable now with source.oldsource.SVN(==source.SVN) , only with source.svn.SVN(==SVN)
-        # https://bugs.webkit.org/show_bug.cgi?id=85887
-        if issubclass(CheckOutSource, source.SVN):
-            return
-
-        # Compare CheckOutSource.baseURL with SVNMirror (or with the default URL) in config.json for all builders
-        for builder in c['builders']:
-            for buildStepFactory, kwargs in builder['factory'].steps:
-                if str(buildStepFactory).split('.')[-1] == 'CheckOutSource':
-                        CheckOutSourceInstance = buildStepFactory(**kwargs)
-                        self.assertEqual(CheckOutSourceInstance.baseURL, self.get_SVNMirrorFromConfig(builder['name']))
 
 
 class BuildStepsConstructorTest(unittest.TestCase):
@@ -651,7 +648,7 @@ class RunAndUploadPerfTestsTest(unittest.TestCase):
         self.assertResults(255, "build not up to date")
 
     def test_build_bad_source_json(self):
-        self.assertResults(254, "slave config JSON error")
+        self.assertResults(254, "worker config JSON error")
 
     def test_build_bad_marge(self):
         self.assertResults(253, "output JSON merge error")
@@ -691,7 +688,7 @@ if __name__ == '__main__':
     BuildBotConfigLoader()._add_dependent_modules_to_sys_modules()
     from loadConfig import *
     c = {}
-    loadBuilderConfig(c, test_mode_is_enabled=True)
+    loadBuilderConfig(c, is_test_mode_enabled=True)
     BuildStepsConstructorTest.generateTests()
     BuildStepsTest.generateTests()
     unittest.main()

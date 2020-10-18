@@ -76,7 +76,7 @@ class ConfigureBuild(buildstep.BuildStep):
     description = ["configuring build"]
     descriptionDone = ["configured build"]
 
-    def __init__(self, platform, configuration, architecture, buildOnly, additionalArguments, SVNMirror, device_model, *args, **kwargs):
+    def __init__(self, platform, configuration, architecture, buildOnly, additionalArguments, device_model, *args, **kwargs):
         buildstep.BuildStep.__init__(self, *args, **kwargs)
         self.platform = platform
         if platform != 'jsc-only':
@@ -86,9 +86,8 @@ class ConfigureBuild(buildstep.BuildStep):
         self.architecture = architecture
         self.buildOnly = buildOnly
         self.additionalArguments = additionalArguments
-        self.SVNMirror = SVNMirror
         self.device_model = device_model
-        self.addFactoryArguments(platform=platform, configuration=configuration, architecture=architecture, buildOnly=buildOnly, additionalArguments=additionalArguments, SVNMirror=SVNMirror, device_model=device_model)
+        self.addFactoryArguments(platform=platform, configuration=configuration, architecture=architecture, buildOnly=buildOnly, additionalArguments=additionalArguments, device_model=device_model)
 
     def start(self):
         self.setProperty("platform", self.platform)
@@ -97,7 +96,6 @@ class ConfigureBuild(buildstep.BuildStep):
         self.setProperty("architecture", self.architecture)
         self.setProperty("buildOnly", self.buildOnly)
         self.setProperty("additionalArguments", self.additionalArguments)
-        self.setProperty("SVNMirror", self.SVNMirror)
         self.setProperty("device_model", self.device_model)
         self.finished(SUCCESS)
         return defer.succeed(None)
@@ -106,25 +104,11 @@ class ConfigureBuild(buildstep.BuildStep):
 class CheckOutSource(source.SVN):
     mode = "update"
 
-    def __init__(self, SVNMirror, **kwargs):
-        kwargs['baseURL'] = SVNMirror or "https://svn.webkit.org/repository/webkit/"
+    def __init__(self, **kwargs):
+        kwargs['baseURL'] = "https://svn.webkit.org/repository/webkit/"
         kwargs['defaultBranch'] = "trunk"
         kwargs['mode'] = self.mode
         source.SVN.__init__(self, **kwargs)
-        self.addFactoryArguments(SVNMirror=SVNMirror)
-
-
-class WaitForSVNServer(shell.ShellCommand):
-    name = "wait-for-svn-server"
-    command = ["python", "./Tools/BuildSlaveSupport/wait-for-SVN-server.py", "-r", WithProperties("%(revision)s"), "-s", WithProperties("%(SVNMirror)s")]
-    description = ["waiting for SVN server"]
-    descriptionDone = ["SVN server is ready"]
-    warnOnFailure = True
-
-    def evaluateCommand(self, cmd):
-        if cmd.rc != 0:
-            return WARNINGS
-        return SUCCESS
 
 
 class InstallWin32Dependencies(shell.Compile):
@@ -332,12 +316,12 @@ class ExtractBuiltProduct(shell.ShellCommand):
 
 
 class UploadBuiltProduct(transfer.FileUpload):
-    slavesrc = WithProperties("WebKitBuild/%(configuration)s.zip")
+    workersrc = WithProperties("WebKitBuild/%(configuration)s.zip")
     masterdest = WithProperties("archives/%(fullPlatform)s-%(architecture)s-%(configuration)s/%(got_revision)s.zip")
     haltOnFailure = True
 
     def __init__(self, **kwargs):
-        kwargs['slavesrc'] = self.slavesrc
+        kwargs['slavesrc'] = self.workersrc
         kwargs['masterdest'] = self.masterdest
         kwargs['mode'] = 0o644
         kwargs['blocksize'] = 1024 * 256
@@ -345,7 +329,7 @@ class UploadBuiltProduct(transfer.FileUpload):
 
 
 class UploadMinifiedBuiltProduct(UploadBuiltProduct):
-    slavesrc = WithProperties("WebKitBuild/minified-%(configuration)s.zip")
+    workersrc = WithProperties("WebKitBuild/minified-%(configuration)s.zip")
     masterdest = WithProperties("archives/%(fullPlatform)s-%(architecture)s-%(configuration)s/minified-%(got_revision)s.zip")
 
 
@@ -975,7 +959,7 @@ class RunAndUploadPerfTests(shell.Test):
             if cmd.rc == -1 & 0xff:
                 return ["build not up to date"]
             elif cmd.rc == -2 & 0xff:
-                return ["slave config JSON error"]
+                return ["worker config JSON error"]
             elif cmd.rc == -3 & 0xff:
                 return ["output JSON merge error"]
             elif cmd.rc == -4 & 0xff:
@@ -1024,11 +1008,11 @@ class ArchiveTestResults(shell.ShellCommand):
 
 
 class UploadTestResults(transfer.FileUpload):
-    slavesrc = "layout-test-results.zip"
+    workersrc = "layout-test-results.zip"
     masterdest = WithProperties("public_html/results/%(buildername)s/r%(got_revision)s (%(buildnumber)s).zip")
 
     def __init__(self, **kwargs):
-        kwargs['slavesrc'] = self.slavesrc
+        kwargs['slavesrc'] = self.workersrc
         kwargs['masterdest'] = self.masterdest
         kwargs['mode'] = 0o644
         kwargs['blocksize'] = 1024 * 256

@@ -132,12 +132,11 @@ CSSIndividualTransformPropertiesEnabled:
   humanReadableDescription: "Support for the translate, scale and rotate CSS properties"
   defaultValue:
     WebKitLegacy:
-      default: false
+      default: true
     WebKit:
-      "ENABLE(EXPERIMENTAL_FEATURES)" : true
-      default: false
+      default: true
     WebCore:
-      default: false
+      default: true
 
 CSSOMViewSmoothScrollingEnabled:
   type: bool
@@ -869,10 +868,10 @@ WebAuthenticationEnabled:
       default: false
 
 # FIXME: Is this implemented for WebKitLegacy? If not, this should be excluded from WebKitLegacy entirely.
-WebAuthenticationLocalAuthenticatorEnabled:
+WebAuthenticationModernEnabled:
   type: bool
-  humanReadableName: "Web Authentication Local Authenticator"
-  humanReadableDescription: "Enable Web Authentication local authenticator support"
+  humanReadableName: "Web Authentication Modern"
+  humanReadableDescription: "Enable Modern Web Authentication support"
   condition: ENABLE(WEB_AUTHN)
   defaultValue:
     WebKitLegacy:

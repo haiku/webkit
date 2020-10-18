@@ -237,10 +237,10 @@ def types_that_cannot_be_forward_declared():
         'WebKit::AudioMediaStreamTrackRendererIdentifier',
         'WebKit::ContentWorldIdentifier',
         'WebKit::DisplayLinkObserverID',
+        'WebKit::DisplayListFlushIdentifier',
         'WebKit::DownloadID',
         'WebKit::GeolocationIdentifier',
         'WebKit::ImageBufferBackendHandle',
-        'WebKit::ImageBufferFlushIdentifier',
         'WebKit::LayerHostingContextID',
         'WebKit::LegacyCustomProtocolID',
         'WebKit::LibWebRTCResolverIdentifier',
@@ -607,10 +607,10 @@ def headers_for_type(type):
         'WebCore::GenericCueData': ['<WebCore/InbandGenericCue.h>'],
         'WebCore::GrammarDetail': ['<WebCore/TextCheckerClient.h>'],
         'WebCore::HasInsecureContent': ['<WebCore/FrameLoaderTypes.h>'],
-        'WebCore::Highlight': ['<WebCore/InspectorOverlay.h>'],
         'WebCore::IncludeSecureCookies': ['<WebCore/CookieJar.h>'],
         'WebCore::IndexedDB::ObjectStoreOverwriteMode': ['<WebCore/IndexedDB.h>'],
         'WebCore::InputMode': ['<WebCore/InputMode.h>'],
+        'WebCore::InspectorOverlay::Highlight': ['<WebCore/InspectorOverlay.h>'],
         'WebCore::KeyframeValueList': ['<WebCore/GraphicsLayer.h>'],
         'WebCore::KeypressCommand': ['<WebCore/KeyboardEvent.h>'],
         'WebCore::LegacyCDMSessionClient::MediaKeyErrorCode': ['<WebCore/LegacyCDMSession.h>'],
@@ -1064,19 +1064,19 @@ def generate_js_value_conversion_function(result, receivers, function_name, argu
     for receiver in receivers:
         if receiver.condition:
             result.append('#if %s\n' % receiver.condition)
-        prevision_message_condition = None
+        previous_message_condition = None
         for message in receiver.messages:
             if not predicate(message):
                 continue
-            if prevision_message_condition != message.condition:
-                if prevision_message_condition:
+            if previous_message_condition != message.condition:
+                if previous_message_condition:
                     result.append('#endif\n')
                 if message.condition:
                     result.append('#if %s\n' % message.condition)
-            prevision_message_condition = message.condition
+            previous_message_condition = message.condition
             result.append('    case MessageName::%s_%s:\n' % (receiver.name, message.name))
             result.append('        return jsValueForDecodedArguments<Messages::%s::%s::%s>(globalObject, decoder);\n' % (receiver.name, message.name, argument_type))
-        if prevision_message_condition:
+        if previous_message_condition:
             result.append('#endif\n')
         if receiver.condition:
             result.append('#endif\n')
@@ -1095,17 +1095,17 @@ def generate_js_argument_descriptions(receivers, function_name, arguments_from_m
     for receiver in receivers:
         if receiver.condition:
             result.append('#if %s\n' % receiver.condition)
-        prevision_message_condition = None
+        previous_message_condition = None
         for message in receiver.messages:
             argument_list = arguments_from_message(message)
             if argument_list is None:
                 continue
-            if prevision_message_condition != message.condition:
-                if prevision_message_condition:
+            if previous_message_condition != message.condition:
+                if previous_message_condition:
                     result.append('#endif\n')
                 if message.condition:
                     result.append('#if %s\n' % message.condition)
-            prevision_message_condition = message.condition
+            previous_message_condition = message.condition
             result.append('    case MessageName::%s_%s:\n' % (receiver.name, message.name))
 
             if not len(argument_list):
@@ -1125,7 +1125,7 @@ def generate_js_argument_descriptions(receivers, function_name, arguments_from_m
                     is_optional = True
                 result.append('            {"%s", "%s", %s, %s},\n' % (argument.name, argument_type, enum_type or 'nullptr', 'true' if is_optional else 'false'))
             result.append('        };\n')
-        if prevision_message_condition:
+        if previous_message_condition:
             result.append('#endif\n')
         if receiver.condition:
             result.append('#endif\n')
@@ -1176,6 +1176,36 @@ def generate_message_argument_description_implementation(receivers, receiver_hea
 
     result += generate_js_argument_descriptions(receivers, 'messageReplyArgumentDescriptions', lambda message: message.reply_parameters if message.has_attribute(SYNCHRONOUS_ATTRIBUTE) or message.has_attribute(ASYNC_ATTRIBUTE) else None)
 
+    result.append('\n')
+    result.append('bool messageIsSync(MessageName name)\n')
+    result.append('{\n')
+    result.append('    switch (name) {\n')
+    for receiver in receivers:
+        has_emit_receiver_condition = False
+        previous_message_condition = None
+        for message in receiver.messages:
+            if message.reply_parameters is None or not message.has_attribute(SYNCHRONOUS_ATTRIBUTE):
+                continue
+            if not has_emit_receiver_condition and receiver.condition:
+                has_emit_receiver_condition = True
+                result.append('#if %s\n' % receiver.condition)
+            if previous_message_condition != message.condition:
+                if previous_message_condition:
+                    result.append('#endif\n')
+                if message.condition:
+                    result.append('#if %s\n' % message.condition)
+            previous_message_condition = message.condition
+            result.append('    case MessageName::%s_%s:\n' % (receiver.name, message.name))
+            result.append('        return true;\n')
+        if previous_message_condition:
+            result.append('#endif\n')
+        if has_emit_receiver_condition:
+            result.append('#endif\n')
+    result.append('    default:\n')
+    result.append('        break;\n')
+    result.append('    }\n')
+    result.append('    return false;\n')
+    result.append('}\n')
     result.append('\n')
 
     result.append('} // namespace WebKit\n')

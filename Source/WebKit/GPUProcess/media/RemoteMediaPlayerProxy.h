@@ -52,6 +52,10 @@
 #include "RemoteCDMInstanceProxy.h"
 #endif
 
+#if PLATFORM(COCOA)
+#include "SharedRingBufferStorage.h"
+#endif
+
 namespace WTF {
 class MachSendRight;
 }
@@ -65,6 +69,7 @@ namespace WebKit {
 
 using LayerHostingContextID = uint32_t;
 class LayerHostingContext;
+class RemoteAudioSourceProviderProxy;
 class RemoteAudioTrackProxy;
 class RemoteMediaPlayerManagerProxy;
 class RemoteTextTrackProxy;
@@ -173,6 +178,7 @@ public:
 
     void performTaskAtMediaTime(const MediaTime&, WallTime, CompletionHandler<void(Optional<MediaTime>)>&&);
     void wouldTaintOrigin(struct WebCore::SecurityOriginData, CompletionHandler<void(Optional<bool>)>&&);
+    void setShouldUpdatePlaybackMetrics(bool);
 
     Ref<WebCore::PlatformMediaResource> requestResource(WebCore::ResourceRequest&&, WebCore::PlatformMediaResourceLoader::LoadOptions);
     void sendH2Ping(const URL&, CompletionHandler<void(Expected<WTF::Seconds, WebCore::ResourceError>&&)>&&);
@@ -246,7 +252,7 @@ private:
 
 #if PLATFORM(IOS_FAMILY)
     String mediaPlayerNetworkInterfaceName() const final;
-    bool mediaPlayerGetRawCookies(const URL&, Vector<WebCore::Cookie>&) const final;
+    void mediaPlayerGetRawCookies(const URL&, WebCore::MediaPlayerClient::GetRawCookiesCallback&&) const final;
 #endif
 
     String mediaPlayerSourceApplicationIdentifier() const final;
@@ -266,6 +272,9 @@ private:
     void updateCachedState();
     void sendCachedState();
     void timerFired();
+
+    void createAudioSourceProvider();
+    void setShouldEnableAudioSourceProvider(bool);
 
 #if !RELEASE_LOG_DISABLED
     const Logger& mediaPlayerLogger() final { return m_logger; }
@@ -297,10 +306,15 @@ private:
 
     bool m_bufferedChanged { true };
     bool m_renderingCanBeAccelerated { true };
+    bool m_shouldUpdatePlaybackMetrics { false };
 
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA) && ENABLE(ENCRYPTED_MEDIA)
     bool m_shouldContinueAfterKeyNeeded { false };
     RemoteLegacyCDMSessionIdentifier m_legacySession;
+#endif
+
+#if ENABLE(WEB_AUDIO) && PLATFORM(COCOA)
+    RefPtr<RemoteAudioSourceProviderProxy> m_remoteAudioSourceProvider;
 #endif
 
 #if !RELEASE_LOG_DISABLED

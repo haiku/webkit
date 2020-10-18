@@ -5127,6 +5127,10 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
 
     ASSERT(preferences == m_preferences);
 
+    hr = preferencesChangedGenerated(*m_preferences);
+    if (FAILED(hr))
+        return hr;
+
     BString str;
     int size;
     unsigned javaScriptRuntimeFlags;
