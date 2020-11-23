@@ -32,17 +32,17 @@
 namespace WebCore {
 namespace Layout {
 
-LineBox::InlineBox::InlineBox(const Box& layoutBox, InlineLayoutUnit logicalLeft, InlineLayoutSize logicalSize, InlineLayoutUnit baseline)
+LineBox::InlineLevelBox::InlineLevelBox(const Box& layoutBox, InlineLayoutUnit logicalLeft, InlineLayoutSize logicalSize,  Type type)
     : m_layoutBox(makeWeakPtr(layoutBox))
     , m_logicalRect({ }, logicalLeft, logicalSize.width(), logicalSize.height())
-    , m_baseline(baseline)
+    , m_type(type)
 {
 }
 
-LineBox::InlineBox::InlineBox(const Box& layoutBox, InlineLayoutUnit logicalLeft, InlineLayoutUnit logicalWidth)
-    : m_layoutBox(makeWeakPtr(layoutBox))
-    , m_logicalRect({ }, logicalLeft, logicalWidth, { })
+bool LineBox::InlineLevelBox::hasLineBoxRelativeAlignment() const
 {
+    auto verticalAlignment = layoutBox().style().verticalAlign();
+    return verticalAlignment == VerticalAlign::Top || verticalAlignment == VerticalAlign::Bottom;
 }
 
 LineBox::LineBox(InlineLayoutUnit contentLogicalWidth, IsLineVisuallyEmpty isLineVisuallyEmpty)
@@ -51,26 +51,47 @@ LineBox::LineBox(InlineLayoutUnit contentLogicalWidth, IsLineVisuallyEmpty isLin
 {
 }
 
-void LineBox::addRootInlineBox(std::unique_ptr<InlineBox>&& rootInlineBox)
+void LineBox::addRootInlineBox(std::unique_ptr<InlineLevelBox>&& rootInlineBox)
 {
     std::exchange(m_rootInlineBox, WTFMove(rootInlineBox));
-    m_inlineBoxRectMap.set(&m_rootInlineBox->layoutBox(), m_rootInlineBox.get());
+    m_inlineLevelBoxRectMap.set(&m_rootInlineBox->layoutBox(), m_rootInlineBox.get());
 }
 
-void LineBox::addInlineBox(std::unique_ptr<InlineBox>&& inlineBox)
+void LineBox::addInlineLevelBox(std::unique_ptr<InlineLevelBox>&& inlineLevelBox)
 {
-    m_inlineBoxRectMap.set(&inlineBox->layoutBox(), inlineBox.get());
-    m_nonRootInlineBoxList.append(WTFMove(inlineBox));
+    m_inlineLevelBoxRectMap.set(&inlineLevelBox->layoutBox(), inlineLevelBox.get());
+    m_nonRootInlineLevelBoxList.append(WTFMove(inlineLevelBox));
 }
 
 InlineRect LineBox::logicalRectForTextRun(const Line::Run& run) const
 {
     ASSERT(run.isText() || run.isLineBreak());
-    auto& parentInlineBox = inlineBoxForLayoutBox(run.layoutBox().parent());
-    auto& fontMetrics = parentInlineBox.fontMetrics();
-    auto runlogicalTop = parentInlineBox.logicalTop() + parentInlineBox.baseline() - fontMetrics.ascent();
+    auto* parentInlineBox = &inlineLevelBoxForLayoutBox(run.layoutBox().parent());
+    ASSERT(parentInlineBox->isInlineBox());
+    auto& fontMetrics = parentInlineBox->fontMetrics();
+    auto runlogicalTop = parentInlineBox->logicalTop() + parentInlineBox->baseline() - fontMetrics.ascent();
+
+    while (parentInlineBox != m_rootInlineBox.get() && !parentInlineBox->hasLineBoxRelativeAlignment()) {
+        parentInlineBox = &inlineLevelBoxForLayoutBox(parentInlineBox->layoutBox().parent());
+        ASSERT(parentInlineBox->isInlineBox());
+        runlogicalTop += parentInlineBox->logicalTop();
+    }
     InlineLayoutUnit logicalHeight = fontMetrics.height();
     return { runlogicalTop, m_horizontalAlignmentOffset.valueOr(InlineLayoutUnit { }) + run.logicalLeft(), run.logicalWidth(), logicalHeight };
+}
+
+InlineRect LineBox::logicalRectForInlineLevelBox(const Box& layoutBox) const
+{
+    auto* inlineBox = &inlineLevelBoxForLayoutBox(layoutBox);
+    auto inlineBoxLogicalRect = inlineBox->logicalRect();
+    auto inlineBoxAbsolutelogicalTop = inlineBox->logicalTop();
+
+    while (inlineBox != m_rootInlineBox.get() && !inlineBox->hasLineBoxRelativeAlignment()) {
+        inlineBox = &inlineLevelBoxForLayoutBox(inlineBox->layoutBox().parent());
+        ASSERT(inlineBox->isInlineBox());
+        inlineBoxAbsolutelogicalTop += inlineBox->logicalTop();
+    }
+    return { inlineBoxAbsolutelogicalTop, inlineBoxLogicalRect.left(), inlineBoxLogicalRect.width(), inlineBoxLogicalRect.height() };
 }
 
 }

@@ -30,7 +30,6 @@ NetworkProcess/cocoa/NetworkProcessCocoa.mm
 NetworkProcess/cocoa/NetworkSessionCocoa.mm
 
 NetworkProcess/Classifier/WebResourceLoadStatisticsStore.cpp
-NetworkProcess/Classifier/WebResourceLoadStatisticsTelemetry.cpp
 
 NetworkProcess/Cookies/mac/WebCookieManagerMac.mm
 
@@ -59,6 +58,7 @@ NetworkProcess/webrtc/NetworkRTCResolverCocoa.cpp
 GPUProcess/EntryPoint/Cocoa/XPCService/GPUServiceEntryPoint.mm
 GPUProcess/ios/GPUProcessIOS.mm
 GPUProcess/mac/GPUProcessMac.mm
+GPUProcess/media/RemoteAudioSourceProviderProxy.cpp
 GPUProcess/media/cocoa/RemoteMediaPlayerProxyCocoa.mm
 GPUProcess/media/ios/RemoteMediaSessionHelperProxy.cpp
 GPUProcess/webrtc/LibWebRTCCodecsProxy.mm
@@ -466,6 +466,7 @@ UIProcess/ios/WKPasswordView.mm
 UIProcess/ios/WKPDFPageNumberIndicator.mm
 UIProcess/ios/WKPDFView.mm
 UIProcess/ios/WKScrollView.mm
+UIProcess/ios/WKStylusDeviceObserver.mm
 UIProcess/ios/WKSyntheticFlagsChangedWebEvent.mm
 UIProcess/ios/WKSyntheticTapGestureRecognizer.mm
 UIProcess/ios/WKSystemPreviewView.mm
@@ -530,6 +531,7 @@ UIProcess/RemoteLayerTree/RemoteLayerTreeScrollingPerformanceData.mm
 UIProcess/RemoteLayerTree/RemoteScrollingCoordinatorProxy.cpp
 UIProcess/RemoteLayerTree/RemoteScrollingTree.cpp
 
+UIProcess/WebAuthentication/Cocoa/AppAttestInternalSoftLink.mm @no-unify
 UIProcess/WebAuthentication/Cocoa/HidConnection.mm
 UIProcess/WebAuthentication/Cocoa/HidService.mm
 UIProcess/WebAuthentication/Cocoa/LocalAuthenticationSoftLink.mm @no-unify
@@ -548,6 +550,10 @@ UIProcess/WebAuthentication/Mock/MockNfcService.mm
 
 UIProcess/WebsiteData/Cocoa/WebsiteDataStoreCocoa.mm
 
+WebAuthnProcess/EntryPoint/Cocoa/XPCService/WebAuthnServiceEntryPoint.mm
+WebAuthnProcess/ios/WebAuthnProcessIOS.mm
+WebAuthnProcess/mac/WebAuthnProcessMac.mm
+
 WebProcess/API/Cocoa/WKWebProcess.cpp
 
 WebProcess/ApplePay/WebPaymentCoordinator.cpp
@@ -564,6 +570,8 @@ WebProcess/cocoa/WebProcessCocoa.mm
 WebProcess/EntryPoint/Cocoa/XPCService/WebContentServiceEntryPoint.mm
 
 WebProcess/GPU/graphics/cocoa/ImageBufferShareableIOSurfaceBackend.cpp
+WebProcess/GPU/media/RemoteAudioSourceProvider.cpp
+WebProcess/GPU/media/RemoteAudioSourceProviderManager.cpp
 WebProcess/GPU/media/cocoa/MediaPlayerPrivateRemoteCocoa.mm
 WebProcess/GPU/media/cocoa/VideoLayerRemoteCocoa.mm
 WebProcess/GPU/media/ios/RemoteMediaSessionHelper.cpp
@@ -658,6 +666,7 @@ GPUProcessProxyMessageReceiver.cpp
 GPUProcessMessageReceiver.cpp
 LibWebRTCCodecsProxyMessageReceiver.cpp
 LibWebRTCCodecsMessageReceiver.cpp
+MessageArgumentDescriptions.cpp @no-unify
 MessageNames.cpp
 RemoteAudioDestinationManagerMessageReceiver.cpp
 RemoteAudioDestinationProxyMessageReceiver.cpp
@@ -665,6 +674,7 @@ RemoteAudioSessionMessageReceiver.cpp
 RemoteAudioSessionProxyMessageReceiver.cpp
 RemoteAudioMediaStreamTrackRendererManagerMessageReceiver.cpp
 RemoteAudioMediaStreamTrackRendererMessageReceiver.cpp
+RemoteAudioSourceProviderManagerMessageReceiver.cpp
 RemoteMediaRecorderMessageReceiver.cpp
 RemoteMediaRecorderManagerMessageReceiver.cpp
 RemoteMediaSessionHelperMessageReceiver.cpp

@@ -39,6 +39,7 @@
 #include <WebCore/CompositionUnderline.h>
 #include <WebCore/Credential.h>
 #include <WebCore/Cursor.h>
+#include <WebCore/DOMCacheEngine.h>
 #include <WebCore/DatabaseDetails.h>
 #include <WebCore/DictationAlternative.h>
 #include <WebCore/DictionaryPopupInfo.h>
@@ -100,7 +101,6 @@
 
 #if PLATFORM(IOS_FAMILY)
 #include <WebCore/FloatQuad.h>
-#include <WebCore/InspectorOverlay.h>
 #include <WebCore/SelectionRect.h>
 #include <WebCore/SharedBuffer.h>
 #endif // PLATFORM(IOS_FAMILY)
@@ -1100,7 +1100,7 @@ bool ArgumentCoder<ImageHandle>::decode(Decoder& decoder, ImageHandle& imageHand
     return true;
 }
 
-static void encodeNativeImage(Encoder& encoder, NativeImagePtr image)
+static void encodeNativeImage(Encoder& encoder, const NativeImagePtr& image)
 {
     auto imageSize = nativeImageSize(image);
     auto bitmap = ShareableBitmap::createShareable(imageSize, { });
@@ -1143,7 +1143,7 @@ static WARN_UNUSED_RETURN bool decodeNativeImage(Decoder& decoder, NativeImagePt
     return true;
 }
 
-static void encodeOptionalNativeImage(Encoder& encoder, NativeImagePtr image)
+static void encodeOptionalNativeImage(Encoder& encoder, const NativeImagePtr& image)
 {
     bool hasImage = !!image;
     encoder << hasImage;
@@ -1166,14 +1166,14 @@ static WARN_UNUSED_RETURN bool decodeOptionalNativeImage(Decoder& decoder, Nativ
     return decodeNativeImage(decoder, image);
 }
 
-void ArgumentCoder<NativeImageHandle>::encode(Encoder& encoder, const NativeImageHandle& imageHandle)
+void ArgumentCoder<NativeImagePtr>::encode(Encoder& encoder, const NativeImagePtr& image)
 {
-    encodeOptionalNativeImage(encoder, imageHandle.image.get());
+    encodeOptionalNativeImage(encoder, image);
 }
 
-bool ArgumentCoder<NativeImageHandle>::decode(Decoder& decoder, NativeImageHandle& imageHandle)
+bool ArgumentCoder<NativeImagePtr>::decode(Decoder& decoder, NativeImagePtr& image)
 {
-    return decodeOptionalNativeImage(decoder, imageHandle.image);
+    return decodeOptionalNativeImage(decoder, image);
 }
 
 void ArgumentCoder<Ref<Font>>::encode(Encoder& encoder, const Ref<WebCore::Font>& font)
@@ -1723,7 +1723,7 @@ bool ArgumentCoder<PasteboardURL>::decode(Decoder& decoder, PasteboardURL& conte
 
 #if PLATFORM(IOS_FAMILY)
 
-void ArgumentCoder<Highlight>::encode(Encoder& encoder, const Highlight& highlight)
+void ArgumentCoder<InspectorOverlay::Highlight>::encode(Encoder& encoder, const InspectorOverlay::Highlight& highlight)
 {
     encoder << static_cast<uint32_t>(highlight.type);
     encoder << highlight.usePageCoordinates;
@@ -1735,12 +1735,12 @@ void ArgumentCoder<Highlight>::encode(Encoder& encoder, const Highlight& highlig
     encoder << highlight.quads;
 }
 
-bool ArgumentCoder<Highlight>::decode(Decoder& decoder, Highlight& highlight)
+bool ArgumentCoder<InspectorOverlay::Highlight>::decode(Decoder& decoder, InspectorOverlay::Highlight& highlight)
 {
     uint32_t type;
     if (!decoder.decode(type))
         return false;
-    highlight.type = (HighlightType)type;
+    highlight.type = (InspectorOverlay::Highlight::Type)type;
 
     if (!decoder.decode(highlight.usePageCoordinates))
         return false;

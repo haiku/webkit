@@ -31,7 +31,6 @@
 #include "DeprecatedGlobalSettings.h"
 #include "Document.h"
 #include "HashTools.h"
-#include "RuntimeEnabledFeatures.h"
 #include "Settings.h"
 #include "StyledElement.h"
 #include <wtf/IsoMallocInlines.h>
@@ -45,10 +44,12 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(CSSStyleDeclaration);
 namespace {
 
 enum class PropertyNamePrefix {
-    None, Epub, CSS, Pixel, Pos, WebKit,
-#if ENABLE(LEGACY_CSS_VENDOR_PREFIXES)
-    Apple, KHTML,
-#endif
+    None,
+    Epub,
+    CSS,
+    Pixel,
+    Pos,
+    WebKit
 };
 
 template<size_t prefixCStringLength>
@@ -89,22 +90,10 @@ static PropertyNamePrefix propertyNamePrefix(const StringImpl& propertyName)
     // First character of the prefix within the property name may be upper or lowercase.
     UChar firstChar = toASCIILower(propertyName[0]);
     switch (firstChar) {
-#if ENABLE(LEGACY_CSS_VENDOR_PREFIXES)
-    case 'a':
-        if (RuntimeEnabledFeatures::sharedFeatures().legacyCSSVendorPrefixesEnabled() && matchesCSSPropertyNamePrefix(propertyName, "apple"))
-            return PropertyNamePrefix::Apple;
-        break;
-#endif
     case 'c':
         if (matchesCSSPropertyNamePrefix(propertyName, "css"))
             return PropertyNamePrefix::CSS;
         break;
-#if ENABLE(LEGACY_CSS_VENDOR_PREFIXES)
-    case 'k':
-        if (RuntimeEnabledFeatures::sharedFeatures().legacyCSSVendorPrefixesEnabled() && matchesCSSPropertyNamePrefix(propertyName, "khtml"))
-            return PropertyNamePrefix::KHTML;
-        break;
-#endif
     case 'e':
         if (matchesCSSPropertyNamePrefix(propertyName, "epub"))
             return PropertyNamePrefix::Epub;
@@ -197,14 +186,6 @@ static CSSPropertyInfo parseJavaScriptCSSPropertyName(const AtomString& property
         i += 3;
         hadPixelOrPosPrefix = true;
         break;
-#if ENABLE(LEGACY_CSS_VENDOR_PREFIXES)
-    case PropertyNamePrefix::Apple:
-    case PropertyNamePrefix::KHTML:
-        ASSERT(RuntimeEnabledFeatures::sharedFeatures().legacyCSSVendorPrefixesEnabled());
-        writeWebKitPrefix(bufferPtr);
-        i += 5;
-        break;
-#endif
     case PropertyNamePrefix::Epub:
         writeEpubPrefix(bufferPtr);
         i += 4;
@@ -268,48 +249,8 @@ static CSSPropertyInfo propertyInfoFromJavaScriptCSSPropertyName(const AtomStrin
 
 }
 
-CSSPropertyID CSSStyleDeclaration::getCSSPropertyIDFromJavaScriptPropertyName(const AtomString& propertyName)
+ExceptionOr<void> CSSStyleDeclaration::setPropertyValueInternal(CSSPropertyID propertyID, String value)
 {
-    return propertyInfoFromJavaScriptCSSPropertyName(propertyName, nullptr).propertyID;
-}
-
-Optional<Variant<String, double>> CSSStyleDeclaration::namedItem(const AtomString& propertyName)
-{
-    auto* settings = parentElement() ? &parentElement()->document().settings() : nullptr;
-    auto propertyInfo = propertyInfoFromJavaScriptCSSPropertyName(propertyName, settings);
-    if (!propertyInfo.propertyID)
-        return WTF::nullopt;
-
-    auto value = getPropertyCSSValueInternal(propertyInfo.propertyID);
-    if (!value) {
-        // If the property is a shorthand property (such as "padding"), it can only be accessed using getPropertyValue.
-        return Variant<String, double> { getPropertyValueInternal(propertyInfo.propertyID) };
-    }
-    
-    if (propertyInfo.hadPixelOrPosPrefix && is<CSSPrimitiveValue>(*value)) {
-        // Call this version of the getter so that, e.g., pixelTop returns top as a number
-        // in pixel units and posTop should does the same _if_ this is a positioned element.
-        // FIXME: If not a positioned element, MSIE documentation says posTop should return 0; this rule is not implemented.
-        return Variant<String, double> { downcast<CSSPrimitiveValue>(*value).floatValue(CSSUnitType::CSS_PX) };
-    }
-
-    return Variant<String, double> { value->cssText() };
-}
-
-ExceptionOr<void> CSSStyleDeclaration::setNamedItem(const AtomString& propertyName, String value, bool& propertySupported)
-{
-    auto* settings = parentElement() ? &parentElement()->document().settings() : nullptr;
-    auto propertyInfo = propertyInfoFromJavaScriptCSSPropertyName(propertyName, settings);
-    if (!propertyInfo.propertyID) {
-        propertySupported = false;
-        return { };
-    }
-
-    propertySupported = true;
-
-    if (propertyInfo.hadPixelOrPosPrefix)
-        value.append("px");
-
     bool important = false;
     if (DeprecatedGlobalSettings::shouldRespectPriorityInCSSAttributeSetters()) {
         auto importantIndex = value.findIgnoringASCIICase("!important");
@@ -319,38 +260,43 @@ ExceptionOr<void> CSSStyleDeclaration::setNamedItem(const AtomString& propertyNa
         }
     }
 
-    auto setPropertyInternalResult = setPropertyInternal(propertyInfo.propertyID, value, important);
+    auto setPropertyInternalResult = setPropertyInternal(propertyID, value, important);
     if (setPropertyInternalResult.hasException())
         return setPropertyInternalResult.releaseException();
 
     return { };
 }
 
-Vector<AtomString> CSSStyleDeclaration::supportedPropertyNames() const
+Variant<double, String> CSSStyleDeclaration::getPropertyValueInternalForPosOrPixelPrefixed(CSSPropertyID propertyID)
 {
-    static unsigned numNames = 0;
-    static const AtomString* const cssPropertyNames = [] {
-        String names[numCSSProperties];
-        for (int i = 0; i < numCSSProperties; ++i) {
-            CSSPropertyID id = static_cast<CSSPropertyID>(firstCSSProperty + i);
-            // FIXME: Should take account for flags in settings().
-            if (isEnabledCSSProperty(id))
-                names[numNames++] = getJSPropertyName(id);
-        }
-        std::sort(&names[0], &names[numNames], WTF::codePointCompareLessThan);
-        auto* identifiers = new AtomString[numNames];
-        for (unsigned i = 0; i < numNames; ++i)
-            identifiers[i] = names[i];
-        return identifiers;
-    }();
+    auto value = getPropertyCSSValueInternal(propertyID);
+    if (!value) {
+        // If the property is a shorthand property (such as "padding"), it can only be accessed using getPropertyValue.
+        return getPropertyValueInternal(propertyID);
+    }
+    
+    if (is<CSSPrimitiveValue>(*value)) {
+        // Call this version of the getter so that, e.g., pixelTop returns top as a number
+        // in pixel units and posTop should does the same _if_ this is a positioned element.
+        // FIXME: If not a positioned element, MSIE documentation says posTop should return 0; this rule is not implemented.
+        return downcast<CSSPrimitiveValue>(*value).floatValue(CSSUnitType::CSS_PX);
+    }
 
-    Vector<AtomString> result;
-    result.reserveInitialCapacity(numNames);
+    return value->cssText();
+}
 
-    for (unsigned i = 0; i < numNames; ++i)
-        result.uncheckedAppend(cssPropertyNames[i]);
+ExceptionOr<void> CSSStyleDeclaration::setPropertyValueInternalForPosOrPixelPrefixed(CSSPropertyID propertyID, Variant<double, String> value)
+{
+    auto stringValue = WTF::switchOn(value, [&] (const auto& input) {
+        return makeString(input, "px");
+    });
 
-    return result;
+    return setPropertyValueInternal(propertyID, WTFMove(stringValue));
+}
+
+CSSPropertyID CSSStyleDeclaration::getCSSPropertyIDFromJavaScriptPropertyName(const AtomString& propertyName)
+{
+    return propertyInfoFromJavaScriptCSSPropertyName(propertyName, nullptr).propertyID;
 }
 
 String CSSStyleDeclaration::cssFloat()

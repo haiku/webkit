@@ -31,6 +31,7 @@
 #include "ContentType.h"
 #include "DeprecatedGlobalSettings.h"
 #include "Document.h"
+#include "GraphicsContext.h"
 #include "IntRect.h"
 #include "Logging.h"
 #include "MIMETypeRegistry.h"
@@ -307,6 +308,16 @@ static const AtomString& textPlain()
 {
     static MainThreadNeverDestroyed<const AtomString> textPlain("text/plain", AtomString::ConstructFromLiteral);
     return textPlain;
+}
+
+const MediaPlayerPrivateInterface* MediaPlayer::playerPrivate() const
+{
+    return m_private.get();
+}
+
+MediaPlayerPrivateInterface* MediaPlayer::playerPrivate()
+{
+    return m_private.get();
 }
 
 const MediaPlayerFactory* MediaPlayer::mediaEngine(MediaPlayerEnums::MediaEngineIdentifier identifier)
@@ -956,6 +967,12 @@ void MediaPlayer::setVisible(bool b)
     m_private->setVisible(b);
 }
 
+void MediaPlayer::setVisibleForCanvas(bool visible)
+{
+    m_visible = visible;
+    m_private->setVisibleForCanvas(visible);
+}
+
 MediaPlayer::Preload MediaPlayer::preload() const
 {
     return m_preload;
@@ -970,11 +987,6 @@ void MediaPlayer::setPreload(MediaPlayer::Preload preload)
 void MediaPlayer::paint(GraphicsContext& p, const FloatRect& r)
 {
     m_private->paint(p, r);
-}
-
-void MediaPlayer::paintCurrentFrameInContext(GraphicsContext& p, const FloatRect& r)
-{
-    m_private->paintCurrentFrameInContext(p, r);
 }
 
 bool MediaPlayer::copyVideoTextureToPlatformTexture(GraphicsContextGLOpenGL* context, PlatformGLObject texture, GCGLenum target, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY)
@@ -1537,9 +1549,9 @@ String MediaPlayer::mediaPlayerNetworkInterfaceName() const
     return client().mediaPlayerNetworkInterfaceName();
 }
 
-bool MediaPlayer::getRawCookies(const URL& url, Vector<Cookie>& cookies) const
+void MediaPlayer::getRawCookies(const URL& url, MediaPlayerClient::GetRawCookiesCallback&& completionHandler) const
 {
-    return client().mediaPlayerGetRawCookies(url, cookies);
+    client().mediaPlayerGetRawCookies(url, WTFMove(completionHandler));
 }
 #endif
 

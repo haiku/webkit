@@ -64,7 +64,7 @@ public:
         bool isLastLineWithInlineContent { true };
         const Line::RunList& runs;
     };
-    LineContent layoutInlineContent(const InlineItemRange&, size_t partialLeadingContentLength, const FormattingContext::ConstraintsForInFlowContent& initialLineConstraints, bool isFirstLine);
+    LineContent layoutInlineContent(const InlineItemRange&, size_t partialLeadingContentLength, const InlineRect& initialLineConstraints, bool isFirstLine);
 
     struct IntrinsicContent {
         InlineItemRange inlineItemRange;
@@ -74,6 +74,8 @@ public:
 
 private:
     void nextContentForLine(LineCandidate&, size_t inlineItemIndex, const InlineItemRange& needsLayoutRange, size_t overflowLength, InlineLayoutUnit availableLineWidth, InlineLayoutUnit currentLogicalRight);
+    size_t nextWrapOpportunity(size_t startIndex, const LineBuilder::InlineItemRange& layoutRange) const;
+
     struct Result {
         InlineContentBreaker::IsEndOfLine isEndOfLine { InlineContentBreaker::IsEndOfLine::No };
         struct CommittedContentCount {
@@ -89,7 +91,7 @@ private:
         InlineLayoutUnit availableLogicalWidth { 0 };
         bool isConstrainedByFloat { false };
     };
-    UsedConstraints constraintsForLine(const FormattingContext::ConstraintsForInFlowContent& initialLineConstraints, bool isFirstLine);
+    UsedConstraints constraintsForLine(const InlineRect& initialLineConstraints, bool isFirstLine);
     void commitFloats(const LineCandidate&, CommitIntrusiveFloatsOnly = CommitIntrusiveFloatsOnly::No);
     Result handleFloatsAndInlineContent(InlineContentBreaker&, const InlineItemRange& needsLayoutRange, const LineCandidate&);
     size_t rebuildLine(const InlineItemRange& needsLayoutRange, const InlineItem& lastInlineItemToAdd);

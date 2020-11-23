@@ -33,6 +33,7 @@ import tarfile
 import tempfile
 import zipfile
 
+from collections import defaultdict
 from logging import NullHandler
 from webkitcorepy import log
 from webkitcorepy.version import Version
@@ -93,14 +94,15 @@ class Package(object):
             else:
                 raise OSError('{} has an  unrecognized package format'.format(self.path))
 
-    def __init__(self, name, version=None, pypi_name=None, slow_install=False, wheel=False, aliases=None):
-        self.name = name
+    def __init__(self, import_name, version=None, pypi_name=None, slow_install=False, wheel=False, aliases=None, implicit_deps=None):
+        self.name = import_name
         self.version = version
         self._archives = []
         self.pypi_name = pypi_name or self.name
         self.slow_install = slow_install
         self.wheel = wheel
         self.aliases = aliases or []
+        self.implicit_deps = implicit_deps or []
 
     @property
     def location(self):
@@ -205,9 +207,17 @@ class Package(object):
         if self.is_cached():
             return
 
-        # Make sure that setuptools are installed, since setup.py relies on it
-        if self.name != 'setuptools':
+        # Make sure that setuptools and wheel are installed, since setup.py relies on it
+        if self.name not in ['setuptools', 'wheel']:
             AutoInstall.install('setuptools')
+            AutoInstall.install('wheel')
+
+        # In some cases a package may check if another package is installed without actually
+        # importing it, which would make the AutoInstall to miss the dependency as it would
+        # not be imported. An example is pytest autoload feature to search for plugins like
+        # pytest_timeout.
+        for dependency in self.implicit_deps:
+            AutoInstall.install(dependency)
 
         if not self.archives():
             raise ValueError('No archives for {}-{} found'.format(self.pypi_name, self.version))
@@ -257,6 +267,8 @@ class Package(object):
                         ],
                         cwd=candidate,
                         env=dict(
+                            HTTP_PROXY=os.environ.get('HTTP_PROXY', ''),
+                            HTTPS_PROXY=os.environ.get('HTTPS_PROXY', ''),
                             PATH=os.environ.get('PATH', ''),
                             PATHEXT=os.environ.get('PATHEXT', ''),
                             PYTHONPATH=install_location,
@@ -306,7 +318,7 @@ class AutoInstall(object):
     index = 'pypi.org'
     timeout = 30
     version = Version(sys.version_info[0], sys.version_info[1], sys.version_info[2])
-    packages = {}
+    packages = defaultdict(list)
     manifest = {}
 
     # When sharing an install location, projects may wish to overwrite packages on disk
@@ -432,8 +444,8 @@ class AutoInstall(object):
                 package = Package(package)
         elif isinstance(package, Package):
             if cls.packages.get(package.name):
-                if cls.packages.get(package.name).version != package.version:
-                    raise ValueError('Registered version of {} uses {}, but requested version uses {}'.format(package.name, cls.packages.get(package.name).version, package.version))
+                if cls.packages.get(package.name)[0].version != package.version:
+                    raise ValueError('Registered version of {} uses {}, but requested version uses {}'.format(package.name, cls.packages.get(package.name)[0].version, package.version))
                 return cls.packages.get(package.name)
         else:
             raise ValueError('Expected package to be str or Package, not {}'.format(type(package)))
@@ -452,22 +464,22 @@ class AutoInstall(object):
                 if not os.path.isdir(os.path.join(candidate, package.name)):
                     continue
                 sys.path.insert(0, candidate)
-                return package
+                return [package]
 
         for alias in package.aliases:
-            cls.packages[alias] = package
-        cls.packages[package.name] = package
-        return package
+            cls.packages[alias].append(package)
+        cls.packages[package.name].append(package)
+        return [package]
 
     @classmethod
     def install(cls, package):
-        to_install = cls.register(package)
-        return to_install.install()
+        return all([to_install.install() for to_install in cls.register(package)])
 
     @classmethod
     def install_everything(cls):
-        for package in cls.packages.values():
-            package.install()
+        for packages in cls.packages.values():
+            for package in packages:
+                package.install()
         return None
 
     @classmethod

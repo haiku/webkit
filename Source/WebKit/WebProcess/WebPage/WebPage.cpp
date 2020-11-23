@@ -46,6 +46,7 @@
 #include "LibWebRTCProvider.h"
 #include "LoadParameters.h"
 #include "Logging.h"
+#include "MediaPlaybackState.h"
 #include "MediaRecorderProvider.h"
 #include "NetscapePlugin.h"
 #include "NetworkConnectionToWebProcessMessages.h"
@@ -174,7 +175,6 @@
 #include <WebCore/FrameLoaderTypes.h>
 #include <WebCore/FrameView.h>
 #include <WebCore/FullscreenManager.h>
-#include <WebCore/GraphicsContextGLOpenGL.h>
 #include <WebCore/HTMLAttachmentElement.h>
 #include <WebCore/HTMLFormElement.h>
 #include <WebCore/HTMLImageElement.h>
@@ -570,11 +570,9 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     if (!parameters.crossOriginAccessControlCheckEnabled)
         CrossOriginAccessControlCheckDisabler::singleton().setCrossOriginAccessControlCheckEnabled(false);
 
-#if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(IOS_FAMILY)
-    if (parameters.frontboardExtensionHandle)
-        SandboxExtension::consumePermanently(*parameters.frontboardExtensionHandle);
-    if (parameters.iconServicesExtensionHandle)
-        SandboxExtension::consumePermanently(*parameters.iconServicesExtensionHandle);
+#if ENABLE(ATTACHMENT_ELEMENT)
+    if (parameters.attachmentElementExtensionHandles)
+        SandboxExtension::consumePermanently(*parameters.attachmentElementExtensionHandles);
 #endif
 
     m_page = makeUnique<Page>(WTFMove(pageConfiguration));
@@ -789,6 +787,10 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
         WebProcess::singleton().ensureGPUProcessConnection().updateParameters(parameters);
 #endif
 
+#if ENABLE(IPC_TESTING_API)
+    m_visitedLinkTableID = parameters.visitedLinkTableID;
+#endif
+
 #if ENABLE(VP9)
     if (parameters.shouldEnableVP9Decoder)
         WebProcess::singleton().enableVP9Decoder();
@@ -802,19 +804,34 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     updateThrottleState();
 }
 
-void WebPage::stopAllMediaPlayback()
+void WebPage::requestMediaPlaybackState(CompletionHandler<void(WebKit::MediaPlaybackState)>&& completionHandler)
 {
-    m_page->stopAllMediaPlayback();
+    if (!m_page->mediaPlaybackExists())
+        return completionHandler(MediaPlaybackState::NoMediaPlayback);
+    if (m_page->mediaPlaybackIsPaused())
+        return completionHandler(MediaPlaybackState::MediaPlaybackPaused);
+    if (m_page->mediaPlaybackIsSuspended())
+        return completionHandler(MediaPlaybackState::MediaPlaybackSuspended);
+
+    completionHandler(MediaPlaybackState::MediaPlaybackPlaying);
 }
 
-void WebPage::suspendAllMediaPlayback()
+void WebPage::pauseAllMediaPlayback(CompletionHandler<void(void)>&& completionHandler)
+{
+    m_page->pauseAllMediaPlayback();
+    completionHandler();
+}
+
+void WebPage::suspendAllMediaPlayback(CompletionHandler<void(void)>&& completionHandler)
 {
     m_page->suspendAllMediaPlayback();
+    completionHandler();
 }
 
-void WebPage::resumeAllMediaPlayback()
+void WebPage::resumeAllMediaPlayback(CompletionHandler<void(void)>&& completionHandler)
 {
     m_page->resumeAllMediaPlayback();
+    completionHandler();
 }
 
 void WebPage::suspendAllMediaBuffering()
@@ -1801,7 +1818,7 @@ void WebPage::sendViewportAttributesChanged(const ViewportArguments& viewportArg
     // Recalculate the recommended layout size, when the available size (device pixel) changes.
     Settings& settings = m_page->settings();
 
-    int minimumLayoutFallbackWidth = std::max(settings.layoutFallbackWidth(), m_viewSize.width());
+    int minimumLayoutFallbackWidth = std::max<int>(settings.layoutFallbackWidth(), m_viewSize.width());
 
     // If unset  we use the viewport dimensions. This fits with the behavior of desktop browsers.
     int deviceWidth = (settings.deviceWidth() > 0) ? settings.deviceWidth() : m_viewSize.width();
@@ -2835,25 +2852,26 @@ void WebPage::mouseEvent(const WebMouseEvent& mouseEvent)
     send(Messages::WebPageProxy::DidReceiveEvent(static_cast<uint32_t>(mouseEvent.type()), handled));
 }
 
-static bool handleWheelEvent(const WebWheelEvent& wheelEvent, Page* page)
+static bool handleWheelEvent(const WebWheelEvent& wheelEvent, Page* page, OptionSet<WheelEventProcessingSteps> processingSteps)
 {
     Frame& frame = page->mainFrame();
     if (!frame.view())
         return false;
 
     PlatformWheelEvent platformWheelEvent = platform(wheelEvent);
-    return page->userInputBridge().handleWheelEvent(platformWheelEvent);
+    return page->userInputBridge().handleWheelEvent(platformWheelEvent, processingSteps);
 }
 
-void WebPage::wheelEvent(const WebWheelEvent& wheelEvent)
+void WebPage::wheelEvent(const WebWheelEvent& wheelEvent, OptionSet<WheelEventProcessingSteps> processingSteps)
 {
     m_userActivity.impulse();
 
     CurrentEvent currentEvent(wheelEvent);
 
-    bool handled = handleWheelEvent(wheelEvent, m_page.get());
+    bool handled = handleWheelEvent(wheelEvent, m_page.get(), processingSteps);
 
-    send(Messages::WebPageProxy::DidReceiveEvent(static_cast<uint32_t>(wheelEvent.type()), handled));
+    if (processingSteps.contains(WheelEventProcessingSteps::MainThreadForScrolling))
+        send(Messages::WebPageProxy::DidReceiveEvent(static_cast<uint32_t>(wheelEvent.type()), handled));
 }
 
 static bool handleKeyEvent(const WebKeyboardEvent& keyboardEvent, Page* page)
@@ -3783,6 +3801,10 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
     static_cast<WebMediaStrategy&>(platformStrategies()->mediaStrategy()).setUseGPUProcess(settings.useGPUProcessForMediaEnabled());
     WebProcess::singleton().supplement<RemoteMediaPlayerManager>()->updatePreferences(settings);
     WebProcess::singleton().setUseGPUProcessForMedia(settings.useGPUProcessForMediaEnabled());
+#endif
+
+#if ENABLE(IPC_TESTING_API)
+    m_ipcTestingAPIEnabled = store.getBoolValueForKey(WebPreferencesKey::ipcTestingAPIEnabledKey());
 #endif
 }
 
@@ -7196,6 +7218,8 @@ bool WebPage::shouldUseRemoteRenderingFor(RenderingPurpose purpose)
     switch (purpose) {
     case RenderingPurpose::Canvas:
         return m_shouldRenderCanvasInGPUProcess;
+    case RenderingPurpose::MediaPainting:
+        return m_page->settings().useGPUProcessForMediaEnabled();
     default:
         break;
     }

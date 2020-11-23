@@ -50,6 +50,7 @@
 #include "WebPageMessages.h"
 #include "WebPageProxy.h"
 #include "WebPasteboardProxy.h"
+#include "WebPreferencesKeys.h"
 #include "WebProcessCache.h"
 #include "WebProcessDataStoreParameters.h"
 #include "WebProcessMessages.h"
@@ -484,12 +485,6 @@ void WebProcessProxy::notifyWebsiteDataDeletionForRegistrableDomainsFinished()
         page.value->postMessageToInjectedBundle("WebsiteDataDeletionForRegistrableDomainsFinished", nullptr);
 }
 
-void WebProcessProxy::notifyPageStatisticsTelemetryFinished(API::Object* messageBody)
-{
-    for (auto& page : globalPageMap())
-        page.value->postMessageToInjectedBundle("ResourceLoadStatisticsTelemetryFinished", messageBody);
-}
-
 void WebProcessProxy::setThirdPartyCookieBlockingMode(ThirdPartyCookieBlockingMode thirdPartyCookieBlockingMode, CompletionHandler<void()>&& completionHandler)
 {
     sendWithAsyncReply(Messages::WebProcess::SetThirdPartyCookieBlockingMode(thirdPartyCookieBlockingMode), WTFMove(completionHandler));
@@ -774,6 +769,13 @@ void WebProcessProxy::gpuProcessCrashed()
 }
 #endif
 
+#if ENABLE(WEB_AUTHN)
+void WebProcessProxy::getWebAuthnProcessConnection(Messages::WebProcessProxy::GetWebAuthnProcessConnection::DelayedReply&& reply)
+{
+    m_processPool->getWebAuthnProcessConnection(*this, WTFMove(reply));
+}
+#endif
+
 #if !PLATFORM(COCOA)
 bool WebProcessProxy::platformIsBeingDebugged() const
 {
@@ -886,6 +888,11 @@ void WebProcessProxy::didReceiveInvalidMessage(IPC::Connection& connection, IPC:
 
     WebProcessPool::didReceiveInvalidMessage(messageName);
 
+#if ENABLE(IPC_TESTING_API)
+    if (connection.ignoreInvalidMessageForTesting())
+        return;
+#endif
+
     // Terminate the WebContent process.
     terminate();
 
@@ -961,6 +968,15 @@ bool WebProcessProxy::mayBecomeUnresponsive()
 #endif
 }
 
+#if ENABLE(IPC_TESTING_API)
+void WebProcessProxy::setIgnoreInvalidMessageForTesting()
+{
+    if (state() == State::Running)
+        connection()->setIgnoreInvalidMessageForTesting();
+    m_ignoreInvalidMessageForTesting = true;
+}
+#endif
+
 void WebProcessProxy::didFinishLaunching(ProcessLauncher* launcher, IPC::Connection::Identifier connectionIdentifier)
 {
     RELEASE_ASSERT(isMainThreadOrCheckDisabled());
@@ -984,6 +1000,11 @@ void WebProcessProxy::didFinishLaunching(ProcessLauncher* launcher, IPC::Connect
 
     m_processPool->processDidFinishLaunching(this);
     m_backgroundResponsivenessTimer.updateState();
+
+#if ENABLE(IPC_TESTING_API)
+    if (m_ignoreInvalidMessageForTesting)
+        connection()->setIgnoreInvalidMessageForTesting();
+#endif
 
 #if PLATFORM(IOS_FAMILY)
     if (connection()) {
@@ -1145,6 +1166,12 @@ void WebProcessProxy::windowServerConnectionStateChanged()
 {
     for (const auto& page : m_pageMap.values())
         page->activityStateDidChange(ActivityState::IsVisuallyIdle);
+}
+
+void WebProcessProxy::notifyHasStylusDeviceChanged(bool hasStylusDevice)
+{
+    for (auto* webProcessProxy : WebProcessProxy::allProcesses().values())
+        webProcessProxy->send(Messages::WebProcess::SetHasStylusDevice(hasStylusDevice), 0);
 }
 
 void WebProcessProxy::fetchWebsiteData(PAL::SessionID sessionID, OptionSet<WebsiteDataType> dataTypes, CompletionHandler<void(WebsiteData)>&& completionHandler)
@@ -1804,10 +1831,8 @@ static Vector<std::pair<String, WebCompiledContentRuleListData>> contentRuleList
     }
 
     auto* userContentController = WebUserContentControllerProxy::get(*userContentControllerIdentifier);
-    if (!userContentController) {
-        ASSERT_NOT_REACHED();
+    if (!userContentController)
         return { };
-    }
 
     return userContentController->contentRuleListData();
 }

@@ -38,6 +38,8 @@
 #include <JavaScriptCore/Snippet.h>
 #include <JavaScriptCore/SnippetParams.h>
 
+IGNORE_WARNINGS_BEGIN("frame-address");
+
 namespace WebCore {
 using namespace JSC;
 
@@ -142,8 +144,6 @@ Ref<JSC::DOMJIT::CallDOMGetterSnippet> compileDocumentBodyAttribute()
 
 namespace DOMJIT {
 
-extern "C" {
-
 JSC_DEFINE_JIT_OPERATION(operationToJSElement, JSC::EncodedJSValue, (JSC::JSGlobalObject* globalObject, void* result))
 {
     ASSERT(result);
@@ -194,8 +194,8 @@ JSC_DEFINE_JIT_OPERATION(operationToJSContainerNode, JSC::EncodedJSValue, (JSC::
     return DOMJIT::toWrapperSlowImpl<ContainerNode>(globalObject, result);
 }
 
-}
+} } // namespace WebCore::DOMJIT
 
-} }
+IGNORE_WARNINGS_END
 
-#endif
+#endif // ENABLE(JIT)

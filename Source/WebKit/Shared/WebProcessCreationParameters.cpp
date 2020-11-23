@@ -88,6 +88,7 @@ void WebProcessCreationParameters::encode(IPC::Encoder& encoder) const
 #if HAVE(UIKIT_WITH_MOUSE_SUPPORT) && PLATFORM(IOS)
     encoder << hasMouseDevice;
 #endif
+    encoder << hasStylusDevice;
     encoder << defaultRequestTimeoutInterval;
     encoder << backForwardCacheCapacity;
 #if PLATFORM(COCOA)
@@ -160,6 +161,7 @@ void WebProcessCreationParameters::encode(IPC::Encoder& encoder) const
 
     encoder << containerManagerExtensionHandle;
     encoder << mobileGestaltExtensionHandle;
+    encoder << launchServicesExtensionHandle;
 
     encoder << diagnosticsExtensionHandles;
 #if PLATFORM(IOS_FAMILY)
@@ -301,6 +303,8 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!decoder.decode(parameters.hasMouseDevice))
         return false;
 #endif
+    if (!decoder.decode(parameters.hasStylusDevice))
+        return false;
     if (!decoder.decode(parameters.defaultRequestTimeoutInterval))
         return false;
     if (!decoder.decode(parameters.backForwardCacheCapacity))
@@ -436,6 +440,12 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!mobileGestaltExtensionHandle)
         return false;
     parameters.mobileGestaltExtensionHandle = WTFMove(*mobileGestaltExtensionHandle);
+
+    Optional<Optional<SandboxExtension::Handle>> launchServicesExtensionHandle;
+    decoder >> launchServicesExtensionHandle;
+    if (!launchServicesExtensionHandle)
+        return false;
+    parameters.launchServicesExtensionHandle = WTFMove(*launchServicesExtensionHandle);
 
     Optional<SandboxExtension::HandleArray> diagnosticsExtensionHandles;
     decoder >> diagnosticsExtensionHandles;

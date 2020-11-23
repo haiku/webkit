@@ -215,13 +215,14 @@ public:
     static void notifyHasMouseDeviceChanged();
 #endif
 
+    static void notifyHasStylusDeviceChanged(bool hasStylusDevice);
+
     void fetchWebsiteData(PAL::SessionID, OptionSet<WebsiteDataType>, CompletionHandler<void(WebsiteData)>&&);
     void deleteWebsiteData(PAL::SessionID, OptionSet<WebsiteDataType>, WallTime modifiedSince, CompletionHandler<void()>&&);
     void deleteWebsiteDataForOrigins(PAL::SessionID, OptionSet<WebsiteDataType>, const Vector<WebCore::SecurityOriginData>&, CompletionHandler<void()>&&);
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     static void notifyPageStatisticsAndDataRecordsProcessed();
-    static void notifyPageStatisticsTelemetryFinished(API::Object* messageBody);
 
     static void notifyWebsiteDataDeletionForRegistrableDomainsFinished();
     static void notifyWebsiteDataScanForRegistrableDomainsFinished();
@@ -361,7 +362,7 @@ public:
     UserMediaCaptureManagerProxy* userMediaCaptureManagerProxy() { return m_userMediaCaptureManagerProxy.get(); }
 #endif
 
-#if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(IOS_FAMILY)
+#if ENABLE(ATTACHMENT_ELEMENT)
     bool hasIssuedAttachmentElementRelatedSandboxExtensions() const { return m_hasIssuedAttachmentElementRelatedSandboxExtensions; }
     void setHasIssuedAttachmentElementRelatedSandboxExtensions() { m_hasIssuedAttachmentElementRelatedSandboxExtensions = true; }
 #endif
@@ -387,6 +388,10 @@ public:
 
 #if ENABLE(ROUTING_ARBITRATION)
     AudioSessionRoutingArbitratorProxy& audioSessionRoutingArbitrator() { return m_routingArbitrator.get(); }
+#endif
+
+#if ENABLE(IPC_TESTING_API)
+    void setIgnoreInvalidMessageForTesting();
 #endif
 
 protected:
@@ -444,6 +449,10 @@ private:
 
 #if ENABLE(GPU_PROCESS)
     void getGPUProcessConnection(Messages::WebProcessProxy::GetGPUProcessConnectionDelayedReply&&);
+#endif
+
+#if ENABLE(WEB_AUTHN)
+    void getWebAuthnProcessConnection(Messages::WebProcessProxy::GetWebAuthnProcessConnectionDelayedReply&&);
 #endif
 
     bool platformIsBeingDebugged() const;
@@ -581,7 +590,7 @@ private:
 
     bool m_hasCommittedAnyProvisionalLoads { false };
     bool m_isPrewarmed;
-#if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(IOS_FAMILY)
+#if ENABLE(ATTACHMENT_ELEMENT)
     bool m_hasIssuedAttachmentElementRelatedSandboxExtensions { false };
 #endif
 #if PLATFORM(COCOA)
@@ -619,6 +628,10 @@ private:
     Optional<AudibleMediaActivity> m_audibleMediaActivity;
 
     ShutdownPreventingScopeCounter m_shutdownPreventingScopeCounter;
+
+#if ENABLE(IPC_TESTING_API)
+    bool m_ignoreInvalidMessageForTesting { false };
+#endif
 };
 
 } // namespace WebKit

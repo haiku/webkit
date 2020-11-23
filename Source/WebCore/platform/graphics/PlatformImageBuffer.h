@@ -40,8 +40,6 @@
 
 #if HAVE(IOSURFACE)
 #include "ImageBufferIOSurfaceBackend.h"
-#elif USE(CAIRO) && ENABLE(ACCELERATED_2D_CANVAS)
-#include "ImageBufferCairoGLSurfaceBackend.h"
 #endif
 
 namespace WebCore {
@@ -58,8 +56,6 @@ using UnacceleratedImageBufferBackend = ImageBufferHaikuSurfaceBackend;
 
 #if HAVE(IOSURFACE)
 using AcceleratedImageBufferBackend = ImageBufferIOSurfaceBackend;
-#elif USE(CAIRO) && ENABLE(ACCELERATED_2D_CANVAS)
-using AcceleratedImageBufferBackend = ImageBufferCairoGLSurfaceBackend;
 #else
 using AcceleratedImageBufferBackend = UnacceleratedImageBufferBackend;
 #endif

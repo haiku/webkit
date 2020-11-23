@@ -175,7 +175,7 @@ static NSString * const editableCursorRegionIdentifier = @"WKEditableCursorRegio
 @end
 #endif
 
-#if ENABLE(PENCILKIT_TEXT_INPUT)
+#if HAVE(PENCILKIT_TEXT_INPUT)
 @interface WKContentView (WKUIIndirectScribbleInteractionDelegate) <UIIndirectScribbleInteractionDelegate>
 @end
 #endif
@@ -831,7 +831,7 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     [self setUpCursorInteraction];
 #endif
 
-#if ENABLE(PENCILKIT_TEXT_INPUT)
+#if HAVE(PENCILKIT_TEXT_INPUT)
     [self setUpScribbleInteraction];
 #endif
 
@@ -999,7 +999,7 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     _cursorInteraction = nil;
 #endif
 
-#if ENABLE(PENCILKIT_TEXT_INPUT)
+#if HAVE(PENCILKIT_TEXT_INPUT)
     [self cleanUpScribbleInteraction];
 #endif
 
@@ -2934,22 +2934,16 @@ static void cancelPotentialTapIfNecessary(WKContentView* contentView)
 #endif
 }
 
-- (BOOL)requiresAccessoryView
+static bool elementTypeRequiresAccessoryView(WebKit::InputType type)
 {
-    if ([_formInputSession accessoryViewShouldNotShow])
-        return NO;
-
-    if ([_formInputSession customInputAccessoryView])
-        return YES;
-
-    switch (_focusedElementInformation.elementType) {
+    switch (type) {
     case WebKit::InputType::None:
     case WebKit::InputType::Drawing:
     case WebKit::InputType::Date:
     case WebKit::InputType::DateTimeLocal:
     case WebKit::InputType::Month:
     case WebKit::InputType::Time:
-        return NO;
+        return false;
     case WebKit::InputType::Text:
     case WebKit::InputType::Password:
     case WebKit::InputType::Search:
@@ -2967,6 +2961,17 @@ static void cancelPotentialTapIfNecessary(WKContentView* contentView)
 #endif
         return !WebKit::currentUserInterfaceIdiomIsPadOrMac();
     }
+}
+
+- (BOOL)requiresAccessoryView
+{
+    if ([_formInputSession accessoryViewShouldNotShow])
+        return NO;
+
+    if ([_formInputSession customInputAccessoryView])
+        return YES;
+
+    return elementTypeRequiresAccessoryView(_focusedElementInformation.elementType);
 }
 
 - (UITextInputAssistantItem *)inputAssistantItem
@@ -4833,7 +4838,7 @@ static WebKit::WritingDirection coreWritingDirection(NSWritingDirection directio
 
 - (BOOL)_shouldSimulateKeyboardInputOnTextInsertion
 {
-#if ENABLE(PENCILKIT_TEXT_INPUT)
+#if HAVE(PENCILKIT_TEXT_INPUT)
     return [_scribbleInteraction isHandlingWriting];
 #else
     return NO;
@@ -5814,13 +5819,10 @@ static bool shouldShowKeyboardForElement(const WebKit::FocusedElementInformation
     if (information.inputMode == WebCore::InputMode::None)
         return false;
 
-    if (information.elementType == WebKit::InputType::Drawing)
-        return false;
-
     if (mayContainSelectableText(information.elementType))
         return true;
 
-    return !WebKit::currentUserInterfaceIdiomIsPadOrMac();
+    return elementTypeRequiresAccessoryView(information.elementType);
 }
 
 static WebCore::FloatRect rectToRevealWhenZoomingToFocusedElement(const WebKit::FocusedElementInformation& elementInfo, const WebKit::EditorState& editorState)
@@ -8780,7 +8782,7 @@ static BOOL applicationIsKnownToIgnoreMouseEvents(const char* &warningVersion)
 
 #endif // HAVE(UI_CURSOR_INTERACTION)
 
-#if ENABLE(PENCILKIT_TEXT_INPUT)
+#if HAVE(PENCILKIT_TEXT_INPUT)
 
 - (void)setUpScribbleInteraction
 {
@@ -8853,7 +8855,7 @@ static BOOL applicationIsKnownToIgnoreMouseEvents(const char* &warningVersion)
         [self _didFinishTextInteractionInTextInputContext:textInputContext];
 }
 
-#endif // ENABLE(PENCILKIT_TEXT_INPUT)
+#endif // HAVE(PENCILKIT_TEXT_INPUT)
 
 #if ENABLE(ATTACHMENT_ELEMENT)
 

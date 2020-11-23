@@ -637,6 +637,7 @@ webkit.org/b/211563 fast/text-indicator/text-indicator-estimated-color-with-impl
 
 # Not yet supported on WPE
 Bug(WPE) css3/scroll-snap [ Skip ]
+Bug(WPE) imported/w3c/web-platform-tests/css/css-scroll-snap [ Skip ]
 
 # Only enabled on Mac/iOS so far.
 Bug(WPE) contentfiltering/ [ Skip ]
@@ -664,6 +665,11 @@ webkit.org/b/214291 imported/w3c/web-platform-tests/css/css-writing-modes/baseli
 webkit.org/b/217369 fast/canvas/fill-text-with-font-features.html [ ImageOnlyFailure ]
 
 webkit.org/b/217370 fast/events/setDragImage-element-non-nullable.html [ Failure ]
+
+# ENABLE_GAMEPAD not enabled.
+webkit.org/b/213131 gamepad [ Skip ]
+webkit.org/b/213131 imported/w3c/web-platform-tests/dom/events/Event-timestamp-high-resolution.html [ Failure ]
+webkit.org/b/213131 http/tests/misc/gamepads-insecure.html [ Skip ]
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # 3. UNRESOLVED TESTS
@@ -1853,19 +1859,6 @@ webkit.org/b/201981 http/wpt/service-workers/server-trust-evaluation.https.html 
 webkit.org/b/201981 imported/w3c/web-platform-tests/service-workers/service-worker/fetch-request-no-freshness-headers.https.html [ Failure Pass ]
 webkit.org/b/201981 imported/w3c/web-platform-tests/service-workers/service-worker/windowclient-navigate.https.html [ Failure ]
 
-webkit.org/b/201982 fast/images/exif-orientation-background.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-canvas.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-composited.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-content.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-element-object-fit.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-element.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-image-document.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-image-object.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-svg-feimage.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-svg-image.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-webgl-texture.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/image-orientation-dynamic-from-image.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-background-image-no-repeat.html [ ImageOnlyFailure ]
 webkit.org/b/201982 fast/images/exif-orientation-background-image-repeat.html [ ImageOnlyFailure ]
 webkit.org/b/201982 fast/images/exif-orientation-border-image.html [ ImageOnlyFailure ]
 

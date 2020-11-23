@@ -115,6 +115,7 @@ struct ServiceWorkerInitializationData;
 class StorageAreaMap;
 class UserData;
 class WaylandCompositorDisplay;
+class WebAuthnProcessConnection;
 class WebAutomationSessionProxy;
 class WebCacheStorageProvider;
 class WebCookieJar;
@@ -192,6 +193,9 @@ public:
     void setHasMouseDevice(bool);
 #endif
 
+    bool hasStylusDevice() const { return m_hasStylusDevice; }
+    void setHasStylusDevice(bool);
+
     WebFrame* webFrame(WebCore::FrameIdentifier) const;
     Vector<WebFrame*> webFrames() const;
     void addWebFrame(WebCore::FrameIdentifier, WebFrame*);
@@ -228,6 +232,12 @@ public:
 #endif
 
 #endif // ENABLE(GPU_PROCESS)
+
+#if ENABLE(WEB_AUTHN)
+    WebAuthnProcessConnection& ensureWebAuthnProcessConnection();
+    void webAuthnProcessConnectionClosed(WebAuthnProcessConnection*);
+    WebAuthnProcessConnection* existingWebAuthnProcessConnection() { return m_webAuthnProcessConnection.get(); }
+#endif
 
     LibWebRTCNetwork& libWebRTCNetwork();
 
@@ -563,6 +573,8 @@ private:
     bool m_hasMouseDevice { false };
 #endif
 
+    bool m_hasStylusDevice { false };
+
     HashMap<WebCore::FrameIdentifier, WebFrame*> m_frameMap;
 
     typedef HashMap<const char*, std::unique_ptr<WebProcessSupplement>, PtrHash<const char*>> WebProcessSupplementMap;
@@ -579,6 +591,10 @@ private:
 #if PLATFORM(COCOA) && USE(LIBWEBRTC)
     std::unique_ptr<LibWebRTCCodecs> m_libWebRTCCodecs;
 #endif
+#endif
+
+#if ENABLE(WEB_AUTHN)
+    RefPtr<WebAuthnProcessConnection> m_webAuthnProcessConnection;
 #endif
 
     Ref<WebCacheStorageProvider> m_cacheStorageProvider;

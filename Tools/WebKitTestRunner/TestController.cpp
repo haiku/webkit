@@ -30,6 +30,7 @@
 #include "EventSenderProxy.h"
 #include "Options.h"
 #include "PlatformWebView.h"
+#include "TestCommand.h"
 #include "TestInvocation.h"
 #include "WebCoreTestSupport.h"
 #include <JavaScriptCore/InitializeThreading.h>
@@ -443,6 +444,7 @@ void TestController::initialize(int argc, const char* argv[])
     JSC::initialize();
     WTF::initializeMainThread();
     WTF::setProcessPrivileges(allPrivileges());
+    WebCoreTestSupport::populateJITOperations();
 
     platformInitialize();
 
@@ -462,17 +464,18 @@ void TestController::initialize(int argc, const char* argv[])
     m_gcBetweenTests = options.gcBetweenTests;
     m_shouldDumpPixelsForAllTests = options.shouldDumpPixelsForAllTests;
     m_forceComplexText = options.forceComplexText;
-    m_shouldUseAcceleratedDrawing = options.shouldUseAcceleratedDrawing;
     m_paths = options.paths;
     m_allowedHosts = options.allowedHosts;
     m_checkForWorldLeaks = options.checkForWorldLeaks;
     m_allowAnyHTTPSCertificateForAllowedHosts = options.allowAnyHTTPSCertificateForAllowedHosts;
-    
+
+    m_globalFeatures = TestOptions::defaults();
     m_globalFeatures.internalDebugFeatures = options.internalFeatures;
     m_globalFeatures.experimentalFeatures = options.experimentalFeatures;
-    m_globalFeatures.boolFeatures.insert({ "useRemoteLayerTree", options.shouldUseRemoteLayerTree });
-    m_globalFeatures.boolFeatures.insert({ "shouldShowWebView", options.shouldShowWebView });
-    m_globalFeatures.boolFeatures.insert({ "shouldShowTouches", options.shouldShowTouches });
+    m_globalFeatures.boolWebPreferenceFeatures.insert({ "AcceleratedDrawingEnabled", options.shouldUseAcceleratedDrawing });
+    m_globalFeatures.boolTestRunnerFeatures.insert({ "useRemoteLayerTree", options.shouldUseRemoteLayerTree });
+    m_globalFeatures.boolTestRunnerFeatures.insert({ "shouldShowWebView", options.shouldShowWebView });
+    m_globalFeatures.boolTestRunnerFeatures.insert({ "shouldShowTouches", options.shouldShowTouches });
 
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
     m_accessibilityIsolatedTreeMode = options.accessibilityIsolatedTreeMode;
@@ -486,7 +489,7 @@ void TestController::initialize(int argc, const char* argv[])
     initializeInjectedBundlePath();
     initializeTestPluginDirectory();
 
-#if PLATFORM(MAC)
+#if ENABLE(GAMEPAD)
     WebCoreTestSupport::installMockGamepadProvider();
 #endif
 
@@ -495,21 +498,21 @@ void TestController::initialize(int argc, const char* argv[])
     m_eventSenderProxy = makeUnique<EventSenderProxy>(this);
 }
 
-WKRetainPtr<WKContextConfigurationRef> TestController::generateContextConfiguration(const ContextOptions& options) const
+WKRetainPtr<WKContextConfigurationRef> TestController::generateContextConfiguration(const TestOptions& options) const
 {
     auto configuration = adoptWK(WKContextConfigurationCreate());
     WKContextConfigurationSetInjectedBundlePath(configuration.get(), injectedBundlePath());
     WKContextConfigurationSetFullySynchronousModeIsAllowedForTesting(configuration.get(), true);
-    WKContextConfigurationSetIgnoreSynchronousMessagingTimeoutsForTesting(configuration.get(), options.ignoreSynchronousMessagingTimeouts);
+    WKContextConfigurationSetIgnoreSynchronousMessagingTimeoutsForTesting(configuration.get(), options.ignoreSynchronousMessagingTimeouts());
 
     auto overrideLanguages = adoptWK(WKMutableArrayCreate());
-    for (auto& language : options.overrideLanguages)
+    for (auto& language : options.overrideLanguages())
         WKArrayAppendItem(overrideLanguages.get(), toWK(language).get());
     WKContextConfigurationSetOverrideLanguages(configuration.get(), overrideLanguages.get());
 
     if (options.shouldEnableProcessSwapOnNavigation()) {
         WKContextConfigurationSetProcessSwapsOnNavigation(configuration.get(), true);
-        if (options.enableProcessSwapOnWindowOpen)
+        if (options.enableProcessSwapOnWindowOpen())
             WKContextConfigurationSetProcessSwapsOnWindowOpenWithOpener(configuration.get(), true);
     }
 
@@ -558,11 +561,9 @@ WKWebsiteDataStoreRef TestController::websiteDataStore()
 
 WKRetainPtr<WKPageConfigurationRef> TestController::generatePageConfiguration(const TestOptions& options)
 {
-    auto contextOptions = options.contextOptions();
-    if (!m_context || !m_contextOptions->hasSameInitializationOptions(contextOptions)) {
-        auto contextConfiguration = generateContextConfiguration(contextOptions);
+    if (!m_context || !m_mainWebView || !m_mainWebView->viewSupportsOptions(options)) {
+        auto contextConfiguration = generateContextConfiguration(options);
         m_context = platformAdjustContext(adoptWK(WKContextCreateWithConfiguration(contextConfiguration.get())).get(), contextConfiguration.get());
-        m_contextOptions = contextOptions;
 
         m_geolocationProvider = makeUnique<GeolocationProviderMock>(m_context.get());
 
@@ -652,6 +653,8 @@ void TestController::createWebViewWithOptions(const TestOptions& options)
     // Some preferences (notably mock scroll bars setting) currently cannot be re-applied to an existing view, so we need to set them now.
     // FIXME: Migrate these preferences to WKContextConfigurationRef.
     resetPreferencesToConsistentValues(options);
+
+    WKHTTPCookieStoreDeleteAllCookies(WKWebsiteDataStoreGetHTTPCookieStore(websiteDataStore()), nullptr, nullptr);
 
     platformCreateWebView(configuration.get(), options);
     WKPageUIClientV14 pageUIClient = {
@@ -820,7 +823,6 @@ void TestController::ensureViewSupportsOptionsForTest(const TestInvocation& test
         m_createdOtherPage = false;
     }
 
-
     createWebViewWithOptions(options);
 
     if (!resetStateToConsistentValues(options, ResetStage::BeforeTest))
@@ -840,37 +842,20 @@ void TestController::resetPreferencesToConsistentValues(const TestOptions& optio
     WKPreferencesResetAllInternalDebugFeatures(preferences);
 
     // Set internal features that have different default values for testing.
-
     WKPreferencesSetInternalDebugFeatureForKey(preferences, false, toWK("AsyncOverflowScrollingEnabled").get());
     WKPreferencesSetInternalDebugFeatureForKey(preferences, false, toWK("AsyncFrameScrollingEnabled").get());
-
-#if ENABLE(INPUT_TYPE_DATE)
     WKPreferencesSetInternalDebugFeatureForKey(preferences, true, toWK("InputTypeDateEnabled").get());
-#endif
-#if ENABLE(INPUT_TYPE_DATETIMELOCAL)
     WKPreferencesSetInternalDebugFeatureForKey(preferences, true, toWK("InputTypeDateTimeLocalEnabled").get());
-#endif
-#if ENABLE(INPUT_TYPE_MONTH)
     WKPreferencesSetInternalDebugFeatureForKey(preferences, true, toWK("InputTypeMonthEnabled").get());
-#endif
-#if ENABLE(INPUT_TYPE_TIME)
     WKPreferencesSetInternalDebugFeatureForKey(preferences, true, toWK("InputTypeTimeEnabled").get());
-#endif
-#if ENABLE(INPUT_TYPE_WEEK)
     WKPreferencesSetInternalDebugFeatureForKey(preferences, true, toWK("InputTypeWeekEnabled").get());
-#endif
+    WKPreferencesSetInternalDebugFeatureForKey(preferences, false, toWK("SpeakerSelectionRequiresUserGesture").get());
 
     for (const auto& [key, value]  : options.internalDebugFeatures())
         WKPreferencesSetInternalDebugFeatureForKey(preferences, value, toWK(key).get());
 
-#if PLATFORM(COCOA)
-    WKPreferencesSetCaptureVideoInUIProcessEnabled(preferences, options.enableCaptureVideoInUIProcess());
-    WKPreferencesSetCaptureVideoInGPUProcessEnabled(preferences, options.enableCaptureVideoInGPUProcess());
-    WKPreferencesSetCaptureAudioInUIProcessEnabled(preferences, options.enableCaptureAudioInUIProcess());
-    WKPreferencesSetCaptureAudioInGPUProcessEnabled(preferences, options.enableCaptureAudioInGPUProcess());
-#endif
-    WKPreferencesSetProcessSwapOnNavigationEnabled(preferences, options.contextOptions().shouldEnableProcessSwapOnNavigation());
-    WKPreferencesSetPageVisibilityBasedProcessSuppressionEnabled(preferences, options.enableAppNap());
+    // FIXME: Convert these to default values for TestOptions.
+    WKPreferencesSetProcessSwapOnNavigationEnabled(preferences, options.shouldEnableProcessSwapOnNavigation());
     WKPreferencesSetOfflineWebApplicationCacheEnabled(preferences, true);
     WKPreferencesSetSubpixelAntialiasedLayerTextEnabled(preferences, false);
     WKPreferencesSetXSSAuditorEnabled(preferences, false);
@@ -881,13 +866,9 @@ void TestController::resetPreferencesToConsistentValues(const TestOptions& optio
     WKPreferencesSetJavaScriptRuntimeFlags(preferences, kWKJavaScriptRuntimeFlagsAllEnabled);
     WKPreferencesSetJavaScriptCanOpenWindowsAutomatically(preferences, true);
     WKPreferencesSetJavaScriptCanAccessClipboard(preferences, true);
-    WKPreferencesSetDOMPasteAllowed(preferences, options.domPasteAllowed());
     WKPreferencesSetUniversalAccessFromFileURLsAllowed(preferences, true);
     WKPreferencesSetFileAccessFromFileURLsAllowed(preferences, true);
-    WKPreferencesSetTopNavigationToDataURLsAllowed(preferences, options.allowTopNavigationToDataURLs());
-#if ENABLE(FULLSCREEN_API)
     WKPreferencesSetFullScreenEnabled(preferences, true);
-#endif
     WKPreferencesSetAsynchronousPluginInitializationEnabled(preferences, false);
     WKPreferencesSetAsynchronousPluginInitializationEnabledForAllPlugins(preferences, false);
     WKPreferencesSetArtificialPluginInitializationDelayEnabled(preferences, false);
@@ -896,22 +877,7 @@ void TestController::resetPreferencesToConsistentValues(const TestOptions& optio
     WKPreferencesSetDataTransferItemsEnabled(preferences, true);
     WKPreferencesSetCustomPasteboardDataEnabled(preferences, true);
     WKPreferencesSetDialogElementEnabled(preferences, true);
-
-    WKPreferencesSetMockScrollbarsEnabled(preferences, options.useMockScrollbars());
-    WKPreferencesSetNeedsSiteSpecificQuirks(preferences, options.needsSiteSpecificQuirks());
-    WKPreferencesSetAttachmentElementEnabled(preferences, options.enableAttachmentElement());
-    WKPreferencesSetMenuItemElementEnabled(preferences, options.enableMenuItemElement());
-    WKPreferencesSetKeygenElementEnabled(preferences, options.enableKeygenElement());
-    WKPreferencesSetModernMediaControlsEnabled(preferences, options.enableModernMediaControls());
-    WKPreferencesSetWebAuthenticationEnabled(preferences, options.enableWebAuthentication());
-    WKPreferencesSetWebAuthenticationLocalAuthenticatorEnabled(preferences, options.enableWebAuthenticationLocalAuthenticator());
-    WKPreferencesSetAllowCrossOriginSubresourcesToAskForCredentials(preferences, options.allowCrossOriginSubresourcesToAskForCredentials());
-    WKPreferencesSetColorFilterEnabled(preferences, options.enableColorFilter());
-    WKPreferencesSetPunchOutWhiteBackgroundsInDarkMode(preferences, options.punchOutWhiteBackgroundsInDarkMode());
-    WKPreferencesSetPageCacheEnabled(preferences, options.enableBackForwardCache());
-
     WKPreferencesSetDefaultTextEncodingName(preferences, toWK("ISO-8859-1").get());
-
     WKPreferencesSetMinimumFontSize(preferences, 0);
     WKPreferencesSetStandardFontFamily(preferences, toWK("Times").get());
     WKPreferencesSetCursiveFontFamily(preferences, toWK("Apple Chancery").get());
@@ -921,21 +887,13 @@ void TestController::resetPreferencesToConsistentValues(const TestOptions& optio
     WKPreferencesSetSansSerifFontFamily(preferences, toWK("Helvetica").get());
     WKPreferencesSetSerifFontFamily(preferences, toWK("Times").get());
     WKPreferencesSetAsynchronousSpellCheckingEnabled(preferences, false);
-#if ENABLE(MEDIA_SOURCE)
     WKPreferencesSetMediaSourceEnabled(preferences, true);
     WKPreferencesSetSourceBufferChangeTypeEnabled(preferences, true);
-#endif
     WKPreferencesSetHighlightAPIEnabled(preferences, true);
-
     WKPreferencesSetHiddenPageDOMTimerThrottlingEnabled(preferences, false);
     WKPreferencesSetHiddenPageCSSAnimationSuspensionEnabled(preferences, false);
-
-    WKPreferencesSetAcceleratedDrawingEnabled(preferences, m_shouldUseAcceleratedDrawing || options.useAcceleratedDrawing());
-    // FIXME: We should be testing the default.
-    WKPreferencesSetStorageBlockingPolicy(preferences, kWKAllowAllStorage);
-
+    WKPreferencesSetStorageBlockingPolicy(preferences, kWKAllowAllStorage); // FIXME: We should be testing the default.
     WKPreferencesSetIsNSURLSessionWebSocketEnabled(preferences, false);
-
     WKPreferencesSetFetchAPIKeepAliveEnabled(preferences, true);
     WKPreferencesSetMediaPreloadingEnabled(preferences, true);
     WKPreferencesSetExposeSpeakersEnabled(preferences, true);
@@ -944,39 +902,36 @@ void TestController::resetPreferencesToConsistentValues(const TestOptions& optio
     WKPreferencesSetRemotePlaybackEnabled(preferences, true);
     WKPreferencesSetBeaconAPIEnabled(preferences, true);
     WKPreferencesSetDirectoryUploadEnabled(preferences, true);
-
-    WKHTTPCookieStoreDeleteAllCookies(WKWebsiteDataStoreGetHTTPCookieStore(websiteDataStore()), nullptr, nullptr);
-
     WKPreferencesSetMockCaptureDevicesEnabled(preferences, true);
-    
     WKPreferencesSetLargeImageAsyncDecodingEnabled(preferences, false);
-
-    WKPreferencesSetInspectorAdditionsEnabled(preferences, options.enableInspectorAdditions());
-
     WKPreferencesSetStorageAccessAPIEnabled(preferences, true);
-    
     WKPreferencesSetAccessibilityObjectModelEnabled(preferences, true);
     WKPreferencesSetCSSOMViewScrollingAPIEnabled(preferences, true);
     WKPreferencesSetMediaCapabilitiesEnabled(preferences, true);
-
     WKPreferencesSetRestrictedHTTPResponseAccess(preferences, true);
-
     WKPreferencesSetServerTimingEnabled(preferences, true);
-
     WKPreferencesSetWebSQLDisabled(preferences, false);
-
     WKPreferencesSetMediaPlaybackRequiresUserGesture(preferences, false);
     WKPreferencesSetVideoPlaybackRequiresUserGesture(preferences, false);
     WKPreferencesSetAudioPlaybackRequiresUserGesture(preferences, false);
-    WKPreferencesSetInternalDebugFeatureForKey(preferences, false, WKStringCreateWithUTF8CString("SpeakerSelectionRequiresUserGesture"));
-
-    WKPreferencesSetShouldUseServiceWorkerShortTimeout(preferences, options.useServiceWorkerShortTimeout());
-
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
     WKPreferencesSetIsAccessibilityIsolatedTreeEnabled(preferences, accessibilityIsolatedTreeMode());
 #endif
-    
+
     platformResetPreferencesToConsistentValues();
+
+    for (const auto& [key, value] : options.boolWebPreferenceFeatures())
+        WKPreferencesSetBoolValueForKey(preferences, value, toWK(key).get());
+
+    for (const auto& [key, value] : options.doubleWebPreferenceFeatures())
+        WKPreferencesSetDoubleValueForKey(preferences, value, toWK(key).get());
+
+    for (const auto& [key, value] : options.uint32WebPreferenceFeatures())
+        WKPreferencesSetUInt32ValueForKey(preferences, value, toWK(key).get());
+
+    for (const auto& [key, value] : options.stringWebPreferenceFeatures())
+        WKPreferencesSetStringValueForKey(preferences, toWK(value).get(), toWK(key).get());
+
 }
 
 bool TestController::resetStateToConsistentValues(const TestOptions& options, ResetStage resetStage)
@@ -1008,22 +963,18 @@ bool TestController::resetStateToConsistentValues(const TestOptions& options, Re
     if (!jscOptions.empty())
         setValue(resetMessageBody, "JSCOptions", jscOptions.c_str());
 
-#if PLATFORM(COCOA)
-    WebCoreTestSupport::setAdditionalSupportedImageTypesForTesting(options.additionalSupportedImageTypes().c_str());
-#endif
-
     WKPagePostMessageToInjectedBundle(TestController::singleton().mainWebView()->page(), toWK("Reset").get(), resetMessageBody.get());
 
     WKContextSetShouldUseFontSmoothing(TestController::singleton().context(), false);
-
     WKContextSetCacheModel(TestController::singleton().context(), kWKCacheModelDocumentBrowser);
 
     WKWebsiteDataStoreClearCachedCredentials(websiteDataStore());
-
     WKWebsiteDataStoreResetServiceWorkerFetchTimeoutForTesting(websiteDataStore());
 
     WKWebsiteDataStoreSetResourceLoadStatisticsEnabled(websiteDataStore(), true);
     WKWebsiteDataStoreClearAllDeviceOrientationPermissions(websiteDataStore());
+
+    WKHTTPCookieStoreDeleteAllCookies(WKWebsiteDataStoreGetHTTPCookieStore(websiteDataStore()), nullptr, nullptr);
 
     clearIndexedDatabases();
     clearLocalStorage();
@@ -1034,7 +985,6 @@ bool TestController::resetStateToConsistentValues(const TestOptions& options, Re
     resetQuota();
 
     WKContextClearCurrentModifierStateForTesting(TestController::singleton().context());
-
     WKContextSetUseSeparateServiceWorkerProcess(TestController::singleton().context(), false);
 
     WKPageSetMockCameraOrientation(m_mainWebView->page(), 0);
@@ -1049,10 +999,6 @@ bool TestController::resetStateToConsistentValues(const TestOptions& options, Re
     // FIXME: Is this needed? Nothing in TestController changes preferences during tests, and if there is
     // some other code doing this, it should probably be responsible for cleanup too.
     resetPreferencesToConsistentValues(options);
-
-#if PLATFORM(GTK)
-    WKTextCheckerContinuousSpellCheckingEnabledStateChanged(true);
-#endif
 
     // Make sure the view is in the window (a test can unparent it).
     m_mainWebView->addToWindow();
@@ -1299,24 +1245,6 @@ void TestController::setAllowsAnySSLCertificate(bool allows)
 }
 #endif
 
-static std::string testPath(WKURLRef url)
-{
-    auto scheme = adoptWK(WKURLCopyScheme(url));
-    if (WKStringIsEqualToUTF8CStringIgnoringCase(scheme.get(), "file")) {
-        auto path = adoptWK(WKURLCopyPath(url));
-        auto buffer = std::vector<char>(WKStringGetMaximumUTF8CStringSize(path.get()));
-        auto length = WKStringGetUTF8CString(path.get(), buffer.data(), buffer.size());
-        RELEASE_ASSERT(length > 0);
-#if OS(WINDOWS)
-        // Remove the first '/' if it starts with something like "/C:/".
-        if (length >= 4 && buffer[0] == '/' && buffer[2] == ':' && buffer[3] == '/')
-            return std::string(buffer.data() + 1, length - 1);
-#endif
-        return std::string(buffer.data(), length - 1);
-    }
-    return std::string();
-}
-
 WKURLRef TestController::createTestURL(const char* pathOrURL)
 {
     if (strstr(pathOrURL, "http://") || strstr(pathOrURL, "https://") || strstr(pathOrURL, "file://"))
@@ -1360,7 +1288,7 @@ TestOptions TestController::testOptionsForTest(const TestCommand& command) const
     TestFeatures features = m_globalFeatures;
     merge(features, hardcodedFeaturesBasedOnPathForTest(command));
     merge(features, platformSpecificFeatureDefaultsForTest(command));
-    merge(features, featureDefaultsFromTestHeaderForTest(command));
+    merge(features, featureDefaultsFromTestHeaderForTest(command, TestOptions::keyTypeMapping()));
     merge(features, platformSpecificFeatureOverridesDefaultsForTest(command));
 
     return TestOptions { features };
@@ -1406,6 +1334,24 @@ static void contentExtensionStoreCallback(WKUserContentFilterRef filter, uint32_
     context->filter = filter ? adoptWK(filter) : nullptr;
     context->done = true;
     context->testController.notifyDone();
+}
+
+static std::string testPath(WKURLRef url)
+{
+    auto scheme = adoptWK(WKURLCopyScheme(url));
+    if (WKStringIsEqualToUTF8CStringIgnoringCase(scheme.get(), "file")) {
+        auto path = adoptWK(WKURLCopyPath(url));
+        auto buffer = std::vector<char>(WKStringGetMaximumUTF8CStringSize(path.get()));
+        auto length = WKStringGetUTF8CString(path.get(), buffer.data(), buffer.size());
+        RELEASE_ASSERT(length > 0);
+#if OS(WINDOWS)
+        // Remove the first '/' if it starts with something like "/C:/".
+        if (length >= 4 && buffer[0] == '/' && buffer[2] == ':' && buffer[3] == '/')
+            return std::string(buffer.data() + 1, length - 1);
+#endif
+        return std::string(buffer.data(), length - 1);
+    }
+    return std::string();
 }
 
 static std::string contentExtensionJSONPath(WKURLRef url)
@@ -1493,97 +1439,13 @@ void TestController::resetContentExtensions()
 
 #endif // !ENABLE(CONTENT_EXTENSIONS)
 
-class CommandTokenizer {
-public:
-    explicit CommandTokenizer(const std::string& input)
-        : m_input(input)
-    {
-        pump();
-    }
-
-    bool hasNext() const;
-    std::string next();
-
-private:
-    void pump();
-    static const char kSeparator = '\'';
-    const std::string& m_input;
-    std::string m_next;
-    size_t m_posNextSeparator { 0 };
-};
-
-void CommandTokenizer::pump()
-{
-    if (m_posNextSeparator == std::string::npos || m_posNextSeparator == m_input.size()) {
-        m_next = std::string();
-        return;
-    }
-    size_t start = m_posNextSeparator ? m_posNextSeparator + 1 : 0;
-    m_posNextSeparator = m_input.find(kSeparator, start);
-    size_t size = m_posNextSeparator == std::string::npos ? std::string::npos : m_posNextSeparator - start;
-    m_next = std::string(m_input, start, size);
-}
-
-std::string CommandTokenizer::next()
-{
-    ASSERT(hasNext());
-
-    std::string oldNext = m_next;
-    pump();
-    return oldNext;
-}
-
-bool CommandTokenizer::hasNext() const
-{
-    return !m_next.empty();
-}
-
-NO_RETURN static void die(const std::string& inputLine)
-{
-    fprintf(stderr, "Unexpected input line: %s\n", inputLine.c_str());
-    exit(1);
-}
-
-static TestCommand parseInputLine(const std::string& inputLine)
-{
-    TestCommand result;
-    CommandTokenizer tokenizer(inputLine);
-    if (!tokenizer.hasNext())
-        die(inputLine);
-
-    std::string arg = tokenizer.next();
-    result.pathOrURL = arg;
-    while (tokenizer.hasNext()) {
-        arg = tokenizer.next();
-        if (arg == std::string("--timeout")) {
-            std::string timeoutToken = tokenizer.next();
-            result.timeout = Seconds::fromMilliseconds(atoi(timeoutToken.c_str()));
-        } else if (arg == std::string("-p") || arg == std::string("--pixel-test")) {
-            result.shouldDumpPixels = true;
-            if (tokenizer.hasNext())
-                result.expectedPixelHash = tokenizer.next();
-        } else if (arg == std::string("--dump-jsconsolelog-in-stderr"))
-            result.dumpJSConsoleLogInStdErr = true;
-        else if (arg == std::string("--absolutePath"))
-            result.absolutePath = tokenizer.next();
-        else
-            die(inputLine);
-    }
-    
-    if (result.absolutePath.empty()) {
-        // Gross. Need to reduce conversions between all the string types and URLs.
-        result.absolutePath = testPath(adoptWK(TestController::createTestURL(result.pathOrURL.c_str())).get());
-    }
-
-    return result;
-}
-
 bool TestController::runTest(const char* inputLine)
 {
     AutodrainedPool pool;
-    
+
     WKTextCheckerSetTestingMode(true);
-    TestCommand command = parseInputLine(std::string(inputLine));
+    
+    auto command = parseInputLine(std::string(inputLine));
 
     m_state = RunningTest;
     
@@ -2833,11 +2695,6 @@ WKContextRef TestController::platformAdjustContext(WKContextRef context, WKConte
     return context;
 }
 
-bool TestController::platformResetStateToConsistentValues(const TestOptions&)
-{
-    return true;
-}
-
 unsigned TestController::imageCountInGeneralPasteboard() const
 {
     return 0;
@@ -3373,11 +3230,6 @@ void TestController::statisticsUpdateCookieBlocking()
     WKWebsiteDataStoreStatisticsUpdateCookieBlocking(websiteDataStore(), &context, resourceStatisticsVoidResultCallback);
     runUntil(context.done, noTimeout);
     m_currentInvocation->didSetBlockCookiesForHost();
-}
-
-void TestController::statisticsSubmitTelemetry()
-{
-    WKWebsiteDataStoreStatisticsSubmitTelemetry(websiteDataStore());
 }
 
 void TestController::setStatisticsNotifyPagesWhenDataRecordsWereScanned(bool value)

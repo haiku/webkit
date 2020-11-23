@@ -40,6 +40,7 @@
 #include "EXTFloatBlend.h"
 #include "EXTFragDepth.h"
 #include "EXTShaderTextureLOD.h"
+#include "EXTTextureCompressionRGTC.h"
 #include "EXTTextureFilterAnisotropic.h"
 #include "EXTsRGB.h"
 #include "EventNames.h"
@@ -49,6 +50,7 @@
 #include "FrameLoaderClient.h"
 #include "FrameView.h"
 #include "GraphicsContext.h"
+#include "GraphicsContextGLImageExtractor.h"
 #include "HTMLCanvasElement.h"
 #include "HTMLImageElement.h"
 #include "HTMLVideoElement.h"
@@ -720,13 +722,6 @@ std::unique_ptr<WebGLRenderingContextBase> WebGLRenderingContextBase::create(Can
     auto& extensions = context->getExtensions();
     if (extensions.supports("GL_EXT_debug_marker"_s))
         extensions.pushGroupMarkerEXT("WebGLRenderingContext"_s);
-
-#if ENABLE(WEBGL2) && PLATFORM(MAC) && !USE(ANGLE)
-    // glTexStorage() was only added to Core in OpenGL 4.2.
-    // However, according to https://developer.apple.com/opengl/capabilities/ all Apple GPUs support this extension.
-    if (attributes.isWebGL2 && !extensions.supports("GL_ARB_texture_storage"))
-        return nullptr;
-#endif
 
     std::unique_ptr<WebGLRenderingContextBase> renderingContext;
 #if ENABLE(WEBGL2)
@@ -3714,6 +3709,7 @@ bool WebGLRenderingContextBase::extensionIsEnabled(const String& name)
     CHECK_EXTENSION(m_extFragDepth, "EXT_frag_depth");
     CHECK_EXTENSION(m_extBlendMinMax, "EXT_blend_minmax");
     CHECK_EXTENSION(m_extsRGB, "EXT_sRGB");
+    CHECK_EXTENSION(m_extTextureCompressionRGTC, "EXT_texture_compression_rgtc");
     CHECK_EXTENSION(m_extTextureFilterAnisotropic, "EXT_texture_filter_anisotropic");
     CHECK_EXTENSION(m_extTextureFilterAnisotropic, "WEBKIT_EXT_texture_filter_anisotropic");
     CHECK_EXTENSION(m_extShaderTextureLOD, "EXT_shader_texture_lod");
@@ -3912,45 +3908,51 @@ bool WebGLRenderingContextBase::linkProgramWithoutInvalidatingAttribLocations(We
 // https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible
 void WebGLRenderingContextBase::makeXRCompatible(MakeXRCompatiblePromise&& promise)
 {
-    auto rejectPromiseWithInvalidStateError = makeScopeExit([&] () {
-        m_isXRCompatible = false;
-        promise.reject(Exception { InvalidStateError });
-    });
-
     // Returning an exception in these two checks is not part of the spec.
     auto canvas = htmlCanvas();
-    if (!canvas)
+    if (!canvas) {
+        m_isXRCompatible = false;
+        promise.reject(Exception { InvalidStateError });
         return;
+    }
 
     auto* window = canvas->document().domWindow();
-    if (!window)
+    if (!window) {
+        m_isXRCompatible = false;
+        promise.reject(Exception { InvalidStateError });
         return;
+    }
 
     // 1. Let promise be a new Promise.
     // 2. Let context be the target WebGLRenderingContextBase object.
     // 3. Ensure an immersive XR device is selected.
     auto& xrSystem = NavigatorWebXR::xr(window->navigator());
-    xrSystem.ensureImmersiveXRDeviceIsSelected();
+    xrSystem.ensureImmersiveXRDeviceIsSelected([this, protectedThis = makeRef(*this), promise = WTFMove(promise), protectedXrSystem = makeRef(xrSystem)]() mutable {
+        auto rejectPromiseWithInvalidStateError = makeScopeExit([&]() {
+            m_isXRCompatible = false;
+            promise.reject(Exception { InvalidStateError });
+        });
 
-    // 4. Set context’s XR compatible boolean as follows:
-    //    If context’s WebGL context lost flag is set
-    //      Set context’s XR compatible boolean to false and reject promise with an InvalidStateError.
-    if (isContextLostOrPending())
-        return;
+        // 4. Set context’s XR compatible boolean as follows:
+        //    If context’s WebGL context lost flag is set
+        //      Set context’s XR compatible boolean to false and reject promise with an InvalidStateError.
+        if (isContextLostOrPending())
+            return;
 
-    // If the immersive XR device is null
-    //    Set context’s XR compatible boolean to false and reject promise with an InvalidStateError.
-    if (!xrSystem.hasActiveImmersiveXRDevice())
-        return;
+        // If the immersive XR device is null
+        //    Set context’s XR compatible boolean to false and reject promise with an InvalidStateError.
+        if (!protectedXrSystem->hasActiveImmersiveXRDevice())
+            return;
 
-    // If context’s XR compatible boolean is true. Resolve promise.
-    // If context was created on a compatible graphics adapter for the immersive XR device
-    //  Set context’s XR compatible boolean to true and resolve promise.
-    // Otherwise: Queue a task on the WebGL task source to perform the following steps:
-    // TODO: add a way to verify that we're using a compatible graphics adapter.
-    m_isXRCompatible = true;
-    promise.resolve();
-    rejectPromiseWithInvalidStateError.release();
+        // If context’s XR compatible boolean is true. Resolve promise.
+        // If context was created on a compatible graphics adapter for the immersive XR device
+        //  Set context’s XR compatible boolean to true and resolve promise.
+        // Otherwise: Queue a task on the WebGL task source to perform the following steps:
+        // FIXME: add a way to verify that we're using a compatible graphics adapter.
+        m_isXRCompatible = true;
+        promise.resolve();
+        rejectPromiseWithInvalidStateError.release();
+    });
 }
 #endif
 
@@ -4347,7 +4349,7 @@ void WebGLRenderingContextBase::readPixels(GCGLint x, GCGLint y, GCGLsizei width
     void* data = pixels.baseAddress();
 
 #if USE(ANGLE)
-        GLsizei length, columns, rows;
+        GCGLsizei length, columns, rows;
         m_context->makeContextCurrent();
         m_context->getExtensions().readnPixelsRobustANGLE(x, y, width, height, format, type, pixels.byteLength(), &length, &columns, &rows, data, false);
 #else
@@ -4887,7 +4889,7 @@ void WebGLRenderingContextBase::texImageArrayBufferViewHelper(TexImageFunctionID
         ASSERT(sourceType == TexImageDimension::Tex2D);
         // Only enter here if width or height is non-zero. Otherwise, call to the
         // underlying driver to generate appropriate GL errors if needed.
-        GraphicsContextGLOpenGL::PixelStoreParams unpackParams = getUnpackPixelStoreParams(TexImageDimension::Tex2D);
+        PixelStoreParams unpackParams = getUnpackPixelStoreParams(TexImageDimension::Tex2D);
         GCGLint dataStoreWidth = unpackParams.rowLength ? unpackParams.rowLength : width;
         if (unpackParams.skipPixels + width > dataStoreWidth) {
             synthesizeGLError(GraphicsContextGL::INVALID_OPERATION, functionName, "Invalid unpack params combination.");
@@ -4944,7 +4946,7 @@ void WebGLRenderingContextBase::texImageImpl(TexImageFunctionID functionID, GCGL
     if (m_unpackFlipY)
         adjustedSourceImageRect.setY(image->height() - adjustedSourceImageRect.maxY());
 
-    GraphicsContextGLOpenGL::ImageExtractor imageExtractor(image, domSource, premultiplyAlpha, m_unpackColorspaceConversion == GraphicsContextGL::NONE, ignoreNativeImageAlphaPremultiplication);
+    GraphicsContextGLImageExtractor imageExtractor(image, domSource, premultiplyAlpha, m_unpackColorspaceConversion == GraphicsContextGL::NONE, ignoreNativeImageAlphaPremultiplication);
     if (!imageExtractor.extractSucceeded()) {
         synthesizeGLError(GraphicsContextGL::INVALID_VALUE, functionName, "bad image data");
         return;
@@ -6306,17 +6308,17 @@ RefPtr<Int32Array> WebGLRenderingContextBase::getWebGLIntArrayParameter(GCGLenum
     return Int32Array::tryCreate(value, length);
 }
 
-GraphicsContextGLOpenGL::PixelStoreParams WebGLRenderingContextBase::getPackPixelStoreParams() const
+WebGLRenderingContextBase::PixelStoreParams WebGLRenderingContextBase::getPackPixelStoreParams() const
 {
-    GraphicsContextGLOpenGL::PixelStoreParams params;
+    PixelStoreParams params;
     params.alignment = m_packAlignment;
     return params;
 }
 
-GraphicsContextGLOpenGL::PixelStoreParams WebGLRenderingContextBase::getUnpackPixelStoreParams(TexImageDimension dimension) const
+WebGLRenderingContextBase::PixelStoreParams WebGLRenderingContextBase::getUnpackPixelStoreParams(TexImageDimension dimension) const
 {
     UNUSED_PARAM(dimension);
-    GraphicsContextGLOpenGL::PixelStoreParams params;
+    PixelStoreParams params;
     params.alignment = m_unpackAlignment;
     return params;
 }
@@ -6728,6 +6730,26 @@ bool WebGLRenderingContextBase::validateCompressedTexFuncData(const char* functi
             return false;
         }
         bytesRequired = checkedBytesRequired.unsafeGet();
+        break;
+    }
+    case ExtensionsGL::COMPRESSED_RED_RGTC1_EXT:
+    case ExtensionsGL::COMPRESSED_SIGNED_RED_RGTC1_EXT: {
+        const int kBlockSize = 8;
+        const int kBlockWidth = 4;
+        const int kBlockHeight = 4;
+        int numBlocksAcross = (width + kBlockWidth - 1) / kBlockWidth;
+        int numBlocksDown = (height + kBlockHeight - 1) / kBlockHeight;
+        bytesRequired = numBlocksAcross * numBlocksDown * kBlockSize;
+        break;
+    }
+    case ExtensionsGL::COMPRESSED_RED_GREEN_RGTC2_EXT:
+    case ExtensionsGL::COMPRESSED_SIGNED_RED_GREEN_RGTC2_EXT: {
+        const int kBlockSize = 16;
+        const int kBlockWidth = 4;
+        const int kBlockHeight = 4;
+        int numBlocksAcross = (width + kBlockWidth - 1) / kBlockWidth;
+        int numBlocksDown = (height + kBlockHeight - 1) / kBlockHeight;
+        bytesRequired = numBlocksAcross * numBlocksDown * kBlockSize;
         break;
     }
     default:
@@ -7784,6 +7806,7 @@ void WebGLRenderingContextBase::loseExtensions(LostContextMode mode)
     LOSE_EXTENSION(m_extFragDepth);
     LOSE_EXTENSION(m_extBlendMinMax);
     LOSE_EXTENSION(m_extsRGB);
+    LOSE_EXTENSION(m_extTextureCompressionRGTC);
     LOSE_EXTENSION(m_extTextureFilterAnisotropic);
     LOSE_EXTENSION(m_extShaderTextureLOD);
     LOSE_EXTENSION(m_oesTextureFloat);

@@ -25,14 +25,14 @@ PASS window.getComputedStyle(document.body).getPropertyValue('scroll-snap-type')
 axis following strictness: `mandatory inline`
 PASS window.getComputedStyle(document.body).getPropertyValue('scroll-snap-type') is 'none'
 
+only strictness: `mandatory`
+PASS window.getComputedStyle(document.body).getPropertyValue('scroll-snap-type') is 'none'
+
 initial value: `initial`
 PASS window.getComputedStyle(document.body).getPropertyValue('scroll-snap-type') is 'none'
 
-only strictness: `mandatory`
-PASS window.getComputedStyle(document.body).getPropertyValue('scroll-snap-type') is 'both mandatory'
-
 only axis: `both`
-PASS window.getComputedStyle(document.body).getPropertyValue('scroll-snap-type') is 'both proximity'
+PASS window.getComputedStyle(document.body).getPropertyValue('scroll-snap-type') is 'both'
 
 none: `none`
 PASS window.getComputedStyle(document.body).getPropertyValue('scroll-snap-type') is 'none'

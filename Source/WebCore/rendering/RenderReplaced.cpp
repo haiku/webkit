@@ -25,13 +25,18 @@
 #include "RenderReplaced.h"
 
 #include "DocumentMarkerController.h"
+#include "ElementRuleCollector.h"
 #include "FloatRoundedRect.h"
 #include "Frame.h"
 #include "GraphicsContext.h"
 #include "HTMLElement.h"
 #include "HTMLImageElement.h"
 #include "HTMLParserIdioms.h"
+#include "HighlightData.h"
+#include "HighlightMap.h"
 #include "InlineElementBox.h"
+#include "LayoutIntegrationLineIterator.h"
+#include "LayoutIntegrationRunIterator.h"
 #include "LayoutRepainter.h"
 #include "RenderBlock.h"
 #include "RenderFragmentedFlow.h"
@@ -146,6 +151,25 @@ inline static bool draggedContentContainsReplacedElement(const Vector<RenderedDo
     return false;
 }
 
+Color RenderReplaced::calculateHighlightColor() const
+{
+    HighlightData highlightData;
+    for (auto& highlight : document().highlightMap().map()) {
+        for (auto& rangeData : highlight.value->rangesData()) {
+            if (!highlightData.setRenderRange(rangeData))
+                continue;
+            
+            auto state = highlightData.highlightStateForRenderer(*this);
+            if (!isHighlighted(state, highlightData))
+                continue;
+
+            if (auto highlightStyle = getUncachedPseudoStyle({ PseudoId::Highlight, highlight.key }, &style()))
+                return highlightStyle->backgroundColor();
+        }
+    }
+    return Color();
+}
+
 void RenderReplaced::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
     if (!shouldPaint(paintInfo, paintOffset))
@@ -195,6 +219,10 @@ void RenderReplaced::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
     if (!paintInfo.shouldPaintWithinRoot(*this))
         return;
     
+    Color highlightColor;
+    if (!document().printing() && !paintInfo.paintBehavior.contains(PaintBehavior::ExcludeSelection))
+        highlightColor = calculateHighlightColor();
+    
     bool drawSelectionTint = shouldDrawSelectionTint();
     if (paintInfo.phase == PaintPhase::Selection) {
         if (selectionState() == HighlightState::None)
@@ -227,6 +255,12 @@ void RenderReplaced::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
         LayoutRect selectionPaintingRect = localSelectionRect();
         selectionPaintingRect.moveBy(adjustedPaintOffset);
         paintInfo.context().fillRect(snappedIntRect(selectionPaintingRect), selectionBackgroundColor());
+    }
+    
+    if (highlightColor.isVisible()) {
+        auto selectionPaintingRect = localSelectionRect(false);
+        selectionPaintingRect.moveBy(adjustedPaintOffset);
+        paintInfo.context().fillRect(snappedIntRect(selectionPaintingRect), highlightColor);
     }
 }
 
@@ -619,13 +653,14 @@ void RenderReplaced::computePreferredLogicalWidths()
 
 VisiblePosition RenderReplaced::positionForPoint(const LayoutPoint& point, const RenderFragmentContainer* fragment)
 {
-    // FIXME: This code is buggy if the replaced element is relative positioned.
-    InlineBox* box = inlineBoxWrapper();
-    const RootInlineBox* rootBox = box ? &box->root() : 0;
-    
-    LayoutUnit top = rootBox ? rootBox->selectionTop(RootInlineBox::ForHitTesting::Yes) : logicalTop();
-    LayoutUnit bottom = rootBox ? rootBox->selectionBottom() : logicalBottom();
-    
+    auto [top, bottom] = [&] {
+        if (auto run = LayoutIntegration::runFor(*this)) {
+            auto line = run.line();
+            return std::make_pair(line->selectionTopForHitTesting(), line->selectionBottom());
+        }
+        return std::make_pair(logicalTop(), logicalBottom());
+    }();
+
     LayoutUnit blockDirectionPosition = isHorizontalWritingMode() ? point.y() + y() : point.x() + x();
     LayoutUnit lineDirectionPosition = isHorizontalWritingMode() ? point.x() + x() : point.y() + y();
     
@@ -679,19 +714,23 @@ void RenderReplaced::setSelectionState(HighlightState state)
     RenderBox::setSelectionState(state);
 
     if (m_inlineBoxWrapper && canUpdateSelectionOnRootLineBoxes())
-        m_inlineBoxWrapper->root().setHasSelectedChildren(isSelected());
+        m_inlineBoxWrapper->root().setHasSelectedChildren(isHighlighted(selectionState(), view().selection()));
 }
 
 bool RenderReplaced::isSelected() const
 {
-    HighlightState state = selectionState();
+    return isHighlighted(selectionState(), view().selection());
+}
+
+bool RenderReplaced::isHighlighted(HighlightState state, const HighlightData& rangeData) const
+{
     if (state == HighlightState::None)
         return false;
     if (state == HighlightState::Inside)
         return true;
 
-    auto selectionStart = view().selection().startOffset();
-    auto selectionEnd = view().selection().endOffset();
+    auto selectionStart = rangeData.startOffset();
+    auto selectionEnd = rangeData.endOffset();
     if (state == HighlightState::Start)
         return !selectionStart;
 

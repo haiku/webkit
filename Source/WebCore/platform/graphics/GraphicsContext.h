@@ -96,6 +96,7 @@ class GraphicsContextImpl;
 class GraphicsContextPlatformPrivate;
 class ImageBuffer;
 class IntRect;
+class MediaPlayer;
 class RoundedRect;
 class GraphicsContextGLOpenGL;
 class Path;
@@ -337,10 +338,6 @@ public:
 
     const GraphicsContextState& state() const { return m_state; }
 
-#if USE(CG) || USE(DIRECT2D) || USE(CAIRO) || USE(HAIKU)
-    WEBCORE_EXPORT void drawNativeImage(const NativeImagePtr&, const FloatSize& selfSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& = { });
-#endif
-
 #if USE(CG) || USE(DIRECT2D)
     void applyStrokePattern();
     void applyFillPattern();
@@ -385,6 +382,8 @@ public:
     WEBCORE_EXPORT void clearRect(const FloatRect&);
 
     WEBCORE_EXPORT void strokeRect(const FloatRect&, float lineWidth);
+
+    WEBCORE_EXPORT void drawNativeImage(const NativeImagePtr&, const FloatSize& selfSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& = { });
 
     WEBCORE_EXPORT ImageDrawResult drawImage(Image&, const FloatPoint& destination, const ImagePaintingOptions& = { ImageOrientation::FromImage });
     WEBCORE_EXPORT ImageDrawResult drawImage(Image&, const FloatRect& destination, const ImagePaintingOptions& = { ImageOrientation::FromImage });
@@ -520,6 +519,8 @@ public:
     void setContentfulPaintDetected() { m_contenfulPaintDetected = true; }
     bool contenfulPaintDetected() const { return m_contenfulPaintDetected; }
 
+    WEBCORE_EXPORT void paintFrameForMedia(MediaPlayer&, const FloatRect& destination);
+
 #if OS(WINDOWS)
     HDC getWindowsContext(const IntRect&, bool supportAlphaBlend); // The passed in rect is used to create a bitmap for compositing inside transparency layers.
     void releaseWindowsContext(HDC, const IntRect&, bool supportAlphaBlend); // The passed in HDC should be the one handed back by getWindowsContext.
@@ -652,6 +653,8 @@ private:
     void platformStrokeEllipse(const FloatRect&);
 
     void platformFillRoundedRect(const FloatRoundedRect&, const Color&);
+
+    void platformDrawNativeImage(const NativeImagePtr&, const FloatSize& selfSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions&);
 
     FloatRect computeLineBoundsAndAntialiasingModeForText(const FloatRect&, bool printing, Color&);
 

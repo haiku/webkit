@@ -51,7 +51,7 @@ messages -> NetworkProcess LegacyReceiver {
 
     DownloadRequest(PAL::SessionID sessionID, WebKit::DownloadID downloadID, WebCore::ResourceRequest request, enum:bool Optional<WebKit::NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain, String suggestedFilename)
     ResumeDownload(PAL::SessionID sessionID, WebKit::DownloadID downloadID, IPC::DataReference resumeData, String path, WebKit::SandboxExtension::Handle sandboxExtensionHandle)
-    CancelDownload(WebKit::DownloadID downloadID)
+    CancelDownload(WebKit::DownloadID downloadID) -> (IPC::DataReference resumeData) Async
 #if PLATFORM(COCOA)
     PublishDownloadProgress(WebKit::DownloadID downloadID, URL url, WebKit::SandboxExtension::Handle sandboxExtensionHandle)
 #endif
@@ -113,7 +113,6 @@ messages -> NetworkProcess LegacyReceiver {
     ScheduleCookieBlockingUpdate(PAL::SessionID sessionID) -> () Async
     ScheduleStatisticsAndDataRecordsProcessing(PAL::SessionID sessionID) -> () Async
     StatisticsDatabaseHasAllTables(PAL::SessionID sessionID) -> (bool hasAllTables) Async
-    SubmitTelemetry(PAL::SessionID sessionID) -> () Async
     SetCacheMaxAgeCapForPrevalentResources(PAL::SessionID sessionID, Seconds seconds) -> () Async
     SetGrandfathered(PAL::SessionID sessionID, WebCore::RegistrableDomain resourceDomain, bool isGrandfathered) -> () Async
     GetResourceLoadStatisticsDataSummary(PAL::SessionID sessionID) -> (Vector<WebKit::WebResourceLoadStatisticsStore::ThirdPartyData> thirdPartyData) Async

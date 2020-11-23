@@ -29,24 +29,52 @@
 #pragma once
 
 #if ENABLE(WEB_AUDIO)
+#include "AudioArray.h"
+#include "ExceptionOr.h"
+#include "JSValueInWrappedObject.h"
+#include <wtf/Forward.h>
 #include <wtf/Ref.h>
-#include <wtf/RefCounted.h>
+#include <wtf/ThreadSafeRefCounted.h>
+
+namespace JSC {
+class JSArray;
+class MarkedArgumentBuffer;
+}
 
 namespace WebCore {
 
+class AudioBus;
+class AudioWorkletProcessorConstructionData;
+class JSCallbackDataStrong;
 class MessagePort;
+class ScriptExecutionContext;
 
-class AudioWorkletProcessor : public RefCounted<AudioWorkletProcessor> {
+class AudioWorkletProcessor : public ThreadSafeRefCounted<AudioWorkletProcessor> {
 public:
-    static Ref<AudioWorkletProcessor> create()
-    {
-        return adoptRef(*new AudioWorkletProcessor);
-    }
+    static ExceptionOr<Ref<AudioWorkletProcessor>> create(ScriptExecutionContext&);
+    ~AudioWorkletProcessor();
 
-    MessagePort* port() { return nullptr; }
+    const String& name() const { return m_name; }
+    MessagePort& port() { return m_port.get(); }
+
+    bool process(const Vector<RefPtr<AudioBus>>& inputs, Vector<Ref<AudioBus>>& outputs, const HashMap<String, std::unique_ptr<AudioFloatArray>>& paramValuesMap, bool& threwException);
+
+    void setProcessCallback(std::unique_ptr<JSCallbackDataStrong>&&);
+
+    JSValueInWrappedObject& jsInputsWrapper() { return m_jsInputs; }
+    JSValueInWrappedObject& jsOutputsWrapper() { return m_jsOutputs; }
+    JSValueInWrappedObject& jsParamValuesWrapper() { return m_jsParamValues; }
 
 private:
-    AudioWorkletProcessor();
+    explicit AudioWorkletProcessor(const AudioWorkletProcessorConstructionData&);
+    void buildJSArguments(JSC::VM&, JSC::JSGlobalObject&, JSC::MarkedArgumentBuffer&, const Vector<RefPtr<AudioBus>>& inputs, Vector<Ref<AudioBus>>& outputs, const HashMap<String, std::unique_ptr<AudioFloatArray>>& paramValuesMap);
+
+    String m_name;
+    Ref<MessagePort> m_port;
+    std::unique_ptr<JSCallbackDataStrong> m_processCallback;
+    JSValueInWrappedObject m_jsInputs;
+    JSValueInWrappedObject m_jsOutputs;
+    JSValueInWrappedObject m_jsParamValues;
 };
 
 } // namespace WebCore

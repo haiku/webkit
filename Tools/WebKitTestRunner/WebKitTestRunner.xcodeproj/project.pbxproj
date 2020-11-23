@@ -120,6 +120,8 @@
 		6510A78B11EC643800410867 /* WebKitWeightWatcher800.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6510A78011EC643800410867 /* WebKitWeightWatcher800.ttf */; };
 		6510A78C11EC643800410867 /* WebKitWeightWatcher900.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6510A78111EC643800410867 /* WebKitWeightWatcher900.ttf */; };
 		65EB85A011EC67CC0034D300 /* ActivateFontsCocoa.mm in Sources */ = {isa = PBXBuildFile; fileRef = 65EB859F11EC67CC0034D300 /* ActivateFontsCocoa.mm */; };
+		7CFF9BCA2534AF1D0008009F /* TestFeatures.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7CFF9BC62534AF1D0008009F /* TestFeatures.cpp */; };
+		7CFF9BCB2534AF1D0008009F /* TestCommand.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7CFF9BC72534AF1D0008009F /* TestCommand.cpp */; };
 		8034C6621487636400AC32E9 /* AccessibilityControllerMac.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8034C6611487636400AC32E9 /* AccessibilityControllerMac.mm */; };
 		8097338A14874A5A008156D9 /* AccessibilityNotificationHandler.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8097338914874A5A008156D9 /* AccessibilityNotificationHandler.mm */; };
 		9376417A210D737200A3DAAE /* WebKitTestRunnerWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 93764176210D736000A3DAAE /* WebKitTestRunnerWindow.mm */; };
@@ -349,13 +351,20 @@
 		6510A78111EC643800410867 /* WebKitWeightWatcher900.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = WebKitWeightWatcher900.ttf; path = fonts/WebKitWeightWatcher900.ttf; sourceTree = "<group>"; };
 		65EB859D11EC67CC0034D300 /* ActivateFonts.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ActivateFonts.h; sourceTree = "<group>"; };
 		65EB859F11EC67CC0034D300 /* ActivateFontsCocoa.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = ActivateFontsCocoa.mm; sourceTree = "<group>"; };
+		7C8A1F5625351EC600C5291E /* TestOptionsGeneratedKeys.h.erb */ = {isa = PBXFileReference; lastKnownFileType = text; path = TestOptionsGeneratedKeys.h.erb; sourceTree = "<group>"; };
+		7C8A1F5725351EC600C5291E /* check-xcfilelists.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "check-xcfilelists.sh"; sourceTree = "<group>"; };
+		7C8A1F5825351EC600C5291E /* generate-derived-sources.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "generate-derived-sources.sh"; sourceTree = "<group>"; };
+		7CAA0E7625353BF500C519E5 /* TestOptionsGeneratedKeys.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestOptionsGeneratedKeys.h; sourceTree = "<group>"; };
+		7CFF9BC52534AF1D0008009F /* TestFeatures.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TestFeatures.h; path = ../TestRunnerShared/TestFeatures.h; sourceTree = "<group>"; };
+		7CFF9BC62534AF1D0008009F /* TestFeatures.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = TestFeatures.cpp; path = ../TestRunnerShared/TestFeatures.cpp; sourceTree = "<group>"; };
+		7CFF9BC72534AF1D0008009F /* TestCommand.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = TestCommand.cpp; path = ../TestRunnerShared/TestCommand.cpp; sourceTree = "<group>"; };
+		7CFF9BC82534AF1D0008009F /* TestCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TestCommand.h; path = ../TestRunnerShared/TestCommand.h; sourceTree = "<group>"; };
 		8034C6611487636400AC32E9 /* AccessibilityControllerMac.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = AccessibilityControllerMac.mm; sourceTree = "<group>"; };
 		8097338814874A5A008156D9 /* AccessibilityNotificationHandler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AccessibilityNotificationHandler.h; path = mac/AccessibilityNotificationHandler.h; sourceTree = "<group>"; };
 		8097338914874A5A008156D9 /* AccessibilityNotificationHandler.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = AccessibilityNotificationHandler.mm; path = mac/AccessibilityNotificationHandler.mm; sourceTree = "<group>"; };
 		841CC00D181185BF0042E9B6 /* Options.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Options.cpp; sourceTree = "<group>"; };
 		841CC00E181185BF0042E9B6 /* Options.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Options.h; sourceTree = "<group>"; };
 		8DD76FA10486AA7600D96B5E /* WebKitTestRunner */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = WebKitTestRunner; sourceTree = BUILT_PRODUCTS_DIR; };
-		9338D1BA250A79EB00E827F6 /* JSBasics.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = JSBasics.h; path = ../TestRunnerShared/Bindings/JSBasics.h; sourceTree = "<group>"; };
 		9338D1BE250BD9DD00E827F6 /* DictionaryFunctions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DictionaryFunctions.h; sourceTree = "<group>"; };
 		93764176210D736000A3DAAE /* WebKitTestRunnerWindow.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = WebKitTestRunnerWindow.mm; sourceTree = "<group>"; };
 		93764177210D736100A3DAAE /* WebKitTestRunnerWindow.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WebKitTestRunnerWindow.h; sourceTree = "<group>"; };
@@ -475,16 +484,17 @@
 			isa = PBXGroup;
 			children = (
 				49AEEF692407278200C87E4C /* Info.plist */,
-				0F18E71A1D6BC4BC0027E547 /* TestRunnerShared */,
 				BC952EC511F3C10F003398B4 /* DerivedSources.make */,
 				2EE52CEA1890A9A80010ED21 /* WebKitTestRunnerApp-Info.plist */,
 				BC99CBF11207642D00FDEE76 /* Shared */,
 				08FB7795FE84155DC02AAC07 /* TestRunner */,
+				0F18E71A1D6BC4BC0027E547 /* TestRunnerShared */,
 				BC25183511D1571D002EBC01 /* InjectedBundle */,
 				BC793401118F7C8A005EA8E2 /* Configurations */,
 				08FB779DFE84155DC02AAC07 /* External Frameworks and Libraries */,
 				BC25194411D15DBE002EBC01 /* Resources */,
 				2EE52CE81890A9A80010ED21 /* WebKitTestRunnerApp */,
+				7C8A1F5425351EC600C5291E /* Scripts */,
 				2EE52CE11890A9A80010ED21 /* Frameworks */,
 				1AB674ADFE9D54B511CA2CBB /* Products */,
 			);
@@ -494,6 +504,7 @@
 		08FB7795FE84155DC02AAC07 /* TestRunner */ = {
 			isa = PBXGroup;
 			children = (
+				7CAA0E7525353BC500C519E5 /* Derived Sources */,
 				BC9192021333E4CD003011DC /* cg */,
 				0FEB90A11905BC4A000FDBF3 /* cocoa */,
 				2EE52D121890A9FB0010ED21 /* ios */,
@@ -549,6 +560,10 @@
 				3148A0541E6F85B600D3B316 /* IOSLayoutTestCommunication.h */,
 				93C7881F250C69E400C0AA24 /* ReftestFunctions.cpp */,
 				93C78820250C69E400C0AA24 /* ReftestFunctions.h */,
+				7CFF9BC72534AF1D0008009F /* TestCommand.cpp */,
+				7CFF9BC82534AF1D0008009F /* TestCommand.h */,
+				7CFF9BC62534AF1D0008009F /* TestFeatures.cpp */,
+				7CFF9BC52534AF1D0008009F /* TestFeatures.h */,
 			);
 			name = TestRunnerShared;
 			sourceTree = "<group>";
@@ -740,6 +755,33 @@
 			);
 			path = mac;
 			sourceTree = "<group>";
+		};
+		7C8A1F5425351EC600C5291E /* Scripts */ = {
+			isa = PBXGroup;
+			children = (
+				7C8A1F5525351EC600C5291E /* PreferencesTemplates */,
+				7C8A1F5725351EC600C5291E /* check-xcfilelists.sh */,
+				7C8A1F5825351EC600C5291E /* generate-derived-sources.sh */,
+			);
+			path = Scripts;
+			sourceTree = "<group>";
+		};
+		7C8A1F5525351EC600C5291E /* PreferencesTemplates */ = {
+			isa = PBXGroup;
+			children = (
+				7C8A1F5625351EC600C5291E /* TestOptionsGeneratedKeys.h.erb */,
+			);
+			path = PreferencesTemplates;
+			sourceTree = "<group>";
+		};
+		7CAA0E7525353BC500C519E5 /* Derived Sources */ = {
+			isa = PBXGroup;
+			children = (
+				7CAA0E7625353BF500C519E5 /* TestOptionsGeneratedKeys.h */,
+			);
+			name = "Derived Sources";
+			path = DerivedSources/WebKitTestRunner;
+			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 		BC14E4E0120E02F900826C0C /* Controllers */ = {
 			isa = PBXGroup;
@@ -1209,8 +1251,10 @@
 				2E2A765D2370C8D1008F9FFE /* PlatformViewHelpers.mm in Sources */,
 				F4010B7E24DA205300A876E2 /* PoseAsClass.mm in Sources */,
 				2DFA98491D7F70CF00AFF2C9 /* SharedEventStreamsMac.mm in Sources */,
+				7CFF9BCB2534AF1D0008009F /* TestCommand.cpp in Sources */,
 				A18510411B9AE13800744AEB /* TestController.cpp in Sources */,
 				A185103B1B9AE0E200744AEB /* TestControllerCocoa.mm in Sources */,
+				7CFF9BCA2534AF1D0008009F /* TestFeatures.cpp in Sources */,
 				A18510421B9AE13E00744AEB /* TestInvocation.cpp in Sources */,
 				A185103D1B9AE10600744AEB /* TestInvocationCG.cpp in Sources */,
 				0F622CE91BBB3A1A00838AD3 /* TestOptions.cpp in Sources */,

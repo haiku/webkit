@@ -31,6 +31,7 @@
 #include "Logging.h"
 #include "RenderBlockFlow.h"
 #include "RenderChildIterator.h"
+#include "RenderImage.h"
 #include "RenderLineBreak.h"
 #include "RenderMultiColumnFlow.h"
 #include "RenderTextControl.h"
@@ -40,6 +41,8 @@
 #include <wtf/OptionSet.h>
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+
+#define ALLOW_INLINE_IMAGES 0
 
 #ifndef NDEBUG
 #define SET_REASON_AND_RETURN_IF_NEEDED(reason, reasons, includeReasons) { \
@@ -161,8 +164,6 @@ static OptionSet<AvoidanceReason> canUseForFontAndText(const RenderBlockFlow& fl
     bool flowIsJustified = style.textAlign() == TextAlignMode::Justify;
     for (const auto& textRenderer : childrenOfType<RenderText>(flow)) {
         // FIXME: Do not return until after checking all children.
-        if (textRenderer.text().isEmpty())
-            SET_REASON_AND_RETURN_IF_NEEDED(FlowTextIsEmpty, reasons, includeReasons);
         if (textRenderer.isCombineText())
             SET_REASON_AND_RETURN_IF_NEEDED(FlowTextIsCombineText, reasons, includeReasons);
         if (textRenderer.isCounter())
@@ -193,21 +194,19 @@ static OptionSet<AvoidanceReason> canUseForFontAndText(const RenderBlockFlow& fl
 static OptionSet<AvoidanceReason> canUseForStyle(const RenderStyle& style, IncludeReasons includeReasons)
 {
     OptionSet<AvoidanceReason> reasons;
+    if ((style.overflowX() != Overflow::Visible && style.overflowX() != Overflow::Hidden)
+        || (style.overflowY() != Overflow::Visible && style.overflowY() != Overflow::Hidden))
+        SET_REASON_AND_RETURN_IF_NEEDED(FlowHasOverflowNotVisible, reasons, includeReasons);
     if (style.textOverflow() == TextOverflow::Ellipsis)
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasTextOverflow, reasons, includeReasons);
     if (style.textUnderlinePosition() != TextUnderlinePosition::Auto || !style.textUnderlineOffset().isAuto() || !style.textDecorationThickness().isAuto())
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasUnsupportedUnderlineDecoration, reasons, includeReasons);
-    // Non-visible overflow should be pretty easy to support.
-    if (style.overflowX() != Overflow::Visible || style.overflowY() != Overflow::Visible)
-        SET_REASON_AND_RETURN_IF_NEEDED(FlowHasOverflowNotVisible, reasons, includeReasons);
     if (!style.isLeftToRightDirection())
         SET_REASON_AND_RETURN_IF_NEEDED(FlowIsNotLTR, reasons, includeReasons);
     if (!(style.lineBoxContain().contains(LineBoxContain::Block)))
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasLineBoxContainProperty, reasons, includeReasons);
     if (style.writingMode() != WritingMode::TopToBottom)
         SET_REASON_AND_RETURN_IF_NEEDED(FlowIsNotTopToBottom, reasons, includeReasons);
-    if (style.lineBreak() != LineBreak::Auto)
-        SET_REASON_AND_RETURN_IF_NEEDED(FlowHasLineBreak, reasons, includeReasons);
     if (style.unicodeBidi() != UBNormal)
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasNonNormalUnicodeBiDi, reasons, includeReasons);
     if (style.rtlOrdering() != Order::Logical)
@@ -252,10 +251,22 @@ OptionSet<AvoidanceReason> canUseForLineLayoutWithReason(const RenderBlockFlow& 
     // FIXME: For tests that disable SLL and expect to get CLL.
     if (!flow.settings().simpleLineLayoutEnabled())
         SET_REASON_AND_RETURN_IF_NEEDED(FeatureIsDisabled, reasons, includeReasons);
-    if (!flow.parent())
-        SET_REASON_AND_RETURN_IF_NEEDED(FlowHasNoParent, reasons, includeReasons);
-    if (!flow.firstChild())
-        SET_REASON_AND_RETURN_IF_NEEDED(FlowHasNoChild, reasons, includeReasons);
+    auto establishesInlineFormattingContext = [&] {
+        if (flow.isRenderView()) {
+            // RenderView initiates a block formatting context.
+            return false;
+        }
+        ASSERT(flow.parent());
+        // FIXME: This should really get the first _inflow_ child.
+        auto* firstChild = flow.firstChild();
+        if (!firstChild) {
+            // Empty block containers do not initiate inline formatting context.
+            return false;
+        }
+        return firstChild->isInline() || firstChild->isInlineBlockOrInlineTable();
+    };
+    if (!establishesInlineFormattingContext())
+        SET_REASON_AND_RETURN_IF_NEEDED(FlowDoesNotEstablishInlineFormattingContext, reasons, includeReasons);
     if (flow.fragmentedFlowState() != RenderObject::NotInsideFragmentedFlow) {
         auto* fragmentedFlow = flow.enclosingFragmentedFlow();
         if (!is<RenderMultiColumnFlow>(fragmentedFlow))
@@ -297,20 +308,32 @@ OptionSet<AvoidanceReason> canUseForLineLayoutWithReason(const RenderBlockFlow& 
         SET_REASON_AND_RETURN_IF_NEEDED(FlowParentIsTextAreaWithWrapping, reasons, includeReasons);
     // This currently covers <blockflow>#text</blockflow>, <blockflow>#text<br></blockflow> and mutiple (sibling) RenderText cases.
     // The <blockflow><inline>#text</inline></blockflow> case is also popular and should be relatively easy to cover.
-    for (const auto* child = flow.firstChild(); child;) {
+    for (const auto* child = flow.firstChild(); child; child = child->nextSibling()) {
         if (child->selectionState() != RenderObject::HighlightState::None)
             SET_REASON_AND_RETURN_IF_NEEDED(FlowChildIsSelected, reasons, includeReasons);
         if (is<RenderText>(*child)) {
             const auto& renderText = downcast<RenderText>(*child);
             if (renderText.textNode() && !renderText.document().markers().markersFor(*renderText.textNode()).isEmpty())
                 SET_REASON_AND_RETURN_IF_NEEDED(FlowIncludesDocumentMarkers, reasons, includeReasons);
-            child = child->nextSibling();
             continue;
         }
-        if (is<RenderLineBreak>(child) && child->style().clear() == Clear::None) {
-            child = child->nextSibling();
+        if (is<RenderLineBreak>(*child))
+            continue;
+#if ALLOW_INLINE_IMAGES
+        if (is<RenderImage>(*child)) {
+            auto& image = downcast<RenderImage>(*child);
+            if (image.isFloating() || image.isPositioned())
+                SET_REASON_AND_RETURN_IF_NEEDED(FlowHasNonSupportedChild, reasons, includeReasons);
+            auto& style = image.style();
+            if (style.verticalAlign() != VerticalAlign::Baseline)
+                SET_REASON_AND_RETURN_IF_NEEDED(FlowHasNonSupportedChild, reasons, includeReasons);
+            if (style.width().isPercent() || style.height().isPercent())
+                SET_REASON_AND_RETURN_IF_NEEDED(FlowHasNonSupportedChild, reasons, includeReasons);
+            if (style.objectFit() != RenderStyle::initialObjectFit())
+                SET_REASON_AND_RETURN_IF_NEEDED(FlowHasNonSupportedChild, reasons, includeReasons);
             continue;
         }
+#endif
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasNonSupportedChild, reasons, includeReasons);
         break;
     }

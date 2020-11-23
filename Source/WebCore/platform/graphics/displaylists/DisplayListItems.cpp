@@ -29,6 +29,7 @@
 #include "DisplayListReplayer.h"
 #include "FontCascade.h"
 #include "ImageData.h"
+#include "MediaPlayer.h"
 #include "SharedBuffer.h"
 #include <wtf/text/TextStream.h>
 
@@ -105,10 +106,8 @@ size_t Item::sizeInBytes(const Item& item)
         return sizeof(downcast<DrawTiledImage>(item));
     case ItemType::DrawTiledScaledImage:
         return sizeof(downcast<DrawTiledScaledImage>(item));
-#if USE(CG) || USE(CAIRO)
     case ItemType::DrawNativeImage:
         return sizeof(downcast<DrawNativeImage>(item));
-#endif
     case ItemType::DrawPattern:
         return sizeof(downcast<DrawPattern>(item));
     case ItemType::DrawRect:
@@ -145,6 +144,8 @@ size_t Item::sizeInBytes(const Item& item)
         return sizeof(downcast<FillEllipse>(item));
     case ItemType::PutImageData:
         return sizeof(downcast<PutImageData>(item));
+    case ItemType::PaintFrameForMedia:
+        return sizeof(downcast<PaintFrameForMedia>(item));
     case ItemType::StrokeRect:
         return sizeof(downcast<StrokeRect>(item));
     case ItemType::StrokePath:
@@ -539,22 +540,20 @@ static TextStream& operator<<(TextStream& ts, const ClipToDrawingCommands& item)
     return ts;
 }
 
-DrawGlyphs::DrawGlyphs(const Font& font, Vector<GlyphBufferGlyph, 128>&& glyphs, Vector<GlyphBufferAdvance, 128>&& advances, const FloatPoint& blockLocation, const FloatSize& localAnchor, FontSmoothingMode smoothingMode)
+DrawGlyphs::DrawGlyphs(const Font& font, Vector<GlyphBufferGlyph, 128>&& glyphs, Vector<GlyphBufferAdvance, 128>&& advances, const FloatPoint& localAnchor, FontSmoothingMode smoothingMode)
     : DrawingItem(ItemType::DrawGlyphs)
     , m_font(const_cast<Font&>(font))
     , m_glyphs(WTFMove(glyphs))
     , m_advances(WTFMove(advances))
-    , m_blockLocation(blockLocation)
     , m_localAnchor(localAnchor)
     , m_smoothingMode(smoothingMode)
 {
     computeBounds();
 }
 
-DrawGlyphs::DrawGlyphs(const Font& font, const GlyphBufferGlyph* glyphs, const GlyphBufferAdvance* advances, unsigned count, const FloatPoint& blockLocation, const FloatSize& localAnchor, FontSmoothingMode smoothingMode)
+DrawGlyphs::DrawGlyphs(const Font& font, const GlyphBufferGlyph* glyphs, const GlyphBufferAdvance* advances, unsigned count, const FloatPoint& localAnchor, FontSmoothingMode smoothingMode)
     : DrawingItem(ItemType::DrawGlyphs)
     , m_font(const_cast<Font&>(font))
-    , m_blockLocation(blockLocation)
     , m_localAnchor(localAnchor)
     , m_smoothingMode(smoothingMode)
 {
@@ -588,7 +587,7 @@ void DrawGlyphs::computeBounds()
     // the glyph lies entirely within its [(ascent + descent), advance] rect.
     float ascent = m_font->fontMetrics().floatAscent();
     float descent = m_font->fontMetrics().floatDescent();
-    FloatPoint current = toFloatPoint(localAnchor());
+    FloatPoint current = localAnchor();
     size_t numGlyphs = m_glyphs.size();
     for (size_t i = 0; i < numGlyphs; ++i) {
         GlyphBufferAdvance advance = m_advances[i];
@@ -601,16 +600,13 @@ void DrawGlyphs::computeBounds()
 
 Optional<FloatRect> DrawGlyphs::localBounds(const GraphicsContext&) const
 {
-    FloatRect localBounds = m_bounds;
-    localBounds.move(m_blockLocation.x(), m_blockLocation.y());
-    return localBounds;
+    return m_bounds;
 }
 
 static TextStream& operator<<(TextStream& ts, const DrawGlyphs& item)
 {
     ts << static_cast<const DrawingItem&>(item);
     // FIXME: dump more stuff.
-    ts.dumpProperty("block-location", item.blockLocation());
     ts.dumpProperty("local-anchor", item.localAnchor());
     ts.dumpProperty("anchor-point", item.anchorPoint());
     ts.dumpProperty("length", item.glyphs().size());
@@ -700,32 +696,21 @@ static TextStream& operator<<(TextStream& ts, const DrawTiledScaledImage& item)
     return ts;
 }
 
-#if USE(CG) || USE(CAIRO) || USE(DIRECT2D) || USE(HAIKU)
 DrawNativeImage::DrawNativeImage(const NativeImagePtr& image, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& options)
     : DrawingItem(ItemType::DrawNativeImage)
-#if USE(CG)
-    // FIXME: Need to store an image for Cairo.
     , m_image(image)
-#endif
     , m_imageSize(imageSize)
     , m_destinationRect(destRect)
     , m_srcRect(srcRect)
     , m_options(options)
 {
-#if !USE(CG)
-    UNUSED_PARAM(image);
-#endif
 }
 
 DrawNativeImage::~DrawNativeImage() = default;
 
 void DrawNativeImage::apply(GraphicsContext& context) const
 {
-#if USE(CG)
     context.drawNativeImage(m_image, m_imageSize, m_destinationRect, m_srcRect, m_options);
-#else
-    UNUSED_PARAM(context);
-#endif
 }
 
 static TextStream& operator<<(TextStream& ts, const DrawNativeImage& item)
@@ -736,7 +721,6 @@ static TextStream& operator<<(TextStream& ts, const DrawNativeImage& item)
     ts.dumpProperty("dest-rect", item.destinationRect());
     return ts;
 }
-#endif
 
 DrawPattern::DrawPattern(Image& image, const FloatRect& destRect, const FloatRect& tileRect, const AffineTransform& patternTransform, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions& options)
     : DrawingItem(ItemType::DrawPattern)
@@ -1218,6 +1202,45 @@ static TextStream& operator<<(TextStream& ts, const PutImageData& item)
     return ts;
 }
 
+Ref<PaintFrameForMedia> PaintFrameForMedia::create(MediaPlayer& player, const FloatRect& destination)
+{
+    return adoptRef(*new PaintFrameForMedia(player, destination));
+}
+
+Ref<PaintFrameForMedia> PaintFrameForMedia::create(MediaPlayerIdentifier identifier, const FloatRect& destination)
+{
+    return adoptRef(*new PaintFrameForMedia(identifier, destination));
+}
+
+PaintFrameForMedia::PaintFrameForMedia(MediaPlayer& player, const FloatRect& destination)
+    : DrawingItem(ItemType::PaintFrameForMedia)
+    , m_identifier(player.identifier())
+    , m_destination(destination)
+{
+}
+
+PaintFrameForMedia::PaintFrameForMedia(MediaPlayerIdentifier identifier, const FloatRect& destination)
+    : DrawingItem(ItemType::PaintFrameForMedia)
+    , m_identifier(identifier)
+    , m_destination(destination)
+{
+}
+
+PaintFrameForMedia::~PaintFrameForMedia() = default;
+
+void PaintFrameForMedia::apply(GraphicsContext&) const
+{
+    // Should be handled by the delegate.
+    ASSERT_NOT_REACHED();
+}
+
+static TextStream& operator<<(TextStream& ts, const PaintFrameForMedia& item)
+{
+    ts << static_cast<const DrawingItem&>(item);
+    ts.dumpProperty("destination", item.destination());
+    return ts;
+}
+
 StrokeRect::StrokeRect(const FloatRect& rect, float lineWidth)
     : DrawingItem(ItemType::StrokeRect)
     , m_rect(rect)
@@ -1252,7 +1275,7 @@ Optional<FloatRect> StrokePath::localBounds(const GraphicsContext& context) cons
     // FIXME: Need to take stroke thickness into account correctly, via CGPathByStrokingPath().
     float strokeThickness = context.strokeThickness();
 
-    FloatRect bounds = m_path.boundingRect();
+    FloatRect bounds = m_path.fastBoundingRect();
     bounds.expand(strokeThickness, strokeThickness);
     return bounds;
 }
@@ -1427,9 +1450,7 @@ static TextStream& operator<<(TextStream& ts, const ItemType& type)
     case ItemType::DrawImage: ts << "draw-image"; break;
     case ItemType::DrawTiledImage: ts << "draw-tiled-image"; break;
     case ItemType::DrawTiledScaledImage: ts << "draw-tiled-scaled-image"; break;
-#if USE(CG) || USE(CAIRO)
     case ItemType::DrawNativeImage: ts << "draw-native-image"; break;
-#endif
     case ItemType::DrawPattern: ts << "draw-pattern"; break;
     case ItemType::DrawRect: ts << "draw-rect"; break;
     case ItemType::DrawLine: ts << "draw-line"; break;
@@ -1448,6 +1469,7 @@ static TextStream& operator<<(TextStream& ts, const ItemType& type)
     case ItemType::FillPath: ts << "fill-path"; break;
     case ItemType::FillEllipse: ts << "fill-ellipse"; break;
     case ItemType::PutImageData: ts << "put-image-data"; break;
+    case ItemType::PaintFrameForMedia: ts << "paint-frame-for-media"; break;
     case ItemType::StrokeRect: ts << "stroke-rect"; break;
     case ItemType::StrokePath: ts << "stroke-path"; break;
     case ItemType::StrokeEllipse: ts << "stroke-ellipse"; break;
@@ -1528,11 +1550,9 @@ TextStream& operator<<(TextStream& ts, const Item& item)
     case ItemType::DrawTiledScaledImage:
         ts << downcast<DrawTiledScaledImage>(item);
         break;
-#if USE(CG) || USE(CAIRO)
     case ItemType::DrawNativeImage:
         ts << downcast<DrawNativeImage>(item);
         break;
-#endif
     case ItemType::DrawPattern:
         ts << downcast<DrawPattern>(item);
         break;
@@ -1586,6 +1606,9 @@ TextStream& operator<<(TextStream& ts, const Item& item)
         break;
     case ItemType::PutImageData:
         ts << downcast<PutImageData>(item);
+        break;
+    case ItemType::PaintFrameForMedia:
+        ts << downcast<PaintFrameForMedia>(item);
         break;
     case ItemType::StrokeRect:
         ts << downcast<StrokeRect>(item);

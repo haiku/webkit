@@ -61,6 +61,8 @@ public:
 
     size_t itemCount() const { return m_displayList.itemCount(); }
 
+    void appendItemAndUpdateExtent(Ref<DrawingItem>&&);
+
     class Observer {
     public:
         virtual ~Observer() { }
@@ -102,9 +104,7 @@ private:
     ImageDrawResult drawImage(Image&, const FloatRect& destination, const FloatRect& source, const ImagePaintingOptions&) override;
     ImageDrawResult drawTiledImage(Image&, const FloatRect& destination, const FloatPoint& source, const FloatSize& tileSize, const FloatSize& spacing, const ImagePaintingOptions&) override;
     ImageDrawResult drawTiledImage(Image&, const FloatRect& destination, const FloatRect& source, const FloatSize& tileScaleFactor, Image::TileRule hRule, Image::TileRule vRule, const ImagePaintingOptions&) override;
-#if USE(CG) || USE(CAIRO) || USE(DIRECT2D) || USE(HAIKU)
     void drawNativeImage(const NativeImagePtr&, const FloatSize& selfSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions&) override;
-#endif
     void drawPattern(Image&, const FloatRect& destRect, const FloatRect& srcRect, const AffineTransform&, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions&) override;
 
     void drawRect(const FloatRect&, float borderThickness) override;
@@ -137,12 +137,15 @@ private:
     IntRect clipBounds() override;
     void clipToImageBuffer(WebCore::ImageBuffer&, const FloatRect&) override;
     void clipToDrawingCommands(const FloatRect& destination, ColorSpace, Function<void(GraphicsContext&)>&&) override;
+    void paintFrameForMedia(MediaPlayer&, const FloatRect& destination) override;
+    bool canPaintFrameForMedia() const override { return true; }
     
     void applyDeviceScaleFactor(float) override;
 
     FloatRect roundToDevicePixels(const FloatRect&, GraphicsContext::RoundingMode) override;
 
-    Item& appendItem(Ref<Item>&&);
+    template<typename ItemType>
+    ItemType& appendItem(Ref<ItemType>&&);
     void willAppendItem(const Item&);
 
     FloatRect extentFromLocalBounds(const FloatRect&) const;

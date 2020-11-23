@@ -4286,17 +4286,6 @@ void FrameView::paintContents(GraphicsContext& context, const IntRect& dirtyRect
         return;
     }
 
-#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-    if (RuntimeEnabledFeatures::sharedFeatures().layoutFormattingContextEnabled()) {
-        // Integrate paint timing with LFC later on.
-        if (context.detectingContentfulPaint())
-            return;
-        if (auto* layoutState = layoutContext().layoutFormattingState())
-            Layout::LayoutContext::paint(*layoutState, context, dirtyRect);
-        return;
-    }
-#endif
-
     if (!layoutContext().inPaintableState())
         return;
 
@@ -4362,7 +4351,7 @@ void FrameView::paintContentsForSnapshot(GraphicsContext& context, const IntRect
     if (shouldPaintSelection == ExcludeSelection) {
         for (auto* frame = m_frame.ptr(); frame; frame = frame->tree().traverseNext(m_frame.ptr())) {
             if (auto* renderView = frame->contentRenderer())
-                renderView->selection().clearSelection();
+                renderView->selection().clear();
         }
     }
 
@@ -4577,12 +4566,24 @@ void FrameView::checkAndDispatchDidReachVisuallyNonEmptyState()
                 return false;
 
             auto& resources = resourceLoader.allCachedResources();
+            bool shouldWaitForScriptIfEmpty = false;
+#if ENABLE(INTERSECTION_OBSERVER)
+            shouldWaitForScriptIfEmpty = !document.numberOfIntersectionObservers();
+#endif
+            bool isLoadingScript = false;
             for (auto& resource : resources) {
                 if (resource.value->isLoaded())
                     continue;
-                if (resource.value->type() == CachedResource::Type::CSSStyleSheet || resource.value->type() == CachedResource::Type::FontResource)
+                auto type = resource.value->type();
+                if (type == CachedResource::Type::CSSStyleSheet || type == CachedResource::Type::FontResource)
                     return true;
+                if (type == CachedResource::Type::Script)
+                    isLoadingScript = true;
             }
+
+            if (shouldWaitForScriptIfEmpty && !m_visuallyNonEmptyPixelCount && isLoadingScript)
+                return true;
+
             return false;
         };
 

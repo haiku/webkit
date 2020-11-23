@@ -304,16 +304,19 @@ void Frame::invalidateContentEventRegionsIfNeeded()
 {
     if (!m_page || !m_doc || !m_doc->renderView())
         return;
+    bool hasWheelEventHandlers = false;
     bool hasTouchActionElements = false;
     bool hasEditableElements = false;
+#if ENABLE(WHEEL_EVENT_REGIONS)
+    hasWheelEventHandlers = m_doc->hasWheelEventHandlers();
+#endif
 #if ENABLE(TOUCH_ACTION_REGIONS)
     hasTouchActionElements = m_doc->mayHaveElementsWithNonAutoTouchAction();
 #endif
 #if ENABLE(EDITABLE_REGION)
     hasEditableElements = m_doc->mayHaveEditableElements() && m_page->shouldBuildEditableRegion();
 #endif
-    // FIXME: This needs to look at wheel event handlers too.
-    if (!hasTouchActionElements && !hasEditableElements)
+    if (!hasTouchActionElements && !hasEditableElements && !hasWheelEventHandlers)
         return;
     if (!m_doc->renderView()->compositor().viewNeedsToInvalidateEventRegionOfEnclosingCompositingLayerForRepaint())
         return;
@@ -534,7 +537,7 @@ bool Frame::selectionChangeCallbacksDisabled() const
 
 bool Frame::requestDOMPasteAccess()
 {
-    if (m_settings->javaScriptCanAccessClipboard() && m_settings->DOMPasteAllowed())
+    if (m_settings->javaScriptCanAccessClipboard() && m_settings->domPasteAllowed())
         return true;
 
     if (!m_doc)

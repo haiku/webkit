@@ -2137,7 +2137,7 @@ bool WebView::mouseWheel(WPARAM wParam, LPARAM lParam, bool isMouseHWheel)
     if (!coreFrame)
         return false;
 
-    return coreFrame->eventHandler().handleWheelEvent(wheelEvent);
+    return coreFrame->eventHandler().handleWheelEvent(wheelEvent, { WheelEventProcessingSteps::MainThreadForScrolling, WheelEventProcessingSteps::MainThreadForDOMEventDispatch });
 }
 
 bool WebView::verticalScroll(WPARAM wParam, LPARAM /*lParam*/)
@@ -5127,6 +5127,10 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
 
     ASSERT(preferences == m_preferences);
 
+    hr = preferencesChangedGenerated(*m_preferences);
+    if (FAILED(hr))
+        return hr;
+
     BString str;
     int size;
     unsigned javaScriptRuntimeFlags;
@@ -5250,12 +5254,12 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
     hr = prefsPrivate->webAnimationsCompositeOperationsEnabled(&enabled);
     if (FAILED(hr))
         return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsCompositeOperationsEnabled(!!enabled);
+    settings.setWebAnimationsCompositeOperationsEnabled(!!enabled);
 
     hr = prefsPrivate->webAnimationsMutableTimelinesEnabled(&enabled);
     if (FAILED(hr))
         return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsMutableTimelinesEnabled(!!enabled);
+    settings.setWebAnimationsMutableTimelinesEnabled(!!enabled);
 
     hr = prefsPrivate->CSSCustomPropertiesAndValuesEnabled(&enabled);
     if (FAILED(hr))

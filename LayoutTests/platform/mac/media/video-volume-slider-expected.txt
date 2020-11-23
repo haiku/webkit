@@ -5,13 +5,13 @@ layer at (0,0) size 800x600
     RenderBody {BODY} at (8,8) size 784x584
       RenderText {#text} at (0,0) size 443x18
         text run at (0,0) width 443: "Tests if the volume slider is rendererd properly. This test assumes the"
-      RenderBR {BR} at (442,14) size 1x0
+      RenderBR {BR} at (442,0) size 1x18
       RenderText {#text} at (0,18) size 465x18
         text run at (0,18) width 465: "volume slider is implemented and mouse over the right bottom corner of"
-      RenderBR {BR} at (464,32) size 1x0
+      RenderBR {BR} at (464,18) size 1x18
       RenderText {#text} at (0,36) size 276x18
         text run at (0,36) width 276: "video element will show the volume slider."
-      RenderBR {BR} at (275,50) size 1x0
+      RenderBR {BR} at (275,36) size 1x18
       RenderText {#text} at (0,0) size 0x0
 layer at (8,62) size 320x240 isolatesBlending
   RenderVideo {VIDEO} at (0,54) size 320x240
@@ -33,9 +33,9 @@ layer at (68,281) size 201x17
   RenderFlexibleBox {DIV} at (60,24) size 201x17
 layer at (76,283) size 32x13 blendMode: plus-lighter
   RenderFlexibleBox {DIV} at (8,2) size 32x13 [color=#FFFFFF]
-    RenderBlock (anonymous) at (-1,0) size 33x13
-      RenderText {#text} at (0,0) size 33x13
-        text run at (0,0) width 33: "00:00"
+    RenderBlock (anonymous) at (0,0) size 32x13
+      RenderText {#text} at (0,0) size 32x13
+        text run at (0,0) width 32: "00:00"
 layer at (118,281) size 96x17
   RenderFlexibleBox {DIV} at (50,0) size 96x17
 layer at (118,281) size 96x17 blendMode: plus-lighter
@@ -45,9 +45,9 @@ layer at (118,281) size 96x17 blendMode: plus-lighter
         RenderBlock {DIV} at (0,0) size 3x15
 layer at (224,283) size 37x13 blendMode: plus-lighter
   RenderFlexibleBox {DIV} at (156,2) size 37x13 [color=#FFFFFF]
-    RenderBlock (anonymous) at (0,0) size 38x13
-      RenderText {#text} at (0,0) size 38x13
-        text run at (0,0) width 38: "-00:06"
+    RenderBlock (anonymous) at (0,0) size 37x13
+      RenderText {#text} at (0,0) size 37x13
+        text run at (0,0) width 37: "-00:06"
 layer at (277,277) size 14x25
   RenderFlexibleBox {DIV} at (269,20) size 14x25
 layer at (252,181) size 63x116 isolatesBlending

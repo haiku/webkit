@@ -93,35 +93,16 @@ class AutoinstallImportHook(object):
 
         # Note: all of the methods must follow the "_install_XXX" convention in
         # order for autoinstall_everything(), below, to work properly.
-        if '.mechanize' in fullname:
-            self._install_mechanize()
-        elif '.pylint' in fullname:
-            self._install_pylint()
-        elif '.buildbot' in fullname:
+        if '.buildbot' in fullname:
             self._install_buildbot()
-        elif '.keyring' in fullname:
-            self._install_keyring()
         elif '.twisted_15_5_0' in fullname:
             self._install_twisted_15_5_0()
         elif '.chromedriver' in fullname:
             self.install_chromedriver()
         elif '.geckodriver' in fullname:
             self.install_geckodriver()
-        elif '.pytest_timeout' in fullname:
-            self._install_pytest_timeout()
-        elif '.pytest' in fullname:
-            self._install_pytest()
         elif '.bs4' in fullname:
             self._install_beautifulsoup()
-
-    def _install_mechanize(self):
-        self._ensure_autoinstalled_dir_is_in_sys_path()
-        self._install("https://files.pythonhosted.org/packages/64/f1/1aa4c96dea14e17a955019b0fc4ac1b8dfbc50e3c90970c1fb8882e74a7b/mechanize-0.4.3.tar.gz",
-                             "mechanize-0.4.3/mechanize")
-
-    def _install_keyring(self):
-        self._install("https://files.pythonhosted.org/packages/7d/a9/8c6bf60710781ce13a9987c0debda8adab35eb79c6b5525f7fe5240b7a8a/keyring-7.3.1.tar.gz",
-                             "keyring-7.3.1/keyring")
 
     def _install_pytest_timeout(self):
         self._install("https://files.pythonhosted.org/packages/cc/b7/b2a61365ea6b6d2e8881360ae7ed8dad0327ad2df89f2f0be4a02304deb2/pytest-timeout-1.2.0.tar.gz",
@@ -167,20 +148,6 @@ class AutoinstallImportHook(object):
                 process.join()
             finally:
                 sys.stdout = sys.__stdout__
-
-
-    def _install_pylint(self):
-        self._ensure_autoinstalled_dir_is_in_sys_path()
-        if (not self._fs.exists(self._fs.join(_AUTOINSTALLED_DIR, "pylint")) or
-            not self._fs.exists(self._fs.join(_AUTOINSTALLED_DIR, "logilab/astng")) or
-            not self._fs.exists(self._fs.join(_AUTOINSTALLED_DIR, "logilab/common"))):
-            installer = AutoInstaller(target_dir=_AUTOINSTALLED_DIR)
-            files_to_remove = []
-            if sys.platform == 'win32':
-                files_to_remove = ['test/data/write_protected_file.txt']
-            installer.install("https://files.pythonhosted.org/packages/source/l/logilab-common/logilab-common-0.58.1.tar.gz", url_subpath="logilab-common-0.58.1", target_name="logilab/common", files_to_remove=files_to_remove)
-            installer.install("https://files.pythonhosted.org/packages/source/l/logilab-astng/logilab-astng-0.24.1.tar.gz", url_subpath="logilab-astng-0.24.1", target_name="logilab/astng")
-            installer.install('https://files.pythonhosted.org/packages/source/p/pylint/pylint-0.25.2.tar.gz', url_subpath="pylint-0.25.2", target_name="pylint")
 
     # autoinstalled.buildbot is used by BuildSlaveSupport/build.webkit.org-config/mastercfg_unittest.py
     # and should ideally match the version of BuildBot used at build.webkit.org.

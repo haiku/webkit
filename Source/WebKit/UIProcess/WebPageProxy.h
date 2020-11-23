@@ -38,6 +38,7 @@
 #include "GeolocationPermissionRequestManagerProxy.h"
 #include "HiddenPageThrottlingAutoIncreasesCounter.h"
 #include "LayerTreeContext.h"
+#include "MediaPlaybackState.h"
 #include "MessageSender.h"
 #include "NotificationPermissionRequestManagerProxy.h"
 #include "PDFPluginIdentifier.h"
@@ -124,6 +125,7 @@
 #if PLATFORM(IOS_FAMILY)
 #include "GestureTypes.h"
 #include "WebAutocorrectionContext.h"
+#include <WebCore/InspectorOverlay.h>
 #endif
 
 #if PLATFORM(MACCATALYST)
@@ -326,6 +328,7 @@ class WebURLSchemeHandler;
 class WebUserContentControllerProxy;
 class WebViewDidMoveToWindowObserver;
 class WebWheelEvent;
+class WebWheelEventCoalescer;
 class WebsiteDataStore;
 
 struct WebBackForwardListCounts;
@@ -1233,6 +1236,7 @@ public:
 
     WebBackForwardCache& backForwardCache() const;
 
+    const WebPreferences& preferences() const { return m_preferences; }
     WebPreferences& preferences() { return m_preferences; }
     void setPreferences(WebPreferences&);
 
@@ -1333,9 +1337,10 @@ public:
     bool mediaCaptureEnabled() const { return m_mediaCaptureEnabled; }
     void stopMediaCapture();
 
-    void stopAllMediaPlayback();
-    void suspendAllMediaPlayback();
-    void resumeAllMediaPlayback();
+    void pauseAllMediaPlayback(CompletionHandler<void(void)>&&);
+    void suspendAllMediaPlayback(CompletionHandler<void(void)>&&);
+    void resumeAllMediaPlayback(CompletionHandler<void(void)>&&);
+    void requestMediaPlaybackState(CompletionHandler<void(WebKit::MediaPlaybackState)>&&);
 
 #if ENABLE(POINTER_LOCK)
     void didAllowPointerLock();
@@ -2206,7 +2211,7 @@ private:
     void didReleaseAllTouchPoints();
     void didUpdateEditorState();
 
-    void showInspectorHighlight(const WebCore::Highlight&);
+    void showInspectorHighlight(const WebCore::InspectorOverlay::Highlight&);
     void hideInspectorHighlight();
 
     void enableInspectorNodeSearch();
@@ -2228,9 +2233,9 @@ private:
 
     void setRenderTreeSize(uint64_t treeSize) { m_renderTreeSize = treeSize; }
 
-    void processNextQueuedWheelEvent();
     void sendWheelEvent(const WebWheelEvent&);
-    bool shouldProcessWheelEventNow(const WebWheelEvent&) const;
+
+    WebWheelEventCoalescer& wheelEventCoalescer();
 
 #if ENABLE(TOUCH_EVENTS)
     void updateTouchEventTracking(const WebTouchEvent&);
@@ -2574,10 +2579,10 @@ private:
     bool m_shouldSuppressSOAuthorizationInAllNavigationPolicyDecision { false };
 #endif
 
+    std::unique_ptr<WebWheelEventCoalescer> m_wheelEventCoalescer;
+
     Deque<NativeWebMouseEvent> m_mouseEventQueue;
     Deque<NativeWebKeyboardEvent> m_keyEventQueue;
-    Deque<NativeWebWheelEvent> m_wheelEventQueue;
-    Deque<std::unique_ptr<Vector<NativeWebWheelEvent>>> m_currentlyProcessedWheelEvents;
 #if ENABLE(MAC_GESTURE_EVENTS)
     Deque<NativeWebGestureEvent> m_gestureEventQueue;
 #endif

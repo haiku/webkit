@@ -56,6 +56,7 @@ class VideoLayerManager;
 
 namespace WebKit {
 
+class RemoteAudioSourceProvider;
 class UserData;
 struct TextTrackPrivateRemoteConfiguration;
 struct TrackPrivateRemoteConfiguration;
@@ -146,6 +147,10 @@ public:
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
     void currentPlaybackTargetIsWirelessChanged(bool);
+#endif
+
+#if PLATFORM(IOS_FAMILY)
+    void getRawCookies(const URL&, WebCore::MediaPlayerClient::GetRawCookiesCallback&&) const;
 #endif
 
 private:
@@ -374,6 +379,10 @@ private:
     RemoteMediaPlayerState m_cachedState;
     std::unique_ptr<WebCore::PlatformTimeRanges> m_cachedBufferedTimeRanges;
 
+#if ENABLE(WEB_AUDIO) && PLATFORM(COCOA)
+    RefPtr<RemoteAudioSourceProvider> m_audioSourceProvider;
+#endif
+
     HashMap<RemoteMediaResourceIdentifier, RefPtr<WebCore::PlatformMediaResource>> m_mediaResources;
     HashMap<TrackPrivateRemoteIdentifier, Ref<AudioTrackPrivateRemote>> m_audioTracks;
     HashMap<TrackPrivateRemoteIdentifier, Ref<VideoTrackPrivateRemote>> m_videoTracks;
@@ -389,6 +398,7 @@ private:
     bool m_seeking { false };
     bool m_isCurrentPlaybackTargetWireless { false };
     bool m_invalid { false };
+    bool m_wantPlaybackQualityMetrics { false };
 };
 
 } // namespace WebKit

@@ -28,7 +28,9 @@ set(WebKitTestRunner_LIBRARIES
 
 set(WebKitTestRunner_INCLUDE_DIRECTORIES
     ${CMAKE_BINARY_DIR}
+    ${WebKitTestRunner_SHARED_DIR}
     ${WebKitTestRunner_BINDINGS_DIR}
+    ${WebKitTestRunner_DERIVED_SOURCES_DIR}
     ${WebKitTestRunner_DERIVED_SOURCES_DIR}/UIScriptContext
     ${WebKitTestRunner_DIR}
     ${WebKitTestRunner_UISCRIPTCONTEXT_DIR}
@@ -44,6 +46,30 @@ list(APPEND WebKitTestRunner_INCLUDE_DIRECTORIES
 
 SET(WebKitTestRunner_LOCAL_INCLUDE_DIRECTORIES
     ${WEBCORE_DIR}/platform/graphics
+)
+
+set(WebKitTestRunner_WEB_PREFERENCES_TEMPLATES
+    ${WebKitTestRunner_DIR}/Scripts/PreferencesTemplates/TestOptionsGeneratedKeys.h.erb
+)
+
+set(WebKitTestRunner_WEB_PREFERENCES
+    ${WTF_SCRIPTS_DIR}/Preferences/WebPreferences.yaml
+    ${WTF_SCRIPTS_DIR}/Preferences/WebPreferencesDebug.yaml
+    ${WTF_SCRIPTS_DIR}/Preferences/WebPreferencesExperimental.yaml
+    ${WTF_SCRIPTS_DIR}/Preferences/WebPreferencesInternal.yaml
+)
+
+set_source_files_properties(${WebKitTestRunner_WEB_PREFERENCES} PROPERTIES GENERATED TRUE)
+
+add_custom_command(
+    OUTPUT ${WebKitTestRunner_DERIVED_SOURCES_DIR}/TestOptionsGeneratedKeys.h
+    DEPENDS ${WebKitTestRunner_WEB_PREFERENCES_TEMPLATES} ${WebKitTestRunner_WEB_PREFERENCES} WTF_CopyPreferences
+    COMMAND ${RUBY_EXECUTABLE} ${WTF_SCRIPTS_DIR}/GeneratePreferences.rb --frontend WebKit --base ${WTF_SCRIPTS_DIR}/Preferences/WebPreferences.yaml --debug ${WTF_SCRIPTS_DIR}/Preferences/WebPreferencesDebug.yaml --experimental ${WTF_SCRIPTS_DIR}/Preferences/WebPreferencesExperimental.yaml --internal ${WTF_SCRIPTS_DIR}/Preferences/WebPreferencesInternal.yaml --outputDir "${WebKitTestRunner_DERIVED_SOURCES_DIR}" --template ${WebKitTestRunner_DIR}/Scripts/PreferencesTemplates/TestOptionsGeneratedKeys.h.erb
+    VERBATIM)
+
+list(APPEND WebKitTestRunner_SOURCES
+    ${WebKitTestRunner_DERIVED_SOURCES_DIR}/TestOptionsGeneratedKeys.h
+>>>>>>> d757a50356e0478c84428cbff6a12b7f05f2617d
 )
 
 set(WebKitTestRunnerInjectedBundle_SOURCES

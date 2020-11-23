@@ -238,7 +238,6 @@ public:
     void setStatisticsTimeToLiveUserInteraction(double seconds);
     void statisticsProcessStatisticsAndDataRecords();
     void statisticsUpdateCookieBlocking();
-    void statisticsSubmitTelemetry();
     void setStatisticsNotifyPagesWhenDataRecordsWereScanned(bool);
     void setStatisticsIsRunningTest(bool);
     void setStatisticsShouldClassifyResourcesBeforeDataRecordsRemoval(bool);
@@ -354,7 +353,7 @@ public:
 
 private:
     WKRetainPtr<WKPageConfigurationRef> generatePageConfiguration(const TestOptions&);
-    WKRetainPtr<WKContextConfigurationRef> generateContextConfiguration(const ContextOptions&) const;
+    WKRetainPtr<WKContextConfigurationRef> generateContextConfiguration(const TestOptions&) const;
     void initialize(int argc, const char* argv[]);
     void createWebViewWithOptions(const TestOptions&);
     void run();
@@ -394,7 +393,6 @@ private:
 
     void ensureViewSupportsOptionsForTest(const TestInvocation&);
     TestOptions testOptionsForTest(const TestCommand&) const;
-    TestFeatures globalFeatureDefaultsForTest(const TestCommand&) const;
     TestFeatures platformSpecificFeatureDefaultsForTest(const TestCommand&) const;
     TestFeatures platformSpecificFeatureOverridesDefaultsForTest(const TestCommand&) const;
 
@@ -533,9 +531,6 @@ private:
     std::set<std::string> m_allowedHosts;
     TestFeatures m_globalFeatures;
 
-    std::unordered_map<std::string, bool> m_internalFeatures;
-    std::unordered_map<std::string, bool> m_experimentalFeatures;
-
     WKRetainPtr<WKStringRef> m_injectedBundlePath;
     WKRetainPtr<WKStringRef> m_testPluginDirectory;
 
@@ -543,7 +538,6 @@ private:
 
     std::unique_ptr<PlatformWebView> m_mainWebView;
     WKRetainPtr<WKContextRef> m_context;
-    Optional<ContextOptions> m_contextOptions;
     WKRetainPtr<WKPageGroupRef> m_pageGroup;
     WKRetainPtr<WKUserContentControllerRef> m_userContentController;
 
@@ -599,8 +593,6 @@ private:
     String m_unsupportedPluginMode;
 
     bool m_forceComplexText { false };
-    bool m_shouldUseAcceleratedDrawing { false };
-    
     bool m_shouldLogCanAuthenticateAgainstProtectionSpace { false };
     bool m_shouldLogDownloadCallbacks { false };
     bool m_shouldLogHistoryClientCallbacks { false };
@@ -648,15 +640,6 @@ private:
 #if PLATFORM(COCOA)
     bool m_hasSetApplicationBundleIdentifier { false };
 #endif
-};
-
-struct TestCommand {
-    std::string pathOrURL;
-    std::string absolutePath;
-    std::string expectedPixelHash;
-    WTF::Seconds timeout;
-    bool shouldDumpPixels { false };
-    bool dumpJSConsoleLogInStdErr { false };
 };
 
 } // namespace WTR

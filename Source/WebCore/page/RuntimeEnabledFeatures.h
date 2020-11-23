@@ -59,12 +59,6 @@ public:
     void setModernMediaControlsEnabled(bool areEnabled) { m_areModernMediaControlsEnabled = areEnabled; }
     bool modernMediaControlsEnabled() const { return m_areModernMediaControlsEnabled; }
 
-    void setWebAnimationsCompositeOperationsEnabled(bool areEnabled) { m_areWebAnimationsCompositeOperationsEnabled = areEnabled; }
-    bool webAnimationsCompositeOperationsEnabled() const { return m_areWebAnimationsCompositeOperationsEnabled; }
-
-    void setWebAnimationsMutableTimelinesEnabled(bool areEnabled) { m_areWebAnimationsMutableTimelinesEnabled = areEnabled; }
-    bool webAnimationsMutableTimelinesEnabled() const { return m_areWebAnimationsMutableTimelinesEnabled; }
-
     void setImageBitmapEnabled(bool isEnabled) { m_isImageBitmapEnabled = isEnabled; }
     bool imageBitmapEnabled() const { return m_isImageBitmapEnabled; }
 
@@ -171,11 +165,6 @@ public:
     void setWebRTCPlatformCodecsInGPUProcessEnabled(bool isEnabled) { m_isWebRTCPlatformCodecsInGPUProcessEnabled = isEnabled; }
 #endif
 
-#if ENABLE(LEGACY_CSS_VENDOR_PREFIXES)
-    void setLegacyCSSVendorPrefixesEnabled(bool isEnabled) { m_isLegacyCSSVendorPrefixesEnabled = isEnabled; }
-    bool legacyCSSVendorPrefixesEnabled() const { return m_isLegacyCSSVendorPrefixesEnabled; }
-#endif
-
 #if ENABLE(DATALIST_ELEMENT)
     bool dataListElementEnabled() const { return m_isDataListElementEnabled; }
     void setDataListElementEnabled(bool isEnabled) { m_isDataListElementEnabled = isEnabled; }
@@ -266,8 +255,6 @@ private:
     bool m_isMenuItemElementEnabled { false };
     bool m_isDirectoryUploadEnabled { false };
     bool m_isCustomPasteboardDataEnabled { false };
-    bool m_areWebAnimationsCompositeOperationsEnabled { false };
-    bool m_areWebAnimationsMutableTimelinesEnabled { false };
     bool m_isImageBitmapEnabled { true };
 #if ENABLE(OFFSCREEN_CANVAS)
     bool m_isOffscreenCanvasEnabled { false };
@@ -322,10 +309,6 @@ private:
     bool m_isWebRTCH265CodecEnabled { false };
     bool m_isWebRTCVP9CodecEnabled { false };
     bool m_isWebRTCH264LowLatencyEncoderEnabled { false };
-#endif
-
-#if ENABLE(LEGACY_CSS_VENDOR_PREFIXES)
-    bool m_isLegacyCSSVendorPrefixesEnabled { false };
 #endif
 
 #if ENABLE(DATALIST_ELEMENT)

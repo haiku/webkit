@@ -29,6 +29,7 @@
 #if ENABLE(GPU_PROCESS)
 
 #include "Logging.h"
+#include "RemoteAudioSourceProvider.h"
 #include "RemoteLegacyCDM.h"
 #include "RemoteLegacyCDMFactory.h"
 #include "RemoteLegacyCDMSession.h"
@@ -92,11 +93,13 @@ using namespace WebCore;
 
 #if !PLATFORM(COCOA)
 MediaPlayerPrivateRemote::MediaPlayerPrivateRemote(MediaPlayer* player, MediaPlayerEnums::MediaEngineIdentifier engineIdentifier, MediaPlayerIdentifier playerIdentifier, RemoteMediaPlayerManager& manager)
-    : m_player(player)
+    :
 #if !RELEASE_LOG_DISABLED
-    , m_logger(player->mediaPlayerLogger())
+      m_logger(player->mediaPlayerLogger())
     , m_logIdentifier(player->mediaPlayerLogIdentifier())
+    ,
 #endif
+      m_player(player)
     , m_mediaResourceLoader(*player->createResourceLoader())
     , m_manager(manager)
     , m_remoteEngineIdentifier(engineIdentifier)
@@ -113,6 +116,11 @@ MediaPlayerPrivateRemote::~MediaPlayerPrivateRemote()
     m_videoLayerManager->didDestroyVideoLayer();
 #endif
     m_manager.deleteRemoteMediaPlayer(m_id);
+
+#if ENABLE(WEB_AUDIO) && PLATFORM(COCOA)
+    if (m_audioSourceProvider)
+        m_audioSourceProvider->close();
+#endif
 }
 
 void MediaPlayerPrivateRemote::setConfiguration(RemoteMediaPlayerConfiguration&& configuration, WebCore::SecurityOriginData&& documentSecurityOrigin)
@@ -922,8 +930,15 @@ unsigned MediaPlayerPrivateRemote::videoDecodedByteCount() const
 #if ENABLE(WEB_AUDIO)
 AudioSourceProvider* MediaPlayerPrivateRemote::audioSourceProvider()
 {
+#if PLATFORM(COCOA)
+    if (!m_audioSourceProvider)
+        m_audioSourceProvider = RemoteAudioSourceProvider::create(m_id, *this);
+
+    return m_audioSourceProvider.get();
+#else
     notImplemented();
     return nullptr;
+#endif
 }
 #endif
 
@@ -1064,8 +1079,12 @@ size_t MediaPlayerPrivateRemote::extraMemoryCost() const
 
 Optional<VideoPlaybackQualityMetrics> MediaPlayerPrivateRemote::videoPlaybackQualityMetrics()
 {
-    notImplemented();
-    return WTF::nullopt;
+    if (!m_wantPlaybackQualityMetrics) {
+        m_wantPlaybackQualityMetrics = true;
+        connection().send(Messages::RemoteMediaPlayerProxy::SetShouldUpdatePlaybackMetrics(true), m_id);
+    }
+
+    return m_cachedState.videoMetrics;
 }
 
 #if ENABLE(AVF_CAPTIONS)
@@ -1143,6 +1162,13 @@ void MediaPlayerPrivateRemote::activeSourceBuffersChanged()
 {
     m_player->activeSourceBuffersChanged();
 }
+
+#if PLATFORM(IOS_FAMILY)
+void MediaPlayerPrivateRemote::getRawCookies(const URL& url, WebCore::MediaPlayerClient::GetRawCookiesCallback&& completionHandler) const
+{
+    m_player->getRawCookies(url, WTFMove(completionHandler));
+}
+#endif
 
 #if !RELEASE_LOG_DISABLED
 WTFLogChannel& MediaPlayerPrivateRemote::logChannel() const

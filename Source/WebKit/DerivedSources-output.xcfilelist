@@ -68,6 +68,7 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/LibWebRTCRemoteCodecsMessagesReplie
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/MediaPlayerPrivateRemoteMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/MediaPlayerPrivateRemoteMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/MediaPlayerPrivateRemoteMessagesReplies.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/MessageArgumentDescriptions.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/MessageNames.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/MessageNames.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/NPObjectMessageReceiverMessageReceiver.cpp
@@ -153,6 +154,9 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/RemoteAudioSessionProxyManagerMessa
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/RemoteAudioSessionProxyMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/RemoteAudioSessionProxyMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/RemoteAudioSessionProxyMessagesReplies.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/RemoteAudioSourceProviderManagerMessageReceiver.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/RemoteAudioSourceProviderManagerMessages.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/RemoteAudioSourceProviderManagerMessagesReplies.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/RemoteCDMFactoryProxyMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/RemoteCDMFactoryProxyMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/RemoteCDMFactoryProxyMessagesReplies.h
@@ -288,6 +292,18 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthenticatorCoordinatorMessages
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthenticatorCoordinatorProxyMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthenticatorCoordinatorProxyMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthenticatorCoordinatorProxyMessagesReplies.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthnConnectionToWebProcessMessageReceiver.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthnConnectionToWebProcessMessages.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthnConnectionToWebProcessMessagesReplies.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthnProcessConnectionMessageReceiver.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthnProcessConnectionMessages.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthnProcessConnectionMessagesReplies.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthnProcessMessageReceiver.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthnProcessMessages.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthnProcessMessagesReplies.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthnProcessProxyMessageReceiver.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthnProcessProxyMessages.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAuthnProcessProxyMessagesReplies.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAutomationSessionMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAutomationSessionMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebAutomationSessionMessagesReplies.h
@@ -369,6 +385,7 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebPaymentCoordinatorProxyMessagesR
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebPreferencesCombined.yaml
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebPreferencesDefinitions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebPreferencesExperimentalFeatures.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebPreferencesGetterSetters.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebPreferencesInternalDebugFeatures.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebPreferencesKeys.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebPreferencesKeys.h
@@ -420,5 +437,6 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebUserContentControllerProxyMessag
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebUserContentControllerProxyMessagesReplies.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/com.apple.WebKit.GPUProcess.sb
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/com.apple.WebKit.NetworkProcess.sb
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/com.apple.WebKit.WebAuthnProcess.sb
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/com.apple.WebKit.plugin-common.sb
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/com.apple.WebProcess.sb

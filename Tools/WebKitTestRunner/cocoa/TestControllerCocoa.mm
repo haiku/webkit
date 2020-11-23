@@ -32,6 +32,7 @@
 #import "TestInvocation.h"
 #import "TestRunnerWKWebView.h"
 #import "TestWebsiteDataStoreDelegate.h"
+#import "WebCoreTestSupport.h"
 #import <Foundation/Foundation.h>
 #import <Security/SecItem.h>
 #import <WebKit/WKContextConfigurationRef.h>
@@ -119,9 +120,9 @@ TestFeatures TestController::platformSpecificFeatureOverridesDefaultsForTest(con
     TestFeatures features;
 
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"EnableProcessSwapOnNavigation"])
-        features.boolFeatures.insert({ "enableProcessSwapOnNavigation", true });
+        features.boolTestRunnerFeatures.insert({ "enableProcessSwapOnNavigation", true });
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"EnableProcessSwapOnWindowOpen"])
-        features.boolFeatures.insert({ "enableProcessSwapOnWindowOpen", true });
+        features.boolTestRunnerFeatures.insert({ "enableProcessSwapOnWindowOpen", true });
 
     return features;
 }
@@ -130,12 +131,16 @@ void TestController::platformInitializeDataStore(WKPageConfigurationRef, const T
 {
     bool useEphemeralSession = options.useEphemeralSession();
     auto standaloneWebApplicationURL = options.standaloneWebApplicationURL();
-    if (useEphemeralSession || standaloneWebApplicationURL.length()) {
+    if (useEphemeralSession || standaloneWebApplicationURL.length() || options.enableInAppBrowserPrivacy()) {
         auto websiteDataStoreConfig = useEphemeralSession ? [[[_WKWebsiteDataStoreConfiguration alloc] initNonPersistentConfiguration] autorelease] : [[[_WKWebsiteDataStoreConfiguration alloc] init] autorelease];
         if (!useEphemeralSession)
             configureWebsiteDataStoreTemporaryDirectories((WKWebsiteDataStoreConfigurationRef)websiteDataStoreConfig);
         if (standaloneWebApplicationURL.length())
             [websiteDataStoreConfig setStandaloneApplicationURL:[NSURL URLWithString:[NSString stringWithUTF8String:standaloneWebApplicationURL.c_str()]]];
+#if PLATFORM(IOS_FAMILY)
+        if (options.enableInAppBrowserPrivacy())
+            [websiteDataStoreConfig setEnableInAppBrowserPrivacyForTesting:YES];
+#endif
         m_websiteDataStore = (__bridge WKWebsiteDataStoreRef)[[[WKWebsiteDataStore alloc] _initWithConfiguration:websiteDataStoreConfig] autorelease];
     } else
         m_websiteDataStore = (__bridge WKWebsiteDataStoreRef)globalWebViewConfiguration.websiteDataStore;
@@ -154,18 +159,12 @@ void TestController::platformCreateWebView(WKPageConfigurationRef, const TestOpt
         [copiedConfiguration setSelectionGranularity:WKSelectionGranularityCharacter];
     if (options.isAppBoundWebView())
         [copiedConfiguration setLimitsNavigationsToAppBoundDomains:YES];
-#else
-    [copiedConfiguration _setServiceControlsEnabled:options.enableServiceControls()];
 #endif
 
     if (options.enableAttachmentElement())
         [copiedConfiguration _setAttachmentElementEnabled:YES];
 
-    if (options.enableColorFilter())
-        [copiedConfiguration _setColorFilterEnabled:YES];
-
     [copiedConfiguration setWebsiteDataStore:(WKWebsiteDataStore *)websiteDataStore()];
-
     [copiedConfiguration _setAllowTopNavigationToDataURLs:options.allowTopNavigationToDataURLs()];
 
     configureContentMode(copiedConfiguration.get(), options);
@@ -294,16 +293,13 @@ void TestController::cocoaResetStateToConsistentValues(const TestOptions& option
     }
 
     [globalWebsiteDataStoreDelegateClient setAllowRaisingQuota:YES];
+
+    WebCoreTestSupport::setAdditionalSupportedImageTypesForTesting(options.additionalSupportedImageTypes().c_str());
 }
 
 void TestController::platformWillRunTest(const TestInvocation& testInvocation)
 {
     setCrashReportApplicationSpecificInformationToURL(testInvocation.url());
-
-#if PLATFORM(IOS_FAMILY)
-    if (testInvocation.options().enableInAppBrowserPrivacy())
-        [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"WebKitDebugIsInAppBrowserPrivacyEnabled"];
-#endif
 }
 
 static NSString * const WebArchivePboardType = @"Apple Web Archive pasteboard type";

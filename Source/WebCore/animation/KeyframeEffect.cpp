@@ -52,7 +52,7 @@
 #include "RenderBoxModelObject.h"
 #include "RenderElement.h"
 #include "RenderStyle.h"
-#include "RuntimeEnabledFeatures.h"
+#include "Settings.h"
 #include "StyleAdjuster.h"
 #include "StylePendingResources.h"
 #include "StyleResolver.h"
@@ -219,8 +219,12 @@ static inline ExceptionOr<KeyframeEffect::KeyframeLikeObject> processKeyframeLik
         else
             baseProperties.offset = nullptr;
         baseProperties.easing = baseKeyframe.easing;
-        if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCompositeOperationsEnabled())
-            baseProperties.composite = baseKeyframe.composite;
+
+        auto* scriptExecutionContext = jsCast<JSDOMGlobalObject*>(&lexicalGlobalObject)->scriptExecutionContext();
+        if (is<Document>(scriptExecutionContext)) {
+            if (downcast<Document>(*scriptExecutionContext).settings().webAnimationsCompositeOperationsEnabled())
+                baseProperties.composite = baseKeyframe.composite;
+        }
     }
     RETURN_IF_EXCEPTION(scope, Exception { TypeError });
 
@@ -294,8 +298,14 @@ static inline ExceptionOr<KeyframeEffect::KeyframeLikeObject> processKeyframeLik
 
 static inline ExceptionOr<void> processIterableKeyframes(JSGlobalObject& lexicalGlobalObject, Strong<JSObject>&& keyframesInput, JSValue method, Vector<KeyframeEffect::ParsedKeyframe>& parsedKeyframes)
 {
+    auto* scriptExecutionContext = jsCast<JSDOMGlobalObject*>(&lexicalGlobalObject)->scriptExecutionContext();
+    if (!is<Document>(scriptExecutionContext))
+        return { };
+    auto& document = downcast<Document>(*scriptExecutionContext);
+    CSSParserContext parserContext(document);
+
     // 1. Let iter be GetIterator(object, method).
-    forEachInIterable(lexicalGlobalObject, keyframesInput.get(), method, [&parsedKeyframes](VM& vm, JSGlobalObject& lexicalGlobalObject, JSValue nextValue) -> ExceptionOr<void> {
+    forEachInIterable(lexicalGlobalObject, keyframesInput.get(), method, [&parsedKeyframes, &document, &parserContext](VM& vm, JSGlobalObject& lexicalGlobalObject, JSValue nextValue) -> ExceptionOr<void> {
         // Steps 2 through 6 are already implemented by forEachInIterable().
         auto scope = DECLARE_THROW_SCOPE(vm);
         if (!nextValue || !nextValue.isObject()) {
@@ -326,7 +336,7 @@ static inline ExceptionOr<void> processIterableKeyframes(JSGlobalObject& lexical
 
         // When calling processKeyframeLikeObject() with the "allow lists" flag set to false, the only composite
         // alternatives we should expect is CompositeOperationAuto.
-        if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCompositeOperationsEnabled()) {
+        if (document.settings().webAnimationsCompositeOperationsEnabled()) {
             ASSERT(WTF::holds_alternative<CompositeOperationOrAuto>(keyframeLikeObject.baseProperties.composite));
             keyframeOutput.composite = WTF::get<CompositeOperationOrAuto>(keyframeLikeObject.baseProperties.composite);
         }
@@ -337,7 +347,7 @@ static inline ExceptionOr<void> processIterableKeyframes(JSGlobalObject& lexical
             // there should only ever be a single value for a given property.
             ASSERT(propertyAndValue.values.size() == 1);
             auto stringValue = propertyAndValue.values[0];
-            if (keyframeOutput.style->setProperty(cssPropertyId, stringValue))
+            if (keyframeOutput.style->setProperty(cssPropertyId, stringValue, false, parserContext))
                 keyframeOutput.unparsedStyle.set(cssPropertyId, stringValue);
         }
 
@@ -357,6 +367,12 @@ static inline ExceptionOr<void> processPropertyIndexedKeyframes(JSGlobalObject& 
         return processKeyframeLikeObjectResult.releaseException();
     auto propertyIndexedKeyframe = processKeyframeLikeObjectResult.returnValue();
 
+    auto* scriptExecutionContext = jsCast<JSDOMGlobalObject*>(&lexicalGlobalObject)->scriptExecutionContext();
+    if (!is<Document>(scriptExecutionContext))
+        return { };
+    auto& document = downcast<Document>(*scriptExecutionContext);
+    CSSParserContext parserContext(document);
+
     // 2. For each member, m, in property-indexed keyframe, perform the following steps:
     for (auto& m : propertyIndexedKeyframe.propertiesAndValues) {
         // 1. Let property name be the key for m.
@@ -373,7 +389,7 @@ static inline ExceptionOr<void> processPropertyIndexedKeyframes(JSGlobalObject& 
             // 1. Let k be a new keyframe with a null keyframe offset.
             KeyframeEffect::ParsedKeyframe k;
             // 2. Add the property-value pair, property name → v, to k.
-            if (k.style->setProperty(propertyName, v))
+            if (k.style->setProperty(propertyName, v, false, parserContext))
                 k.unparsedStyle.set(propertyName, v);
             // 3. Append k to property keyframes.
             propertyKeyframes.append(WTFMove(k));
@@ -464,7 +480,7 @@ static inline ExceptionOr<void> processPropertyIndexedKeyframes(JSGlobalObject& 
         parsedKeyframes[i].easing = easings[i];
 
     // 12. If the “composite” member of the property-indexed keyframe is not an empty sequence:
-    if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCompositeOperationsEnabled()) {
+    if (document.settings().webAnimationsCompositeOperationsEnabled()) {
         Vector<CompositeOperationOrAuto> compositeModes;
         if (WTF::holds_alternative<Vector<CompositeOperationOrAuto>>(propertyIndexedKeyframe.baseProperties.composite))
             compositeModes = WTF::get<Vector<CompositeOperationOrAuto>>(propertyIndexedKeyframe.baseProperties.composite);
@@ -676,8 +692,12 @@ Vector<Strong<JSObject>> KeyframeEffect::getKeyframes(JSGlobalObject& lexicalGlo
             computedKeyframe.offset = parsedKeyframe.offset;
             computedKeyframe.computedOffset = parsedKeyframe.computedOffset;
             computedKeyframe.easing = timingFunctionForKeyframeAtIndex(i)->cssText();
-            if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCompositeOperationsEnabled())
-                computedKeyframe.composite = parsedKeyframe.composite;
+
+            auto* scriptExecutionContext = jsCast<JSDOMGlobalObject*>(&lexicalGlobalObject)->scriptExecutionContext();
+            if (is<Document>(scriptExecutionContext)) {
+                if (downcast<Document>(*scriptExecutionContext).settings().webAnimationsCompositeOperationsEnabled())
+                    computedKeyframe.composite = parsedKeyframe.composite;
+            }
 
             auto outputKeyframe = convertDictionaryToJS(lexicalGlobalObject, *jsCast<JSDOMGlobalObject*>(&lexicalGlobalObject), computedKeyframe);
 
@@ -1863,7 +1883,7 @@ bool KeyframeEffect::computeTransformedExtentViaTransformList(const FloatRect& r
 bool KeyframeEffect::computeTransformedExtentViaMatrix(const FloatRect& rendererBox, const RenderStyle& style, LayoutRect& bounds) const
 {
     TransformationMatrix transform;
-    style.applyTransform(transform, rendererBox, RenderStyle::IncludeTransformOrigin);
+    style.applyTransform(transform, rendererBox);
     if (!transform.isAffine())
         return false;
 

@@ -34,6 +34,8 @@
 #include "SecurityOriginPolicy.h"
 #include "Settings.h"
 #include "WorkerEventLoop.h"
+#include "WorkerMessagePortChannelProvider.h"
+#include "WorkerOrWorkletThread.h"
 #include "WorkerScriptLoader.h"
 #include "WorkletParameters.h"
 #include <JavaScriptCore/Exception.h>
@@ -46,8 +48,9 @@ using namespace Inspector;
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(WorkletGlobalScope);
 
-WorkletGlobalScope::WorkletGlobalScope(const WorkletParameters& parameters)
-    : m_script(makeUnique<WorkletScriptController>(this))
+WorkletGlobalScope::WorkletGlobalScope(WorkerOrWorkletThread& thread, const WorkletParameters& parameters)
+    : m_thread(&thread)
+    , m_script(makeUnique<WorkletScriptController>(this))
     , m_topOrigin(SecurityOrigin::createUnique())
     , m_url(parameters.windowURL)
     , m_jsRuntimeFlags(parameters.jsRuntimeFlags)
@@ -227,10 +230,14 @@ void WorkletGlobalScope::notifyFinished()
     }
 
     // FIXME: This should really be run as a module script but we don't support this in workers yet.
-    NakedPtr<JSC::Exception> exception;
-    m_script->evaluate(ScriptSourceCode(m_scriptLoader->script(), URL(m_scriptLoader->responseURL())), exception);
-    if (exception)
-        m_script->setException(exception);
+    URL moduleURL(m_scriptLoader->responseURL());
+    auto addResult = m_evaluatedModules.add(moduleURL);
+    if (addResult.isNewEntry) {
+        NakedPtr<JSC::Exception> exception;
+        m_script->evaluate(ScriptSourceCode(m_scriptLoader->script(), WTFMove(moduleURL)), exception);
+        if (exception)
+            m_script->setException(exception);
+    }
 
     didCompleteScriptFetchJob(WTFMove(completedJob), { });
 }
@@ -242,6 +249,20 @@ void WorkletGlobalScope::didCompleteScriptFetchJob(ScriptFetchJob&& job, Optiona
     job.completionHandler(WTFMove(result));
 
     processNextScriptFetchJobIfNeeded();
+}
+
+MessagePortChannelProvider& WorkletGlobalScope::messagePortChannelProvider()
+{
+    if (!m_messagePortChannelProvider)
+        m_messagePortChannelProvider = makeUnique<WorkerMessagePortChannelProvider>(*this);
+    return *m_messagePortChannelProvider;
+}
+
+bool WorkletGlobalScope::isContextThread() const
+{
+    if (m_thread)
+        return m_thread->thread() == &Thread::current();
+    return isMainThread();
 }
 
 } // namespace WebCore

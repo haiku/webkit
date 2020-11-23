@@ -1,3 +1,595 @@
+2020-10-19  Antoine Quint  <graouts@webkit.org>
+
+        Move remaining Web Animations runtime-enabled features to settings
+        https://bugs.webkit.org/show_bug.cgi?id=217903
+
+        Reviewed by Sam Weinig.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-10-18  David Kilzer  <ddkilzer@apple.com>
+
+        Fix -Wdeprecated-copy warnings in WTF and JavaScriptCore
+        <https://webkit.org/b/217855>
+        <rdar://problem/67716914>
+
+        Reviewed by Darin Adler.
+
+        * wtf/Identified.h:
+        (WTF::IdentifiedBase::Identifier):
+        - Change to default since compiler will generate the same code.
+        (WTF::IdentifiedBase::operator=): Add.
+        - Add default copy assignment operator to keep it protected.
+
+2020-10-16  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Add system trace points for flushing remote image buffers
+        https://bugs.webkit.org/show_bug.cgi?id=217853
+
+        Reviewed by Simon Fraser.
+
+        See WebKit ChangeLog for more details.
+
+        * wtf/SystemTracing.h:
+
+2020-10-16  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Add an experimental feature flag: WebAuthenticationModernEnabled
+        https://bugs.webkit.org/show_bug.cgi?id=217843
+        <rdar://problem/70384187>
+
+        Reviewed by Brent Fulgham.
+
+        Add a new experimental feature flag to test the new WebAuthn process.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-10-16  Antoine Quint  <graouts@webkit.org>
+
+        Enable individual CSS transform properties by default
+        https://bugs.webkit.org/show_bug.cgi?id=217849
+        <rdar://problem/70052493>
+
+        Reviewed by Dean Jackson.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-10-16  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Remove experimental feature flag: WebAuthenticationLocalAuthenticatorEnabled
+        https://bugs.webkit.org/show_bug.cgi?id=217796
+        <rdar://problem/70358912>
+
+        Reviewed by Brent Fulgham.
+
+        The feature is now shipped. Let's remove the experimental feature flag.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-10-16  David Kilzer  <ddkilzer@apple.com>
+
+        Open source clang warning: bitwise operation between different enumeration types [-Wenum-enum-conversion]
+        <https://webkit.org/b/217805>
+        <rdar://problem/70250742>
+
+        Reviewed by Darin Adler.
+
+        * wtf/text/StringImpl.h:
+        (WTF::StringImpl::StringImpl::s_hashZeroValue): Add.
+        (WTF::StringImpl::StringImpl):
+        - Use s_hashZeroValue as first value in bitwise-or expression
+          so that enums are converted automatically to unsigned values.
+
+2020-10-16  Sam Weinig  <weinig@apple.com>
+
+        ENABLE_LEGACY_CSS_VENDOR_PREFIXES and RuntimeEnabledFeatures::legacyCSSVendorPrefixesEnabled() don't do anything
+        https://bugs.webkit.org/show_bug.cgi?id=217833
+
+        Reviewed by Simon Fraser.
+
+        * wtf/PlatformEnable.h:
+        * wtf/PlatformEnableCocoa.h:
+        Remove support for ENABLE_LEGACY_CSS_VENDOR_PREFIXES, which only guarded code that was always disabled.
+
+2020-10-16  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        REGRESSION(r267727): Warning spam from JSC_DECLARE_CUSTOM_GETTER
+        https://bugs.webkit.org/show_bug.cgi?id=217585
+
+        Reviewed by Yusuke Suzuki.
+
+        The problem is that the declarations are static, so WTF_INTERNAL is redundant with that.
+        (File-static declarations are of course local to the current file, and apparently GCC really
+        wants us to not hide symbols that don't need to be hidden.)
+
+        I considered remove WTF_INTERNAL from JSC_DECLARE_JIT_OPERATION and ensuring all uses are
+        static, but it's not possible because it is frequently used in header files. It should only
+        be static when used in .cpp files.
+
+        So I decided to split JSC_DECLARE_JIT_OPERATION into two versions, the current one that uses
+        WTF_INTERNAL, and JSC_DECLARE_JIT_OPERATION_WITHOUT_WTF_INTERNAL that doesn't. That is not a
+        great name, but it's only used in a couple places, so I guess that's OK.
+        JSC_DECLARE_CUSTOM_GETTER and JSC_DECLARE_CUSTOM_SETTER use this new version, since those
+        are only used in static declarations in .cpp files. A small number of source files also need
+        the version without the WTF_INTERNAL. All other users can continue to use original
+        JSC_DECLARE_JIT_OPERATION with WTF_INTERNAL and not worry about the ugly name.
+
+        I'm not terribly happy with this solution, and it's a little fragile too (you probably won't
+        directly use JSC_DECLARE_JIT_OPERATION_WITHOUT_WTF_INTERNAL in a place that needs
+        WTF_INTERNAL, but you might use JSC_DECLARE_CUSTOM_GETTER and JSC_DECLARE_CUSTOM_SETTER in
+        such a way!), but at least it will avoid the warning spam and allow us to see warnings for
+        real problems.
+
+        * wtf/PlatformCallingConventions.h:
+
+2020-10-15  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Move AppAttestInternal related code from WKA to OpenSource
+        https://bugs.webkit.org/show_bug.cgi?id=217790
+        <rdar://problem/59613406>
+
+        Reviewed by Brent Fulgham.
+
+        * wtf/PlatformHave.h:
+
+2020-10-15  David Kilzer  <ddkilzer@apple.com>
+
+        WeakObjCPtr.h is not safe to include in C++ source files
+        <https://webkit.org/b/217712>
+        <rdar://problem/70250667>
+
+        Reviewed by Darin Adler.
+
+        * wtf/WeakObjCPtr.h:
+        (WTF::WeakObjCPtr::get const):
+        - Move implementation outside of the class and wrap it in
+          #ifdef __OBJC__/#endif.  This makes the header safe to compile
+          with other C++ sources, but will fail if get() is used in a
+          C++ source file.
+
+2020-10-14  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Unreviewed build fix. Disable IPC testing API on non-Cocoa platforms.
+
+        * wtf/PlatformEnable.h:
+
+2020-10-14  Alex Christensen  <achristensen@webkit.org>
+
+        Disallow ports in file URLs
+        https://bugs.webkit.org/show_bug.cgi?id=217252
+
+        Reviewed by Darin Adler.
+
+        This matches Chrome and the URL specification.
+        Covered by newly passing web platform tests.
+
+        * wtf/URLParser.cpp:
+        (WTF::URLParser::parsePort):
+
+2020-10-13  Simon Fraser  <simon.fraser@apple.com>
+
+        Allow passive mouse wheel event listeners to not force synchronous scrolling
+        https://bugs.webkit.org/show_bug.cgi?id=158439
+        <rdar://problem/28265360>
+
+        Reviewed by Tim Horton.
+
+        Define ENABLE_WHEEL_EVENT_REGIONS for macOS.
+
+        * wtf/PlatformEnableCocoa.h:
+
+2020-10-14  Chris Dumez  <cdumez@apple.com>
+
+        Enable AudioWorklet by default
+        https://bugs.webkit.org/show_bug.cgi?id=217708
+
+        Reviewed by Eric Carlson.
+
+        Enable AudioWorklet by default on platforms where modern/unprefixed WebAudio
+        is enabled.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-10-14  Zan Dobersek  <zdobersek@igalia.com>
+
+        Remove ACCELERATED_2D_CANVAS build flags and guarded code
+        https://bugs.webkit.org/show_bug.cgi?id=217603
+
+        Reviewed by Carlos Garcia Campos.
+
+        * wtf/PlatformEnable.h:
+        Remove the fallback ENABLE_ACCELERATED_2D_CANVAS definition.
+
+2020-10-13  Chris Dumez  <cdumez@apple.com>
+
+        WebAudio tests are crashing in debug when enabling the GPU process
+        https://bugs.webkit.org/show_bug.cgi?id=217663
+
+        Reviewed by Geoff Garen.
+
+        * wtf/CrossThreadQueue.h:
+        (WTF::CrossThreadQueue<DataType>::waitForMessage):
+        If CrossThreadQueue::kill() gets called while another thread is waiting on a
+        CrossThreadQueue::waitForMessage() call, make it so that waitForMessage()
+        returns a default-constructed DataType instead of crashing trying to
+        dequeue (since the queue is empty).
+
+2020-10-13  Keith Rollin  <krollin@apple.com>
+
+        Remove leftover MACOSX_DEPLOYMENT_TARGET_macosx support
+        https://bugs.webkit.org/show_bug.cgi?id=217649
+        <rdar://problem/70236877>
+
+        Reviewed by Darin Adler.
+
+        Bug 42796 introduced MACOSX_DEPLOYMENT_TARGET_<PLATFORM> as "support
+        for compiling WebKit against iOS SDKs". Support for the iOS part of
+        this feature was later removed in several changes, including Bug
+        139212, Bug 139463 and Bug 144762. However, vestiges have remained for
+        five or six years in the form of MACOSX_DEPLOYMENT_TARGET_macosx. The
+        inclusion of the platform in MACOSX_DEPLOYMENT_TARGET is no longer
+        needed and can be removed.
+
+        This changes brings most projects in conformance with other projects
+        that don't support including the platform in MACOSX_DEPLOYMENT_TARGET,
+        including WebEditingTester, gtest, WebKitTestRunner, MiniBrowser, and
+        TestWebKitAPI.
+
+        Along the way, remove a couple of left-over references to macOS 10.16,
+        and a couple of places where [sdk=macosx*] was still being used.
+
+        With this change, initialization of MACOSX_DEPLOYMENT_TARGET should be
+        consistent across all projects, with two exceptions: WebKitLauncher
+        (which hardcodes it to 10.12) and libwebrtc's copy of googletest
+        (which hardcodes it to 10.4). The reasons for these hard-coded values
+        is not apparent, so leave them be.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-12  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 
+        with Xcode 12 on macOS Big Sur SUs
+        https://bugs.webkit.org/show_bug.cgi?id=217602
+        rdar://70194453
+
+        Reviewed by Darin Adler.
+
+        The previous workaround turns out to be ineffective because we can't set the value of 
+        TARGET_MAC_OS_X_VERSION_MAJOR based on a previous value of itself. Introduce a new 
+        variable TARGET_MAC_OS_X_VERSION_MAJOR to determine whether we need to explicitly 
+        adjust MAC_OS_X_VERSION_MAJOR to 110000.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-12  Andy Estes  <aestes@apple.com>
+
+        [macCatalyst] Enable WKPDFView
+        https://bugs.webkit.org/show_bug.cgi?id=217403
+        <rdar://problem/48217791>
+
+        Reviewed by Tim Horton.
+
+        * wtf/PlatformEnableCocoa.h: Enabled WKPDFView when building for the Catalyst variant on
+        Big Sur or later.
+
+2020-10-12  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        -Wsign-compare warnings in URL.cpp and URLParser.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=217583
+
+        Using unsigned literals where required.
+
+        Reviewed by Darin Adler.
+
+        * wtf/URL.cpp:
+        (WTF::URL::pathStart const):
+        * wtf/URLParser.cpp:
+        (WTF::URLParser::needsNonSpecialDotSlash const):
+
+2020-10-12  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 
+        with Xcode 12 on macOS Big Sur SUs
+        https://bugs.webkit.org/show_bug.cgi?id=217602
+        rdar://70194453
+
+        Reviewed by Darin Adler.
+
+        Due to a bug in Xcode (rdar://70185899), Xcode 12.0 and Xcode 12.1 Beta incorrectly includes the 
+        minor release number in MAC_OS_X_VERSION_MAJOR, which causes Debug and Release builds of WebKit 
+        to be misconfigured when building on macOS Big Sur SUs, leading to webpages failing to load.
+
+        To work around the Xcode bug, when the MAC_OS_X_VERSION_MAJOR includes the minor version number, 
+        drop the minor version number by explicitly setting TARGET_MAC_OS_X_VERSION_MAJOR to 110000.
+
+        Note: This change should be reverted after <rdar://70185899> is resolved.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-11  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        GeneratePreferences.rb is noisy
+        https://bugs.webkit.org/show_bug.cgi?id=217589
+
+        Reviewed by Sam Weinig.
+
+        Don't print anything when the script is successful. Since it runs during the build, it
+        should only print errors.
+
+        * Scripts/GeneratePreferences.rb:
+
+2020-10-11  Luming Yin  <luming_yin@apple.com>
+
+        Strip patch version from TARGET_MAC_OS_X_VERSION_MAJOR when building for macOS Big Sur 
+        or later
+        https://bugs.webkit.org/show_bug.cgi?id=217594
+        rdar://70188497
+
+        Reviewed by Darin Adler.
+
+        To ensure successful Mac Catalyst WebKit builds, strip the patch version from 
+        TARGET_MAC_OS_X_VERSION_MAJOR by using two `base:`s on MACOSX_DEPLOYMENT_TARGET.
+
+        * Configurations/Base.xcconfig:
+
+2020-10-11  Luming Yin  <luming_yin@apple.com>
+
+        Ignore deployment suffix and identifier when computing major OS version for macOS 
+        Big Sur and newer
+        https://bugs.webkit.org/show_bug.cgi?id=217584
+        rdar://70168426
+
+        Reviewed by Darin Adler.
+
+        Stop using MACOSX_DEPLOYMENT_TARGET:suffix:identifier to compute major OS versions. 
+        Only use the deployment target base for macOS Big Sur and newer. Keep the manual 
+        definitions for legacy versions of macOS.
+
+        * Configurations/Base.xcconfig:
+
+2020-10-09  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Assert Operation and HostFunction are in JITOperationsList
+        https://bugs.webkit.org/show_bug.cgi?id=217500
+
+        Reviewed by Saam Barati.
+
+        This patch makes tagCodePtr etc. take PtrTag only from template parameter.
+        As a result, we can easily customize special verification process for specific PtrTag.
+        By leveraging this feature, we introduce HostFunction / JITOperation assertions for HostFunctionPtrTag and OperationPtrTag.
+
+        We also add tagCodePtrWithStackPointerForJITCall and untagCodePtrWithStackPointerForJITCall, they are used only when we need
+        to tag a pointer with stack pointer which is a dynamic PtrTag.
+
+        * wtf/PtrTag.cpp:
+        (WTF::tagForPtr):
+        * wtf/PtrTag.h:
+        (WTF::tagNativeCodePtrImpl):
+        (WTF::untagNativeCodePtrImpl):
+        (WTF::PtrTagTraits::tagCodePtr):
+        (WTF::PtrTagTraits::untagCodePtr):
+        (WTF::registerPtrTagLookup):
+        (WTF::reportBadTag):
+        (WTF::removeCodePtrTag):
+        (WTF::tagCodePtrImpl):
+        (WTF::tagCodePtr):
+        (WTF::untagCodePtrImpl):
+        (WTF::untagCodePtr):
+        (WTF::retagCodePtrImplHelper):
+        (WTF::retagCodePtrImpl):
+        (WTF::retagCodePtr):
+        (WTF::assertIsCFunctionPtr):
+        (WTF::isTaggedWith):
+        (WTF::tagCFunctionPtrImpl):
+        (WTF::tagCFunctionPtr):
+        (WTF::tagCFunction):
+        (WTF::untagCFunctionPtrImpl):
+        (WTF::untagCFunctionPtr):
+        (WTF::tagArrayPtr):
+        (WTF::untagArrayPtr):
+        (WTF::removeArrayPtrTag):
+        (WTF::retagArrayPtr):
+        (WTF::tagCodePtrWithStackPointerForJITCall):
+        (WTF::untagCodePtrWithStackPointerForJITCall):
+        (WTF::untagCodePtrImplHelper): Deleted.
+
+2020-10-10  Sam Weinig  <weinig@apple.com>
+
+        Use WebPreference definitions from shared configuration files in WebCore (Part 1)
+        https://bugs.webkit.org/show_bug.cgi?id=217551
+
+        Reviewed by Darin Adler.
+
+        This begins using the WebPreferences*.yaml files for the generation of 
+        WebCore's Settings and InternalSettings classes. In this first part, we 
+        only are moving settings that already exist in the WebPreferences*.yaml 
+        files. A subsequent change will migrate the remaining additional settings
+        over.
+
+        To do this we must add default values for 'WebCore', which are unfortunately
+        still needed for things like the empty client based SVGImage and sanitizing 
+        web content functionality. We only need default WebCore values for preferences 
+        that are bound to WebCore::Settings. It would be good to eliminate the need
+        for these eventually, but that is not a goal of this change.
+
+        This also adds some new keys from WebCore's Settings.yaml:
+        - 'webcoreOnChange: *' called by WebCore::Settings when the setting changes.
+        - 'inspectorOverride: true' used to allow the inspector to override the setting.
+        - 'webcoreImplementation: custom' used to indicate that WebCore::SettingsBase 
+          implements the setting.
+        - 'webcoreGetter: *' used to provide an alternate name for the getter in WebCore::Settings.
+        - 'webcoreExcludeFromInternalSettings: true' used to exclude from WebCore's InternalSettings
+          bindings.
+
+        * Scripts/GeneratePreferences.rb:
+        Adds check that if the preference is bound to WebCore, it includes defaults for all
+        three front generators, 'WebKit', WebKitLegacy', and 'WebCore'.
+
+        * Scripts/Preferences/WebPreferences.yaml:
+        * Scripts/Preferences/WebPreferencesDebug.yaml:
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+        * Scripts/Preferences/WebPreferencesInternal.yaml:
+        Migrates defaults and additional keys from Settings.yaml.
+
+2020-10-09  Keith Miller  <keith_miller@apple.com>
+
+        Finalizers shouldn't run if events can't fire
+        https://bugs.webkit.org/show_bug.cgi?id=214508
+
+        Reviewed by Ryosuke Niwa.
+
+        Add a DropLockScope to make it easier to drop a lock for a short
+        piece of code.  Also, instead of deleting int Locker constructor
+        we should just delete the underlying type of the
+        NoLockingNecessary enum.
+
+        * wtf/Locker.h:
+        (WTF::Locker::~Locker):
+        (WTF::Locker::unlockEarly):
+        (WTF::Locker::Locker):
+        (WTF::Locker::operator=):
+        (WTF::Locker::unlock):
+        (WTF::DropLockForScope::DropLockForScope):
+        (WTF::DropLockForScope::~DropLockForScope):
+
+2020-10-08  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, reland r268170
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+
+        * wtf/PlatformRegisters.cpp:
+        (WTF::threadStateLRInternal):
+        (WTF::threadStatePCInternal):
+        * wtf/PtrTag.h:
+        (WTF::tagCodePtr):
+        (WTF::untagCodePtr):
+        (WTF::assertIsCFunctionPtr):
+        (WTF::assertIsNullOrCFunctionPtr):
+        (WTF::assertIsNotTagged):
+        (WTF::assertIsTagged):
+        (WTF::assertIsNullOrTagged):
+        (WTF::isTaggedWith):
+        (WTF::assertIsTaggedWith):
+        (WTF::assertIsNullOrTaggedWith):
+        (WTF::tagCFunctionPtr):
+        (WTF::tagCFunction):
+        (WTF::untagCFunctionPtr):
+        (WTF::tagInt):
+
+2020-10-08  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r268170 and r268190.
+        https://bugs.webkit.org/show_bug.cgi?id=217502
+
+        Crash on ARM64E exclusively
+
+        Reverted changesets:
+
+        "[JSC] Restrict more ptr-tagging and avoid using
+        OperationPtrTag for JIT code"
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+        https://trac.webkit.org/changeset/268170
+
+        "Unreviewed, build fix for ARM64E"
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+        https://trac.webkit.org/changeset/268190
+
+2020-10-08  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Make it possible to send an arbitrary IPC message from JavaScript
+        https://bugs.webkit.org/show_bug.cgi?id=217423
+        <rdar://problem/69969351>
+
+        Reviewed by Geoffrey Garen.
+
+        Added a compile time flag (ENABLE_IPC_TESTING_API) and a runtime flag (IPCTestingAPIEnabled)
+        for the JavaScript API to test IPC.
+
+        * Scripts/GeneratePreferences.rb:
+        (Preference::nameLower): Keep IPC uppercase.
+        * Scripts/Preferences/WebPreferencesInternal.yaml: Added IPCTestingAPIEnabled.
+        * wtf/PlatformEnable.h: Added ENABLE_IPC_TESTING_API.
+
+2020-10-08  Alex Christensen  <achristensen@webkit.org>
+
+        REGRESSION (r267763): [ iOS wk2 ] http/tests/in-app-browser-privacy/non-app-bound-domain-does-not-get-app-bound-session.html is a constant failure
+        https://bugs.webkit.org/show_bug.cgi?id=217386
+
+        Reviewed by Brent Fulgham.
+
+        * Scripts/Preferences/WebPreferencesDebug.yaml:
+
+2020-10-08  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, build fix for ARM64E
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+
+        * wtf/PtrTag.h:
+        (WTF::tagCodePtr):
+        (WTF::untagCodePtr):
+        (WTF::assertIsCFunctionPtr):
+        (WTF::assertIsNullOrCFunctionPtr):
+        (WTF::assertIsNotTagged):
+        (WTF::assertIsTagged):
+        (WTF::assertIsNullOrTagged):
+        (WTF::isTaggedWith):
+        (WTF::assertIsTaggedWith):
+        (WTF::assertIsNullOrTaggedWith):
+
+2020-10-07  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Restrict more ptr-tagging and avoid using OperationPtrTag for JIT code
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+
+        Reviewed by Saam Barati.
+
+        * wtf/PlatformRegisters.cpp:
+        (WTF::threadStateLRInternal):
+        (WTF::threadStatePCInternal):
+        * wtf/PtrTag.h:
+        (WTF::tagCFunctionPtr):
+        (WTF::tagCFunction):
+        (WTF::untagCFunctionPtr):
+        (WTF::tagInt):
+        (WTF::isTaggedWith):
+        (WTF::assertIsTaggedWith):
+        (WTF::assertIsNullOrTaggedWith):
+
+2020-10-07  Keith Rollin  <krollin@apple.com>
+
+        Update post-processing rules for headers to not unnecessarily change timestamps
+        https://bugs.webkit.org/show_bug.cgi?id=217371
+        <rdar://problem/69992230>
+
+        Reviewed by Darin Adler.
+
+        Under XCBuild, the scripts employed in custom build rules can be
+        invoked in innocuous situations. A common example is when the user is
+        building from the command-line and they change the `make` output from
+        stdout to a file, or vice-versa. Changing the output changes the
+        setting of the COLOR_DIAGNOSTICS environment variable, which is enough
+        to cause XCBuild to think something is different and that the custom
+        build rule needs to be invoked. For the script's part, nothing
+        significant has changed, yet it post-processes the header files,
+        causing their modification dates to change, causing downstream
+        rebuilds to occur.
+
+        Fix this problem by adopting an approach that doesn't modify the
+        post-processed header files unless their contents actually change.
+
+        * Scripts/GeneratePreferences.rb:
+
+2020-10-07  Devin Rousso  <drousso@apple.com>
+
+        Add missing `#define` for `PENCILKIT_TEXT_INPUT` flag
+        https://bugs.webkit.org/show_bug.cgi?id=217436
+        <rdar://problem/69720219>
+
+        Reviewed by Wenson Hsieh.
+
+        * wtf/PlatformHave.h:
+
 2020-10-07  Tadeu Zagallo  <tzagallo@apple.com>
 
         Add maximum depth check to RedBlackTree

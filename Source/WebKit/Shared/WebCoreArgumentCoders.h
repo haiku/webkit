@@ -34,6 +34,7 @@
 #include <WebCore/IndexedDB.h>
 #include <WebCore/InputMode.h>
 #include <WebCore/MediaSelectionOption.h>
+#include <WebCore/NativeImagePtr.h>
 #include <WebCore/NetworkLoadMetrics.h>
 #include <WebCore/NotificationDirection.h>
 #include <WebCore/RealtimeMediaSource.h>
@@ -60,6 +61,10 @@
 #if ENABLE(ENCRYPTED_MEDIA)
 #include <WebCore/CDMInstance.h>
 #include <WebCore/CDMInstanceSession.h>
+#endif
+
+#if PLATFORM(IOS_FAMILY)
+#include <WebCore/InspectorOverlay.h>
 #endif
 
 #if PLATFORM(GTK)
@@ -105,7 +110,6 @@ class KeyframeValueList;
 class LayoutSize;
 class LayoutPoint;
 class LinearTimingFunction;
-class NativeImageHandle;
 class Notification;
 class PasteboardCustomData;
 class PaymentInstallmentConfiguration;
@@ -163,7 +167,6 @@ struct KeypressCommand;
 #if PLATFORM(IOS_FAMILY)
 class FloatQuad;
 class SelectionRect;
-struct Highlight;
 struct PasteboardImage;
 struct PasteboardWebContent;
 #endif
@@ -416,9 +419,9 @@ template<> struct ArgumentCoder<WebCore::ImageHandle> {
     static WARN_UNUSED_RETURN bool decode(Decoder&, WebCore::ImageHandle&);
 };
 
-template<> struct ArgumentCoder<WebCore::NativeImageHandle> {
-    static void encode(Encoder&, const WebCore::NativeImageHandle&);
-    static WARN_UNUSED_RETURN bool decode(Decoder&, WebCore::NativeImageHandle&);
+template<> struct ArgumentCoder<WebCore::NativeImagePtr> {
+    static void encode(Encoder&, const WebCore::NativeImagePtr&);
+    static WARN_UNUSED_RETURN bool decode(Decoder&, WebCore::NativeImagePtr&);
 };
 
 template<> struct ArgumentCoder<WebCore::ResourceRequest> {
@@ -486,9 +489,9 @@ template<> struct ArgumentCoder<WebCore::SelectionRect> {
     static Optional<WebCore::SelectionRect> decode(Decoder&);
 };
 
-template<> struct ArgumentCoder<WebCore::Highlight> {
-    static void encode(Encoder&, const WebCore::Highlight&);
-    static WARN_UNUSED_RETURN bool decode(Decoder&, WebCore::Highlight&);
+template<> struct ArgumentCoder<WebCore::InspectorOverlay::Highlight> {
+    static void encode(Encoder&, const WebCore::InspectorOverlay::Highlight&);
+    static WARN_UNUSED_RETURN bool decode(Decoder&, WebCore::InspectorOverlay::Highlight&);
 };
 
 template<> struct ArgumentCoder<WebCore::PasteboardWebContent> {

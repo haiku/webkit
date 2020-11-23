@@ -467,11 +467,13 @@ bindings/js/GCController.cpp
 bindings/js/IDBBindingUtilities.cpp
 bindings/js/JSAbortControllerCustom.cpp
 bindings/js/JSAbortSignalCustom.cpp
+bindings/js/JSAbstractRangeCustom.cpp
 bindings/js/JSAnimationEffectCustom.cpp
 bindings/js/JSAnimationTimelineCustom.cpp
 bindings/js/JSAttrCustom.cpp
 bindings/js/JSAudioTrackCustom.cpp
 bindings/js/JSAudioTrackListCustom.cpp
+bindings/js/JSAudioWorkletProcessorCustom.cpp
 bindings/js/JSAuthenticatorResponseCustom.cpp
 bindings/js/JSBasicCredentialCustom.cpp
 bindings/js/JSBlobCustom.cpp
@@ -802,6 +804,7 @@ css/typedom/TypedOMCSSUnitValue.cpp
 css/typedom/TypedOMCSSUnparsedValue.cpp
 cssjit/SelectorCompiler.cpp
 display/css/DisplayBox.cpp
+display/css/DisplayBoxModelBox.cpp
 display/css/DisplayContainerBox.cpp
 display/css/DisplayCSSPainter.cpp
 display/css/DisplayImageBox.cpp
@@ -814,6 +817,7 @@ display/DisplayTreeBuilder.cpp
 display/DisplayView.cpp
 dom/AbortController.cpp
 dom/AbortSignal.cpp
+dom/AbstractRange.cpp
 dom/ActiveDOMCallback.cpp
 dom/ActiveDOMObject.cpp
 dom/AllDescendantsCollection.cpp
@@ -1259,6 +1263,7 @@ html/canvas/EXTColorBufferHalfFloat.cpp
 html/canvas/EXTFloatBlend.cpp
 html/canvas/EXTFragDepth.cpp
 html/canvas/EXTShaderTextureLOD.cpp
+html/canvas/EXTTextureCompressionRGTC.cpp
 html/canvas/EXTTextureFilterAnisotropic.cpp
 html/canvas/EXTsRGB.cpp
 html/canvas/GPUBasedCanvasRenderingContext.cpp
@@ -1453,7 +1458,6 @@ layout/blockformatting/BlockMarginCollapse.cpp
 layout/blockformatting/PrecomputedBlockMarginCollapse.cpp
 layout/blockformatting/tablewrapper/TableWrapperBlockFormattingContext.cpp
 layout/blockformatting/tablewrapper/TableWrapperBlockFormattingContextQuirks.cpp
-layout/displaytree/DisplayPainter.cpp
 layout/flexformatting/FlexFormattingContext.cpp
 layout/flexformatting/FlexFormattingContextGeometry.cpp
 layout/flexformatting/FlexFormattingState.cpp
@@ -1893,6 +1897,7 @@ platform/graphics/Gradient.cpp
 platform/graphics/GradientImage.cpp
 platform/graphics/GraphicsContext.cpp
 platform/graphics/GraphicsContextGL.cpp
+platform/graphics/GraphicsContextGLImageExtractor.cpp
 platform/graphics/GraphicsContextImpl.cpp
 platform/graphics/GraphicsLayer.cpp
 platform/graphics/GraphicsLayerTransform.cpp
@@ -2220,6 +2225,7 @@ rendering/RenderView.cpp
 rendering/RenderWidget.cpp
 rendering/RootInlineBox.cpp
 rendering/ScrollAlignment.cpp
+rendering/SelectionRangeData.cpp
 rendering/TableLayout.cpp
 rendering/TextDecorationPainter.cpp
 rendering/TextPaintStyle.cpp
@@ -2651,6 +2657,7 @@ JSANGLEInstancedArrays.cpp
 JSAbortAlgorithm.cpp
 JSAbortController.cpp
 JSAbortSignal.cpp
+JSAbstractRange.cpp
 JSAbstractWorker.cpp
 JSAddressErrors.cpp
 JSAesCbcCfbParams.cpp
@@ -2876,6 +2883,7 @@ JSEXTColorBufferHalfFloat.cpp
 JSEXTFloatBlend.cpp
 JSEXTFragDepth.cpp
 JSEXTShaderTextureLOD.cpp
+JSEXTTextureCompressionRGTC.cpp
 JSEXTTextureFilterAnisotropic.cpp
 JSEXTsRGB.cpp
 JSEcKeyParams.cpp

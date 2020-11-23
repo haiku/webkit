@@ -26,144 +26,77 @@
 #include "config.h"
 #include "TestOptions.h"
 
-#include <fstream>
-#include <string>
-#include <wtf/text/WTFString.h>
+#include "TestOptionsGeneratedKeys.h"
 
-static bool parseBooleanTestHeaderValue(const std::string& value)
+namespace WTR {
+
+const std::unordered_map<std::string, TestHeaderKeyType>& TestOptions::keyTypeMapping()
 {
-    if (value == "true")
-        return true;
-    if (value == "false")
-        return false;
+    static const std::unordered_map<std::string, TestHeaderKeyType> map {
+        GENERATED_WEB_PREFERENCE_KEY_TYPE_MAPPINGS
 
-    LOG_ERROR("Found unexpected value '%s' for boolean option. Expected 'true' or 'false'.", value.c_str());
-    return false;
+        { "dumpJSConsoleLogInStdErr", TestHeaderKeyType::BoolTestRunner },
+        { "enableDragDestinationActionLoad", TestHeaderKeyType::BoolTestRunner },
+        { "layerBackedWebView", TestHeaderKeyType::BoolTestRunner },
+        { "useEphemeralSession", TestHeaderKeyType::BoolTestRunner },
+
+        { "additionalSupportedImageTypes", TestHeaderKeyType::StringTestRunner },
+        { "jscOptions", TestHeaderKeyType::StringTestRunner },
+    };
+
+    return map;
 }
 
-static bool pathContains(const std::string& pathOrURL, const char* substring)
+template<typename T> static void setValueIfSetInMap(T& valueToSet, std::string key, const std::unordered_map<std::string, T>& map)
 {
-    String path(pathOrURL.c_str());
-    return path.contains(substring);
+    auto it = map.find(key);
+    if (it == map.end())
+        return;
+    valueToSet = it->second;
 }
 
-static bool shouldDumpJSConsoleLogInStdErr(const std::string& pathOrURL)
+TestOptions::TestOptions(TestFeatures testFeatures)
 {
-    return pathContains(pathOrURL, "localhost:8800/beacon") || pathContains(pathOrURL, "localhost:9443/beacon")
-        || pathContains(pathOrURL, "localhost:8800/cors") || pathContains(pathOrURL, "localhost:9443/cors")
-        || pathContains(pathOrURL, "localhost:8800/fetch") || pathContains(pathOrURL, "localhost:9443/fetch")
-        || pathContains(pathOrURL, "localhost:8800/service-workers") || pathContains(pathOrURL, "localhost:9443/service-workers")
-        || pathContains(pathOrURL, "localhost:8800/streams/writable-streams") || pathContains(pathOrURL, "localhost:9443/streams/writable-streams")
-        || pathContains(pathOrURL, "localhost:8800/streams/piping") || pathContains(pathOrURL, "localhost:9443/streams/piping")
-        || pathContains(pathOrURL, "localhost:8800/xhr") || pathContains(pathOrURL, "localhost:9443/xhr")
-        || pathContains(pathOrURL, "localhost:8800/webrtc") || pathContains(pathOrURL, "localhost:9443/webrtc")
-        || pathContains(pathOrURL, "localhost:8800/websockets") || pathContains(pathOrURL, "localhost:9443/websockets");
-}
+    setValueIfSetInMap(allowCrossOriginSubresourcesToAskForCredentials, "AllowCrossOriginSubresourcesToAskForCredentials", testFeatures.boolWebPreferenceFeatures);
+    setValueIfSetInMap(allowTopNavigationToDataURLs, "AllowTopNavigationToDataURLs", testFeatures.boolWebPreferenceFeatures);
+    setValueIfSetInMap(enableAcceleratedDrawing, "AcceleratedDrawingEnabled", testFeatures.boolWebPreferenceFeatures);
+    setValueIfSetInMap(enableAttachmentElement, "AttachmentElementEnabled", testFeatures.boolWebPreferenceFeatures);
+    setValueIfSetInMap(enableBackForwardCache, "UsesBackForwardCache", testFeatures.boolWebPreferenceFeatures);
+    setValueIfSetInMap(enableColorFilter, "ColorFilterEnabled", testFeatures.boolWebPreferenceFeatures);
+    setValueIfSetInMap(enableInspectorAdditions, "InspectorAdditionsEnabled", testFeatures.boolWebPreferenceFeatures);
+    setValueIfSetInMap(enableIntersectionObserver, "IntersectionObserverEnabled", testFeatures.boolWebPreferenceFeatures);
+    setValueIfSetInMap(enableKeygenElement, "KeygenElementEnabled", testFeatures.boolWebPreferenceFeatures);
+    setValueIfSetInMap(enableMenuItemElement, "MenuItemElementEnabled", testFeatures.boolWebPreferenceFeatures);
+    setValueIfSetInMap(enableModernMediaControls, "ModernMediaControlsEnabled", testFeatures.boolWebPreferenceFeatures);
 
-TestOptions::TestOptions(const std::string& pathOrURL, const std::string& absolutePath)
-{
-    const auto& path = absolutePath.empty() ? pathOrURL : absolutePath;
-    if (path.empty())
-        return;
+    setValueIfSetInMap(enableDragDestinationActionLoad, "enableDragDestinationActionLoad", testFeatures.boolTestRunnerFeatures);
+    setValueIfSetInMap(dumpJSConsoleLogInStdErr, "dumpJSConsoleLogInStdErr", testFeatures.boolTestRunnerFeatures);
+    setValueIfSetInMap(layerBackedWebView, "layerBackedWebView", testFeatures.boolTestRunnerFeatures);
+    setValueIfSetInMap(useEphemeralSession, "useEphemeralSession", testFeatures.boolTestRunnerFeatures);
 
-    dumpJSConsoleLogInStdErr = shouldDumpJSConsoleLogInStdErr(pathOrURL);
+    setValueIfSetInMap(additionalSupportedImageTypes, "additionalSupportedImageTypes", testFeatures.stringTestRunnerFeatures);
+    setValueIfSetInMap(jscOptions, "jscOptions", testFeatures.stringTestRunnerFeatures);
 
-    std::string options;
-    std::ifstream testFile(path.data());
-    if (!testFile.good())
-        return;
-    getline(testFile, options);
-    std::string beginString("webkit-test-runner [ ");
-    std::string endString(" ]");
-    size_t beginLocation = options.find(beginString);
-    if (beginLocation == std::string::npos)
-        return;
-    size_t endLocation = options.find(endString, beginLocation);
-    if (endLocation == std::string::npos) {
-        LOG_ERROR("Could not find end of test header in %s", path.c_str());
-        return;
-    }
-    std::string pairString = options.substr(beginLocation + beginString.size(), endLocation - (beginLocation + beginString.size()));
-    size_t pairStart = 0;
-    while (pairStart < pairString.size()) {
-        size_t pairEnd = pairString.find(" ", pairStart);
-        if (pairEnd == std::string::npos)
-            pairEnd = pairString.size();
-        size_t equalsLocation = pairString.find("=", pairStart);
-        if (equalsLocation == std::string::npos) {
-            LOG_ERROR("Malformed option in test header (could not find '=' character) in %s", path.c_str());
-            break;
-        }
-        auto key = pairString.substr(pairStart, equalsLocation - pairStart);
-        auto value = pairString.substr(equalsLocation + 1, pairEnd - (equalsLocation + 1));
-        if (key == "enableAttachmentElement")
-            enableAttachmentElement = parseBooleanTestHeaderValue(value);
-        if (key == "useAcceleratedDrawing")
-            useAcceleratedDrawing = parseBooleanTestHeaderValue(value);
-        else if (key == "enableIntersectionObserver")
-            enableIntersectionObserver = parseBooleanTestHeaderValue(value);
-        else if (key == "useEphemeralSession")
-            useEphemeralSession = parseBooleanTestHeaderValue(value);
-        else if (key == "enableBackForwardCache")
-            enableBackForwardCache = parseBooleanTestHeaderValue(value);
-        else if (key == "enableMenuItemElement")
-            enableMenuItemElement = parseBooleanTestHeaderValue(value);
-        else if (key == "enableKeygenElement")
-            enableKeygenElement = parseBooleanTestHeaderValue(value);
-        else if (key == "enableModernMediaControls")
-            enableModernMediaControls = parseBooleanTestHeaderValue(value);
-        else if (key == "enablePointerLock")
-            enablePointerLock = parseBooleanTestHeaderValue(value);
-        else if (key == "enableDragDestinationActionLoad")
-            enableDragDestinationActionLoad = parseBooleanTestHeaderValue(value);
-        else if (key == "layerBackedWebView")
-            layerBackedWebView = parseBooleanTestHeaderValue(value);
-        else if (key == "enableInspectorAdditions")
-            enableInspectorAdditions = parseBooleanTestHeaderValue(value);
-        else if (key == "dumpJSConsoleLogInStdErr")
-            dumpJSConsoleLogInStdErr = parseBooleanTestHeaderValue(value);
-        else if (key == "allowCrossOriginSubresourcesToAskForCredentials")
-            allowCrossOriginSubresourcesToAskForCredentials = parseBooleanTestHeaderValue(value);
-        else if (key == "internal:selectionAcrossShadowBoundariesEnabled")
-            enableSelectionAcrossShadowBoundaries = parseBooleanTestHeaderValue(value);
-        else if (key == "enableColorFilter")
-            enableColorFilter = parseBooleanTestHeaderValue(value);
-        else if (key == "jscOptions")
-            jscOptions = value;
-        else if (key == "additionalSupportedImageTypes")
-            additionalSupportedImageTypes = value;
-        else if (key == "experimental:WebGPUEnabled")
-            enableWebGPU = parseBooleanTestHeaderValue(value);
-        else if (key == "internal:CSSLogicalEnabled")
-            enableCSSLogical = parseBooleanTestHeaderValue(value);
-        else if (key == "internal:LineHeightUnitsEnabled")
-            enableLineHeightUnits = parseBooleanTestHeaderValue(value);
-        else if (key == "experimental:AdClickAttributionEnabled")
-            adClickAttributionEnabled = parseBooleanTestHeaderValue(value);
-        else if (key == "experimental:ResizeObserverEnabled")
-            enableResizeObserver = parseBooleanTestHeaderValue(value);
-        else if (key == "experimental:CSSOMViewSmoothScrollingEnabled")
-            enableCSSOMViewSmoothScrolling = parseBooleanTestHeaderValue(value);
-        else if (key == "experimental:CoreMathMLEnabled")
-            enableCoreMathML = parseBooleanTestHeaderValue(value);
-        else if (key == "experimental:RequestIdleCallbackEnabled")
-            enableRequestIdleCallback = parseBooleanTestHeaderValue(value);
-        else if (key == "experimental:AsyncClipboardAPIEnabled")
-            enableAsyncClipboardAPI = parseBooleanTestHeaderValue(value);
-        else if (key == "internal:LayoutFormattingContextIntegrationEnabled")
-            layoutFormattingContextIntegrationEnabled = parseBooleanTestHeaderValue(value);
-        else if (key == "experimental:AspectRatioOfImgFromWidthAndHeightEnabled")
-            enableAspectRatioOfImgFromWidthAndHeight = parseBooleanTestHeaderValue(value);
-        else if (key == "allowTopNavigationToDataURLs")
-            allowTopNavigationToDataURLs = parseBooleanTestHeaderValue(value);
-        else if (key == "experimental:ContactPickerAPIEnabled")
-            enableContactPickerAPI = parseBooleanTestHeaderValue(value);
-        pairStart = pairEnd + 1;
-    }
+    setValueIfSetInMap(enableCSSLogical, "CSSLogicalEnabled", testFeatures.internalDebugFeatures);
+    setValueIfSetInMap(enableLineHeightUnits, "LineHeightUnitsEnabled", testFeatures.internalDebugFeatures);
+    setValueIfSetInMap(enableSelectionAcrossShadowBoundaries, "selectionAcrossShadowBoundariesEnabled", testFeatures.internalDebugFeatures);
+    setValueIfSetInMap(layoutFormattingContextIntegrationEnabled, "LayoutFormattingContextIntegrationEnabled", testFeatures.internalDebugFeatures);
+
+    setValueIfSetInMap(adClickAttributionEnabled, "AdClickAttributionEnabled", testFeatures.experimentalFeatures);
+    setValueIfSetInMap(enableAspectRatioOfImgFromWidthAndHeight, "AspectRatioOfImgFromWidthAndHeightEnabled", testFeatures.experimentalFeatures);
+    setValueIfSetInMap(enableAsyncClipboardAPI, "AsyncClipboardAPIEnabled", testFeatures.experimentalFeatures);
+    setValueIfSetInMap(enableCSSOMViewSmoothScrolling, "CSSOMViewSmoothScrollingEnabled", testFeatures.experimentalFeatures);
+    setValueIfSetInMap(enableContactPickerAPI, "ContactPickerAPIEnabled", testFeatures.experimentalFeatures);
+    setValueIfSetInMap(enableCoreMathML, "CoreMathMLEnabled", testFeatures.experimentalFeatures);
+    setValueIfSetInMap(enableRequestIdleCallback, "RequestIdleCallbackEnabled", testFeatures.experimentalFeatures);
+    setValueIfSetInMap(enableResizeObserver, "ResizeObserverEnabled", testFeatures.experimentalFeatures);
+    setValueIfSetInMap(enableWebGPU, "WebGPUEnabled", testFeatures.experimentalFeatures);
 }
 
 bool TestOptions::webViewIsCompatibleWithOptions(const TestOptions& other) const
 {
     return other.layerBackedWebView == layerBackedWebView
         && other.jscOptions == jscOptions;
+}
+
 }

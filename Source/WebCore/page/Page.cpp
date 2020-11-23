@@ -2066,11 +2066,39 @@ void Page::stopMediaCapture()
 #endif
 }
 
-void Page::stopAllMediaPlayback()
+bool Page::mediaPlaybackExists()
+{
+#if ENABLE(VIDEO)
+    bool mediaPlaybackExists = false;
+    forEachDocument([&mediaPlaybackExists] (Document& document) {
+        if (document.mediaPlaybackExists())
+            mediaPlaybackExists = true;
+    });
+    return mediaPlaybackExists;
+#else
+    return false;
+#endif
+}
+
+bool Page::mediaPlaybackIsPaused()
+{
+#if ENABLE(VIDEO)
+    bool mediaPlaybackIsPaused = false;
+    forEachDocument([&mediaPlaybackIsPaused] (Document& document) {
+        if (document.mediaPlaybackIsPaused())
+            mediaPlaybackIsPaused = true;
+    });
+    return mediaPlaybackIsPaused;
+#else
+    return false;
+#endif
+}
+
+void Page::pauseAllMediaPlayback()
 {
 #if ENABLE(VIDEO)
     forEachDocument([] (Document& document) {
-        document.stopAllMediaPlayback();
+        document.pauseAllMediaPlayback();
     });
 #endif
 }
@@ -3364,7 +3392,9 @@ WTF::TextStream& operator<<(WTF::TextStream& ts, RenderingUpdateStep step)
     case RenderingUpdateStep::CursorUpdate: ts << "CursorUpdate"; break;
     case RenderingUpdateStep::EventRegionUpdate: ts << "EventRegionUpdate"; break;
     case RenderingUpdateStep::LayerFlush: ts << "LayerFlush"; break;
+#if ENABLE(ASYNC_SCROLLING)
     case RenderingUpdateStep::ScrollingTreeUpdate: ts << "ScrollingTreeUpdate"; break;
+#endif
     }
     return ts;
 }

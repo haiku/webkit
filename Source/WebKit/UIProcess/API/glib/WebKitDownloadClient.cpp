@@ -70,7 +70,7 @@ private:
             webkitWebViewHandleAuthenticationChallenge(webView, &authenticationChallenge);
     }
 
-    void didReceiveResponse(DownloadProxy& downloadProxy, const ResourceResponse& resourceResponse) override
+    void didReceiveResponse(DownloadProxy& downloadProxy, const ResourceResponse& resourceResponse)
     {
         GRefPtr<WebKitDownload> download = webkitWebContextGetOrCreateDownload(&downloadProxy);
         if (webkitDownloadIsCancelled(download.get()))
@@ -86,8 +86,9 @@ private:
         webkitDownloadNotifyProgress(download.get(), length);
     }
 
-    void decideDestinationWithSuggestedFilename(DownloadProxy& downloadProxy, const String& filename, Function<void(AllowOverwrite, String)>&& completionHandler) override
+    void decideDestinationWithSuggestedFilename(DownloadProxy& downloadProxy, const ResourceResponse& resourceResponse, const String& filename, CompletionHandler<void(AllowOverwrite, String)>&& completionHandler) override
     {
+        didReceiveResponse(downloadProxy, resourceResponse);
         GRefPtr<WebKitDownload> download = webkitWebContextGetOrCreateDownload(&downloadProxy);
         bool allowOverwrite = false;
         String destination = webkitDownloadDecideDestinationWithSuggestedFilename(download.get(), filename.utf8(), allowOverwrite);
@@ -111,7 +112,7 @@ private:
         webkitWebContextRemoveDownload(&downloadProxy);
     }
 
-    void didCancel(DownloadProxy& downloadProxy) override
+    void legacyDidCancel(DownloadProxy& downloadProxy) override
     {
         GRefPtr<WebKitDownload> download = webkitWebContextGetOrCreateDownload(&downloadProxy);
         webkitDownloadCancelled(download.get());

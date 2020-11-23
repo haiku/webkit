@@ -47,6 +47,9 @@ namespace WebCore {
 ThreadedScrollingTree::ThreadedScrollingTree(AsyncScrollingCoordinator& scrollingCoordinator)
     : m_scrollingCoordinator(&scrollingCoordinator)
 {
+#if ENABLE(SMOOTH_SCROLLING)
+    m_scrollAnimatorEnabled = scrollingCoordinator.scrollAnimatorEnabled();
+#endif
 }
 
 ThreadedScrollingTree::~ThreadedScrollingTree()
@@ -55,10 +58,10 @@ ThreadedScrollingTree::~ThreadedScrollingTree()
     ASSERT(!m_scrollingCoordinator);
 }
 
-WheelEventHandlingResult ThreadedScrollingTree::handleWheelEvent(const PlatformWheelEvent& wheelEvent)
+WheelEventHandlingResult ThreadedScrollingTree::handleWheelEvent(const PlatformWheelEvent& wheelEvent, OptionSet<WheelEventProcessingSteps> processingSteps)
 {
     ASSERT(ScrollingThread::isCurrentThread());
-    return ScrollingTree::handleWheelEvent(wheelEvent);
+    return ScrollingTree::handleWheelEvent(wheelEvent, processingSteps);
 }
 
 bool ThreadedScrollingTree::handleWheelEventAfterMainThread(const PlatformWheelEvent& wheelEvent, ScrollingNodeID targetNodeID)
@@ -67,7 +70,7 @@ bool ThreadedScrollingTree::handleWheelEventAfterMainThread(const PlatformWheelE
     SetForScope<bool> disallowLatchingScope(m_allowLatching, false);
 
     RefPtr<ScrollingTreeNode> targetNode = nodeForID(targetNodeID);
-    auto result = handleWheelEventWithNode(wheelEvent, targetNode.get());
+    auto result = handleWheelEventWithNode(wheelEvent, { }, targetNode.get());
     return result.wasHandled;
 }
 

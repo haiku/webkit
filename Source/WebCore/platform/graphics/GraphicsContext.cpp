@@ -33,6 +33,8 @@
 #include "GraphicsContextImpl.h"
 #include "ImageBuffer.h"
 #include "IntRect.h"
+#include "MediaPlayer.h"
+#include "MediaPlayerPrivate.h"
 #include "RoundedRect.h"
 #include "TextRun.h"
 #include <wtf/text/TextStream.h>
@@ -729,6 +731,19 @@ void GraphicsContext::drawBidiText(const FontCascade& font, const TextRun& run, 
     bidiRuns.clear();
 }
 
+void GraphicsContext::drawNativeImage(const NativeImagePtr& image, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& options)
+{
+    if (paintingDisabled())
+        return;
+
+    if (m_impl) {
+        m_impl->drawNativeImage(image, imageSize, destRect, srcRect, options);
+        return;
+    }
+
+    platformDrawNativeImage(image, imageSize, destRect, srcRect, options);
+}
+
 ImageDrawResult GraphicsContext::drawImage(Image& image, const FloatPoint& destination, const ImagePaintingOptions& imagePaintingOptions)
 {
     return drawImage(image, FloatRect(destination, image.size()), FloatRect(FloatPoint(), image.size()), imagePaintingOptions);
@@ -1239,6 +1254,7 @@ Vector<FloatPoint> GraphicsContext::centerLineAndCutOffCorners(bool isVerticalLi
 }
 
 #if !USE(CG)
+
 bool GraphicsContext::supportsInternalLinks() const
 {
     return false;
@@ -1251,6 +1267,20 @@ void GraphicsContext::setDestinationForRect(const String&, const FloatRect&)
 void GraphicsContext::addDestinationAtPoint(const String&, const FloatPoint&)
 {
 }
+
 #endif
+
+void GraphicsContext::paintFrameForMedia(MediaPlayer& player, const FloatRect& destination)
+{
+    if (paintingDisabled())
+        return;
+
+    if (m_impl && m_impl->canPaintFrameForMedia()) {
+        m_impl->paintFrameForMedia(player, destination);
+        return;
+    }
+
+    player.playerPrivate()->paintCurrentFrameInContext(*this, destination);
+}
 
 }

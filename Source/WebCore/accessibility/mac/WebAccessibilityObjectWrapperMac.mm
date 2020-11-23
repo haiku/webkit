@@ -1968,19 +1968,19 @@ static void WebTransformCGPathToNSBezierPath(void* info, const CGPathElement *el
 
 - (NSValue *)position
 {
-#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
-    if (AXObjectCache::isIsolatedTreeEnabled())
-        return [NSValue valueWithPoint:self.axBackingObject->relativeFrame().location()];
-#endif
+    auto* backingObject = self.axBackingObject;
+    if (!backingObject)
+        return nil;
 
-    auto rect = snappedIntRect(self.axBackingObject->elementRect());
-    
+    auto rect = snappedIntRect(backingObject->elementRect());
+
     // The Cocoa accessibility API wants the lower-left corner.
-    auto floatPoint = FloatPoint(rect.x(), rect.maxY());
+    FloatPoint floatPoint(rect.x(), rect.maxY());
 
-    auto floatRect = FloatRect(floatPoint, FloatSize());
-    CGPoint cgPoint = [self convertRectToSpace:floatRect space:AccessibilityConversionSpace::Screen].origin;
-    return [NSValue valueWithPoint:NSPointFromCGPoint(cgPoint)];
+    // FIXME: add a function to convert a point, no need to convert a rect when you only need a point.
+    FloatRect floatRect(floatPoint, FloatSize());
+    CGRect cgRect(backingObject->convertRectToPlatformSpace(floatRect, AccessibilityConversionSpace::Screen));
+    return @(cgRect.origin);
 }
 
 - (NSString*)role
@@ -3161,7 +3161,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
         return backingObject->canSetSelectedAttribute();
 
     if ([attributeName isEqualToString: NSAccessibilitySelectedChildrenAttribute])
-        return backingObject->canSetSelectedChildrenAttribute();
+        return backingObject->canSetSelectedChildren();
 
     if ([attributeName isEqualToString:NSAccessibilityDisclosingAttribute]
         || [attributeName isEqualToString:NSAccessibilityExpandedAttribute])
@@ -3549,14 +3549,13 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
         if (!number)
             return;
         backingObject->setSelected([number boolValue]);
-    } else if ([attributeName isEqualToString: NSAccessibilitySelectedChildrenAttribute]) {
-        if (!array)
+    } else if ([attributeName isEqualToString:NSAccessibilitySelectedChildrenAttribute]) {
+        if (!array || !backingObject->canSetSelectedChildren())
             return;
-        if (!backingObject->isNativeListBox())
-            return;
-        AccessibilityObject::AccessibilityChildrenVector selectedChildren;
+
+        AXCoreObject::AccessibilityChildrenVector selectedChildren;
         convertToVector(array, selectedChildren);
-        downcast<AccessibilityListBox>(*backingObject).setSelectedChildren(selectedChildren);
+        backingObject->setSelectedChildren(selectedChildren);
     } else if (backingObject->isTextControl()) {
         if ([attributeName isEqualToString: NSAccessibilitySelectedTextAttribute]) {
             backingObject->setSelectedText(string);

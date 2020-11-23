@@ -185,8 +185,10 @@ void LegacyDownloadClient::processDidCrash(DownloadProxy& downloadProxy)
         [m_delegate _downloadProcessDidCrash:wrapper(downloadProxy)];
 }
 
-void LegacyDownloadClient::decideDestinationWithSuggestedFilename(DownloadProxy& downloadProxy, const String& filename, Function<void(AllowOverwrite, String)>&& completionHandler)
+void LegacyDownloadClient::decideDestinationWithSuggestedFilename(DownloadProxy& downloadProxy, const WebCore::ResourceResponse& response, const String& filename, CompletionHandler<void(AllowOverwrite, String)>&& completionHandler)
 {
+    didReceiveResponse(downloadProxy, response);
+
 #if USE(SYSTEM_PREVIEW)
     if (downloadProxy.isSystemPreviewDownload()) {
         NSString *temporaryDirectory = FileSystem::createTemporaryDirectory(@"SystemPreviews");
@@ -206,7 +208,7 @@ void LegacyDownloadClient::decideDestinationWithSuggestedFilename(DownloadProxy&
         ALLOW_DEPRECATED_DECLARATIONS_END
         completionHandler(allowOverwrite ? AllowOverwrite::Yes : AllowOverwrite::No, destination);
     } else {
-        [m_delegate _download:wrapper(downloadProxy) decideDestinationWithSuggestedFilename:filename completionHandler:makeBlockPtr([checker = CompletionHandlerCallChecker::create(m_delegate.get().get(), @selector(_download:decideDestinationWithSuggestedFilename:completionHandler:)), completionHandler = WTFMove(completionHandler)] (BOOL allowOverwrite, NSString *destination) {
+        [m_delegate _download:wrapper(downloadProxy) decideDestinationWithSuggestedFilename:filename completionHandler:makeBlockPtr([checker = CompletionHandlerCallChecker::create(m_delegate.get().get(), @selector(_download:decideDestinationWithSuggestedFilename:completionHandler:)), completionHandler = WTFMove(completionHandler)] (BOOL allowOverwrite, NSString *destination) mutable {
             if (checker->completionHandlerHasBeenCalled())
                 return;
             checker->didCallCompletionHandler();
@@ -249,7 +251,7 @@ void LegacyDownloadClient::didFail(DownloadProxy& downloadProxy, const WebCore::
         [m_delegate _download:wrapper(downloadProxy) didFailWithError:error.nsError()];
 }
 
-void LegacyDownloadClient::didCancel(DownloadProxy& downloadProxy)
+void LegacyDownloadClient::legacyDidCancel(DownloadProxy& downloadProxy)
 {
 #if USE(SYSTEM_PREVIEW)
     if (downloadProxy.isSystemPreviewDownload()) {

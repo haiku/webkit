@@ -33,6 +33,7 @@
 #include "Gradient.h"
 #include "Image.h"
 #include "ImageData.h"
+#include "MediaPlayerIdentifier.h"
 #include "Pattern.h"
 #include "SharedBuffer.h"
 #include <wtf/TypeCasts.h>
@@ -44,6 +45,7 @@ class TextStream;
 namespace WebCore {
 
 class ImageData;
+class MediaPlayer;
 struct ImagePaintingOptions;
 
 namespace DisplayList {
@@ -1100,24 +1102,21 @@ Optional<Ref<ClipToDrawingCommands>> ClipToDrawingCommands::decode(Decoder& deco
 
 class DrawGlyphs : public DrawingItem {
 public:
-    static Ref<DrawGlyphs> create(const Font& font, const GlyphBufferGlyph* glyphs, const GlyphBufferAdvance* advances, unsigned count, const FloatPoint& blockLocation, const FloatSize& localAnchor, FontSmoothingMode smoothingMode)
+    static Ref<DrawGlyphs> create(const Font& font, const GlyphBufferGlyph* glyphs, const GlyphBufferAdvance* advances, unsigned count, const FloatPoint& localAnchor, FontSmoothingMode smoothingMode)
     {
-        return adoptRef(*new DrawGlyphs(font, glyphs, advances, count, blockLocation, localAnchor, smoothingMode));
+        return adoptRef(*new DrawGlyphs(font, glyphs, advances, count, localAnchor, smoothingMode));
     }
 
-    static Ref<DrawGlyphs> create(const Font& font, Vector<GlyphBufferGlyph, 128>&& glyphs, Vector<GlyphBufferAdvance, 128>&& advances, const FloatPoint& blockLocation, const FloatSize& localAnchor, FontSmoothingMode smoothingMode)
+    static Ref<DrawGlyphs> create(const Font& font, Vector<GlyphBufferGlyph, 128>&& glyphs, Vector<GlyphBufferAdvance, 128>&& advances, const FloatPoint& localAnchor, FontSmoothingMode smoothingMode)
     {
-        return adoptRef(*new DrawGlyphs(font, WTFMove(glyphs), WTFMove(advances), blockLocation, localAnchor, smoothingMode));
+        return adoptRef(*new DrawGlyphs(font, WTFMove(glyphs), WTFMove(advances), localAnchor, smoothingMode));
     }
 
     WEBCORE_EXPORT virtual ~DrawGlyphs();
 
-    const FloatPoint& blockLocation() const { return m_blockLocation; }
-    void setBlockLocation(const FloatPoint& blockLocation) { m_blockLocation = blockLocation; }
+    const FloatPoint& localAnchor() const { return m_localAnchor; }
 
-    const FloatSize& localAnchor() const { return m_localAnchor; }
-
-    FloatPoint anchorPoint() const { return m_blockLocation + m_localAnchor; }
+    FloatPoint anchorPoint() const { return m_localAnchor; }
 
     const Vector<GlyphBufferGlyph, 128>& glyphs() const { return m_glyphs; }
 
@@ -1125,8 +1124,8 @@ public:
     template<class Decoder> static Optional<Ref<DrawGlyphs>> decode(Decoder&);
 
 private:
-    DrawGlyphs(const Font&, const GlyphBufferGlyph*, const GlyphBufferAdvance*, unsigned count, const FloatPoint& blockLocation, const FloatSize& localAnchor, FontSmoothingMode);
-    WEBCORE_EXPORT DrawGlyphs(const Font&, Vector<GlyphBufferGlyph, 128>&&, Vector<GlyphBufferAdvance, 128>&&, const FloatPoint& blockLocation, const FloatSize& localAnchor, FontSmoothingMode);
+    DrawGlyphs(const Font&, const GlyphBufferGlyph*, const GlyphBufferAdvance*, unsigned count, const FloatPoint& localAnchor, FontSmoothingMode);
+    WEBCORE_EXPORT DrawGlyphs(const Font&, Vector<GlyphBufferGlyph, 128>&&, Vector<GlyphBufferAdvance, 128>&&, const FloatPoint& localAnchor, FontSmoothingMode);
 
     void computeBounds();
 
@@ -1140,8 +1139,7 @@ private:
     Vector<GlyphBufferGlyph, 128> m_glyphs;
     Vector<GlyphBufferAdvance, 128> m_advances;
     FloatRect m_bounds;
-    FloatPoint m_blockLocation;
-    FloatSize m_localAnchor;
+    FloatPoint m_localAnchor;
     FontSmoothingMode m_smoothingMode;
 };
 
@@ -1151,7 +1149,6 @@ void DrawGlyphs::encode(Encoder& encoder) const
     encoder << m_font;
     encoder << m_glyphs;
     encoder << m_advances;
-    encoder << m_blockLocation;
     encoder << m_localAnchor;
     encoder << m_smoothingMode;
 }
@@ -1177,12 +1174,7 @@ Optional<Ref<DrawGlyphs>> DrawGlyphs::decode(Decoder& decoder)
     if (glyphs->size() != advances->size())
         return WTF::nullopt;
 
-    Optional<FloatPoint> blockLocation;
-    decoder >> blockLocation;
-    if (!blockLocation)
-        return WTF::nullopt;
-
-    Optional<FloatSize> localAnchor;
+    Optional<FloatPoint> localAnchor;
     decoder >> localAnchor;
     if (!localAnchor)
         return WTF::nullopt;
@@ -1192,7 +1184,7 @@ Optional<Ref<DrawGlyphs>> DrawGlyphs::decode(Decoder& decoder)
     if (!smoothingMode)
         return WTF::nullopt;
 
-    return DrawGlyphs::create(font->get(), WTFMove(*glyphs), WTFMove(*advances), *blockLocation, *localAnchor, *smoothingMode);
+    return DrawGlyphs::create(font->get(), WTFMove(*glyphs), WTFMove(*advances), *localAnchor, *smoothingMode);
 }
 
 class DrawImage : public DrawingItem {
@@ -1430,7 +1422,6 @@ Optional<Ref<DrawTiledScaledImage>> DrawTiledScaledImage::decode(Decoder& decode
     return DrawTiledScaledImage::create(*imageHandle->image, *destination, *source, *tileScaleFactor, hRule, vRule, *imagePaintingOptions);
 }
 
-#if USE(CG) || USE(CAIRO) || USE(DIRECT2D) || USE(HAIKU)
 class DrawNativeImage : public DrawingItem {
 public:
     static Ref<DrawNativeImage> create(const NativeImagePtr& image, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& options)
@@ -1453,9 +1444,7 @@ private:
 
     Optional<FloatRect> localBounds(const GraphicsContext&) const override { return m_destinationRect; }
 
-#if USE(CG)
     NativeImagePtr m_image;
-#endif
     FloatSize m_imageSize;
     FloatRect m_destinationRect;
     FloatRect m_srcRect;
@@ -1465,10 +1454,7 @@ private:
 template<class Encoder>
 void DrawNativeImage::encode(Encoder& encoder) const
 {
-#if USE(CG)
-    NativeImageHandle handle { m_image };
-    encoder << handle;
-#endif
+    encoder << m_image;
     encoder << m_imageSize;
     encoder << m_destinationRect;
     encoder << m_srcRect;
@@ -1478,12 +1464,10 @@ void DrawNativeImage::encode(Encoder& encoder) const
 template<class Decoder>
 Optional<Ref<DrawNativeImage>> DrawNativeImage::decode(Decoder& decoder)
 {
-#if USE(CG)
-    Optional<NativeImageHandle> handle;
-    decoder >> handle;
-    if (!handle)
+    Optional<NativeImagePtr> image;
+    decoder >> image;
+    if (!image)
         return WTF::nullopt;
-#endif
 
     Optional<FloatSize> imageSize;
     decoder >> imageSize;
@@ -1505,14 +1489,8 @@ Optional<Ref<DrawNativeImage>> DrawNativeImage::decode(Decoder& decoder)
     if (!options)
         return WTF::nullopt;
 
-#if USE(CG)
-    NativeImagePtr image = handle->image;
-#else
-    NativeImagePtr image = nullptr;
-#endif
-    return DrawNativeImage::create(image, *imageSize, *destinationRect, *srcRect, *options);
+    return DrawNativeImage::create(*image, *imageSize, *destinationRect, *srcRect, *options);
 }
-#endif
 
 class DrawPattern : public DrawingItem {
 public:
@@ -2582,6 +2560,53 @@ Optional<Ref<PutImageData>> PutImageData::decode(Decoder& decoder)
     return PutImageData::create(*inputFormat, WTFMove(*imageData), *srcRect, *destPoint, *destFormat);
 }
 
+class PaintFrameForMedia : public DrawingItem {
+public:
+    static Ref<PaintFrameForMedia> create(MediaPlayer&, const FloatRect& destination);
+
+    WEBCORE_EXPORT virtual ~PaintFrameForMedia();
+
+    const FloatRect& destination() const { return m_destination; }
+    MediaPlayerIdentifier identifier() const { return m_identifier; }
+
+    template<class Encoder> void encode(Encoder&) const;
+    template<class Decoder> static Optional<Ref<PaintFrameForMedia>> decode(Decoder&);
+
+private:
+    WEBCORE_EXPORT static Ref<PaintFrameForMedia> create(MediaPlayerIdentifier, const FloatRect& destination);
+
+    PaintFrameForMedia(MediaPlayer&, const FloatRect& destination);
+    PaintFrameForMedia(MediaPlayerIdentifier, const FloatRect& destination);
+
+    void apply(GraphicsContext&) const override;
+
+    MediaPlayerIdentifier m_identifier;
+    FloatRect m_destination;
+};
+
+template<class Encoder>
+void PaintFrameForMedia::encode(Encoder& encoder) const
+{
+    encoder << m_identifier;
+    encoder << m_destination;
+}
+
+template<class Decoder>
+Optional<Ref<PaintFrameForMedia>> PaintFrameForMedia::decode(Decoder& decoder)
+{
+    Optional<MediaPlayerIdentifier> identifier;
+    decoder >> identifier;
+    if (!identifier)
+        return WTF::nullopt;
+
+    Optional<FloatRect> destination;
+    decoder >> destination;
+    if (!destination)
+        return WTF::nullopt;
+
+    return PaintFrameForMedia::create(*identifier, *destination);
+}
+
 class StrokeRect : public DrawingItem {
 public:
     static Ref<StrokeRect> create(const FloatRect& rect, float lineWidth)
@@ -2924,11 +2949,9 @@ void Item::encode(Encoder& encoder) const
     case ItemType::DrawTiledScaledImage:
         encoder << downcast<DrawTiledScaledImage>(*this);
         break;
-#if USE(CG) || USE(CAIRO) || USE(DIRECT2D) || USE(HAIKU)
     case ItemType::DrawNativeImage:
         encoder << downcast<DrawNativeImage>(*this);
         break;
-#endif
     case ItemType::DrawPattern:
         encoder << downcast<DrawPattern>(*this);
         break;
@@ -2982,6 +3005,9 @@ void Item::encode(Encoder& encoder) const
         break;
     case ItemType::PutImageData:
         encoder << downcast<PutImageData>(*this);
+        break;
+    case ItemType::PaintFrameForMedia:
+        encoder << downcast<PaintFrameForMedia>(*this);
         break;
     case ItemType::StrokeRect:
         encoder << downcast<StrokeRect>(*this);
@@ -3112,12 +3138,10 @@ Optional<Ref<Item>> Item::decode(Decoder& decoder)
         if (auto item = DrawTiledScaledImage::decode(decoder))
             return static_reference_cast<Item>(WTFMove(*item));
         break;
-#if USE(CG) || USE(CAIRO) || USE(DIRECT2D) || USE(HAIKU)
     case ItemType::DrawNativeImage:
         if (auto item = DrawNativeImage::decode(decoder))
             return static_reference_cast<Item>(WTFMove(*item));
         break;
-#endif
     case ItemType::DrawPattern:
         if (auto item = DrawPattern::decode(decoder))
             return static_reference_cast<Item>(WTFMove(*item));
@@ -3188,6 +3212,10 @@ Optional<Ref<Item>> Item::decode(Decoder& decoder)
         break;
     case ItemType::PutImageData:
         if (auto item = PutImageData::decode(decoder))
+            return static_reference_cast<Item>(WTFMove(*item));
+        break;
+    case ItemType::PaintFrameForMedia:
+        if (auto item = PaintFrameForMedia::decode(decoder))
             return static_reference_cast<Item>(WTFMove(*item));
         break;
     case ItemType::StrokeRect:
@@ -3270,9 +3298,7 @@ SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(DrawGlyphs)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(DrawImage)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(DrawTiledImage)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(DrawTiledScaledImage)
-#if USE(CG) || USE(CAIRO) || USE(HAIKU)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(DrawNativeImage)
-#endif
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(DrawPattern)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(DrawRect)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(DrawLine)
@@ -3291,6 +3317,7 @@ SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(FillRectWithRoundedHole)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(FillPath)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(FillEllipse)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(PutImageData)
+SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(PaintFrameForMedia)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(StrokeRect)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(StrokePath)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(StrokeEllipse)
@@ -3331,9 +3358,7 @@ template<> struct EnumTraits<WebCore::DisplayList::ItemType> {
     WebCore::DisplayList::ItemType::DrawImage,
     WebCore::DisplayList::ItemType::DrawTiledImage,
     WebCore::DisplayList::ItemType::DrawTiledScaledImage,
-#if USE(CG) || USE(CAIRO) || USE(DIRECT2D) || USE(HAIKU)
     WebCore::DisplayList::ItemType::DrawNativeImage,
-#endif
     WebCore::DisplayList::ItemType::DrawPattern,
     WebCore::DisplayList::ItemType::DrawRect,
     WebCore::DisplayList::ItemType::DrawLine,
@@ -3352,6 +3377,7 @@ template<> struct EnumTraits<WebCore::DisplayList::ItemType> {
     WebCore::DisplayList::ItemType::FillPath,
     WebCore::DisplayList::ItemType::FillEllipse,
     WebCore::DisplayList::ItemType::PutImageData,
+    WebCore::DisplayList::ItemType::PaintFrameForMedia,
     WebCore::DisplayList::ItemType::StrokeRect,
     WebCore::DisplayList::ItemType::StrokePath,
     WebCore::DisplayList::ItemType::StrokeEllipse,

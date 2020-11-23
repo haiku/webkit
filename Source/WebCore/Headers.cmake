@@ -371,6 +371,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     display/css/DisplayReplacedBox.h
     display/css/DisplayStyle.h
 
+    dom/AbstractRange.h
     dom/ActiveDOMCallback.h
     dom/ActiveDOMObject.h
     dom/Attr.h
@@ -1067,11 +1068,14 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/audio/AudioIOCallback.h
     platform/audio/AudioSession.h
     platform/audio/AudioSourceProvider.h
+    platform/audio/AudioSourceProviderClient.h
     platform/audio/AudioStreamDescription.h
+    platform/audio/AudioUtilities.h
     platform/audio/NowPlayingInfo.h
     platform/audio/PlatformAudioData.h
     platform/audio/PlatformMediaSession.h
     platform/audio/PlatformMediaSessionManager.h
+    platform/audio/PushPullFIFO.h
 
     platform/encryptedmedia/CDMEncryptionScheme.h
     platform/encryptedmedia/CDMFactory.h
@@ -1091,6 +1095,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/gamepad/GamepadProvider.h
     platform/gamepad/GamepadProviderClient.h
     platform/gamepad/PlatformGamepad.h
+    platform/gamepad/SharedGamepadValue.h
 
     platform/graphics/AlphaPremultiplication.h
     platform/graphics/ANGLEWebKitBridge.h
@@ -1194,6 +1199,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/MediaPlayerPrivate.h
     platform/graphics/MediaUsageInfo.h
     platform/graphics/NativeImage.h
+    platform/graphics/NativeImagePtr.h
     platform/graphics/OpenGLESShims.h
     platform/graphics/OpenGLShims.h
     platform/graphics/Path.h
@@ -1207,6 +1213,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/PlatformTextTrack.h
     platform/graphics/PlatformTimeRanges.h
     platform/graphics/Region.h
+    platform/graphics/RemoteResourceIdentifier.h
     platform/graphics/RemoteVideoSample.h
     platform/graphics/RenderingMode.h
     platform/graphics/RoundedRect.h
@@ -1218,6 +1225,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/TrackPrivateBase.h
     platform/graphics/VelocityData.h
     platform/graphics/VideoLayerManager.h
+    platform/graphics/VideoPlaybackQualityMetrics.h
     platform/graphics/VideoTrackPrivate.h
     platform/graphics/WidthCache.h
     platform/graphics/WindRule.h
@@ -1435,6 +1443,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     rendering/RenderWidget.h
     rendering/RootInlineBox.h
     rendering/ScrollAlignment.h
+    rendering/SelectionRangeData.h
 
     rendering/line/LineWidth.h
     rendering/line/TrailingObjects.h
@@ -1582,6 +1591,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     ${WebCore_DERIVED_SOURCES_DIR}/HTMLElementTypeHelpers.h
     ${WebCore_DERIVED_SOURCES_DIR}/HTMLNames.h
     ${WebCore_DERIVED_SOURCES_DIR}/HTTPHeaderNames.h
+    ${WebCore_DERIVED_SOURCES_DIR}/JSAbstractRange.h
     ${WebCore_DERIVED_SOURCES_DIR}/JSBlob.h
     ${WebCore_DERIVED_SOURCES_DIR}/JSCSSRule.h
     ${WebCore_DERIVED_SOURCES_DIR}/JSCSSRuleList.h

@@ -72,6 +72,7 @@ class EXTBlendMinMax;
 class EXTColorBufferFloat;
 class EXTColorBufferHalfFloat;
 class EXTFloatBlend;
+class EXTTextureCompressionRGTC;
 class EXTTextureFilterAnisotropic;
 class EXTShaderTextureLOD;
 class EXTsRGB;
@@ -428,6 +429,7 @@ protected:
     WebGLRenderingContextBase(CanvasBase&, WebGLContextAttributes);
     WebGLRenderingContextBase(CanvasBase&, Ref<GraphicsContextGLOpenGL>&&, WebGLContextAttributes);
 
+    friend class EXTTextureCompressionRGTC;
     friend class WebGLDrawBuffers;
     friend class WebGLFramebuffer;
     friend class WebGLObject;
@@ -669,6 +671,7 @@ protected:
     RefPtr<EXTFragDepth> m_extFragDepth;
     RefPtr<EXTBlendMinMax> m_extBlendMinMax;
     RefPtr<EXTsRGB> m_extsRGB;
+    RefPtr<EXTTextureCompressionRGTC> m_extTextureCompressionRGTC;
     RefPtr<EXTTextureFilterAnisotropic> m_extTextureFilterAnisotropic;
     RefPtr<EXTShaderTextureLOD> m_extShaderTextureLOD;
     RefPtr<OESTextureFloat> m_oesTextureFloat;
@@ -848,9 +851,9 @@ protected:
     void texImage2DBase(GCGLenum target, GCGLint level, GCGLenum internalformat, GCGLsizei width, GCGLsizei height, GCGLint border, GCGLenum format, GCGLenum type, GCGLsizei byteLength, const void* pixels);
     void texSubImage2DBase(GCGLenum target, GCGLint level, GCGLint xoffset, GCGLint yoffset, GCGLsizei width, GCGLsizei height, GCGLenum internalformat, GCGLenum format, GCGLenum type, GCGLsizei byteLength, const void* pixels);
     static const char* getTexImageFunctionName(TexImageFunctionID);
-
-    virtual GraphicsContextGLOpenGL::PixelStoreParams getPackPixelStoreParams() const;
-    virtual GraphicsContextGLOpenGL::PixelStoreParams getUnpackPixelStoreParams(TexImageDimension) const;
+    using PixelStoreParams = GraphicsContextGL::PixelStoreParams;
+    virtual PixelStoreParams getPackPixelStoreParams() const;
+    virtual PixelStoreParams getUnpackPixelStoreParams(TexImageDimension) const;
 
 #if !USE(ANGLE)
     bool checkTextureCompleteness(const char*, bool);

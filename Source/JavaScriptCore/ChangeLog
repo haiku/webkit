@@ -1,3 +1,777 @@
+2020-10-18  David Kilzer  <ddkilzer@apple.com>
+
+        Fix -Wdeprecated-copy warnings in WTF and JavaScriptCore
+        <https://webkit.org/b/217855>
+        <rdar://problem/67716914>
+
+        Reviewed by Darin Adler.
+
+        * assembler/ARM64Assembler.h:
+        (JSC::ARM64Assembler::LinkRecord::LinkRecord): Add.
+        - Implement the copy constructor since the compiler may not
+          have implemented it the same way as the copy assignment
+          operator.
+        (JSC::ARM64Assembler::LinkRecord::operator=):
+        - Fix return type of copy assignment operator and simplify it.
+
+2020-10-18  Caio Lima  <ticaiolima@gmail.com>
+
+        [ESNext][JIT] Add support for UntypedUse on PutPrivateName's base operand
+        https://bugs.webkit.org/show_bug.cgi?id=217373
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch is adding UntypedUse for `PutPrivateName`'s base operand to
+        avoid a OSR when we have a non-cell base.
+        Also, it is fixing a bug on private field operations `get_private_name` and
+        `put_private_name` to call `ToObject` on base to properly support
+        class fields spec text[1][2].
+
+        [1] - https://tc39.es/proposal-class-fields/#sec-getvalue
+        [2] - https://tc39.es/proposal-class-fields/#sec-putvalue
+
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compilePutPrivateName):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compilePutPrivateName):
+        * jit/JITOperations.cpp:
+        (JSC::setPrivateField):
+        (JSC::definePrivateField):
+        (JSC::JSC_DEFINE_JIT_OPERATION):
+        (JSC::getPrivateName):
+        * jit/JITPropertyAccess.cpp:
+        (JSC::JIT::emit_op_put_private_name):
+        * jit/JITPropertyAccess32_64.cpp:
+        (JSC::JIT::emit_op_put_private_name):
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::LLINT_SLOW_PATH_DECL):
+        * runtime/CommonSlowPaths.cpp:
+
+        Previous implementation was wrongly considering that base was always
+        an object, causing segmentation fault when base was not an object.
+        We changed this to handle cases when base is not and object, following
+        what spec text specifies.
+
+2020-10-17  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Unreviewed fix for r268640
+        https://bugs.webkit.org/show_bug.cgi?id=217883
+
+        It seems I made a late adjustment that test262 was unhappy with; this reverts just that line.
+
+        * runtime/JSGenericTypedArrayViewInlines.h:
+        (JSC::JSGenericTypedArrayView<Adaptor>::defineOwnProperty):
+
+2020-10-17  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Ensure %TypedArray% essential internal methods adhere to spec
+        https://bugs.webkit.org/show_bug.cgi?id=217854
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch addresses https://github.com/tc39/ecma262/pull/2164,
+        which aligns detached buffer semantics in typed arrays with web reality.
+
+        In particular:
+        - [[HasProperty]] must not throw
+        - IntegerIndexedElementGet (i.e. [[GetOwnProperty]] and [[Get]]) must not throw
+        - IntegerIndexedElementSet (i.e. [[DefineOwnProperty]] and [[Set]]) must not throw
+        - Integer-indexed elements must be [[Configurable]] (to avoid breaking a [[HasProperty]] invariant)
+        - [[Delete]] must be overridden to return false for integer-indexed elements (which are *not* deletable)
+
+        This patch furthermore ensures that all of these essential internal methods have a spec-perfect implementation.
+
+        Note that there are a couple of interesting ripple effects here:
+        - The fill(), sort(), and set() methods should throw explicitly, but we'd been letting [[Get]] throw instead.
+        - Other callback-taking methods should *not* throw anymore; they only did so implicitly via [[Get]] and [[Set]].
+
+        * builtins/TypedArrayPrototype.js:
+        (fill):
+        (sort):
+        * runtime/JSGenericTypedArrayView.h:
+        * runtime/JSGenericTypedArrayViewInlines.h:
+        (JSC::JSGenericTypedArrayView<Adaptor>::set):
+        (JSC::JSGenericTypedArrayView<Adaptor>::getOwnPropertySlot):
+        (JSC::JSGenericTypedArrayView<Adaptor>::put):
+        (JSC::JSGenericTypedArrayView<Adaptor>::defineOwnProperty):
+        (JSC::JSGenericTypedArrayView<Adaptor>::deleteProperty):
+        (JSC::JSGenericTypedArrayView<Adaptor>::getOwnPropertySlotByIndex):
+        (JSC::JSGenericTypedArrayView<Adaptor>::deletePropertyByIndex):
+        * runtime/JSGlobalObjectFunctions.h:
+        * runtime/JSObjectInlines.h:
+        (JSC::JSObject::getPropertySlot):
+        (JSC::JSObject::getNonIndexPropertySlot):
+        * runtime/JSTypedArrays.cpp:
+
+2020-10-16  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(r266074): line-based JavaScript breakpoints don't hit after reload
+        https://bugs.webkit.org/show_bug.cgi?id=217862
+
+        Reviewed by Timothy Hatcher.
+
+        * inspector/agents/InspectorDebuggerAgent.cpp:
+        (Inspector::InspectorDebuggerAgent::clearDebuggerBreakpointState):
+        Don't clear the list of protocol breakpoints when the global object changes. Protocol
+        breakpoints should only be cleared when individually removed or by `Debugger.disable`.
+
+2020-10-16  Saam Barati  <sbarati@apple.com>
+
+        Don't emit OpSpread with a constant as the destination
+        https://bugs.webkit.org/show_bug.cgi?id=217800
+        <rdar://problem/69492311>
+
+        Reviewed by Yusuke Suzuki.
+
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::emitCall):
+        (JSC::BytecodeGenerator::emitConstruct):
+
+2020-10-16  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        REGRESSION(r267727): Warning spam from JSC_DECLARE_CUSTOM_GETTER
+        https://bugs.webkit.org/show_bug.cgi?id=217585
+
+        Reviewed by Yusuke Suzuki.
+
+        A small number of source files now need to use JSC_DECLARE_CUSTOM_GETTER_WITHOUT_WTF_INTERNAL.
+
+        * b3/testb3_5.cpp:
+        * b3/testb3_7.cpp:
+        * tools/JSDollarVM.cpp:
+
+2020-10-15  Saam Barati  <sbarati@apple.com>
+
+        Don't assign a bogus register to Load/ForwardVarargs in AvailabilityAnalysis before stack layout
+        https://bugs.webkit.org/show_bug.cgi?id=217789
+        <rdar://problem/69285703>
+
+        Reviewed by Keith Miller.
+
+        There is code inside AvailabilityAnalysis phase that was assuming the
+        Load/ForwardVarargs data was already stack allocated. However, this isn't
+        guaranteed to be the case. However, we were doing virtual register math on
+        invalid virtual registers, leading to wonky results. The fix here is to
+        model it like we do GetStack/PutStack, where we say, before we do stack
+        allocation, we just tell availability analysis the flush format, but not
+        where it's flushed.
+        
+        This was causing validation errors when merging these invalid FlushedAts with
+        the FlushedAts from GetStack/PutStack.
+
+        * dfg/DFGOSRAvailabilityAnalysisPhase.cpp:
+        (JSC::DFG::LocalOSRAvailabilityCalculator::executeNode):
+
+2020-10-15  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        REGRESSION (r268489): test/built-ins/Object/entries/order-after-define-property.js failing on test262 bots
+        https://bugs.webkit.org/show_bug.cgi?id=217738
+
+        Reviewed by Yusuke Suzuki.
+
+        This change fixes an oversight of r268489 that caused Object.entries to
+        return a sparse array if its argument contained non-enumerable properties.
+
+        * builtins/ObjectConstructor.js:
+        (entries):
+
+2020-10-14  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Use @putByValDirect instead of Array.prototype.@push in built-ins
+        https://bugs.webkit.org/show_bug.cgi?id=175432
+
+        Reviewed by Yusuke Suzuki.
+
+        Before this patch, Array.prototype.@push was used to implement List spec type,
+        stacks / queues, and in place of CreateDataProperty [1].
+        It's undesirably observable since elements are pushed using [[Set]],
+        affecting indexed properties on prototypes [2].
+
+        This change introduces @arrayPush() intrinsic to use with lists / stacks / queues.
+        @arrayPush() should only be used with JSArray receivers because "length" isn't
+        incremented. Unlike Array.prototype.@push, it doesn't grow arrays beyond UINT_MAX,
+        which is OK for current use cases. Object.entries microbenchmark is neutral.
+
+        Despite Array.prototype.@shift also performing [[Set]], it's safe to use with
+        non-sparse receivers.
+
+        [1]: https://tc39.es/ecma262/#sec-createarrayfromlist (step 4.a)
+        [2]: https://tc39.es/ecma262/#sec-array.prototype.push (step 5.a)
+
+        * builtins/ArrayPrototype.js:
+        (globalPrivate.sortBucketSort):
+        * builtins/ObjectConstructor.js:
+        (entries):
+        * builtins/RegExpPrototype.js:
+        (globalPrivate.matchSlow):
+        (Symbol.replace):
+        (Symbol.split):
+        * builtins/TypedArrayPrototype.js:
+        (filter):
+        * bytecode/BytecodeIntrinsicRegistry.h:
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::BytecodeIntrinsicNode::emit_intrinsic_arrayPush):
+        * runtime/ArrayPrototype.cpp:
+        (JSC::ArrayPrototype::finishCreation):
+
+2020-10-14  Don Olmstead  <don.olmstead@sony.com>
+
+        Non-unified build fixes, mid October 2020
+        https://bugs.webkit.org/show_bug.cgi?id=217721
+
+        Reviewed by Yusuke Suzuki.
+
+        * API/JSContextRef.cpp:
+        * dfg/DFGDoesGCCheck.cpp:
+        * llint/LLIntExceptions.cpp:
+        * llint/LLIntExceptions.h:
+        * llint/LLIntThunks.h:
+
+2020-10-13  Saam Barati  <sbarati@apple.com>
+
+        JSObject::getPropertyNames should have a stack overflow check
+        https://bugs.webkit.org/show_bug.cgi?id=217677
+        <rdar://problem/69286436>
+
+        Reviewed by Tadeu Zagallo.
+
+        A prototype chain can be long enough where the recursion causes a stack
+        overflow. The attached test case uses $vm to mimic such a prototype chain
+        by using JSProxy to make a cyclic prototype chain. But the same works by
+        making a prototype chain very long, but the test case takes too long to
+        run to justify landing. For posterity, the alternate test case is:
+        
+        ```
+        function makeLongProtoChain(length) {
+            let object = /foo/;
+            for (let i = 0; i < length; ++i) {
+                next = /foo/;
+                next.__proto__ = object;
+                object = next;
+            }
+            return object;
+        }
+        
+        let o = makeLongProtoChain(30000);
+        for (let q in o) {}
+        ```
+
+        * runtime/JSObject.cpp:
+        (JSC::JSObject::getPropertyNames):
+
+2020-10-13  Keith Rollin  <krollin@apple.com>
+
+        Remove leftover MACOSX_DEPLOYMENT_TARGET_macosx support
+        https://bugs.webkit.org/show_bug.cgi?id=217649
+        <rdar://problem/70236877>
+
+        Reviewed by Darin Adler.
+
+        Bug 42796 introduced MACOSX_DEPLOYMENT_TARGET_<PLATFORM> as "support
+        for compiling WebKit against iOS SDKs". Support for the iOS part of
+        this feature was later removed in several changes, including Bug
+        139212, Bug 139463 and Bug 144762. However, vestiges have remained for
+        five or six years in the form of MACOSX_DEPLOYMENT_TARGET_macosx. The
+        inclusion of the platform in MACOSX_DEPLOYMENT_TARGET is no longer
+        needed and can be removed.
+
+        This changes brings most projects in conformance with other projects
+        that don't support including the platform in MACOSX_DEPLOYMENT_TARGET,
+        including WebEditingTester, gtest, WebKitTestRunner, MiniBrowser, and
+        TestWebKitAPI.
+
+        Along the way, remove a couple of left-over references to macOS 10.16,
+        and a couple of places where [sdk=macosx*] was still being used.
+
+        With this change, initialization of MACOSX_DEPLOYMENT_TARGET should be
+        consistent across all projects, with two exceptions: WebKitLauncher
+        (which hardcodes it to 10.12) and libwebrtc's copy of googletest
+        (which hardcodes it to 10.4). The reasons for these hard-coded values
+        is not apparent, so leave them be.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-12  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        JIT operations do not need extern "C"
+        https://bugs.webkit.org/show_bug.cgi?id=217636
+
+        Reviewed by Saam Barati.
+
+        Since they are directly embedded by JIT code generator (not linked via linker), they do not need to be C linkage.
+
+        * dfg/DFGOperations.cpp:
+        * dfg/DFGOperations.h:
+        * ftl/FTLOSRExitCompiler.cpp:
+        * ftl/FTLOSRExitCompiler.h:
+        * ftl/FTLOperations.cpp:
+        * ftl/FTLOperations.h:
+        * jit/JITOperations.cpp:
+        * jit/JITOperations.h:
+
+2020-10-12  Saam Barati  <sbarati@apple.com>
+
+        Array.prototype.sort's sortBucketSort accesses an array in an invalid way that can lead to incorrect results with indexed properties on the prototype chain
+        https://bugs.webkit.org/show_bug.cgi?id=217634
+        <rdar://problem/69489404>
+
+        Reviewed by Yusuke Suzuki.
+
+        Inside one of Array.prototype.sort's builtin helper methods, we are using an
+        array as an internal data structure to do some bookkeeping. However, we were
+        accessing it in such a way that it was reading properties from the prototype
+        chain. The code is written in a way such that it is only correct if it is
+        reading self properties (as the prototype chain can be user controlled). The
+        fix is to set this bookkeeping array's __proto__ to null, so we don't read
+        from the prototype chain.
+
+        * builtins/ArrayPrototype.js:
+        (globalPrivate.sortBucketSort):
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        OpToPropertyKey only accepts temporary for destination
+        https://bugs.webkit.org/show_bug.cgi?id=217471
+
+        Reviewed by Saam Barati.
+
+        propertyName register can be constant. We should create temporary register if it is necessary for the destination.
+
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::ObjectPatternNode::bindValue const):
+
+2020-10-12  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 
+        with Xcode 12 on macOS Big Sur SUs
+        https://bugs.webkit.org/show_bug.cgi?id=217602
+        rdar://70194453
+
+        Reviewed by Darin Adler.
+
+        The previous workaround turns out to be ineffective because we can't set the value of 
+        TARGET_MAC_OS_X_VERSION_MAJOR based on a previous value of itself. Introduce a new 
+        variable TARGET_MAC_OS_X_VERSION_MAJOR to determine whether we need to explicitly 
+        adjust MAC_OS_X_VERSION_MAJOR to 110000.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-12  Luming Yin  <luming_yin@apple.com>
+
+        [macOS] Workaround for MAC_OS_X_VERSION_MAJOR incorrectly including minor version when building 
+        with Xcode 12 on macOS Big Sur SUs
+        https://bugs.webkit.org/show_bug.cgi?id=217602
+        rdar://70194453
+
+        Reviewed by Darin Adler.
+
+        Due to a bug in Xcode (rdar://70185899), Xcode 12.0 and Xcode 12.1 Beta incorrectly includes the 
+        minor release number in MAC_OS_X_VERSION_MAJOR, which causes Debug and Release builds of WebKit 
+        to be misconfigured when building on macOS Big Sur SUs, leading to webpages failing to load.
+
+        To work around the Xcode bug, when the MAC_OS_X_VERSION_MAJOR includes the minor version number, 
+        drop the minor version number by explicitly setting TARGET_MAC_OS_X_VERSION_MAJOR to 110000.
+
+        Note: This change should be reverted after <rdar://70185899> is resolved.
+
+        * Configurations/DebugRelease.xcconfig:
+
+2020-10-11  Luming Yin  <luming_yin@apple.com>
+
+        Strip patch version from TARGET_MAC_OS_X_VERSION_MAJOR when building for macOS Big Sur 
+        or later
+        https://bugs.webkit.org/show_bug.cgi?id=217594
+        rdar://70188497
+
+        Reviewed by Darin Adler.
+
+        To ensure successful Mac Catalyst WebKit builds, strip the patch version from 
+        TARGET_MAC_OS_X_VERSION_MAJOR by using two `base:`s on MACOSX_DEPLOYMENT_TARGET.
+
+        * Configurations/Base.xcconfig:
+
+2020-10-11  Luming Yin  <luming_yin@apple.com>
+
+        Ignore deployment suffix and identifier when computing major OS version for macOS 
+        Big Sur and newer
+        https://bugs.webkit.org/show_bug.cgi?id=217584
+        rdar://70168426
+
+        Reviewed by Darin Adler.
+
+        Stop using MACOSX_DEPLOYMENT_TARGET:suffix:identifier to compute major OS versions. 
+        Only use the deployment target base for macOS Big Sur and newer. Keep the manual 
+        definitions for legacy versions of macOS.
+
+        * Configurations/Base.xcconfig:
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, mark missing custom getter and setters
+        https://bugs.webkit.org/show_bug.cgi?id=217500
+
+        * tools/JSDollarVM.cpp:
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] arguments.callee should become ThrowTypeError if function has non simple parameter list
+        https://bugs.webkit.org/show_bug.cgi?id=217574
+
+        Reviewed by Darin Adler.
+
+        We should set ThrowTypeError in ClonedArguments when the callee is strict mode or callee has non simple parameter list[1].
+        We propagate NonSimpleParameterList information from parser and use it when materializing "callee" property of ClonedArguments.
+
+        [1]: https://tc39.es/ecma262/#sec-functiondeclarationinstantiation
+
+        * parser/Nodes.h:
+        (JSC::ScopeNode::isStrictMode const):
+        (JSC::ScopeNode::usesNonSimpleParameterList const):
+        (JSC::ScopeNode::setFeatures): Deleted.
+        (JSC::ScopeNode::setUsesArguments): Deleted.
+        * parser/Parser.cpp:
+        (JSC::Parser<LexerType>::parseInner):
+        * parser/ParserModes.h:
+        * runtime/ClonedArguments.cpp:
+        (JSC::ClonedArguments::getOwnPropertySlot):
+        (JSC::ClonedArguments::materializeSpecials):
+        * runtime/ScriptExecutable.h:
+        (JSC::ScriptExecutable::usesNonSimpleParameterList const):
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] BigInt constructor should be constructible while it always throws an error
+        https://bugs.webkit.org/show_bug.cgi?id=217575
+
+        Reviewed by Darin Adler.
+
+        In terms of the spec, BigInt constructor should be a constructor. So we should put constructBigIntConstructor function instead of nullptr.
+        But it should always throw a TypeError. Error message looks a bit awkward ("TypeError: function is not a constructor..."), but this looks
+        most intuitive to users. Note that V8 and SpiderMonkey throw similar messages ("is not a constructor").
+
+        * runtime/BigIntConstructor.cpp:
+        (JSC::BigIntConstructor::BigIntConstructor):
+        (JSC::JSC_DEFINE_HOST_FUNCTION):
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] LowerCase when LanguageTag checks duplicate variants
+        https://bugs.webkit.org/show_bug.cgi?id=217571
+
+        Reviewed by Ross Kirsling.
+
+        Since Unicode LanguageTag is case insensitive, we need to recognize "VARIANT0" and "variant0" are the same language tag variants.
+        To achieve that, we perform toASCIILower when computing VariantCode.
+
+        * runtime/IntlObject.cpp:
+        (JSC::parseVariantCode):
+
+2020-10-09  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Assert Operation and HostFunction are in JITOperationsList
+        https://bugs.webkit.org/show_bug.cgi?id=217500
+
+        Reviewed by Saam Barati.
+
+        We make JSC PtrTag more restricted. We add the following information for each PtrTag.
+
+            1. What code target is tagged with this PtrTag? Native or JIT.
+            2. What uses this PtrTag when invoking code? Native, JIT, or None.
+
+        And we will verify via JIT-caging.
+
+        This patch adds HostFunctionPtrTag and sign host functions with it. Previously, it was signed with JSEntryPtrTag,
+        and this is wrong since it is used for JS entry thunks. And we introduce assertion that function is registered in
+        JITOperationList when signing function with OperationPtrTag or HostFunctionPtrTag.
+
+        We also annotate all operations in testb3 so that testb3 can work with OperationPtrTag / HostFunctionPtrTag assertions.
+
+        * assembler/JITOperationList.cpp:
+        (JSC::addPointers):
+        * assembler/JITOperationList.h:
+        * b3/testb3_1.cpp:
+        (main):
+        * b3/testb3_5.cpp:
+        (JSC_DEFINE_JIT_OPERATION):
+        (simpleFunction): Deleted.
+        (functionWithHellaArguments): Deleted.
+        (functionWithHellaArguments2): Deleted.
+        (functionWithHellaArguments3): Deleted.
+        (simpleFunctionDouble): Deleted.
+        (simpleFunctionFloat): Deleted.
+        (functionWithHellaDoubleArguments): Deleted.
+        (functionWithHellaFloatArguments): Deleted.
+        * b3/testb3_6.cpp:
+        (JSC_DEFINE_JIT_OPERATION):
+        (interpreterPrint): Deleted.
+        * b3/testb3_7.cpp:
+        (JSC_DEFINE_JIT_OPERATION):
+        (oneFunction): Deleted.
+        (noOpFunction): Deleted.
+        (functionNineArgs): Deleted.
+        * dfg/DFGOSREntry.cpp:
+        (JSC::DFG::prepareOSREntry):
+        * dfg/DFGOperations.cpp:
+        * jit/JITOperations.cpp:
+        * jit/ThunkGenerators.cpp:
+        (JSC::nativeForGenerator):
+        * llint/LowLevelInterpreter.asm:
+        * llint/LowLevelInterpreter64.asm:
+        * runtime/JSCPtrTag.cpp:
+        (JSC::tagForPtr):
+        (JSC::ptrTagName):
+        * runtime/JSCPtrTag.h:
+        (JSC::tagJSCCodePtrImpl):
+        (JSC::untagJSCCodePtrImpl):
+        * runtime/NativeFunction.h:
+        (JSC::TaggedNativeFunction::TaggedNativeFunction):
+        (JSC::TaggedNativeFunction::operator NativeFunction):
+        * wasm/WasmOperations.cpp:
+        (JSC::Wasm::doOSREntry):
+
+2020-10-09  Keith Miller  <keith_miller@apple.com>
+
+        Enable WeakRefs/FinalizationRegistries by default.
+        https://bugs.webkit.org/show_bug.cgi?id=215789
+
+        Reviewed by Yusuke Suzuki.
+
+        * runtime/OptionsList.h:
+
+2020-10-09  Keith Miller  <keith_miller@apple.com>
+
+        Finalizers shouldn't run if events can't fire
+        https://bugs.webkit.org/show_bug.cgi?id=214508
+
+        Reviewed by Ryosuke Niwa.
+
+        This patch makes it so the DeferredWorkTimer won't run scheduled
+        tasks if those would not have run if they were scheduled in
+        WebCore. To do this there is now a concept of a
+        ScriptExecutionOwner. The ScriptExecutionOwner is almost always
+        the same as the global object of the pending task (referred to as
+        the ticket). The only exception to this is if the global object
+        is a JSDOMWindowBase, then the ScriptExecutionOwner is the
+        Document's JS wrapper. To tell the status of a
+        ScriptExecutionOwner, the DeferredWorkTimer calls a virtual
+        function on the global object of the ticket, for JSC-only this
+        just always returns Running. For WebCore, we ask the
+        ScriptExecutionContext associated with the ScriptExecutionOwner.
+
+        * API/JSAPIGlobalObject.cpp:
+        * API/JSAPIGlobalObject.mm:
+        * jsc.cpp:
+        * runtime/DeferredWorkTimer.cpp:
+        (JSC::DeferredWorkTimer::doWork):
+        (JSC::DeferredWorkTimer::addPendingWork):
+        (JSC::DeferredWorkTimer::hasDependancyInPendingWork):
+        (JSC::DeferredWorkTimer::didResumeScriptExecutionOwner):
+        * runtime/DeferredWorkTimer.h:
+        * runtime/JSFinalizationRegistry.cpp:
+        (JSC::JSFinalizationRegistry::create):
+        (JSC::JSFinalizationRegistry::finishCreation):
+        * runtime/JSFinalizationRegistry.h:
+        * runtime/JSGlobalObject.cpp:
+        * runtime/JSGlobalObject.h:
+        (JSC::JSGlobalObject::currentScriptExecutionOwner):
+        (JSC::JSGlobalObject::scriptExecutionStatus):
+
+2020-10-08  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, reland r268170
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+
+        Fixed missing wrong OperationPtrTag use in Repatch.cpp.
+
+        * assembler/AbstractMacroAssembler.h:
+        (JSC::AbstractMacroAssembler::getLinkerAddress):
+        * assembler/AssemblerBuffer.h:
+        (JSC::ARM64EHash::update):
+        (JSC::ARM64EHash::finalHash const):
+        * assembler/JITOperationList.cpp:
+        (JSC::addPointers):
+        * assembler/MacroAssemblerARM64.cpp:
+        (JSC::MacroAssembler::probe):
+        * assembler/MacroAssemblerCodeRef.h:
+        (JSC::MacroAssemblerCodePtr::MacroAssemblerCodePtr):
+        (JSC::MacroAssemblerCodePtr::createFromExecutableAddress):
+        * assembler/testmasm.cpp:
+        (JSC::testProbeModifiesProgramCounter):
+        * b3/air/testair.cpp:
+        * ftl/FTLOutput.h:
+        (JSC::FTL::Output::callWithoutSideEffects):
+        (JSC::FTL::Output::operation):
+        * ftl/FTLSlowPathCall.cpp:
+        (JSC::FTL::SlowPathCallContext::makeCall):
+        * jit/JITCode.cpp:
+        (JSC::JITCodeWithCodeRef::executableAddressAtOffset):
+        * jit/JITExceptions.cpp:
+        (JSC::genericUnwind):
+        * jit/JITOperations.cpp:
+        * jit/Repatch.cpp:
+        (JSC::readPutICCallTarget):
+        (JSC::ftlThunkAwareRepatchCall):
+        (JSC::tryCacheGetBy):
+        (JSC::tryCachePutByID):
+        * llint/LLIntData.cpp:
+        (JSC::LLInt::initialize):
+        * llint/LLIntPCRanges.h:
+        (JSC::LLInt::isLLIntPC):
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::setUpCall):
+        * llint/LLIntThunks.cpp:
+        (JSC::LLInt::generateThunkWithJumpTo):
+        * runtime/JSCPtrTag.h:
+        * runtime/MachineContext.h:
+        (JSC::MachineContext::instructionPointer):
+        * runtime/NativeExecutable.cpp:
+        (JSC::NativeExecutable::finishCreation):
+        * runtime/PutPropertySlot.h:
+        (JSC::PutPropertySlot::setCustomValue):
+        (JSC::PutPropertySlot::setCustomAccessor):
+        (JSC::PutPropertySlot::customSetter const):
+        * wasm/WasmAirIRGenerator.cpp:
+        (JSC::Wasm::AirIRGenerator::emitCCall):
+        * wasm/WasmSlowPaths.cpp:
+
+2020-10-08  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r268170 and r268190.
+        https://bugs.webkit.org/show_bug.cgi?id=217502
+
+        Crash on ARM64E exclusively
+
+        Reverted changesets:
+
+        "[JSC] Restrict more ptr-tagging and avoid using
+        OperationPtrTag for JIT code"
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+        https://trac.webkit.org/changeset/268170
+
+        "Unreviewed, build fix for ARM64E"
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+        https://trac.webkit.org/changeset/268190
+
+2020-10-08  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Make it possible to send an arbitrary IPC message from JavaScript
+        https://bugs.webkit.org/show_bug.cgi?id=217423
+        <rdar://problem/69969351>
+
+        Reviewed by Geoffrey Garen.
+
+        Added a helper function to get uint64_t out of BigInt.
+
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::toUint64Heap): Added.
+        * runtime/JSBigInt.h:
+        (JSC::JSBigInt::toUint64): Added.
+
+2020-10-07  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Restrict more ptr-tagging and avoid using OperationPtrTag for JIT code
+        https://bugs.webkit.org/show_bug.cgi?id=217460
+
+        Reviewed by Saam Barati.
+
+        This patch makes tagging / untagging pointer functions solid by using PtrTag in template parameter.
+        Later, we will introduce compile time behavior change for different kind of PtrTag so that we can insert OperationPtrTag validation
+        when tagging a function with OperationPtrTag.
+
+        We also found that FTL is tagging JIT code with OperationPtrTag wrongly. We should tag it with JITThunkPtrTag.
+
+        * assembler/AbstractMacroAssembler.h:
+        (JSC::AbstractMacroAssembler::getLinkerAddress):
+        * assembler/AssemblerBuffer.h:
+        (JSC::ARM64EHash::update):
+        (JSC::ARM64EHash::finalHash const):
+        * assembler/JITOperationList.cpp:
+        (JSC::addPointers):
+        * assembler/MacroAssemblerARM64.cpp:
+        (JSC::MacroAssembler::probe):
+        * assembler/MacroAssemblerCodeRef.h:
+        (JSC::MacroAssemblerCodePtr::MacroAssemblerCodePtr):
+        (JSC::MacroAssemblerCodePtr::createFromExecutableAddress):
+        * assembler/testmasm.cpp:
+        (JSC::testProbeModifiesProgramCounter):
+        * b3/air/testair.cpp:
+        * ftl/FTLOutput.h:
+        (JSC::FTL::Output::callWithoutSideEffects):
+        (JSC::FTL::Output::operation):
+        * ftl/FTLSlowPathCall.cpp:
+        (JSC::FTL::SlowPathCallContext::makeCall):
+        * jit/JITCode.cpp:
+        (JSC::JITCodeWithCodeRef::executableAddressAtOffset):
+        * jit/JITExceptions.cpp:
+        (JSC::genericUnwind):
+        * jit/JITOperations.cpp:
+        * jit/Repatch.cpp:
+        (JSC::readPutICCallTarget):
+        (JSC::ftlThunkAwareRepatchCall):
+        (JSC::tryCacheGetBy):
+        (JSC::tryCachePutByID):
+        * llint/LLIntData.cpp:
+        (JSC::LLInt::initialize):
+        * llint/LLIntPCRanges.h:
+        (JSC::LLInt::isLLIntPC):
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::setUpCall):
+        * llint/LLIntThunks.cpp:
+        (JSC::LLInt::generateThunkWithJumpTo):
+        * runtime/MachineContext.h:
+        (JSC::MachineContext::instructionPointer):
+        * runtime/NativeExecutable.cpp:
+        (JSC::NativeExecutable::finishCreation):
+        * runtime/PutPropertySlot.h:
+        (JSC::PutPropertySlot::setCustomValue):
+        (JSC::PutPropertySlot::setCustomAccessor):
+        (JSC::PutPropertySlot::customSetter const):
+        * wasm/WasmAirIRGenerator.cpp:
+        (JSC::Wasm::AirIRGenerator::emitCCall):
+        * wasm/WasmSlowPaths.cpp:
+
+2020-10-07  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [JSC] Revert String.prototype.item
+        https://bugs.webkit.org/show_bug.cgi?id=217449
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch reverts the String part of r267814, as it has been shown to be web-incompatible:
+        https://github.com/tc39/proposal-item-method/issues/31
+
+        Thankfully, this was the inessential part of the proposal; the core parts (Array and %TypedArray%) remain for now.
+
+        * builtins/StringPrototype.js:
+        (item): Deleted.
+        * runtime/StringPrototype.cpp:
+
+2020-10-07  Keith Rollin  <krollin@apple.com>
+
+        Update post-processing rules for headers to not unnecessarily change timestamps
+        https://bugs.webkit.org/show_bug.cgi?id=217371
+        <rdar://problem/69992230>
+
+        Reviewed by Darin Adler.
+
+        Under XCBuild, the scripts employed in custom build rules can be
+        invoked in innocuous situations. A common example is when the user is
+        building from the command-line and they change the `make` output from
+        stdout to a file, or vice-versa. Changing the output changes the
+        setting of the COLOR_DIAGNOSTICS environment variable, which is enough
+        to cause XCBuild to think something is different and that the custom
+        build rule needs to be invoked. For the script's part, nothing
+        significant has changed, yet it post-processes the header files,
+        causing their modification dates to change, causing downstream
+        rebuilds to occur.
+
+        Fix this problem by adopting an approach that doesn't modify the
+        post-processed header files unless their contents actually change.
+
+        * Scripts/postprocess-header-rule:
+
 2020-10-05  Yusuke Suzuki  <ysuzuki@apple.com>
 
         [JSC] More consistent PtrTagging for code types

@@ -125,16 +125,6 @@ static CSSPropertyID cssPropertyID(const CharacterType* propertyName, unsigned l
     
     const char* name = buffer;
     if (buffer[0] == '-') {
-#if ENABLE(LEGACY_CSS_VENDOR_PREFIXES)
-        // If the prefix is -apple- or -khtml-, change it to -webkit-.
-        // This makes the string one character longer.
-        if (RuntimeEnabledFeatures::sharedFeatures().legacyCSSVendorPrefixesEnabled()
-            && (hasPrefix(buffer, length, "-apple-") || hasPrefix(buffer, length, "-khtml-"))) {
-            memmove(buffer + 7, buffer + 6, length + 1 - 6);
-            memcpy(buffer, "-webkit", 7);
-            ++length;
-        }
-#endif
 #if PLATFORM(IOS_FAMILY)
         cssPropertyNameIOSAliasing(buffer, name, length);
 #endif
@@ -274,9 +264,35 @@ bool CSSPropertyParser::parseValue(CSSPropertyID propertyID, bool important, con
     return parseSuccess;
 }
 
+static RefPtr<CSSValue> maybeConsumeCSSWideKeyword(CSSParserTokenRange& range)
+{
+    CSSParserTokenRange rangeCopy = range;
+    CSSValueID valueID = rangeCopy.consumeIncludingWhitespace().id();
+    if (!rangeCopy.atEnd())
+        return nullptr;
+
+    RefPtr<CSSValue> value;
+    if (valueID == CSSValueInherit)
+        value = CSSValuePool::singleton().createInheritedValue();
+    else if (valueID == CSSValueInitial)
+        value = CSSValuePool::singleton().createExplicitInitialValue();
+    else if (valueID == CSSValueUnset)
+        value = CSSValuePool::singleton().createUnsetValue();
+    else if (valueID == CSSValueRevert)
+        value = CSSValuePool::singleton().createRevertValue();
+    else
+        return nullptr;
+
+    range = rangeCopy;
+    return value;
+}
+
 RefPtr<CSSValue> CSSPropertyParser::parseSingleValue(CSSPropertyID property, const CSSParserTokenRange& range, const CSSParserContext& context)
 {
     CSSPropertyParser parser(range, context, nullptr);
+    if (auto value = maybeConsumeCSSWideKeyword(parser.m_range))
+        return value;
+    
     RefPtr<CSSValue> value = parser.parseSingleValue(property);
     if (!value || !parser.m_range.atEnd())
         return nullptr;
@@ -339,20 +355,8 @@ bool CSSPropertyParser::parseValueStart(CSSPropertyID propertyID, bool important
 bool CSSPropertyParser::consumeCSSWideKeyword(CSSPropertyID propertyID, bool important)
 {
     CSSParserTokenRange rangeCopy = m_range;
-    CSSValueID valueID = rangeCopy.consumeIncludingWhitespace().id();
-    if (!rangeCopy.atEnd())
-        return false;
-
-    RefPtr<CSSValue> value;
-    if (valueID == CSSValueInherit)
-        value = CSSValuePool::singleton().createInheritedValue();
-    else if (valueID == CSSValueInitial)
-        value = CSSValuePool::singleton().createExplicitInitialValue();
-    else if (valueID == CSSValueUnset)
-        value = CSSValuePool::singleton().createUnsetValue();
-    else if (valueID == CSSValueRevert)
-        value = CSSValuePool::singleton().createRevertValue();
-    else
+    auto value = maybeConsumeCSSWideKeyword(rangeCopy);
+    if (!value)
         return false;
     
     const StylePropertyShorthand& shorthand = shorthandForProperty(propertyID);
@@ -2538,16 +2542,11 @@ static RefPtr<CSSValueList> consumeScrollSnapAlign(CSSParserTokenRange& range)
 static RefPtr<CSSValueList> consumeScrollSnapType(CSSParserTokenRange& range)
 {
     RefPtr<CSSValueList> typeValue = CSSValueList::createSpaceSeparated();
-    RefPtr<CSSPrimitiveValue> secondValue;
 
-    auto firstValue = consumeIdent<CSSValueX, CSSValueY, CSSValueBlock, CSSValueInline, CSSValueBoth>(range);
-    if (firstValue)
-        secondValue = consumeIdent<CSSValueProximity, CSSValueMandatory>(range);
-    else
-        firstValue = consumeIdent<CSSValueNone, CSSValueProximity, CSSValueMandatory>(range);
-
+    auto firstValue = consumeIdent<CSSValueNone, CSSValueX, CSSValueY, CSSValueBlock, CSSValueInline, CSSValueBoth>(range);
     if (!firstValue)
         return nullptr;
+    auto secondValue = consumeIdent<CSSValueProximity, CSSValueMandatory>(range);
 
     typeValue->append(firstValue.releaseNonNull());
     if (secondValue)
@@ -3156,7 +3155,14 @@ static RefPtr<CSSPrimitiveValue> consumeBackgroundAttachment(CSSParserTokenRange
 
 static RefPtr<CSSPrimitiveValue> consumeBackgroundBox(CSSParserTokenRange& range)
 {
-    return consumeIdent<CSSValueBorderBox, CSSValuePaddingBox, CSSValueContentBox, CSSValueWebkitText>(range);
+    return consumeIdent<CSSValueBorderBox, CSSValuePaddingBox, CSSValueContentBox>(range);
+}
+
+static RefPtr<CSSPrimitiveValue> consumeBackgroundClip(CSSParserTokenRange& range)
+{
+    if (auto value = consumeBackgroundBox(range))
+        return value;
+    return consumeIdent<CSSValueText, CSSValueWebkitText>(range);
 }
 
 static RefPtr<CSSPrimitiveValue> consumeBackgroundComposite(CSSParserTokenRange& range)
@@ -3226,7 +3232,7 @@ static RefPtr<CSSValue> consumeBackgroundComponent(CSSPropertyID property, CSSPa
 {
     switch (property) {
     case CSSPropertyBackgroundClip:
-        return consumeBackgroundBox(range);
+        return consumeBackgroundClip(range);
     case CSSPropertyBackgroundBlendMode:
         return consumeBackgroundBlendMode(range);
     case CSSPropertyBackgroundAttachment:

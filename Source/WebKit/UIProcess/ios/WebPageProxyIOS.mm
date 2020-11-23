@@ -1026,7 +1026,7 @@ void WebPageProxy::autofillLoginCredentials(const String& username, const String
     m_process->send(Messages::WebPage::AutofillLoginCredentials(username, password), m_webPageID);
 }
 
-void WebPageProxy::showInspectorHighlight(const WebCore::Highlight& highlight)
+void WebPageProxy::showInspectorHighlight(const WebCore::InspectorOverlay::Highlight& highlight)
 {
     pageClient().showInspectorHighlight(highlight);
 }
@@ -1448,18 +1448,17 @@ static bool desktopClassBrowsingRecommended(const WebCore::ResourceRequest& requ
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
 #if PLATFORM(MACCATALYST)
-        UNUSED_PARAM(ignoreSafeguards);
-        shouldRecommendDesktopClassBrowsing = true;
+        shouldRecommendDesktopClassBrowsing = desktopClassBrowsingSupported();
 #else
         // While desktop-class browsing is supported on all iPad models, it is not recommended for iPad mini.
         auto screenClass = MGGetSInt32Answer(kMGQMainScreenClass, MGScreenClassPad2);
         shouldRecommendDesktopClassBrowsing = screenClass != MGScreenClassPad3 && screenClass != MGScreenClassPad4 && desktopClassBrowsingSupported();
+#endif
         if (ignoreSafeguards == IgnoreAppCompatibilitySafeguards::No && !linkedOnOrAfter(WebCore::SDKVersion::FirstWithModernCompabilityModeByDefault)) {
             // Opt out apps that haven't yet built against the iOS 13 SDK to limit any incompatibilities as a result of enabling desktop-class browsing by default in
             // WKWebView on appropriately-sized iPad models.
             shouldRecommendDesktopClassBrowsing = false;
         }
-#endif
     });
     return shouldRecommendDesktopClassBrowsing;
 }
@@ -1614,9 +1613,9 @@ void WebPageProxy::processWillBecomeForeground()
 void WebPageProxy::isUserFacingChanged(bool isUserFacing)
 {
     if (!isUserFacing)
-        suspendAllMediaPlayback();
+        suspendAllMediaPlayback([] { });
     else
-        resumeAllMediaPlayback();
+        resumeAllMediaPlayback([] { });
 }
 #endif
 

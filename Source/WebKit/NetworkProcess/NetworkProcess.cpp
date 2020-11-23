@@ -683,19 +683,6 @@ void NetworkProcess::clearPrevalentResource(PAL::SessionID sessionID, const Regi
     }
 }
 
-void NetworkProcess::submitTelemetry(PAL::SessionID sessionID, CompletionHandler<void()>&& completionHandler)
-{
-    if (auto* networkSession = this->networkSession(sessionID)) {
-        if (auto* resourceLoadStatistics = networkSession->resourceLoadStatistics())
-            resourceLoadStatistics->submitTelemetry(WTFMove(completionHandler));
-        else
-            completionHandler();
-    } else {
-        ASSERT_NOT_REACHED();
-        completionHandler();
-    }
-}
-
 void NetworkProcess::scheduleCookieBlockingUpdate(PAL::SessionID sessionID, CompletionHandler<void()>&& completionHandler)
 {
     if (auto* networkSession = this->networkSession(sessionID)) {
@@ -2071,9 +2058,9 @@ void NetworkProcess::resumeDownload(PAL::SessionID sessionID, DownloadID downloa
     downloadManager().resumeDownload(sessionID, downloadID, resumeData, path, WTFMove(sandboxExtensionHandle));
 }
 
-void NetworkProcess::cancelDownload(DownloadID downloadID)
+void NetworkProcess::cancelDownload(DownloadID downloadID, CompletionHandler<void(const IPC::DataReference&)>&& completionHandler)
 {
-    downloadManager().cancelDownload(downloadID);
+    downloadManager().cancelDownload(downloadID, WTFMove(completionHandler));
 }
 
 #if PLATFORM(COCOA)
@@ -2088,28 +2075,19 @@ void NetworkProcess::continueWillSendRequest(DownloadID downloadID, WebCore::Res
     downloadManager().continueWillSendRequest(downloadID, WTFMove(request));
 }
 
-void NetworkProcess::pendingDownloadCanceled(DownloadID downloadID)
-{
-    downloadProxyConnection()->send(Messages::DownloadProxy::DidCancel({ }), downloadID.toUInt64());
-}
-
 void NetworkProcess::findPendingDownloadLocation(NetworkDataTask& networkDataTask, ResponseCompletionHandler&& completionHandler, const ResourceResponse& response)
 {
     uint64_t destinationID = networkDataTask.pendingDownloadID().toUInt64();
-    downloadProxyConnection()->send(Messages::DownloadProxy::DidReceiveResponse(response), destinationID);
 
     // As per https://html.spec.whatwg.org/#as-a-download (step 2), the filename from the Content-Disposition header
     // should override the suggested filename from the download attribute.
     String suggestedFilename = response.isAttachmentWithFilename() ? response.suggestedFilename() : networkDataTask.suggestedFilename();
     suggestedFilename = MIMETypeRegistry::appendFileExtensionIfNecessary(suggestedFilename, response.mimeType());
 
-    downloadProxyConnection()->sendWithAsyncReply(Messages::DownloadProxy::DecideDestinationWithSuggestedFilename(suggestedFilename), [this, protectedThis = makeRef(*this), completionHandler = WTFMove(completionHandler), networkDataTask = makeRef(networkDataTask)] (String&& destination, SandboxExtension::Handle&& sandboxExtensionHandle, AllowOverwrite allowOverwrite) mutable {
+    downloadProxyConnection()->sendWithAsyncReply(Messages::DownloadProxy::DecideDestinationWithSuggestedFilename(response, suggestedFilename), [this, protectedThis = makeRef(*this), completionHandler = WTFMove(completionHandler), networkDataTask = makeRef(networkDataTask)] (String&& destination, SandboxExtension::Handle&& sandboxExtensionHandle, AllowOverwrite allowOverwrite) mutable {
         auto downloadID = networkDataTask->pendingDownloadID();
-        if (destination.isEmpty()) {
-            downloadManager().cancelDownload(downloadID);
-            completionHandler(PolicyAction::Ignore);
-            return;
-        }
+        if (destination.isEmpty())
+            return completionHandler(PolicyAction::Ignore);
         networkDataTask->setPendingDownloadLocation(destination, WTFMove(sandboxExtensionHandle), allowOverwrite == AllowOverwrite::Yes);
         completionHandler(PolicyAction::Download);
         if (networkDataTask->state() == NetworkDataTask::State::Canceling || networkDataTask->state() == NetworkDataTask::State::Completed)

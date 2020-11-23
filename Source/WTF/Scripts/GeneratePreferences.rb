@@ -120,7 +120,7 @@ class Preference
       @getter
     elsif @name.start_with?("VP")
       @name[0..1].downcase + @name[2..@name.length]
-    elsif @name.start_with?("CSS", "XSS", "FTP", "DOM", "DNS", "PDF", "ICE")
+    elsif @name.start_with?("CSS", "DOM", "DNS", "FTP", "ICE", "IPC", "PDF", "XSS")
       @name[0..2].downcase + @name[3..@name.length]
     elsif @name.start_with?("HTTP")
       @name[0..3].downcase + @name[4..@name.length]
@@ -201,6 +201,9 @@ class Preferences
     result = []
     if parsedPreferences
       parsedPreferences.each do |name, options|
+        if !options["webcoreBinding"] && options["defaultValue"].size != 3
+          raise "ERROR: Preferences bound to WebCore::Settings must have default values for all frontends: #{name}"
+        end
         if !options["exposed"] or options["exposed"].include?(@frontend)
           preference = Preference.new(name, options, @frontend)
           @preferences << preference
@@ -212,13 +215,18 @@ class Preferences
   end
 
   def renderTemplate(templateFile, outputDirectory)
-    puts "Generating output for template file: #{templateFile}"
-
-    resultFile = File.basename(templateFile, ".erb")
+    resultFile = File.join(outputDirectory, File.basename(templateFile, ".erb"))
+    tempResultFile = resultFile + ".tmp"
 
     output = ERB.new(File.read(templateFile), 0, "-").result(binding)
-    File.open(File.join(outputDirectory, resultFile), "w+") do |f|
+    File.open(tempResultFile, "w+") do |f|
       f.write(output)
+    end
+    if (!File.exist?(resultFile) || IO::read(resultFile) != IO::read(tempResultFile))
+      FileUtils.move(tempResultFile, resultFile)
+    else
+      FileUtils.remove_file(tempResultFile)
+      FileUtils.uptodate?(resultFile, [templateFile]) or FileUtils.touch(resultFile)
     end
   end
 end

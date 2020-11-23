@@ -189,7 +189,6 @@ public:
     void scheduleClearInMemoryAndPersistent(ShouldGrandfatherStatistics, CompletionHandler<void()>&&);
     void getResourceLoadStatisticsDataSummary(CompletionHandler<void(Vector<WebResourceLoadStatisticsStore::ThirdPartyData>&&)>&&);
     void scheduleStatisticsAndDataRecordsProcessing(CompletionHandler<void()>&&);
-    void submitTelemetry();
     void setGrandfathered(const URL&, bool, CompletionHandler<void()>&&);
     void isGrandfathered(const URL&, CompletionHandler<void(bool)>&&);
     void setGrandfatheringTime(Seconds, CompletionHandler<void()>&&);
@@ -426,7 +425,6 @@ private:
     WeakHashSet<WebProcessProxy> m_processes;
 
     bool m_isItpStateExplicitlySet { false };
-    bool m_isInAppBrowserPrivacyTestModeEnabled { false };
 
 #if HAVE(SEC_KEY_PROXY)
     Vector<Ref<SecKeyProxyStore>> m_secKeyProxyStores;

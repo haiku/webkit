@@ -59,7 +59,6 @@
 #import "SharedBuffer.h"
 #import "TextEncoding.h"
 #import "TextTrackRepresentation.h"
-#import "TextureCacheCV.h"
 #import "VideoLayerManagerObjC.h"
 #import "VideoTextureCopierCV.h"
 #import "VideoTrackPrivateAVFObjC.h"
@@ -512,6 +511,8 @@ void MediaPlayerPrivateAVFoundationObjC::cancelLoad()
     }
 
     // Reset cached properties
+    m_createAssetPending = false;
+    m_haveCheckedPlayability = false;
     m_pendingStatusChanges = 0;
     m_cachedItemStatus = MediaPlayerAVPlayerItemStatusDoesNotExist;
     m_cachedSeekableRanges = nullptr;
@@ -753,14 +754,48 @@ static NSURL *canonicalURL(const URL& url)
 
 void MediaPlayerPrivateAVFoundationObjC::createAVAssetForURL(const URL& url)
 {
+    if (m_avAsset || m_createAssetPending)
+        return;
+
+    m_createAssetPending = true;
+    RetainPtr<NSMutableDictionary> options = adoptNS([[NSMutableDictionary alloc] init]);
+
+#if PLATFORM(IOS_FAMILY)
+    if (!PAL::canLoad_AVFoundation_AVURLAssetHTTPCookiesKey()) {
+        createAVAssetForURL(url, WTFMove(options));
+        return;
+    }
+
+    player()->getRawCookies(url, [this, weakThis = makeWeakPtr(this), options = WTFMove(options), url] (auto cookies) mutable {
+        if (!weakThis)
+            return;
+        
+        if (cookies.size()) {
+            auto nsCookies = createNSArray(cookies, [] (auto& cookie) -> NSHTTPCookie * {
+                return cookie;
+            });
+
+            [options setObject:nsCookies.get() forKey:AVURLAssetHTTPCookiesKey];
+        }
+
+        createAVAssetForURL(url, WTFMove(options));
+    });
+#else
+    createAVAssetForURL(url, WTFMove(options));
+#endif
+
+}
+
+void MediaPlayerPrivateAVFoundationObjC::createAVAssetForURL(const URL& url, RetainPtr<NSMutableDictionary> options)
+{
+    ALWAYS_LOG(LOGIDENTIFIER);
+
+    m_createAssetPending = false;
+
     if (m_avAsset)
         return;
 
-    ALWAYS_LOG(LOGIDENTIFIER);
-
     setDelayCallbacks(true);
-
-    RetainPtr<NSMutableDictionary> options = adoptNS([[NSMutableDictionary alloc] init]);    
 
     [options.get() setObject:@(AVAssetReferenceRestrictionForbidRemoteReferenceToLocal | AVAssetReferenceRestrictionForbidLocalReferenceToRemote) forKey:AVURLAssetReferenceRestrictionsKey];
 
@@ -825,17 +860,6 @@ void MediaPlayerPrivateAVFoundationObjC::createAVAssetForURL(const URL& url)
         [options setObject:networkInterfaceName forKey:AVURLAssetBoundNetworkInterfaceName];
 #endif
 
-#if PLATFORM(IOS_FAMILY)
-    Vector<Cookie> cookies;
-    if (player()->getRawCookies(url, cookies)) {
-        auto nsCookies = createNSArray(cookies, [] (auto& cookie) -> NSHTTPCookie * {
-            return cookie;
-        });
-        if (PAL::canLoad_AVFoundation_AVURLAssetHTTPCookiesKey())
-            [options setObject:nsCookies.get() forKey:AVURLAssetHTTPCookiesKey];
-    }
-#endif
-
     bool usePersistentCache = player()->shouldUsePersistentCache();
     [options setObject:@(!usePersistentCache) forKey:AVURLAssetUsesNoPersistentCacheKey];
     
@@ -864,6 +888,8 @@ void MediaPlayerPrivateAVFoundationObjC::createAVAssetForURL(const URL& url)
     m_haveCheckedPlayability = false;
 
     setDelayCallbacks(false);
+
+    checkPlayability();
 }
 
 void MediaPlayerPrivateAVFoundationObjC::setAVPlayerItem(AVPlayerItem *item)
@@ -2185,6 +2211,10 @@ void MediaPlayerPrivateAVFoundationObjC::createVideoOutput()
 
     m_videoOutput = adoptNS([PAL::allocAVPlayerItemVideoOutputInstance() initWithPixelBufferAttributes:nil]);
     ASSERT(m_videoOutput);
+    if (!m_videoOutput) {
+        ERROR_LOG(LOGIDENTIFIER, "-[AVPlayerItemVideoOutput initWithPixelBufferAttributes:] failed!");
+        return;
+    }
 
     m_videoOutputDelegate = adoptNS([[WebCoreAVFPullDelegate alloc] init]);
     [m_videoOutput setDelegate:m_videoOutputDelegate.get() queue:globalPullDelegateQueue()];

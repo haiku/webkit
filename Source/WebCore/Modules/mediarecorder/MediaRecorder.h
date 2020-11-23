@@ -69,10 +69,13 @@ public:
     using RefCounted::deref;
     
     ExceptionOr<void> startRecording(Optional<unsigned>);
-    ExceptionOr<void> stopRecording();
+    void stopRecording();
     ExceptionOr<void> requestData();
     ExceptionOr<void> pauseRecording();
     ExceptionOr<void> resumeRecording();
+
+    unsigned videoBitsPerSecond() const { return m_options.videoBitsPerSecond.valueOr(0); }
+    unsigned audioBitsPerSecond() const { return m_options.audioBitsPerSecond.valueOr(0); }
 
     MediaStream& stream() { return m_stream.get(); }
 

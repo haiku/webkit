@@ -369,7 +369,7 @@ CanvasRenderingContext2D* HTMLCanvasElement::createContext2d(const String& type)
 
     m_context = CanvasRenderingContext2D::create(*this, document().inQuirksMode());
 
-#if USE(IOSURFACE_CANVAS_BACKING_STORE) || ENABLE(ACCELERATED_2D_CANVAS)
+#if USE(IOSURFACE_CANVAS_BACKING_STORE)
     // Need to make sure a RenderLayer and compositing layer get created for the Canvas.
     invalidateStyleAndLayerComposition();
 #endif
@@ -433,7 +433,9 @@ WebGLRenderingContextBase* HTMLCanvasElement::createContextWebGL(const String& t
     // https://immersive-web.github.io/webxr/#xr-compatible
     if (attrs.xrCompatible) {
         if (auto* window = document().domWindow())
-            NavigatorWebXR::xr(window->navigator()).ensureImmersiveXRDeviceIsSelected();
+            // FIXME: how to make this sync without blocking the main thread?
+            // For reference: https://immersive-web.github.io/webxr/#ref-for-dom-webglcontextattributes-xrcompatible
+            NavigatorWebXR::xr(window->navigator()).ensureImmersiveXRDeviceIsSelected([]() { });
     }
 #endif
 
@@ -525,7 +527,7 @@ ImageBitmapRenderingContext* HTMLCanvasElement::createContextBitmapRenderer(cons
 
     m_context = ImageBitmapRenderingContext::create(*this, WTFMove(settings));
 
-#if USE(IOSURFACE_CANVAS_BACKING_STORE) || ENABLE(ACCELERATED_2D_CANVAS)
+#if USE(IOSURFACE_CANVAS_BACKING_STORE)
     // Need to make sure a RenderLayer and compositing layer get created for the Canvas.
     invalidateStyleAndLayerComposition();
 #endif
@@ -854,17 +856,6 @@ bool HTMLCanvasElement::shouldAccelerate(const IntSize& size) const
 
 #if USE(IOSURFACE_CANVAS_BACKING_STORE)
     return settings.canvasUsesAcceleratedDrawing();
-#elif ENABLE(ACCELERATED_2D_CANVAS)
-    if (m_context && !m_context->is2d())
-        return false;
-
-    if (!settings.accelerated2dCanvasEnabled())
-        return false;
-
-    if (area < settings.minimumAccelerated2dCanvasSize())
-        return false;
-
-    return true;
 #else
     UNUSED_PARAM(size);
     return false;
@@ -953,7 +944,7 @@ void HTMLCanvasElement::createImageBuffer() const
     if (buffer() && buffer()->drawingContext())
         buffer()->drawingContext()->setTracksDisplayListReplay(m_tracksDisplayListReplay);
 
-#if USE(IOSURFACE_CANVAS_BACKING_STORE) || ENABLE(ACCELERATED_2D_CANVAS)
+#if USE(IOSURFACE_CANVAS_BACKING_STORE)
     if (m_context && m_context->is2d()) {
         // Recalculate compositing requirements if acceleration state changed.
         const_cast<HTMLCanvasElement*>(this)->invalidateStyleAndLayerComposition();

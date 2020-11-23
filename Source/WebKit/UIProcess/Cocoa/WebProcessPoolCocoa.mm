@@ -41,6 +41,7 @@
 #import "UserInterfaceIdiom.h"
 #import "WKBrowsingContextControllerInternal.h"
 #import "WKMouseDeviceObserver.h"
+#import "WKStylusDeviceObserver.h"
 #import "WebBackForwardCache.h"
 #import "WebMemoryPressureHandler.h"
 #import "WebPageGroup.h"
@@ -479,8 +480,14 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
     if (needWebProcessExtensions) {
         // FIXME(207716): The following should be removed when the GPU process is complete.
         parameters.mediaExtensionHandles = SandboxExtension::createHandlesForMachLookup(mediaRelatedMachServices(), WTF::nullopt);
-        parameters.gpuIOKitExtensionHandles = SandboxExtension::createHandlesForIOKitClassExtensions(gpuIOKitClasses(), WTF::nullopt);
     }
+
+    if (!m_defaultPageGroup->preferences().useGPUProcessForMediaEnabled()
+        || (!m_defaultPageGroup->preferences().captureVideoInGPUProcessEnabled() && !m_defaultPageGroup->preferences().captureVideoInUIProcessEnabled())
+        || !m_defaultPageGroup->preferences().useGPUProcessForCanvasRenderingEnabled()
+        || !m_defaultPageGroup->preferences().useGPUProcessForDOMRenderingEnabled()
+        || !m_defaultPageGroup->preferences().useGPUProcessForWebGLEnabled())
+        parameters.gpuIOKitExtensionHandles = SandboxExtension::createHandlesForIOKitClassExtensions(gpuIOKitClasses(), WTF::nullopt);
 
 #if ENABLE(CFPREFS_DIRECT_MODE) && PLATFORM(IOS_FAMILY)
     if (_AXSApplicationAccessibilityEnabled())
@@ -493,6 +500,12 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
         SandboxExtension::createHandleForMachLookup("com.apple.mobilegestalt.xpc"_s, WTF::nullopt, handle);
         parameters.mobileGestaltExtensionHandle = WTFMove(handle);
     }
+#endif
+
+#if PLATFORM(MAC)
+    SandboxExtension::Handle launchServicesExtensionHandle;
+    SandboxExtension::createHandleForMachLookup("com.apple.coreservices.launchservicesd"_s, WTF::nullopt, launchServicesExtensionHandle);
+    parameters.launchServicesExtensionHandle = WTFMove(launchServicesExtensionHandle);
 #endif
 
 #if PLATFORM(IOS_FAMILY) && ENABLE(CFPREFS_DIRECT_MODE)
@@ -509,6 +522,10 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
 
 #if HAVE(UIKIT_WITH_MOUSE_SUPPORT) && PLATFORM(IOS)
     parameters.hasMouseDevice = [[WKMouseDeviceObserver sharedInstance] hasMouseDevice];
+#endif
+
+#if HAVE(PENCILKIT_TEXT_INPUT)
+    parameters.hasStylusDevice = [[WKStylusDeviceObserver sharedInstance] hasStylusDevice];
 #endif
 }
 

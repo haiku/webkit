@@ -203,22 +203,23 @@ page/scrolling/mac/ScrollingTreeOverflowScrollingNodeMac.mm
 page/scrolling/mac/ScrollingTreeScrollingNodeDelegateMac.mm
 platform/audio/AudioSession.cpp
 platform/audio/cocoa/AudioDestinationCocoa.cpp
+platform/audio/cocoa/AudioOutputUnitAdaptor.cpp
+platform/audio/cocoa/AudioSampleBufferList.cpp
+platform/audio/cocoa/AudioSampleDataSource.mm
+platform/audio/cocoa/CAAudioStreamDescription.cpp
+platform/audio/cocoa/CARingBuffer.cpp
 platform/audio/cocoa/MediaSessionManagerCocoa.mm
 platform/audio/cocoa/WebAudioBufferList.cpp
-platform/audio/ios/AudioDestinationIOS.cpp @no-unify
+platform/audio/ios/AudioOutputUnitAdaptorIOS.cpp @no-unify
 platform/audio/ios/AudioFileReaderIOS.cpp @no-unify
 platform/audio/ios/AudioSessionIOS.mm @no-unify
 platform/audio/ios/MediaSessionHelperIOS.mm @no-unify
 platform/audio/ios/MediaSessionManagerIOS.mm @no-unify
 platform/audio/mac/AudioBusMac.mm
-platform/audio/mac/AudioDestinationMac.cpp
+platform/audio/mac/AudioOutputUnitAdaptorMac.cpp
 platform/audio/mac/AudioFileReaderMac.cpp
 platform/audio/mac/AudioHardwareListenerMac.cpp
-platform/audio/mac/AudioSampleBufferList.cpp
-platform/audio/mac/AudioSampleDataSource.mm
 platform/audio/mac/AudioSessionMac.mm
-platform/audio/mac/CAAudioStreamDescription.cpp
-platform/audio/mac/CARingBuffer.cpp
 platform/audio/mac/FFTFrameMac.cpp
 platform/cf/KeyedDecoderCF.cpp
 platform/cf/KeyedEncoderCF.cpp
@@ -376,10 +377,8 @@ platform/graphics/coretext/FontPlatformDataCoreText.cpp
 platform/graphics/coretext/GlyphPageCoreText.cpp
 platform/graphics/cv/ImageTransferSessionVT.mm
 platform/graphics/cv/PixelBufferConformerCV.cpp
-platform/graphics/cv/TextureCacheCV.mm
 platform/graphics/cv/VideoTextureCopierCV.cpp
 platform/graphics/coreimage/FilterEffectRendererCoreImage.mm
-platform/graphics/gpu/Texture.cpp
 platform/graphics/gpu/TilingData.cpp
 platform/graphics/gpu/cocoa/GPUBindGroupAllocatorMetal.mm
 platform/graphics/gpu/cocoa/GPUBindGroupLayoutMetal.mm
@@ -416,12 +415,8 @@ platform/graphics/mac/SimpleFontDataCoreText.cpp
 platform/graphics/mac/SwitchingGPUClient.cpp
 platform/graphics/mac/WebKitNSImageExtras.mm
 platform/graphics/mac/WebLayer.mm
-platform/graphics/opengl/ExtensionsGLOpenGL.cpp
-platform/graphics/opengl/ExtensionsGLOpenGLCommon.cpp
 platform/graphics/opengl/GraphicsContextGLOpenGLBase.cpp
-platform/graphics/opengl/GraphicsContextGLOpenGLCommon.cpp
 platform/graphics/opengl/GraphicsContextGLOpenGLManager.cpp
-platform/graphics/opengl/TemporaryOpenGLSetting.cpp
 platform/graphics/opentype/OpenTypeCG.cpp
 platform/ios/ColorIOS.mm
 platform/ios/Device.cpp
@@ -526,7 +521,6 @@ platform/mediastream/ios/AVAudioSessionCaptureDevice.mm
 platform/mediastream/ios/AVAudioSessionCaptureDeviceManager.mm @no-unify
 platform/mediastream/ios/CoreAudioCaptureSourceIOS.mm @no-unify
 platform/mediastream/libwebrtc/LibWebRTCProviderCocoa.cpp
-platform/mediastream/libwebrtc/LibWebRTCProviderCocoa.mm
 platform/mediastream/mac/AVCaptureDeviceManager.mm @no-unify
 platform/mediastream/mac/AVVideoCaptureSource.mm @no-unify
 platform/mediastream/mac/AudioMediaStreamTrackRendererCocoa.cpp
@@ -537,6 +531,7 @@ platform/mediastream/mac/CoreAudioCaptureDeviceManager.cpp
 platform/mediastream/mac/CoreAudioCaptureSource.cpp
 platform/mediastream/mac/DisplayCaptureManagerCocoa.cpp
 platform/mediastream/mac/DisplayCaptureSourceCocoa.cpp
+platform/mediastream/mac/MediaStreamTrackAudioSourceProviderCocoa.cpp
 platform/mediastream/mac/MockAudioSharedUnit.mm
 platform/mediastream/mac/MockRealtimeVideoSourceMac.mm
 platform/mediastream/mac/RealtimeIncomingAudioSourceCocoa.cpp
@@ -547,7 +542,7 @@ platform/mediastream/mac/RealtimeOutgoingAudioSourceCocoa.cpp
 platform/mediastream/mac/RealtimeOutgoingVideoSourceCocoa.cpp
 platform/mediastream/mac/RealtimeVideoUtilities.mm
 platform/mediastream/mac/ScreenDisplayCapturerMac.mm
-platform/mediastream/mac/WebAudioSourceProviderAVFObjC.mm
+platform/mediastream/mac/WebAudioSourceProviderCocoa.mm
 platform/mediastream/mac/WindowDisplayCapturerMac.mm
 platform/mock/MediaPlaybackTargetMock.cpp
 platform/mock/MediaPlaybackTargetPickerMock.cpp

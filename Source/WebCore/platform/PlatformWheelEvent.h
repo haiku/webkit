@@ -149,9 +149,12 @@ public:
         explicit PlatformWheelEvent(BMessage*);
 #endif
 
-#if PLATFORM(COCOA)
+#if PLATFORM(COCOA) || PLATFORM(GTK) || USE(LIBWPE)
     bool hasPreciseScrollingDeltas() const { return m_hasPreciseScrollingDeltas; }
     void setHasPreciseScrollingDeltas(bool hasPreciseScrollingDeltas) { m_hasPreciseScrollingDeltas = hasPreciseScrollingDeltas; }
+#endif
+
+#if PLATFORM(COCOA)
     unsigned scrollCount() const { return m_scrollCount; }
     float unacceleratedScrollingDeltaX() const { return m_unacceleratedScrollingDeltaX; }
     float unacceleratedScrollingDeltaY() const { return m_unacceleratedScrollingDeltaY; }
@@ -201,8 +204,10 @@ protected:
     PlatformWheelEventPhase m_phase { PlatformWheelEventPhaseNone };
     PlatformWheelEventPhase m_momentumPhase { PlatformWheelEventPhaseNone };
 #endif
-#if PLATFORM(COCOA)
+#if PLATFORM(COCOA) || PLATFORM(GTK) || USE(LIBWPE)
     bool m_hasPreciseScrollingDeltas { false };
+#endif
+#if PLATFORM(COCOA)
     unsigned m_scrollCount { 0 };
     float m_unacceleratedScrollingDeltaX { 0 };
     float m_unacceleratedScrollingDeltaY { 0 };
@@ -278,7 +283,7 @@ inline FloatPoint PlatformWheelEvent::swipeVelocity() const
 
 #endif // ENABLE(KINETIC_SCROLLING)
 
-WTF::TextStream& operator<<(WTF::TextStream&, const PlatformWheelEvent&);
-WTF::TextStream& operator<<(WTF::TextStream&, WheelEventProcessingSteps);
+WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const PlatformWheelEvent&);
+WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, WheelEventProcessingSteps);
 
 } // namespace WebCore

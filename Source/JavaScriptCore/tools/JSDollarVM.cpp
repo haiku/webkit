@@ -671,6 +671,7 @@ static const struct CompactHashIndex staticCustomAccessorTableIndex[2] = {
 };
 
 static JSC_DECLARE_CUSTOM_GETTER(testStaticAccessorGetter);
+static JSC_DECLARE_CUSTOM_SETTER(testStaticAccessorPutter);
 
 JSC_DEFINE_CUSTOM_GETTER(testStaticAccessorGetter, (JSGlobalObject* globalObject, EncodedJSValue thisValue, PropertyName))
 {
@@ -685,7 +686,7 @@ JSC_DEFINE_CUSTOM_GETTER(testStaticAccessorGetter, (JSGlobalObject* globalObject
     return JSValue::encode(jsUndefined());
 }
 
-static bool testStaticAccessorPutter(JSGlobalObject* globalObject, EncodedJSValue thisValue, EncodedJSValue value)
+JSC_DEFINE_CUSTOM_SETTER(testStaticAccessorPutter, (JSGlobalObject* globalObject, EncodedJSValue thisValue, EncodedJSValue value))
 {
     DollarVMAssertScope assertScope;
     VM& vm = globalObject->vm();
@@ -746,13 +747,16 @@ public:
     }
 };
 
-static EncodedJSValue testStaticValueGetter(JSGlobalObject*, EncodedJSValue, PropertyName)
+static JSC_DECLARE_CUSTOM_GETTER(testStaticValueGetter);
+static JSC_DECLARE_CUSTOM_SETTER(testStaticValuePutter);
+
+JSC_DEFINE_CUSTOM_GETTER(testStaticValueGetter, (JSGlobalObject*, EncodedJSValue, PropertyName))
 {
     DollarVMAssertScope assertScope;
     return JSValue::encode(jsUndefined());
 }
 
-static bool testStaticValuePutter(JSGlobalObject* globalObject, EncodedJSValue thisValue, EncodedJSValue value)
+JSC_DEFINE_CUSTOM_SETTER(testStaticValuePutter, (JSGlobalObject* globalObject, EncodedJSValue thisValue, EncodedJSValue value))
 {
     DollarVMAssertScope assertScope;
     VM& vm = globalObject->vm();
@@ -911,7 +915,7 @@ private:
 
 
 static JSC_DECLARE_CUSTOM_GETTER(domJITGetterCustomGetter);
-static JSC_DECLARE_JIT_OPERATION(domJITGetterSlowCall, EncodedJSValue, (JSGlobalObject*, void*));
+static JSC_DECLARE_JIT_OPERATION_WITHOUT_WTF_INTERNAL(domJITGetterSlowCall, EncodedJSValue, (JSGlobalObject*, void*));
 
 class DOMJITGetter : public DOMJITNode {
 public:
@@ -1008,7 +1012,7 @@ JSC_DEFINE_JIT_OPERATION(domJITGetterSlowCall, EncodedJSValue, (JSGlobalObject* 
 
 
 static JSC_DECLARE_CUSTOM_GETTER(domJITGetterNoEffectCustomGetter);
-static JSC_DECLARE_JIT_OPERATION(domJITGetterNoEffectSlowCall, EncodedJSValue, (JSGlobalObject*, void*));
+static JSC_DECLARE_JIT_OPERATION_WITHOUT_WTF_INTERNAL(domJITGetterNoEffectSlowCall, EncodedJSValue, (JSGlobalObject*, void*));
 
 class DOMJITGetterNoEffects : public DOMJITNode {
 public:
@@ -1105,7 +1109,7 @@ JSC_DEFINE_JIT_OPERATION(domJITGetterNoEffectSlowCall, EncodedJSValue, (JSGlobal
 }
 
 static JSC_DECLARE_CUSTOM_GETTER(domJITGetterComplexCustomGetter);
-static JSC_DECLARE_JIT_OPERATION(domJITGetterComplexSlowCall, EncodedJSValue, (JSGlobalObject*, void*));
+static JSC_DECLARE_JIT_OPERATION_WITHOUT_WTF_INTERNAL(domJITGetterComplexSlowCall, EncodedJSValue, (JSGlobalObject*, void*));
 
 class DOMJITGetterComplex : public DOMJITNode {
 public:
@@ -1229,7 +1233,7 @@ void DOMJITGetterComplex::finishCreation(VM& vm, JSGlobalObject* globalObject)
     putDirectNativeFunction(vm, globalObject, Identifier::fromString(vm, "enableException"), 0, functionDOMJITGetterComplexEnableException, NoIntrinsic, 0);
 }
 
-static JSC_DECLARE_JIT_OPERATION(functionDOMJITFunctionObjectWithoutTypeCheck, EncodedJSValue, (JSGlobalObject* globalObject, DOMJITNode*));
+static JSC_DECLARE_JIT_OPERATION_WITHOUT_WTF_INTERNAL(functionDOMJITFunctionObjectWithoutTypeCheck, EncodedJSValue, (JSGlobalObject* globalObject, DOMJITNode*));
 
 class DOMJITFunctionObject : public DOMJITNode {
 public:
@@ -1310,7 +1314,7 @@ void DOMJITFunctionObject::finishCreation(VM& vm, JSGlobalObject* globalObject)
     putDirectNativeFunction(vm, globalObject, Identifier::fromString(vm, "func"), 0, functionDOMJITFunctionObjectWithTypeCheck, NoIntrinsic, &DOMJITFunctionObjectSignature, static_cast<unsigned>(PropertyAttribute::ReadOnly));
 }
 
-static JSC_DECLARE_JIT_OPERATION(functionDOMJITCheckJSCastObjectWithoutTypeCheck, EncodedJSValue, (JSGlobalObject* globalObject, DOMJITNode* node));
+static JSC_DECLARE_JIT_OPERATION_WITHOUT_WTF_INTERNAL(functionDOMJITCheckJSCastObjectWithoutTypeCheck, EncodedJSValue, (JSGlobalObject* globalObject, DOMJITNode* node));
 
 class DOMJITCheckJSCastObject : public DOMJITNode {
 public:
@@ -1373,7 +1377,7 @@ void DOMJITCheckJSCastObject::finishCreation(VM& vm, JSGlobalObject* globalObjec
 }
 
 static JSC_DECLARE_CUSTOM_GETTER(domJITGetterBaseJSObjectCustomGetter);
-static JSC_DECLARE_JIT_OPERATION(domJITGetterBaseJSObjectSlowCall, EncodedJSValue, (JSGlobalObject*, void*));
+static JSC_DECLARE_JIT_OPERATION_WITHOUT_WTF_INTERNAL(domJITGetterBaseJSObjectSlowCall, EncodedJSValue, (JSGlobalObject*, void*));
 
 class DOMJITGetterBaseJSObject : public DOMJITNode {
 public:

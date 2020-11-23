@@ -121,13 +121,14 @@ void EventDispatcher::wheelEvent(PageIdentifier pageID, const WebWheelEvent& whe
     }
 #endif
 
+    auto processingSteps = OptionSet<WebCore::WheelEventProcessingSteps> { WheelEventProcessingSteps::MainThreadForScrolling, WheelEventProcessingSteps::MainThreadForDOMEventDispatch };
 #if ENABLE(SCROLLING_THREAD)
-    auto sentToScrollingThread = [&]() {
+    processingSteps = [&]() -> OptionSet<WheelEventProcessingSteps> {
         LockHolder locker(m_scrollingTreesMutex);
 
         auto scrollingTree = m_scrollingTrees.get(pageID);
         if (!scrollingTree)
-            return false;
+            return { WheelEventProcessingSteps::MainThreadForScrolling, WheelEventProcessingSteps::MainThreadForDOMEventDispatch };
         
         // FIXME: It's pretty horrible that we're updating the back/forward state here.
         // WebCore should always know the current state and know when it changes so the
@@ -138,25 +139,28 @@ void EventDispatcher::wheelEvent(PageIdentifier pageID, const WebWheelEvent& whe
 
         auto processingSteps = scrollingTree->determineWheelEventProcessing(platformWheelEvent);
         if (!processingSteps.contains(WheelEventProcessingSteps::ScrollingThread))
-            return false;
+            return processingSteps;
 
         scrollingTree->willProcessWheelEvent();
 
-        ScrollingThread::dispatch([scrollingTree, wheelEvent, platformWheelEvent, pageID, protectedThis = makeRef(*this)] {
-            auto result = scrollingTree->handleWheelEvent(platformWheelEvent);
+        ScrollingThread::dispatch([scrollingTree, wheelEvent, platformWheelEvent, processingSteps, pageID, protectedThis = makeRef(*this)] {
+            auto result = scrollingTree->handleWheelEvent(platformWheelEvent, processingSteps);
 
             if (result.needsMainThreadProcessing()) {
-                protectedThis->dispatchWheelEventViaMainThread(pageID, wheelEvent);
-                return;
+                protectedThis->dispatchWheelEventViaMainThread(pageID, wheelEvent, result.steps);
+                if (result.steps.contains(WheelEventProcessingSteps::MainThreadForScrolling))
+                    return;
             }
 
+            // If we scrolled on the scrolling thread (even if we send the event to the main thread for passive event handlers)
+            // respond to the UI process that the event was handled.
             protectedThis->sendDidReceiveEvent(pageID, wheelEvent.type(), result.wasHandled);
         });
 
-        return true;
+        return processingSteps;
     }();
 
-    if (sentToScrollingThread)
+    if (processingSteps.contains(WheelEventProcessingSteps::ScrollingThread))
         return;
 
 #else
@@ -166,7 +170,7 @@ void EventDispatcher::wheelEvent(PageIdentifier pageID, const WebWheelEvent& whe
     UNUSED_PARAM(canRubberBandAtBottom);
 #endif
 
-    dispatchWheelEventViaMainThread(pageID, wheelEvent);
+    dispatchWheelEventViaMainThread(pageID, wheelEvent, processingSteps);
 }
 
 #if ENABLE(MAC_GESTURE_EVENTS)
@@ -230,15 +234,15 @@ void EventDispatcher::dispatchTouchEvents()
 }
 #endif
 
-void EventDispatcher::dispatchWheelEventViaMainThread(WebCore::PageIdentifier pageID, const WebWheelEvent& wheelEvent)
+void EventDispatcher::dispatchWheelEventViaMainThread(WebCore::PageIdentifier pageID, const WebWheelEvent& wheelEvent, OptionSet<WheelEventProcessingSteps> processingSteps)
 {
     ASSERT(!RunLoop::isMain());
-    RunLoop::main().dispatch([protectedThis = makeRef(*this), pageID, wheelEvent]() mutable {
-        protectedThis->dispatchWheelEvent(pageID, wheelEvent);
+    RunLoop::main().dispatch([protectedThis = makeRef(*this), pageID, wheelEvent, steps = processingSteps - WheelEventProcessingSteps::ScrollingThread]() mutable {
+        protectedThis->dispatchWheelEvent(pageID, wheelEvent, steps);
     });
 }
 
-void EventDispatcher::dispatchWheelEvent(PageIdentifier pageID, const WebWheelEvent& wheelEvent)
+void EventDispatcher::dispatchWheelEvent(PageIdentifier pageID, const WebWheelEvent& wheelEvent, OptionSet<WheelEventProcessingSteps> processingSteps)
 {
     ASSERT(RunLoop::isMain());
 
@@ -246,7 +250,7 @@ void EventDispatcher::dispatchWheelEvent(PageIdentifier pageID, const WebWheelEv
     if (!webPage)
         return;
 
-    webPage->wheelEvent(wheelEvent);
+    webPage->wheelEvent(wheelEvent, processingSteps);
 }
 
 #if ENABLE(MAC_GESTURE_EVENTS)

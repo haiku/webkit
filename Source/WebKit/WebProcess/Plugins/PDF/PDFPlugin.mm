@@ -1948,6 +1948,8 @@ RefPtr<ShareableBitmap> PDFPlugin::snapshot()
     backingStoreSize.scale(contentsScaleFactor);
 
     auto bitmap = ShareableBitmap::createShareable(backingStoreSize, { });
+    if (!bitmap)
+        return nullptr;
     auto context = bitmap->createGraphicsContext();
     if (!context)
         return nullptr;
@@ -2298,7 +2300,7 @@ bool PDFPlugin::handleContextMenuEvent(const WebMouseEvent& event)
         auto item = [nsMenu itemAtIndex:i];
         if ([item submenu])
             continue;
-        PDFContextMenuItem menuItem { String([item title]), !![item isEnabled], !![item isSeparatorItem], static_cast<int>([item state]), [item action], i };
+        PDFContextMenuItem menuItem { String([item title]), !![item isEnabled], !![item isSeparatorItem], static_cast<int>([item state]), !![item action], i };
         items.append(WTFMove(menuItem));
     }
     PDFContextMenu contextMenu { point, WTFMove(items) };

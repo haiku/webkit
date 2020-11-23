@@ -145,7 +145,7 @@ CanvasRenderingContext2DBase::~CanvasRenderingContext2DBase()
 
 bool CanvasRenderingContext2DBase::isAccelerated() const
 {
-#if USE(IOSURFACE_CANVAS_BACKING_STORE) || ENABLE(ACCELERATED_2D_CANVAS)
+#if USE(IOSURFACE_CANVAS_BACKING_STORE)
     auto* context = canvasBase().existingDrawingContext();
     return context && context->isAcceleratedContext();
 #else
@@ -1450,10 +1450,12 @@ ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(HTMLImageElement& imag
     FloatRect imageRect = FloatRect(FloatPoint(), size(imageElement, ImageSizeType::BeforeDevicePixelRatio));
 
     auto orientation = ImageOrientation::FromImage;
-    if (auto* renderer = imageElement.renderer())
-        orientation = renderer->style().imageOrientation();
-    else if (auto* computedStyle = imageElement.computedStyle())
-        orientation = computedStyle->imageOrientation();
+    if (imageElement.allowsOrientationOverride()) {
+        if (auto* renderer = imageElement.renderer())
+            orientation = renderer->style().imageOrientation();
+        else if (auto* computedStyle = imageElement.computedStyle())
+            orientation = computedStyle->imageOrientation();
+    }
 
     auto result = drawImage(imageElement.document(), imageElement.cachedImage(), imageElement.renderer(), imageRect, srcRect, dstRect, op, blendMode, orientation);
 
@@ -1583,16 +1585,7 @@ ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(CanvasBase& sourceCanv
 
     checkOrigin(&sourceCanvas);
 
-#if ENABLE(ACCELERATED_2D_CANVAS)
-    // If we're drawing from one accelerated canvas 2d to another, avoid calling sourceCanvas.makeRenderingResultsAvailable()
-    // as that will do a readback to software.
-    RefPtr<CanvasRenderingContext> sourceContext = sourceCanvas.renderingContext();
-    // FIXME: Implement an accelerated path for drawing from a WebGL canvas to a 2d canvas when possible.
-    if (!isAccelerated() || !sourceContext || !sourceContext->isAccelerated() || !sourceContext->is2d())
-        sourceCanvas.makeRenderingResultsAvailable();
-#else
     sourceCanvas.makeRenderingResultsAvailable();
-#endif
 
     if (rectContainsCanvas(dstRect)) {
         c->drawImageBuffer(*buffer, dstRect, srcRect, { state().globalComposite, state().globalBlend });
@@ -1641,7 +1634,7 @@ ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(HTMLVideoElement& vide
 
     checkOrigin(&video);
 
-#if USE(CG) || (ENABLE(ACCELERATED_2D_CANVAS) && USE(GSTREAMER_GL) && USE(CAIRO))
+#if USE(CG)
     if (NativeImagePtr image = video.nativeImageForCurrentTime()) {
         c->drawNativeImage(image, FloatSize(video.videoWidth(), video.videoHeight()), dstRect, srcRect);
         if (rectContainsCanvas(dstRect))
@@ -1947,12 +1940,13 @@ ExceptionOr<RefPtr<CanvasPattern>> CanvasRenderingContext2DBase::createPattern(H
     checkOrigin(&videoElement);
     bool originClean = canvasBase().originClean();
 
-#if USE(CG) || (ENABLE(ACCELERATED_2D_CANVAS) && USE(GSTREAMER_GL) && USE(CAIRO))
+#if USE(CG)
     if (auto nativeImage = videoElement.nativeImageForCurrentTime())
         return RefPtr<CanvasPattern> { CanvasPattern::create(BitmapImage::create(WTFMove(nativeImage)), repeatX, repeatY, originClean) };
 #endif
 
-    auto imageBuffer = ImageBuffer::create(size(videoElement), drawingContext() ? drawingContext()->renderingMode() : RenderingMode::Accelerated);
+    auto shouldAccelerate = !drawingContext() || drawingContext()->isAcceleratedContext() ? ShouldAccelerate::Yes : ShouldAccelerate::No;
+    auto imageBuffer = videoElement.createBufferForPainting(size(videoElement), shouldAccelerate);
     if (!imageBuffer)
         return nullptr;
 
@@ -1989,20 +1983,6 @@ void CanvasRenderingContext2DBase::didDraw(const FloatRect& r, unsigned options)
         return;
     if (!state().hasInvertibleTransform)
         return;
-
-#if ENABLE(ACCELERATED_2D_CANVAS)
-    // If we are drawing to hardware and we have a composited layer, just call contentChanged().
-    if (isAccelerated() && is<HTMLCanvasElement>(canvasBase())) {
-        auto& canvas = downcast<HTMLCanvasElement>(canvasBase());
-        RenderBox* renderBox = canvas.renderBox();
-        if (renderBox && renderBox->hasAcceleratedCompositing()) {
-            renderBox->contentChanged(CanvasPixelsChanged);
-            canvas.clearCopiedImage();
-            canvas.notifyObserversCanvasChanged(r);
-            return;
-        }
-    }
-#endif
 
     FloatRect dirtyRect = r;
     if (options & CanvasDidDrawApplyTransform) {
@@ -2194,18 +2174,6 @@ void CanvasRenderingContext2DBase::inflateStrokeRect(FloatRect& rect) const
         delta *= root2;
     rect.inflate(delta);
 }
-
-#if ENABLE(ACCELERATED_2D_CANVAS)
-
-PlatformLayer* CanvasRenderingContext2DBase::platformLayer() const
-{
-    if (auto* buffer = canvasBase().buffer())
-        return buffer->platformLayer();
-
-    return nullptr;
-}
-
-#endif
 
 static inline InterpolationQuality smoothingToInterpolationQuality(ImageSmoothingQuality quality)
 {

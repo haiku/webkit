@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,18 +42,20 @@ class Box {
     WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Box);
 public:
     enum class Flags : uint8_t {
-        ContainerBox    = 1 << 0,
-        ImageBox        = 1 << 1,
-        TextBox         = 1 << 2,
+        BoxModelBox     = 1 << 0,
+        ContainerBox    = 1 << 1,
+        ImageBox        = 1 << 2,
+        TextBox         = 1 << 3,
     };
 
-    Box(AbsoluteFloatRect borderBox, Style&&, OptionSet<Flags> = { });
+    Box(AbsoluteFloatRect, Style&&, OptionSet<Flags> = { });
     virtual ~Box() = default;
 
     const Style& style() const { return m_style; }
 
-    AbsoluteFloatRect borderBoxFrame() const { return m_borderBoxFrame; }
+    AbsoluteFloatRect absoluteBoxRect() const { return m_absoluteBoxRect; }
 
+    bool isBoxModelBox() const { return m_flags.contains(Flags::BoxModelBox); }
     bool isContainerBox() const { return m_flags.contains(Flags::ContainerBox); }
     bool isImageBox() const { return m_flags.contains(Flags::ImageBox); }
     bool isReplacedBox() const { return m_flags.contains(Flags::ImageBox); /* and other types later. */ }
@@ -65,7 +67,7 @@ public:
     virtual String debugDescription() const;
 
 private:
-    AbsoluteFloatRect m_borderBoxFrame;
+    AbsoluteFloatRect m_absoluteBoxRect;
     Style m_style;
     std::unique_ptr<Box> m_nextSibling;
     OptionSet<Flags> m_flags;

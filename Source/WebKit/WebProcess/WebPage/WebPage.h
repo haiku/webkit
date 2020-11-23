@@ -92,6 +92,7 @@
 #include <pal/HysteresisActivity.h>
 #include <wtf/HashMap.h>
 #include <wtf/MonotonicTime.h>
+#include <wtf/OptionSet.h>
 #include <wtf/RefPtr.h>
 #include <wtf/RunLoop.h>
 #include <wtf/Seconds.h>
@@ -114,6 +115,7 @@ typedef struct _AtkObject AtkObject;
 
 #if PLATFORM(IOS_FAMILY)
 #include "GestureTypes.h"
+#include <WebCore/InspectorOverlay.h>
 #include <WebCore/IntPointHash.h>
 #include <WebCore/WKContentObservation.h>
 #endif
@@ -205,6 +207,7 @@ enum class SelectionDirection : uint8_t;
 enum class ShouldTreatAsContinuingLoad : bool;
 enum class TextIndicatorPresentationTransition : uint8_t;
 enum class TextGranularity : uint8_t;
+enum class WheelEventProcessingSteps : uint8_t;
 enum class WritingDirection : uint8_t;
 
 using PlatformDisplayID = uint32_t;
@@ -217,7 +220,6 @@ struct DictationAlternative;
 struct ElementContext;
 struct GlobalFrameIdentifier;
 struct GlobalWindowIdentifier;
-struct Highlight;
 struct KeypressCommand;
 struct MediaUsageInfo;
 struct PromisedAttachmentInfo;
@@ -763,7 +765,7 @@ public:
 
     Seconds eventThrottlingDelay() const;
 
-    void showInspectorHighlight(const WebCore::Highlight&);
+    void showInspectorHighlight(const WebCore::InspectorOverlay::Highlight&);
     void hideInspectorHighlight();
 
     void showInspectorIndication();
@@ -1009,7 +1011,7 @@ public:
     void contextMenuShowing() { m_isShowingContextMenu = true; }
 #endif
 
-    void wheelEvent(const WebWheelEvent&);
+    void wheelEvent(const WebWheelEvent&, OptionSet<WebCore::WheelEventProcessingSteps>);
 
     void wheelEventHandlersChanged(bool);
     void recomputeShortCircuitHorizontalWheelEventsState();
@@ -1339,6 +1341,12 @@ public:
 
     void updateCORSDisablingPatterns(Vector<String>&&);
 
+#if ENABLE(IPC_TESTING_API)
+    bool ipcTestingAPIEnabled() const { return m_ipcTestingAPIEnabled; }
+    uint64_t webPageProxyID() const { return messageSenderDestinationID(); }
+    uint64_t visitedLinkTableID() const { return m_visitedLinkTableID; }
+#endif
+
     void getProcessDisplayName(CompletionHandler<void(String&&)>&&);
 
     WebCore::AllowsContentJavaScript allowsContentJavaScriptFromMostRecentNavigation() const { return m_allowsContentJavaScriptFromMostRecentNavigation; }
@@ -1649,9 +1657,11 @@ private:
 
 #endif
 
-    void stopAllMediaPlayback();
-    void suspendAllMediaPlayback();
-    void resumeAllMediaPlayback();
+    void requestMediaPlaybackState(CompletionHandler<void(WebKit::MediaPlaybackState)>&&);
+
+    void pauseAllMediaPlayback(CompletionHandler<void(void)>&&);
+    void suspendAllMediaPlayback(CompletionHandler<void(void)>&&);
+    void resumeAllMediaPlayback(CompletionHandler<void(void)>&&);
 
     void advanceToNextMisspelling(bool startBeforeSelection);
     void changeSpellingToWord(const String& word);
@@ -2171,6 +2181,11 @@ private:
     bool m_canUseCredentialStorage { true };
 
     Vector<String> m_corsDisablingPatterns;
+
+#if ENABLE(IPC_TESTING_API)
+    bool m_ipcTestingAPIEnabled { false };
+    uint64_t m_visitedLinkTableID;
+#endif
 };
 
 #if !PLATFORM(IOS_FAMILY)

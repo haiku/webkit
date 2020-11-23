@@ -2630,6 +2630,8 @@ void RenderBlockFlow::clearFloats(Clear clear)
     case Clear::None:
         break;
     }
+    // FIXME: The float search tree has floored float box position (see FloatingObjects::intervalForFloatingObject).
+    newY = newY.floor();
     if (height() < newY)
         setLogicalHeight(newY);
 }
@@ -3043,7 +3045,7 @@ void RenderBlockFlow::adjustForBorderFit(LayoutUnit x, LayoutUnit& left, LayoutU
 
 void RenderBlockFlow::fitBorderToLinesIfNeeded()
 {
-    if (style().borderFit() == BorderFit::Border || hasOverrideContentLogicalWidth())
+    if (style().borderFit() == BorderFit::Border || hasOverrideLogicalWidth())
         return;
 
     // Walk any normal flow lines to snugly fit.
@@ -3061,10 +3063,10 @@ void RenderBlockFlow::fitBorderToLinesIfNeeded()
     LayoutUnit newContentWidth = right - left;
     if (newContentWidth == oldWidth)
         return;
-    
-    setOverrideContentLogicalWidth(newContentWidth);
+
+    setOverrideLogicalWidth(newContentWidth + borderAndPaddingLogicalWidth());
     layoutBlock(false);
-    clearOverrideContentLogicalWidth();
+    clearOverrideLogicalWidth();
 }
 
 void RenderBlockFlow::markLinesDirtyInBlockRange(LayoutUnit logicalTop, LayoutUnit logicalBottom, RootInlineBox* highest)
@@ -3651,7 +3653,7 @@ void RenderBlockFlow::invalidateLineLayoutPath()
 }
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-void RenderBlockFlow::layoutLFCLines(bool, LayoutUnit& repaintLogicalTop, LayoutUnit& repaintLogicalBottom)
+void RenderBlockFlow::layoutLFCLines(bool relayoutChildren, LayoutUnit& repaintLogicalTop, LayoutUnit& repaintLogicalBottom)
 {
     if (!layoutFormattingContextLineLayout())
         m_lineLayout = makeUnique<LayoutIntegration::LineLayout>(*this);
@@ -3659,8 +3661,15 @@ void RenderBlockFlow::layoutLFCLines(bool, LayoutUnit& repaintLogicalTop, Layout
     auto& layoutFormattingContextLineLayout = *this->layoutFormattingContextLineLayout();
 
     for (auto& renderer : childrenOfType<RenderObject>(*this)) {
-        if (is<RenderText>(renderer))
-            downcast<RenderText>(renderer).deleteLineBoxes();
+        if (!relayoutChildren && !renderer.needsLayout())
+            continue;
+        if (is<RenderReplaced>(renderer)) {
+            auto& replaced = downcast<RenderReplaced>(renderer);
+            replaced.setNeedsLayout(MarkOnlyThis);
+            replaced.layoutIfNeeded();
+            layoutFormattingContextLineLayout.updateReplacedDimensions(replaced);
+            continue;
+        }
         renderer.clearNeedsLayout();
     }
 

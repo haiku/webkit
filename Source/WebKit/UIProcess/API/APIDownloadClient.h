@@ -56,13 +56,12 @@ public:
 
     virtual void didStart(WebKit::DownloadProxy&) { }
     virtual void didReceiveAuthenticationChallenge(WebKit::DownloadProxy&, WebKit::AuthenticationChallengeProxy& challenge) { challenge.listener().completeChallenge(WebKit::AuthenticationChallengeDisposition::Cancel); }
-    virtual void didReceiveResponse(WebKit::DownloadProxy&, const WebCore::ResourceResponse&) { }
     virtual void didReceiveData(WebKit::DownloadProxy&, uint64_t, uint64_t, uint64_t) { }
-    virtual void decideDestinationWithSuggestedFilename(WebKit::DownloadProxy&, const WTF::String&, Function<void(WebKit::AllowOverwrite, WTF::String)>&& completionHandler) { completionHandler(WebKit::AllowOverwrite::No, { }); }
+    virtual void decideDestinationWithSuggestedFilename(WebKit::DownloadProxy&, const WebCore::ResourceResponse&, const WTF::String&, CompletionHandler<void(WebKit::AllowOverwrite, WTF::String)>&& completionHandler) { completionHandler(WebKit::AllowOverwrite::No, { }); }
     virtual void didCreateDestination(WebKit::DownloadProxy&, const WTF::String&) { }
     virtual void didFinish(WebKit::DownloadProxy&) { }
     virtual void didFail(WebKit::DownloadProxy&, const WebCore::ResourceError&) { }
-    virtual void didCancel(WebKit::DownloadProxy&) { }
+    virtual void legacyDidCancel(WebKit::DownloadProxy&) { }
     virtual void processDidCrash(WebKit::DownloadProxy&) { }
     virtual void willSendRequest(WebKit::DownloadProxy&, WebCore::ResourceRequest&& request, const WebCore::ResourceResponse&, CompletionHandler<void(WebCore::ResourceRequest&&)>&& completionHandler) { completionHandler(WTFMove(request)); }
 };

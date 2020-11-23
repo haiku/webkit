@@ -38,6 +38,8 @@
 #include "PixelDumpSupport.h"
 #include "PolicyDelegate.h"
 #include "ResourceLoadDelegate.h"
+#include "TestCommand.h"
+#include "TestFeatures.h"
 #include "TestOptions.h"
 #include "TestRunner.h"
 #include "UIDelegate.h"
@@ -46,6 +48,7 @@
 #include "WorkQueue.h"
 
 #include <CoreFoundation/CoreFoundation.h>
+#include <JavaScriptCore/InitializeThreading.h>
 #include <JavaScriptCore/Options.h>
 #include <JavaScriptCore/TestRunnerUtils.h>
 #include <WebKitLegacy/WebKit.h>
@@ -811,7 +814,6 @@ static void enableExperimentalFeatures(IWebPreferences* preferences)
     // FIXME: WebGL2
     // FIXME: WebRTC
     prefsPrivate->setCSSOMViewSmoothScrollingEnabled(TRUE);
-    prefsPrivate->setCSSIndividualTransformPropertiesEnabled(TRUE);
 }
 
 static void resetWebPreferencesToConsistentValues(IWebPreferences* preferences)
@@ -910,7 +912,7 @@ static void resetWebPreferencesToConsistentValues(IWebPreferences* preferences)
     setAlwaysAcceptCookies(false);
 }
 
-static void setWebPreferencesForTestOptions(IWebPreferences* preferences, const TestOptions& options)
+static void setWebPreferencesForTestOptions(IWebPreferences* preferences, const WTR::TestOptions& options)
 {
     COMPtr<IWebPreferencesPrivate8> prefsPrivate { Query, preferences };
 
@@ -962,7 +964,7 @@ static void setDefaultsToConsistentValuesForTesting()
 #endif
 }
 
-static void setJSCOptions(const TestOptions& options)
+static void setJSCOptions(const WTR::TestOptions& options)
 {
     static WTF::StringBuilder savedOptions;
 
@@ -977,7 +979,7 @@ static void setJSCOptions(const TestOptions& options)
     }
 }
 
-static void resetWebViewToConsistentStateBeforeTesting(const TestOptions& options)
+static void resetWebViewToConsistentStateBeforeTesting(const WTR::TestOptions& options)
 {
     setJSCOptions(options);
 
@@ -1164,11 +1166,20 @@ static bool handleControlCommand(const char* command)
     return false;
 }
 
+static WTR::TestOptions testOptionsForTest(const WTR::TestCommand& command)
+{
+    WTR::TestFeatures features;
+    WTR::merge(features, WTR::hardcodedFeaturesBasedOnPathForTest(command));
+    WTR::merge(features, WTR::featureDefaultsFromTestHeaderForTest(command, WTR::TestOptions::keyTypeMapping()));
+
+    return WTR::TestOptions { WTFMove(features) };
+}
+
 static void runTest(const string& inputLine)
 {
     ASSERT(!inputLine.empty());
 
-    TestCommand command = parseInputLine(inputLine);
+    auto command = WTR::parseInputLine(inputLine);
     const string& pathOrURL = command.pathOrURL;
     dumpPixelsForCurrentTest = command.shouldDumpPixels || dumpPixelsForAllTests;
 
@@ -1212,12 +1223,12 @@ static void runTest(const string& inputLine)
 
     CFRelease(url);
 
-    TestOptions options { command.pathOrURL, command.absolutePath };
+    auto options = testOptionsForTest(command);
 
     resetWebViewToConsistentStateBeforeTesting(options);
 
     ::gTestRunner = TestRunner::create(testURL.data(), command.expectedPixelHash);
-    ::gTestRunner->setCustomTimeout(command.timeout);
+    ::gTestRunner->setCustomTimeout(command.timeout.milliseconds());
     ::gTestRunner->setDumpJSConsoleLogInStdErr(command.dumpJSConsoleLogInStdErr || options.dumpJSConsoleLogInStdErr);
 
     topLoadingFrame = nullptr;
@@ -1601,6 +1612,10 @@ int main(int argc, const char* argv[])
     setDefaultsToConsistentValuesForTesting();
 
     Vector<const char*> tests = initializeGlobalsFromCommandLineOptions(argc, argv);
+
+    JSC::initialize();
+    WTF::initializeMainThread();
+    WebCoreTestSupport::populateJITOperations();
 
     // FIXME - need to make DRT pass with Windows native controls <http://bugs.webkit.org/show_bug.cgi?id=25592>
     COMPtr<IWebPreferences> tmpPreferences;

@@ -280,15 +280,10 @@ void GraphicsContext::restorePlatformState()
     m_data->m_userToDeviceTransformKnownToBeIdentity = false;
 }
 
-void GraphicsContext::drawNativeImage(const RetainPtr<CGImageRef>& image, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& options)
+void GraphicsContext::platformDrawNativeImage(const RetainPtr<CGImageRef>& image, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& options)
 {
     if (paintingDisabled())
         return;
-
-    if (m_impl) {
-        m_impl->drawNativeImage(image, imageSize, destRect, srcRect, options);
-        return;
-    }
 
 #if !LOG_DISABLED
     MonotonicTime startTime = MonotonicTime::now();
@@ -888,6 +883,14 @@ void GraphicsContext::strokePath(const Path& path)
 
     if (m_state.strokePattern)
         applyStrokePattern();
+
+    if (path.hasInlineData<LineData>()) {
+        auto& lineData = path.inlineData<LineData>();
+        CGPoint points[2] { lineData.start, lineData.end };
+        CGContextStrokeLineSegments(context, points, 2);
+        return;
+    }
+
 #if USE_DRAW_PATH_DIRECT
     CGContextDrawPathDirect(context, kCGPathStroke, path.platformPath(), nullptr);
 #else

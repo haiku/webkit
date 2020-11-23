@@ -38,7 +38,7 @@ public:
 
     virtual bool isClosing() const = 0;
     virtual WorkerOrWorkletScriptController* script() = 0;
-    virtual WorkerOrWorkletThread* workerOrWorkletThread() = 0;
+    virtual WorkerOrWorkletThread* workerOrWorkletThread() const = 0;
 
     unsigned long createUniqueIdentifier() { return m_uniqueIdentifier++; }
 
@@ -47,3 +47,7 @@ private:
 };
 
 } // namespace WebCore
+
+SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::WorkerOrWorkletGlobalScope)
+    static bool isType(const WebCore::ScriptExecutionContext& context) { return context.isWorkerGlobalScope() || context.isWorkletGlobalScope(); }
+SPECIALIZE_TYPE_TRAITS_END()

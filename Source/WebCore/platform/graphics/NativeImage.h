@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2006, 2016 Apple Inc.  All rights reserved.
+ * Copyright (C) 2004-2020 Apple Inc.  All rights reserved.
  * Copyright (C) 2007-2008 Torch Mobile, Inc.
  * Copyright (C) 2012 Company 100 Inc.
  *
@@ -27,84 +27,16 @@
 
 #pragma once
 
-#include "ImagePaintingOptions.h"
-
-#if USE(CG)
-#include <wtf/RetainPtr.h>
-typedef struct CGImage* CGImageRef;
-#elif USE(CAIRO)
-#include "RefPtrCairo.h"
-#elif USE(WINGDI)
-#include "SharedBitmap.h"
-#elif USE(HAIKU)
-#include <interface/Rect.h>
-#include <interface/Bitmap.h>
-#include <wtf/RefCounted.h>
-#include <wtf/RefPtr.h>
-#endif
-
-#if USE(DIRECT2D)
-#include "COMPtr.h"
-#include <d2d1.h>
-#include <wincodec.h>
-#endif
+#include "NativeImagePtr.h"
 
 namespace WebCore {
 
 class Color;
-class FloatRect;
 class IntSize;
-class GraphicsContext;
-
-#if USE(CG)
-typedef RetainPtr<CGImageRef> NativeImagePtr;
-#elif USE(DIRECT2D)
-typedef COMPtr<ID2D1Bitmap> NativeImagePtr;
-#elif USE(CAIRO)
-typedef RefPtr<cairo_surface_t> NativeImagePtr;
-#elif USE(WINGDI)
-typedef RefPtr<SharedBitmap> NativeImagePtr;
-#elif USE(HAIKU)
-class BitmapRef: public BBitmap, public RefCounted<BitmapRef>
-{
-       public:
-               BitmapRef(BRect r, uint32 f, color_space c, int32 b)
-                       : BBitmap(r, f, c, b)
-               {
-               }
-
-               BitmapRef(BRect r, color_space c, bool v)
-                       : BBitmap(r, c, v)
-               {
-               }
-
-               BitmapRef(const BBitmap& other)
-                       : BBitmap(other)
-               {
-               }
-
-               BitmapRef(const BitmapRef& other) = delete;
-
-               ~BitmapRef()
-               {
-               }
-};
-
-typedef RefPtr<BitmapRef> NativeImagePtr;
-#endif
 
 WEBCORE_EXPORT IntSize nativeImageSize(const NativeImagePtr&);
 bool nativeImageHasAlpha(const NativeImagePtr&);
 Color nativeImageSinglePixelSolidColor(const NativeImagePtr&);
-
-void drawNativeImage(const NativeImagePtr&, GraphicsContext&, const FloatRect&, const FloatRect&, const IntSize&, const ImagePaintingOptions&);
-WEBCORE_EXPORT void drawNativeImage(const NativeImagePtr&, GraphicsContext&, float scaleFactor, const IntPoint& destination, const IntRect& source);
-
 void clearNativeImageSubimages(const NativeImagePtr&);
 
-class NativeImageHandle {
-public:
-    NativeImagePtr image;
-};
-    
 }

@@ -136,10 +136,15 @@ void TestController::platformResetPreferencesToConsistentValues()
 {
 }
 
+bool TestController::platformResetStateToConsistentValues(const TestOptions&)
+{
+    return true;
+}
+
 TestFeatures TestController::platformSpecificFeatureDefaultsForTest(const TestCommand&) const
 {
     TestFeatures features;
-    features.boolFeatures.insert({ "enableModernMediaControls", false });
+    features.boolWebPreferenceFeatures.insert({ "ModernMediaControlsEnabled", false });
     return features;
 }
 

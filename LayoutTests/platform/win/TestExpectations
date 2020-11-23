@@ -518,6 +518,7 @@ webkit.org/b/60731 fast/css-grid-layout/ [ Skip ]
 
 # TODO ENABLE(CSS_SCROLL_SNAP) is disabled.
 css3/scroll-snap/ [ Skip ]
+imported/w3c/web-platform-tests/css/css-scroll-snap [ Skip ]
 
 # JSC does not support setIsolatedWorldSecurityOrigin
 webkit.org/b/61540 http/tests/security/isolatedWorld/cross-origin-xhr.html [ Skip ]
@@ -698,6 +699,10 @@ fast/visual-viewport/zoomed-fixed-scroll-down-then-up.html [ Failure ]
 # locale-specific shaping isn't implemented on any non-Cocoa port yet.
 webkit.org/b/77568 fast/text/locale-shaping.html [ ImageOnlyFailure ]
 webkit.org/b/77568 fast/text/locale-shaping-complex.html [ ImageOnlyFailure ]
+
+# WebAssembly doesn't exist on Windows
+fast/frames/detached-frame-wasm-resolve.html [ Skip ]
+fast/history/page-cache-wasm-promise-resolve.html [ Skip ]
 
 ################################################################################
 ###########    End Missing Functionality Prevents Testing         ##############
@@ -1611,6 +1616,7 @@ webkit.org/b/140867 [ Debug ] accessibility/focusable-div.html [ Skip ]
 [ Debug ] accessibility/heading-title-includes-links.html [ Skip ]
 webkit.org/b/140867 [ Debug ] accessibility/spinbutton-value.html [ Skip ]
 accessibility/url-test.html [ Skip ]
+accessibility/text-element-path.html [ Skip ]
 
 # Missing support for scrollTo* methods.
 accessibility/scroll-to-global-point-iframe-nested.html [ Skip ]
@@ -4278,6 +4284,7 @@ storage/indexeddb/request-leak-private.html [ Skip ]
 storage/indexeddb/request-leak.html [ Skip ]
 
 webkit.org/b/194711 fast/replaced/encrypted-pdf-as-object-and-embed.html [ Failure ]
+webkit.org/b/194711 fast/replaced/pdf-as-embed-with-no-mime-type-is-not-blank.html [ Failure ]
 
 webkit.org/b/195461 http/tests/referrer-policy-iframe/no-referrer/cross-origin-http-http.html [ Failure ]
 webkit.org/b/195461 http/tests/referrer-policy-iframe/no-referrer/same-origin.html [ Failure ]
@@ -4574,3 +4581,8 @@ fast/text/emoji-synthesis.html [ ImageOnlyFailure ]
 webanimations/accelerated-css-animation-with-easing.html [ Pass ImageOnlyFailure ]
 
 webkit.org/b/216967 fast/text/whitespace/pre-wrap-long-word-simple-lines.html [ Pass ImageOnlyFailure ]
+
+webkit.org/b/217812 transforms/2d/scale-change-composited.html [ Skip ]
+webkit.org/b/217812 transforms/2d/rotate-change-composited.html [ Skip ]
+webkit.org/b/217812 transforms/2d/translate-change-composited.html [ Skip ]
+webkit.org/b/217812 transforms/2d/rotate-composited.html [ Skip ]

@@ -732,7 +732,6 @@ enum {
     SetStatisticsHasHadUserInteractionCallbackID,
     StatisticsDidModifyDataRecordsCallbackID,
     StatisticsDidScanDataRecordsCallbackID,
-    StatisticsDidRunTelemetryCallbackID,
     StatisticsDidClearThroughWebsiteDataRemovalCallbackID,
     StatisticsDidClearInMemoryAndPersistentStoreCallbackID,
     StatisticsDidResetToConsistentStateCallbackID,
@@ -1552,20 +1551,6 @@ void TestRunner::statisticsDidScanDataRecordsCallback()
     callTestRunnerCallback(StatisticsDidScanDataRecordsCallbackID);
 }
 
-void TestRunner::installStatisticsDidRunTelemetryCallback(JSValueRef callback)
-{
-    cacheTestRunnerCallback(StatisticsDidRunTelemetryCallbackID, callback);
-}
-    
-void TestRunner::statisticsDidRunTelemetryCallback(unsigned numberOfPrevalentResources, unsigned numberOfPrevalentResourcesWithUserInteraction, unsigned numberOfPrevalentResourcesWithoutUserInteraction, unsigned topPrevalentResourceWithUserInteractionDaysSinceUserInteraction, unsigned medianDaysSinceUserInteractionPrevalentResourceWithUserInteraction, unsigned top3NumberOfPrevalentResourcesWithUI, unsigned top3MedianSubFrameWithoutUI, unsigned top3MedianSubResourceWithoutUI, unsigned top3MedianUniqueRedirectsWithoutUI, unsigned top3MedianDataRecordsRemovedWithoutUI)
-{
-    String string = makeString("{ \"numberOfPrevalentResources\" : ", numberOfPrevalentResources, ", \"numberOfPrevalentResourcesWithUserInteraction\" : ", numberOfPrevalentResourcesWithUserInteraction, ", \"numberOfPrevalentResourcesWithoutUserInteraction\" : ", numberOfPrevalentResourcesWithoutUserInteraction, ", \"topPrevalentResourceWithUserInteractionDaysSinceUserInteraction\" : ", topPrevalentResourceWithUserInteractionDaysSinceUserInteraction, ", \"medianDaysSinceUserInteractionPrevalentResourceWithUserInteraction\" : ", medianDaysSinceUserInteractionPrevalentResourceWithUserInteraction, ", \"top3NumberOfPrevalentResourcesWithUI\" : ", top3NumberOfPrevalentResourcesWithUI, ", \"top3MedianSubFrameWithoutUI\" : ", top3MedianSubFrameWithoutUI, ", \"top3MedianSubResourceWithoutUI\" : ", top3MedianSubResourceWithoutUI, ", \"top3MedianUniqueRedirectsWithoutUI\" : ", top3MedianUniqueRedirectsWithoutUI, ", \"top3MedianDataRecordsRemovedWithoutUI\" : ", top3MedianDataRecordsRemovedWithoutUI, " }");
-    
-    JSValueRef result = JSValueMakeFromJSONString(mainFrameJSContext(), createJSString(string.utf8().data()).get());
-
-    callTestRunnerCallback(StatisticsDidRunTelemetryCallbackID, 1, &result);
-}
-
 bool TestRunner::statisticsNotifyObserver()
 {
     return InjectedBundle::singleton().statisticsNotifyObserver();
@@ -1586,11 +1571,6 @@ void TestRunner::statisticsUpdateCookieBlocking(JSValueRef completionHandler)
 void TestRunner::statisticsCallDidSetBlockCookiesForHostCallback()
 {
     callTestRunnerCallback(StatisticsDidSetBlockCookiesForHostCallbackID);
-}
-
-void TestRunner::statisticsSubmitTelemetry()
-{
-    postSynchronousMessage("StatisticsSubmitTelemetry");
 }
 
 void TestRunner::setStatisticsNotifyPagesWhenDataRecordsWereScanned(bool value)
@@ -1894,7 +1874,7 @@ bool TestRunner::isMockRealtimeMediaSourceCenterEnabled()
     return postSynchronousMessageReturningBoolean("IsMockRealtimeMediaSourceCenterEnabled");
 }
 
-#if PLATFORM(MAC)
+#if ENABLE(GAMEPAD)
 
 void TestRunner::connectMockGamepad(unsigned index)
 {
@@ -1957,7 +1937,7 @@ void TestRunner::setMockGamepadButtonValue(unsigned, unsigned, double)
 {
 }
 
-#endif // PLATFORM(MAC)
+#endif // ENABLE(GAMEPAD)
 
 void TestRunner::setOpenPanelFiles(JSValueRef filesValue)
 {

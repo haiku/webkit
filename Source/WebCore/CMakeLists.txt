@@ -102,7 +102,6 @@ set(WebCore_PRIVATE_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/layout"
     "${WEBCORE_DIR}/layout/blockformatting"
     "${WEBCORE_DIR}/layout/blockformatting/tablewrapper"
-    "${WEBCORE_DIR}/layout/displaytree"
     "${WEBCORE_DIR}/layout/flexformatting"
     "${WEBCORE_DIR}/layout/floats"
     "${WEBCORE_DIR}/layout/inlineformatting"
@@ -758,6 +757,7 @@ set(WebCore_NON_SVG_IDL_FILES
     dom/AbortAlgorithm.idl
     dom/AbortController.idl
     dom/AbortSignal.idl
+    dom/AbstractRange.idl
     dom/AnimationEvent.idl
     dom/Attr.idl
     dom/BeforeLoadEvent.idl
@@ -1483,6 +1483,7 @@ if (ENABLE_WEBGL)
         html/canvas/EXTFloatBlend.cpp
         html/canvas/EXTFragDepth.cpp
         html/canvas/EXTShaderTextureLOD.cpp
+        html/canvas/EXTTextureCompressionRGTC.cpp
         html/canvas/EXTTextureFilterAnisotropic.cpp
         html/canvas/EXTsRGB.cpp
         html/canvas/OESElementIndexUint.cpp
@@ -1541,6 +1542,7 @@ list(APPEND WebCore_IDL_FILES
     html/canvas/EXTFloatBlend.idl
     html/canvas/EXTFragDepth.idl
     html/canvas/EXTShaderTextureLOD.idl
+    html/canvas/EXTTextureCompressionRGTC.idl
     html/canvas/EXTTextureFilterAnisotropic.idl
     html/canvas/EXTsRGB.idl
     html/canvas/OESElementIndexUint.idl
@@ -1882,7 +1884,7 @@ list(APPEND WebCore_SOURCES ${WebCore_DERIVED_SOURCES_DIR}/HTTPHeaderNames.cpp)
 
 # Generate CSS property names
 add_custom_command(
-    OUTPUT ${WebCore_DERIVED_SOURCES_DIR}/CSSProperties.json ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.h ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.cpp ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.gperf ${WebCore_DERIVED_SOURCES_DIR}/StyleBuilderGenerated.cpp ${WebCore_DERIVED_SOURCES_DIR}/StylePropertyShorthandFunctions.h ${WebCore_DERIVED_SOURCES_DIR}/StylePropertyShorthandFunctions.cpp
+    OUTPUT ${WebCore_DERIVED_SOURCES_DIR}/CSSProperties.json ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.h ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.cpp ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.gperf ${WebCore_DERIVED_SOURCES_DIR}/StyleBuilderGenerated.cpp ${WebCore_DERIVED_SOURCES_DIR}/StylePropertyShorthandFunctions.h ${WebCore_DERIVED_SOURCES_DIR}/StylePropertyShorthandFunctions.cpp ${WebCore_DERIVED_SOURCES_DIR}/CSSStyleDeclaration+PropertyNames.idl
     MAIN_DEPENDENCY ${WEBCORE_DIR}/css/makeprop.pl
     DEPENDS ${WebCore_CSS_PROPERTY_NAMES}
     WORKING_DIRECTORY ${WebCore_DERIVED_SOURCES_DIR}
@@ -1892,6 +1894,7 @@ add_custom_command(
 list(APPEND WebCore_SOURCES ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.cpp)
 list(APPEND WebCore_SOURCES ${WebCore_DERIVED_SOURCES_DIR}/StyleBuilderGenerated.cpp)
 list(APPEND WebCore_SOURCES ${WebCore_DERIVED_SOURCES_DIR}/StylePropertyShorthandFunctions.cpp)
+list(APPEND WebCore_IDL_FILES ${WebCore_DERIVED_SOURCES_DIR}/CSSStyleDeclaration+PropertyNames.idl)
 ADD_SOURCE_WEBCORE_DERIVED_DEPENDENCIES(${WEBCORE_DIR}/css/CSSParser.cpp CSSValueKeywords.h)
 
 # Generate CSS value keywords

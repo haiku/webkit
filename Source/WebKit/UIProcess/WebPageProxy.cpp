@@ -137,6 +137,7 @@
 #include "WebURLSchemeHandler.h"
 #include "WebUserContentControllerProxy.h"
 #include "WebViewDidMoveToWindowObserver.h"
+#include "WebWheelEventCoalescer.h"
 #include "WebsiteDataStore.h"
 #include <WebCore/AdClickAttribution.h>
 #include <WebCore/BitmapImage.h>
@@ -569,6 +570,12 @@ WebPageProxy::WebPageProxy(PageClient& pageClient, WebProcessProxy& process, Ref
     m_inspectorDebuggable->init();
 #endif
     m_inspectorController->init();
+
+#if ENABLE(IPC_TESTING_API)
+    if (m_preferences->store().getBoolValueForKey(WebPreferencesKey::ipcTestingAPIEnabledKey()))
+        process.setIgnoreInvalidMessageForTesting();
+#endif
+
 }
 
 WebPageProxy::~WebPageProxy()
@@ -837,6 +844,11 @@ void WebPageProxy::launchProcess(const RegistrableDomain& registrableDomain, Pro
 
     m_process->addExistingWebPage(*this, WebProcessProxy::BeginsUsingDataStore::Yes);
     m_process->addMessageReceiver(Messages::WebPageProxy::messageReceiverName(), m_webPageID, *this);
+
+#if ENABLE(IPC_TESTING_API)
+    if (m_preferences->store().getBoolValueForKey(WebPreferencesKey::ipcTestingAPIEnabledKey()))
+        m_process->setIgnoreInvalidMessageForTesting();
+#endif
 
     finishAttachingToWebProcess(reason);
 
@@ -2613,70 +2625,6 @@ void WebPageProxy::flushPendingMouseEventCallbacks()
     m_callbackHandlersAfterProcessingPendingMouseEvents.clear();
 }
 
-#if MERGE_WHEEL_EVENTS
-static bool canCoalesce(const WebWheelEvent& a, const WebWheelEvent& b)
-{
-    if (a.position() != b.position())
-        return false;
-    if (a.globalPosition() != b.globalPosition())
-        return false;
-    if (a.modifiers() != b.modifiers())
-        return false;
-    if (a.granularity() != b.granularity())
-        return false;
-#if PLATFORM(COCOA)
-    if (a.phase() != b.phase())
-        return false;
-    if (a.momentumPhase() != b.momentumPhase())
-        return false;
-    if (a.hasPreciseScrollingDeltas() != b.hasPreciseScrollingDeltas())
-        return false;
-#endif
-
-    return true;
-}
-
-static WebWheelEvent coalesce(const WebWheelEvent& a, const WebWheelEvent& b)
-{
-    ASSERT(canCoalesce(a, b));
-
-    FloatSize mergedDelta = a.delta() + b.delta();
-    FloatSize mergedWheelTicks = a.wheelTicks() + b.wheelTicks();
-
-#if PLATFORM(COCOA)
-    FloatSize mergedUnacceleratedScrollingDelta = a.unacceleratedScrollingDelta() + b.unacceleratedScrollingDelta();
-
-    return WebWheelEvent(WebEvent::Wheel, b.position(), b.globalPosition(), mergedDelta, mergedWheelTicks, b.granularity(), b.directionInvertedFromDevice(), b.phase(), b.momentumPhase(), b.hasPreciseScrollingDeltas(), b.scrollCount(), mergedUnacceleratedScrollingDelta, b.modifiers(), b.timestamp());
-#else
-    return WebWheelEvent(WebEvent::Wheel, b.position(), b.globalPosition(), mergedDelta, mergedWheelTicks, b.granularity(), b.modifiers(), b.timestamp());
-#endif
-}
-#endif // MERGE_WHEEL_EVENTS
-
-static WebWheelEvent coalescedWheelEvent(Deque<NativeWebWheelEvent>& queue, Vector<NativeWebWheelEvent>& coalescedEvents)
-{
-    ASSERT(!queue.isEmpty());
-    ASSERT(coalescedEvents.isEmpty());
-
-#if MERGE_WHEEL_EVENTS
-    NativeWebWheelEvent firstEvent = queue.takeFirst();
-    coalescedEvents.append(firstEvent);
-
-    WebWheelEvent event = firstEvent;
-    while (!queue.isEmpty() && canCoalesce(event, queue.first())) {
-        NativeWebWheelEvent firstEvent = queue.takeFirst();
-        coalescedEvents.append(firstEvent);
-        event = coalesce(event, firstEvent);
-    }
-
-    return event;
-#else
-    while (!queue.isEmpty())
-        coalescedEvents.append(queue.takeFirst());
-    return coalescedEvents.last();
-#endif
-}
-
 void WebPageProxy::handleWheelEvent(const NativeWebWheelEvent& event)
 {
 #if ENABLE(ASYNC_SCROLLING) && PLATFORM(COCOA)
@@ -2689,30 +2637,10 @@ void WebPageProxy::handleWheelEvent(const NativeWebWheelEvent& event)
 
     closeOverlayedViews();
 
-    if (!m_currentlyProcessedWheelEvents.isEmpty()) {
-        m_wheelEventQueue.append(event);
-        if (!shouldProcessWheelEventNow(event))
-            return;
-        // The queue has too many wheel events, so push a new event.
+    if (wheelEventCoalescer().shouldDispatchEvent(event)) {
+        auto event = wheelEventCoalescer().nextEventToDispatch();
+        sendWheelEvent(*event);
     }
-
-    if (!m_wheelEventQueue.isEmpty()) {
-        processNextQueuedWheelEvent();
-        return;
-    }
-
-    auto coalescedWheelEvent = makeUnique<Vector<NativeWebWheelEvent>>();
-    coalescedWheelEvent->append(event);
-    m_currentlyProcessedWheelEvents.append(WTFMove(coalescedWheelEvent));
-    sendWheelEvent(event);
-}
-
-void WebPageProxy::processNextQueuedWheelEvent()
-{
-    auto nextCoalescedEvent = makeUnique<Vector<NativeWebWheelEvent>>();
-    WebWheelEvent nextWheelEvent = coalescedWheelEvent(m_wheelEventQueue, *nextCoalescedEvent.get());
-    m_currentlyProcessedWheelEvents.append(WTFMove(nextCoalescedEvent));
-    sendWheelEvent(nextWheelEvent);
 }
 
 void WebPageProxy::sendWheelEvent(const WebWheelEvent& event)
@@ -2736,25 +2664,12 @@ void WebPageProxy::sendWheelEvent(const WebWheelEvent& event)
     m_process->isResponsiveWithLazyStop();
 }
 
-bool WebPageProxy::shouldProcessWheelEventNow(const WebWheelEvent& event) const
+WebWheelEventCoalescer& WebPageProxy::wheelEventCoalescer()
 {
-#if PLATFORM(GTK)
-    // Don't queue events representing a non-trivial scrolling phase to
-    // avoid having them trapped in the queue, potentially preventing a
-    // scrolling session to beginning or end correctly.
-    // This is only needed by platforms whose WebWheelEvent has this phase
-    // information (Cocoa and GTK+) but Cocoa was fine without it.
-    if (event.phase() == WebWheelEvent::Phase::PhaseNone
-        || event.phase() == WebWheelEvent::Phase::PhaseChanged
-        || event.momentumPhase() == WebWheelEvent::Phase::PhaseNone
-        || event.momentumPhase() == WebWheelEvent::Phase::PhaseChanged)
-        return true;
-#else
-    UNUSED_PARAM(event);
-#endif
-    if (m_wheelEventQueue.size() >= wheelEventQueueSizeThreshold)
-        return true;
-    return false;
+    if (!m_wheelEventCoalescer)
+        m_wheelEventCoalescer = makeUnique<WebWheelEventCoalescer>();
+
+    return *m_wheelEventCoalescer;
 }
 
 bool WebPageProxy::hasQueuedKeyEvent() const
@@ -3172,16 +3087,13 @@ bool WebPageProxy::setIsNavigatingToAppBoundDomainAndCheckIfPermitted(bool isMai
         if (*isNavigatingToAppBoundDomain == NavigatingToAppBoundDomain::No) {
             if (isMainFrame)
                 return false;
-            m_configuration->setWebViewCategory(WebViewCategory::InAppBrowser);
             m_isNavigatingToAppBoundDomain = NavigatingToAppBoundDomain::No;
             return true;
         }
-        m_configuration->setWebViewCategory(WebViewCategory::AppBoundDomain);
         m_isNavigatingToAppBoundDomain = NavigatingToAppBoundDomain::Yes;
     } else {
         if (m_hasExecutedAppBoundBehaviorBeforeNavigation)
             return false;
-        m_configuration->setWebViewCategory(WebViewCategory::InAppBrowser);
         m_isNavigatingToAppBoundDomain = NavigatingToAppBoundDomain::No;
     }
     return true;
@@ -6020,40 +5932,60 @@ void WebPageProxy::stopMediaCapture()
 #endif
 }
 
-void WebPageProxy::stopAllMediaPlayback()
+void WebPageProxy::requestMediaPlaybackState(CompletionHandler<void(WebKit::MediaPlaybackState)>&& completionHandler)
 {
-    if (!hasRunningProcess())
+    if (!hasRunningProcess()) {
+        completionHandler({ });
         return;
+    }
 
-    send(Messages::WebPage::StopAllMediaPlayback());
+    sendWithAsyncReply(Messages::WebPage::RequestMediaPlaybackState(), WTFMove(completionHandler));
 }
 
-void WebPageProxy::suspendAllMediaPlayback()
+void WebPageProxy::pauseAllMediaPlayback(CompletionHandler<void(void)>&& completionHandler)
+{
+    if (!hasRunningProcess()) {
+        completionHandler();
+        return;
+    }
+
+    sendWithAsyncReply(Messages::WebPage::PauseAllMediaPlayback(), WTFMove(completionHandler));
+}
+
+void WebPageProxy::suspendAllMediaPlayback(CompletionHandler<void(void)>&& completionHandler)
 {
     m_suspendMediaPlaybackCounter++;
-    if (m_mediaPlaybackIsSuspended)
+    if (m_mediaPlaybackIsSuspended) {
+        completionHandler();
         return;
+    }
     m_mediaPlaybackIsSuspended = true;
 
-    if (!hasRunningProcess())
+    if (!hasRunningProcess()) {
+        completionHandler();
         return;
+    }
 
-    send(Messages::WebPage::SuspendAllMediaPlayback());
+    sendWithAsyncReply(Messages::WebPage::SuspendAllMediaPlayback(), WTFMove(completionHandler));
 }
 
-void WebPageProxy::resumeAllMediaPlayback()
+void WebPageProxy::resumeAllMediaPlayback(CompletionHandler<void(void)>&& completionHandler)
 {
     if (m_suspendMediaPlaybackCounter > 0)
         m_suspendMediaPlaybackCounter--;
 
-    if (!m_mediaPlaybackIsSuspended || m_suspendMediaPlaybackCounter)
+    if (!m_mediaPlaybackIsSuspended || m_suspendMediaPlaybackCounter) {
+        completionHandler();
         return;
+    }
     m_mediaPlaybackIsSuspended = false;
 
-    if (!hasRunningProcess())
+    if (!hasRunningProcess()) {
+        completionHandler();
         return;
+    }
 
-    send(Messages::WebPage::ResumeAllMediaPlayback());
+    sendWithAsyncReply(Messages::WebPage::ResumeAllMediaPlayback(), WTFMove(completionHandler));
 }
 
 void WebPageProxy::setMayStartMediaWhenInWindow(bool mayStartMedia)
@@ -6984,7 +6916,7 @@ void WebPageProxy::didReceiveEvent(uint32_t opaqueType, bool handled)
 
         // Retire the last sent event now that WebProcess is done handling it.
         MESSAGE_CHECK(m_process, !m_mouseEventQueue.isEmpty());
-        NativeWebMouseEvent event = m_mouseEventQueue.takeFirst();
+        auto event = m_mouseEventQueue.takeFirst();
         MESSAGE_CHECK(m_process, type == event.type());
 
         if (!m_mouseEventQueue.isEmpty()) {
@@ -6995,23 +6927,21 @@ void WebPageProxy::didReceiveEvent(uint32_t opaqueType, bool handled)
                 automationSession->mouseEventsFlushedForPage(*this);
             didFinishProcessingAllPendingMouseEvents();
         }
-
         break;
     }
 
     case WebEvent::Wheel: {
-        MESSAGE_CHECK(m_process, !m_currentlyProcessedWheelEvents.isEmpty());
-
-        std::unique_ptr<Vector<NativeWebWheelEvent>> oldestCoalescedEvent = m_currentlyProcessedWheelEvents.takeFirst();
+        MESSAGE_CHECK(m_process, wheelEventCoalescer().hasEventsBeingProcessed());
+        auto oldestProcessedEvent = wheelEventCoalescer().takeOldestEventBeingProcessed();
 
         // FIXME: Dispatch additional events to the didNotHandleWheelEvent client function.
         if (!handled) {
-            m_uiClient->didNotHandleWheelEvent(this, oldestCoalescedEvent->last());
-            pageClient().wheelEventWasNotHandledByWebCore(oldestCoalescedEvent->last());
+            m_uiClient->didNotHandleWheelEvent(this, oldestProcessedEvent);
+            pageClient().wheelEventWasNotHandledByWebCore(oldestProcessedEvent);
         }
 
-        if (!m_wheelEventQueue.isEmpty())
-            processNextQueuedWheelEvent();
+        if (auto eventToSend = wheelEventCoalescer().nextEventToDispatch())
+            sendWheelEvent(*eventToSend);
         break;
     }
 
@@ -7022,8 +6952,7 @@ void WebPageProxy::didReceiveEvent(uint32_t opaqueType, bool handled)
         LOG(KeyHandling, "WebPageProxy::didReceiveEvent: %s (queue empty %d)", webKeyboardEventTypeString(type), m_keyEventQueue.isEmpty());
 
         MESSAGE_CHECK(m_process, !m_keyEventQueue.isEmpty());
-        NativeWebKeyboardEvent event = m_keyEventQueue.takeFirst();
-
+        auto event = m_keyEventQueue.takeFirst();
         MESSAGE_CHECK(m_process, type == event.type());
 
 #if PLATFORM(WIN)
@@ -7057,15 +6986,13 @@ void WebPageProxy::didReceiveEvent(uint32_t opaqueType, bool handled)
     case WebEvent::GestureChange:
     case WebEvent::GestureEnd: {
         MESSAGE_CHECK(m_process, !m_gestureEventQueue.isEmpty());
-        NativeWebGestureEvent event = m_gestureEventQueue.takeFirst();
-
+        auto event = m_gestureEventQueue.takeFirst();
         MESSAGE_CHECK(m_process, type == event.type());
 
         if (!handled)
             pageClient().gestureEventWasNotHandledByWebCore(event);
         break;
     }
-        break;
 #endif
 #if ENABLE(IOS_TOUCH_EVENTS)
     case WebEvent::TouchStart:
@@ -7079,8 +7006,7 @@ void WebPageProxy::didReceiveEvent(uint32_t opaqueType, bool handled)
     case WebEvent::TouchEnd:
     case WebEvent::TouchCancel: {
         MESSAGE_CHECK(m_process, !m_touchEventQueue.isEmpty());
-        QueuedTouchEvents queuedEvents = m_touchEventQueue.takeFirst();
-
+        auto queuedEvents = m_touchEventQueue.takeFirst();
         MESSAGE_CHECK(m_process, type == queuedEvents.forwardedEvent.type());
 
         pageClient().doneWithTouchEvent(queuedEvents.forwardedEvent, handled);
@@ -7712,8 +7638,9 @@ void WebPageProxy::resetStateAfterProcessExited(ProcessTerminationReason termina
     // Can't expect DidReceiveEvent notifications from a crashed web process.
     m_mouseEventQueue.clear();
     m_keyEventQueue.clear();
-    m_wheelEventQueue.clear();
-    m_currentlyProcessedWheelEvents.clear();
+    if (m_wheelEventCoalescer)
+        m_wheelEventCoalescer->clear();
+
 #if ENABLE(TOUCH_EVENTS) && !ENABLE(IOS_TOUCH_EVENTS)
     m_touchEventQueue.clear();
 #endif
@@ -7737,6 +7664,22 @@ void WebPageProxy::resetStateAfterProcessExited(ProcessTerminationReason termina
     // FIXME: <rdar://problem/38676604> In case of process swaps, the old process should gracefully suspend instead of terminating.
     m_process->processTerminated();
 }
+
+#if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(COCOA)
+static const Vector<ASCIILiteral>& attachmentElementServices()
+{
+    static const auto services = makeNeverDestroyed(Vector<ASCIILiteral> {
+#if PLATFORM(IOS_FAMILY)
+        "com.apple.frontboard.systemappservices"_s,
+#endif
+        "com.apple.iconservices"_s,
+#if PLATFORM(MAC)
+        "com.apple.iconservices.store"_s,
+#endif
+    });
+    return services;
+}
+#endif
 
 WebPageCreationParameters WebPageProxy::creationParameters(WebProcessProxy& process, DrawingAreaProxy& drawingArea, RefPtr<API::WebsitePolicies>&& websitePolicies)
 {
@@ -7903,13 +7846,9 @@ WebPageCreationParameters WebPageProxy::creationParameters(WebProcessProxy& proc
     parameters.themeName = pageClient().themeName();
 #endif
 
-#if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(IOS_FAMILY)
+#if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(COCOA)
     if (m_preferences->attachmentElementEnabled() && !m_process->hasIssuedAttachmentElementRelatedSandboxExtensions()) {
-        SandboxExtension::Handle handle;
-        SandboxExtension::createHandleForMachLookup("com.apple.frontboard.systemappservices"_s, WTF::nullopt, handle);
-        parameters.frontboardExtensionHandle = WTFMove(handle);
-        SandboxExtension::createHandleForMachLookup("com.apple.iconservices"_s, WTF::nullopt, handle);
-        parameters.iconServicesExtensionHandle = WTFMove(handle);
+        parameters.attachmentElementExtensionHandles = SandboxExtension::createHandlesForMachLookup(attachmentElementServices(), WTF::nullopt);
         m_process->setHasIssuedAttachmentElementRelatedSandboxExtensions();
     }
 #endif

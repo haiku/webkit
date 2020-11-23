@@ -1,4 +1,4 @@
-# Copyright (C) 2017 Apple Inc. All rights reserved.
+# Copyright (C) 2017-2020 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -20,7 +20,13 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from buildbot.buildslave import BuildSlave
+import os
+USE_BUILDBOT_VERSION2 = os.getenv('USE_BUILDBOT_VERSION2') is not None
+
+if USE_BUILDBOT_VERSION2:
+    from buildbot.worker import Worker
+else:
+    from buildbot.buildslave import BuildSlave
 from buildbot.scheduler import AnyBranchScheduler, Triggerable, Nightly
 from buildbot.schedulers.forcesched import FixedParameter, ForceScheduler, StringParameter, BooleanParameter
 from buildbot.schedulers.filter import ChangeFilter
@@ -39,6 +45,7 @@ import wkbuild
 trunk_filter = ChangeFilter(branch=["trunk", None])
 buildbot_identifiers_re = re.compile('^[a-zA-Z_-][a-zA-Z0-9_-]*$')
 
+BUILDER_NAME_LENGTH_LIMIT = 70
 STEP_NAME_LENGTH_LIMIT = 50
 
 
@@ -46,10 +53,10 @@ def pickLatestBuild(builder, requests):
     return max(requests, key=operator.attrgetter("submittedAt"))
 
 
-def loadBuilderConfig(c, test_mode_is_enabled=False):
+def loadBuilderConfig(c, is_test_mode_enabled=False):
     # FIXME: These file handles are leaked.
-    if test_mode_is_enabled:
-        passwords = make_passwords_json.create_mock_slave_passwords_dict()
+    if is_test_mode_enabled:
+        passwords = {}
     else:
         passwords = json.load(open('passwords.json'))
     results_server_api_key = passwords.get('results-server-api-key')
@@ -57,7 +64,10 @@ def loadBuilderConfig(c, test_mode_is_enabled=False):
         os.environ['RESULTS_SERVER_API_KEY'] = results_server_api_key
 
     config = json.load(open('config.json'))
-    c['slaves'] = [BuildSlave(slave['name'], passwords[slave['name']], max_builds=1) for slave in config['slaves']]
+    if USE_BUILDBOT_VERSION2:
+        c['workers'] = [Worker(worker['name'], passwords.get(worker['name'], 'password'), max_builds=1) for worker in config['workers']]
+    else:
+        c['slaves'] = [BuildSlave(worker['name'], passwords.get(worker['name'], 'password'), max_builds=1) for worker in config['workers']]
 
     c['schedulers'] = []
     for scheduler in config['schedulers']:
@@ -89,55 +99,66 @@ def loadBuilderConfig(c, test_mode_is_enabled=False):
 
     c['builders'] = []
     for builder in config['builders']:
-        for slaveName in builder['slavenames']:
-            for slave in config['slaves']:
-                if slave['name'] != slaveName or slave['platform'] == '*':
+        for workerName in builder['workernames']:
+            for worker in config['workers']:
+                if worker['name'] != workerName or worker['platform'] == '*':
                     continue
 
-                if slave['platform'] != builder['platform']:
-                    raise Exception, "Builder %r is for platform %r but has slave %r for platform %r!" % (builder['name'], builder['platform'], slave['name'], slave['platform'])
-
+                if worker['platform'] != builder['platform']:
+                    raise Exception('Builder {} is for platform {} but has worker {} for platform {}!'.format(builder['name'], builder['platform'], worker['name'], worker['platform']))
                 break
 
+        if not USE_BUILDBOT_VERSION2:
+            builder['slavenames'] = builder.pop('workernames')
         platform = builder['platform']
 
         factoryName = builder.pop('factory')
         factory = globals()[factoryName]
         factorykwargs = {}
-        for key in "platform", "configuration", "architectures", "triggers", "additionalArguments", "SVNMirror", "device_model":
+        for key in "platform", "configuration", "architectures", "triggers", "additionalArguments", "device_model":
             value = builder.pop(key, None)
             if value:
                 factorykwargs[key] = value
 
         builder["factory"] = factory(**factorykwargs)
 
+        builder_name = builder['name']
+        if len(builder_name) > BUILDER_NAME_LENGTH_LIMIT:
+            raise Exception('Builder name "{}" is longer than maximum allowed by Buildbot ({} characters).'.format(builder_name, BUILDER_NAME_LENGTH_LIMIT))
+        if not buildbot_identifiers_re.match(builder_name):
+            raise Exception('Builder name "{}" is not a valid buildbot identifier.'.format(builder_name))
         for step in builder["factory"].steps:
-            step_name = step[0].name
+            if USE_BUILDBOT_VERSION2:
+                step_name = step.buildStep().name
+            else:
+                step_name = step[0].name
             if len(step_name) > STEP_NAME_LENGTH_LIMIT:
                 raise Exception('step name "{}" is longer than maximum allowed by Buildbot ({} characters).'.format(step_name, STEP_NAME_LENGTH_LIMIT))
             if not buildbot_identifiers_re.match(step_name):
                 raise Exception('step name "{}" is not a valid buildbot identifier.'.format(step_name))
 
         if platform.startswith('mac'):
-            builder["category"] = 'AppleMac'
+            category = 'AppleMac'
         elif platform.startswith('ios'):
-            builder['category'] = 'iOS'
+            category = 'iOS'
         elif platform == 'win':
-            builder["category"] = 'AppleWin'
+            category = 'AppleWin'
         elif platform.startswith('gtk'):
-            builder["category"] = 'GTK'
+            category = 'GTK'
         elif platform.startswith('wpe'):
-            builder["category"] = 'WPE'
+            category = 'WPE'
         elif platform == 'wincairo':
-            builder["category"] = 'WinCairo'
+            category = 'WinCairo'
         elif platform.startswith('playstation'):
-            builder["category"] = 'PlayStation'
+            category = 'PlayStation'
         else:
-            builder["category"] = 'misc'
+            category = 'misc'
 
-        if (builder['category'] in ('AppleMac', 'AppleWin', 'iOS')) and factoryName != 'BuildFactory':
+        if (category in ('AppleMac', 'AppleWin', 'iOS')) and factoryName != 'BuildFactory':
             builder['nextBuild'] = pickLatestBuild
 
+        if not USE_BUILDBOT_VERSION2:
+            builder['category'] = category
         c['builders'].append(builder)
 
 

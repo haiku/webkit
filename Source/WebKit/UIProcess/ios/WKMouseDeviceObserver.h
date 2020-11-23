@@ -34,6 +34,8 @@ class WebProcessProxy;
 @interface WKMouseDeviceObserver : NSObject<BKSMousePointerDeviceObserver>
 
 + (WKMouseDeviceObserver *)sharedInstance;
++ (instancetype)new NS_UNAVAILABLE;
+- (instancetype)init NS_UNAVAILABLE;
 
 - (void)start;
 - (void)stop;

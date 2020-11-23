@@ -34,13 +34,9 @@
 #include "AudioDestinationNode.h"
 #include "EventTarget.h"
 #include "JSDOMPromiseDeferred.h"
-#include "MediaCanStartListener.h"
-#include "MediaProducer.h"
 #include "OscillatorType.h"
 #include "PeriodicWaveConstraints.h"
-#include "PlatformMediaSession.h"
 #include "ScriptExecutionContext.h"
-#include "VisibilityChangeClient.h"
 #include <JavaScriptCore/ConsoleTypes.h>
 #include <JavaScriptCore/Float32Array.h>
 #include <atomic>
@@ -99,20 +95,14 @@ class BaseAudioContext
     : public ActiveDOMObject
     , public ThreadSafeRefCounted<BaseAudioContext>
     , public EventTargetWithInlineData
-    , public MediaCanStartListener
-    , public MediaProducer
+    , public CanMakeWeakPtr<BaseAudioContext>
 #if !RELEASE_LOG_DISABLED
     , public LoggerHelper
 #endif
-    , private PlatformMediaSessionClient
-    , private VisibilityChangeClient
 {
     WTF_MAKE_ISO_ALLOCATED(BaseAudioContext);
 public:
     virtual ~BaseAudioContext();
-
-    using WeakValueType = MediaCanStartListener::WeakValueType;
-    using MediaCanStartListener::weakPtrFactory;
 
     // Reconcile ref/deref which are defined both in ThreadSafeRefCounted and EventTarget.
     using ThreadSafeRefCounted::ref;
@@ -123,8 +113,6 @@ public:
     
     bool isOfflineContext() const { return m_isOfflineContext; }
     virtual bool isWebKitAudioContext() const { return false; }
-
-    DocumentIdentifier hostingDocumentIdentifier() const final;
 
     AudioDestinationNode* destination() { return m_destinationNode.get(); }
     size_t currentSampleFrame() const { return m_destinationNode ? m_destinationNode->currentSampleFrame() : 0; }
@@ -143,9 +131,6 @@ public:
     void decodeAudioData(Ref<ArrayBuffer>&&, RefPtr<AudioBufferCallback>&&, RefPtr<AudioBufferCallback>&&, Optional<Ref<DeferredPromise>>&& = WTF::nullopt);
 
     AudioListener& listener();
-
-    void suspendRendering(DOMPromiseDeferred<void>&&);
-    void resumeRendering(DOMPromiseDeferred<void>&&);
 
     virtual void didSuspendRendering(size_t frame);
 
@@ -258,28 +243,16 @@ public:
     void refEventTarget() override { ref(); }
     void derefEventTarget() override { deref(); }
 
-    void startRendering();
     void finishedRendering(bool didRendering);
 
     static unsigned s_hardwareContextCount;
 
-    // Restrictions to change default behaviors.
-    enum BehaviorRestrictionFlags {
-        NoRestrictions = 0,
-        RequireUserGestureForAudioStartRestriction = 1 << 0,
-        RequirePageConsentForAudioStartRestriction = 1 << 1,
-    };
-    typedef unsigned BehaviorRestrictions;
-    BehaviorRestrictions behaviorRestrictions() const { return m_restrictions; }
-    void addBehaviorRestriction(BehaviorRestrictions restriction) { m_restrictions |= restriction; }
-    void removeBehaviorRestriction(BehaviorRestrictions restriction) { m_restrictions &= ~restriction; }
-
     void isPlayingAudioDidChange();
 
-    void nodeWillBeginPlayback();
+    virtual void nodeWillBeginPlayback() { }
 
 #if !RELEASE_LOG_DISABLED
-    const Logger& logger() const final { return m_logger.get(); }
+    const Logger& logger() const override { return m_logger.get(); }
     const void* logIdentifier() const final { return m_logIdentifier; }
     WTFLogChannel& logChannel() const final;
     const void* nextAudioNodeLogIdentifier() { return childLogIdentifier(m_logIdentifier, ++m_nextAudioNodeIdentifier); }
@@ -317,7 +290,7 @@ public:
     void refNode(AudioNode&);
     void derefNode(AudioNode&);
 
-    void lazyInitialize();
+    virtual void lazyInitialize();
 
     static bool isSupportedSampleRate(float sampleRate);
 
@@ -337,8 +310,6 @@ protected:
 
     AudioDestinationNode* destinationNode() const { return m_destinationNode.get(); }
 
-    bool willBeginPlayback();
-
     virtual void uninitialize();
 
 #if !RELEASE_LOG_DISABLED
@@ -351,49 +322,20 @@ protected:
     virtual void didFinishOfflineRendering(ExceptionOr<Ref<AudioBuffer>>&&) { }
 
 private:
-    void constructCommon();
-
-    bool willPausePlayback();
-
-    bool userGestureRequiredForAudioStart() const { return !isOfflineContext() && m_restrictions & RequireUserGestureForAudioStartRestriction; }
-    bool pageConsentRequiredForAudioStart() const { return !isOfflineContext() && m_restrictions & RequirePageConsentForAudioStartRestriction; }
-
     void clear();
 
     void scheduleNodeDeletion();
 
-    void mediaCanStart(Document&) override;
-
     // EventTarget
     void dispatchEvent(Event&) final;
 
-    // MediaProducer
-    MediaProducer::MediaStateFlags mediaState() const override;
-    void pageMutedStateDidChange() override;
-
     // ActiveDOMObject API.
-    void suspend(ReasonForSuspension) final;
-    void resume() final;
     void stop() override;
     const char* activeDOMObjectName() const override;
 
     // When the context goes away, there might still be some sources which haven't finished playing.
     // Make sure to dereference them here.
     void derefUnfinishedSourceNodes();
-
-    // PlatformMediaSessionClient
-    PlatformMediaSession::MediaType mediaType() const override { return PlatformMediaSession::MediaType::WebAudio; }
-    PlatformMediaSession::MediaType presentationType() const override { return PlatformMediaSession::MediaType::WebAudio; }
-    void mayResumePlayback(bool shouldResume) override;
-    void suspendPlayback() override;
-    bool canReceiveRemoteControlCommands() const override { return false; }
-    void didReceiveRemoteControlCommand(PlatformMediaSession::RemoteControlCommandType, const PlatformMediaSession::RemoteCommandArgument*) override { }
-    bool supportsSeeking() const override { return false; }
-    bool shouldOverrideBackgroundPlaybackRestriction(PlatformMediaSession::InterruptionType) const override { return false; }
-    bool canProduceAudio() const final { return true; }
-    bool isSuspended() const final;
-
-    void visibilityStateChanged() final;
 
     void handleDirtyAudioSummingJunctions();
     void handleDirtyAudioNodeOutputs();
@@ -443,8 +385,6 @@ private:
     Vector<AudioNode*> m_deferredBreakConnectionList;
     Vector<Vector<DOMPromiseDeferred<void>>> m_stateReactions;
 
-    std::unique_ptr<PlatformMediaSession> m_mediaSession;
-
     RefPtr<AudioBuffer> m_renderTarget;
     RefPtr<AudioDestinationNode> m_destinationNode;
     RefPtr<AudioListener> m_listener;
@@ -467,18 +407,12 @@ private:
     // Number of AudioBufferSourceNodes that are active (playing).
     std::atomic<int> m_activeSourceCount { 0 };
 
-    BehaviorRestrictions m_restrictions { NoRestrictions };
-
     State m_state { State::Suspended };
     RefPtr<PendingActivity<BaseAudioContext>> m_pendingActivity;
 
     AudioIOPosition m_outputPosition;
 
     HashMap<String, Vector<AudioParamDescriptor>> m_parameterDescriptorMap;
-
-    // [[suspended by user]] flag in the specification:
-    // https://www.w3.org/TR/webaudio/#dom-audiocontext-suspended-by-user-slot
-    bool m_wasSuspendedByScript { false };
 
     // These are cached per audio context for performance reasons. They cannot be
     // static because they rely on the sample rate.

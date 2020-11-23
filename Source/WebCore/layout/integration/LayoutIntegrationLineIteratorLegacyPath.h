@@ -26,24 +26,29 @@
 #pragma once
 
 #include "LayoutIntegrationInlineContent.h"
+#include "LayoutIntegrationRunIteratorLegacyPath.h"
 #include "RootInlineBox.h"
 
 namespace WebCore {
 
 namespace LayoutIntegration {
 
-class LegacyLinePath {
+class LineIteratorLegacyPath {
 public:
-    LegacyLinePath(const RootInlineBox* rootInlineBox)
+    LineIteratorLegacyPath(const RootInlineBox* rootInlineBox)
         : m_rootInlineBox(rootInlineBox)
     {
     }
-    LegacyLinePath(LegacyLinePath&&) = default;
-    LegacyLinePath(const LegacyLinePath&) = default;
-    LegacyLinePath& operator=(const LegacyLinePath&) = default;
-    LegacyLinePath& operator=(LegacyLinePath&&) = default;
+    LineIteratorLegacyPath(LineIteratorLegacyPath&&) = default;
+    LineIteratorLegacyPath(const LineIteratorLegacyPath&) = default;
+    LineIteratorLegacyPath& operator=(const LineIteratorLegacyPath&) = default;
+    LineIteratorLegacyPath& operator=(LineIteratorLegacyPath&&) = default;
 
-    FloatRect rect() const { return m_rootInlineBox->frameRect(); }
+    LayoutUnit top() const { return m_rootInlineBox->lineTop(); }
+    LayoutUnit bottom() const { return m_rootInlineBox->lineBottom(); }
+    LayoutUnit selectionTop() const { return m_rootInlineBox->selectionTop(); }
+    LayoutUnit selectionTopForHitTesting() const { return m_rootInlineBox->selectionTop(RootInlineBox::ForHitTesting::Yes); }
+    LayoutUnit selectionBottom() const { return m_rootInlineBox->selectionBottom(); }
 
     void traverseNext()
     {
@@ -55,10 +60,34 @@ public:
         m_rootInlineBox = m_rootInlineBox->prevRootBox();
     }
 
-    bool operator==(const LegacyLinePath& other) const { return m_rootInlineBox == other.m_rootInlineBox; }
+    bool operator==(const LineIteratorLegacyPath& other) const { return m_rootInlineBox == other.m_rootInlineBox; }
 
     bool atEnd() const { return !m_rootInlineBox; }
     void setAtEnd() { m_rootInlineBox = nullptr; }
+
+    RunIteratorLegacyPath firstRun() const
+    {
+        return { m_rootInlineBox->firstLeafDescendant() };
+    }
+
+    RunIteratorLegacyPath lastRun() const
+    {
+        return { m_rootInlineBox->lastLeafDescendant() };
+    }
+
+    RunIteratorLegacyPath logicalStartRunWithNode() const
+    {
+        InlineBox* box = nullptr;
+        m_rootInlineBox->getLogicalStartBoxWithNode(box);
+        return { box };
+    }
+
+    RunIteratorLegacyPath logicalEndRunWithNode() const
+    {
+        InlineBox* box = nullptr;
+        m_rootInlineBox->getLogicalEndBoxWithNode(box);
+        return { box };
+    }
 
 private:
 

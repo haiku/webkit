@@ -212,7 +212,7 @@ private:
     bool canSetValueAttribute() const override { return boolAttributeValue(AXPropertyName::CanSetValueAttribute); }
     bool canSetNumericValue() const override { return boolAttributeValue(AXPropertyName::CanSetNumericValue); }
     bool canSetSelectedAttribute() const override { return boolAttributeValue(AXPropertyName::CanSetSelectedAttribute); }
-    bool canSetSelectedChildrenAttribute() const override { return boolAttributeValue(AXPropertyName::CanSetSelectedChildrenAttribute); }
+    bool canSetSelectedChildren() const override { return boolAttributeValue(AXPropertyName::CanSetSelectedChildren); }
     bool canSetExpandedAttribute() const override { return boolAttributeValue(AXPropertyName::CanSetExpandedAttribute); }
     bool accessibilityIsIgnored() const override { return boolAttributeValue(AXPropertyName::IsAccessibilityIgnored); }
     bool isShowingValidationMessage() const override { return boolAttributeValue(AXPropertyName::IsShowingValidationMessage); }
@@ -334,7 +334,7 @@ private:
     String descriptionAttributeValue() const override { return stringAttributeValue(AXPropertyName::Description); }
     String helpTextAttributeValue() const override { return stringAttributeValue(AXPropertyName::HelpText); }
     String titleAttributeValue() const override { return stringAttributeValue(AXPropertyName::TitleAttributeValue); }
-#if PLATFORM(COCOA) && !PLATFORM(IOS_FAMILY)
+#if PLATFORM(MAC)
     bool caretBrowsingEnabled() const override { return boolAttributeValue(AXPropertyName::CaretBrowsingEnabled); }
 #endif
     AXCoreObject* focusableAncestor() override { return objectAttributeValue(AXPropertyName::FocusableAncestor); }
@@ -345,6 +345,7 @@ private:
     String language() const override { return stringAttributeValue(AXPropertyName::Language); }
     bool canHaveSelectedChildren() const override { return boolAttributeValue(AXPropertyName::CanHaveSelectedChildren); }
     void selectedChildren(AccessibilityChildrenVector& children) override { fillChildrenVectorForProperty(AXPropertyName::SelectedChildren, children); }
+    void setSelectedChildren(const AccessibilityChildrenVector&) override;
     void visibleChildren(AccessibilityChildrenVector& children) override { fillChildrenVectorForProperty(AXPropertyName::VisibleChildren, children); }
     void tabChildren(AccessibilityChildrenVector& children) override { fillChildrenVectorForProperty(AXPropertyName::TabChildren, children); }
     bool hasARIAValueNow() const override { return boolAttributeValue(AXPropertyName::HasARIAValueNow); }
@@ -387,7 +388,7 @@ private:
     String selectedText() const override { return String(); }
     VisiblePositionRange visiblePositionRange() const override { return VisiblePositionRange(); }
     VisiblePositionRange visiblePositionRangeForLine(unsigned) const override { return VisiblePositionRange(); }
-    Optional<SimpleRange> elementRange() const override { return WTF::nullopt; }
+    Optional<SimpleRange> elementRange() const override;
     VisiblePositionRange visiblePositionRangeForUnorderedPositions(const VisiblePosition&, const VisiblePosition&) const override { return VisiblePositionRange(); }
     VisiblePositionRange positionOfLeftWord(const VisiblePosition&) const override { return VisiblePositionRange(); }
     VisiblePositionRange positionOfRightWord(const VisiblePosition&) const override { return VisiblePositionRange(); }
@@ -442,7 +443,7 @@ private:
     void setSelectedText(const String&) override;
     void setSelectedTextRange(const PlainTextRange&) override;
     bool setValue(const String&) override;
-#if PLATFORM(COCOA) && !PLATFORM(IOS_FAMILY)
+#if PLATFORM(MAC)
     void setCaretBrowsingEnabled(bool) override;
 #endif
     void setPreventKeyboardDOMEventDispatch(bool) override;
@@ -450,9 +451,9 @@ private:
     // TODO: Functions
     String textUnderElement(AccessibilityTextUnderElementMode = AccessibilityTextUnderElementMode()) const override { return String(); }
     Optional<SimpleRange> misspellingRange(const SimpleRange&, AccessibilitySearchDirection) const override { return WTF::nullopt; }
-    FloatRect convertFrameToSpace(const FloatRect&, AccessibilityConversionSpace) const override { return FloatRect(); }
-    void increment() override { }
-    void decrement() override { }
+    FloatRect convertFrameToSpace(const FloatRect&, AccessibilityConversionSpace) const override;
+    void increment() override;
+    void decrement() override;
     bool performDismissAction() override;
     void scrollToMakeVisible() const override { }
     void scrollToMakeVisibleWithSubFocus(const IntRect&) const override { }
@@ -474,6 +475,7 @@ private:
     bool isAccessibilityTableInstance() const override;
     bool isAccessibilityTableColumnInstance() const override;
     bool isAccessibilityProgressIndicatorInstance() const override;
+    bool isAccessibilityListBoxInstance() const override;
 
     bool isAttachmentElement() const override;
     bool isNativeImage() const override;
@@ -577,6 +579,7 @@ private:
     HashMap<String, AXEditingStyleValueVariant> resolvedEditingStyles() const override;
 #if PLATFORM(COCOA)
     RemoteAXObjectRef remoteParentObject() const override;
+    FloatRect convertRectToPlatformSpace(const FloatRect&, AccessibilityConversionSpace) const override;
 #endif
     Widget* widgetForAttachmentView() const override;
     Page* page() const override;

@@ -30,10 +30,13 @@
 
 #if ENABLE(WEB_AUDIO)
 #include "AudioWorkletThread.h"
+#include "MessagePort.h"
 #include "WorkletGlobalScope.h"
 
 namespace WebCore {
 
+class AudioWorkletProcessorConstructionData;
+class AudioWorkletProcessor;
 class AudioWorkletThread;
 class JSAudioWorkletProcessorConstructor;
 
@@ -49,29 +52,34 @@ public:
     ~AudioWorkletGlobalScope();
 
     ExceptionOr<void> registerProcessor(String&& name, Ref<JSAudioWorkletProcessorConstructor>&&);
+    RefPtr<AudioWorkletProcessor> createProcessor(const String& name, TransferredMessagePort, Ref<SerializedScriptValue>&& options);
 
-    void setCurrentFrame(float currentFrame) { m_currentFrame = currentFrame; }
     size_t currentFrame() const { return m_currentFrame; }
 
     float sampleRate() const { return m_sampleRate; }
 
     double currentTime() const { return m_sampleRate > 0.0 ? m_currentFrame / static_cast<double>(m_sampleRate) : 0.0; }
 
-    AudioWorkletThread& thread() { return m_thread.get(); }
+    AudioWorkletThread& thread() const;
     void prepareForTermination();
 
     void postTask(Task&&) final;
+
+    std::unique_ptr<AudioWorkletProcessorConstructionData> takePendingProcessorConstructionData();
+
+    void handlePreRenderTasks();
+    void handlePostRenderTasks(size_t currentFrame);
 
 private:
     AudioWorkletGlobalScope(AudioWorkletThread&, const WorkletParameters&);
 
     bool isAudioWorkletGlobalScope() const final { return true; }
-    AudioWorkletThread* workerOrWorkletThread() final { return m_thread.ptr(); }
 
-    Ref<AudioWorkletThread> m_thread;
     size_t m_currentFrame { 0 };
     const float m_sampleRate;
     HashMap<String, RefPtr<JSAudioWorkletProcessorConstructor>> m_processorConstructorMap;
+    std::unique_ptr<AudioWorkletProcessorConstructionData> m_pendingProcessorConstructionData;
+    Optional<JSC::JSLockHolder> m_lockDuringRendering;
 };
 
 } // namespace WebCore

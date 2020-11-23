@@ -145,7 +145,7 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
     setProperty(AXPropertyName::CanSetNumericValue, object.canSetNumericValue());
     setProperty(AXPropertyName::SupportsRequiredAttribute, object.supportsRequiredAttribute());
     setProperty(AXPropertyName::CanSetSelectedAttribute, object.canSetSelectedAttribute());
-    setProperty(AXPropertyName::CanSetSelectedChildrenAttribute, object.canSetSelectedChildrenAttribute());
+    setProperty(AXPropertyName::CanSetSelectedChildren, object.canSetSelectedChildren());
     setProperty(AXPropertyName::CanSetExpandedAttribute, object.canSetExpandedAttribute());
     setProperty(AXPropertyName::IsShowingValidationMessage, object.isShowingValidationMessage());
     setProperty(AXPropertyName::ValidationMessage, object.validationMessage());
@@ -498,6 +498,25 @@ const AXCoreObject::AccessibilityChildrenVector& AXIsolatedObject::children(bool
             m_children.uncheckedAppend(child);
     }
     return m_children;
+}
+
+void AXIsolatedObject::setSelectedChildren(const AccessibilityChildrenVector& selectedChildren)
+{
+    ASSERT(selectedChildren.isEmpty() || (selectedChildren[0] && selectedChildren[0]->isAXIsolatedObjectInstance()));
+
+    performFunctionOnMainThread([&] (AXCoreObject* object) {
+        if (selectedChildren.isEmpty()) {
+            // No selection, no need to convert objects from isolated to live.
+            object->setSelectedChildren(selectedChildren);
+            return;
+        }
+
+        ASSERT(axObjectCache());
+
+        auto axIDs = tree()->idsForObjects(selectedChildren);
+        auto axSelectedChildren = axObjectCache()->objectsForIDs(axIDs);
+        object->setSelectedChildren(axSelectedChildren);
+    });
 }
 
 bool AXIsolatedObject::isDetachedFromParent()
@@ -937,6 +956,24 @@ FloatRect AXIsolatedObject::relativeFrame() const
     });
 }
 
+FloatRect AXIsolatedObject::convertFrameToSpace(const FloatRect& rect, AccessibilityConversionSpace space) const
+{
+    return Accessibility::retrieveValueFromMainThread<FloatRect>([&rect, &space, this] () -> FloatRect {
+        if (auto* axObject = associatedAXObject())
+            return axObject->convertFrameToSpace(rect, space);
+        return { };
+    });
+}
+
+FloatRect AXIsolatedObject::convertRectToPlatformSpace(const FloatRect& rect, AccessibilityConversionSpace space) const
+{
+    return Accessibility::retrieveValueFromMainThread<FloatRect>([&rect, &space, this] () -> FloatRect {
+        if (auto* axObject = associatedAXObject())
+            return axObject->convertRectToPlatformSpace(rect, space);
+        return { };
+    });
+}
+
 bool AXIsolatedObject::replaceTextInRange(const String& replacementText, const PlainTextRange& textRange)
 {
     return Accessibility::retrieveValueFromMainThread<bool>([&replacementText, &textRange, this] () -> bool {
@@ -960,6 +997,20 @@ bool AXIsolatedObject::press()
     if (auto* object = associatedAXObject())
         return object->press();
     return false;
+}
+
+void AXIsolatedObject::increment()
+{
+    performFunctionOnMainThread([](AXCoreObject* axObject) {
+        axObject->increment();
+    });
+}
+
+void AXIsolatedObject::decrement()
+{
+    performFunctionOnMainThread([](AXCoreObject* axObject) {
+        axObject->decrement();
+    });
 }
 
 bool AXIsolatedObject::performDefaultAction()
@@ -1028,6 +1079,12 @@ bool AXIsolatedObject::isAccessibilityProgressIndicatorInstance() const
     return false;
 }
 
+bool AXIsolatedObject::isAccessibilityListBoxInstance() const
+{
+    ASSERT_NOT_REACHED();
+    return false;
+}
+
 bool AXIsolatedObject::isAttachmentElement() const
 {
     ASSERT_NOT_REACHED();
@@ -1087,6 +1144,13 @@ void AXIsolatedObject::setSelectedVisiblePositionRange(const VisiblePositionRang
 
     if (auto* object = associatedAXObject())
         object->setSelectedVisiblePositionRange(visiblePositionRange);
+}
+
+Optional<SimpleRange> AXIsolatedObject::elementRange() const
+{
+    ASSERT(isMainThread());
+    auto* axObject = associatedAXObject();
+    return axObject ? axObject->elementRange() : WTF::nullopt;
 }
 
 bool AXIsolatedObject::isListBoxOption() const

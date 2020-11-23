@@ -73,6 +73,7 @@ webkit.org/b/216777 imported/w3c/web-platform-tests/css/css-ui/parsing/cursor-co
 webkit.org/b/216777 imported/w3c/web-platform-tests/css/css-ui/parsing/cursor-valid.html [ Pass Crash ]
 webkit.org/b/216777 imported/w3c/web-platform-tests/css/css-values/angle-units-003.html [ Pass Crash ]
 webkit.org/b/216777 media/video-display-toggle.html [ Pass Crash ]
+webkit.org/b/216777 imported/w3c/web-platform-tests/css/css-ui/appearance-menulist-001.html [ Pass Crash ]
 
 # Parsing
 webkit.org/b/217421 fast/parser/entities-in-html.html [ Failure ]
@@ -565,7 +566,7 @@ webkit.org/b/79203 fast/mediastream/RTCPeerConnection-inspect-answer.html [ Fail
 webkit.org/b/79203 fast/mediastream/RTCPeerConnection-inspect-offer-bundlePolicy-bundle-only.html [ Failure Crash ]
 webkit.org/b/79203 fast/mediastream/RTCPeerConnection-inspect-offer.html [ Failure ]
 webkit.org/b/79203 fast/mediastream/RTCPeerConnection-stats.html [ Timeout Crash ]
-webkit.org/b/79203 fast/mediastream/get-display-media-muted.html [ Timeout ]
+webkit.org/b/79203 fast/mediastream/get-display-media-muted.html [ Failure ]
 webkit.org/b/79203 fast/mediastream/mock-media-source-webaudio.html [ Timeout Pass ]
 webkit.org/b/79203 webkit.org/b/184292 fast/mediastream/RTCPeerConnection-addIceCandidate.html [ Failure Pass Crash ]
 webkit.org/b/79203 webkit.org/b/186678 fast/mediastream/MediaStream-video-element-track-stop.html [ Timeout Failure Crash ]
@@ -637,6 +638,7 @@ fast/events/input-event-insert-link.html [ Skip ]
 
 # ENABLE(CSS_SCROLL_SNAP) is disabled.
 css3/scroll-snap [ Skip ]
+imported/w3c/web-platform-tests/css/css-scroll-snap [ Skip ]
 
 # ENABLE(WEBVTT_REGIONS) is disabled
 webkit.org/b/109570 media/track/regions-webvtt [ Skip ]
@@ -2458,7 +2460,7 @@ webkit.org/b/157179 editing/pasteboard/drag-selected-image-to-contenteditable.ht
 webkit.org/b/157179 editing/pasteboard/drop-file-svg.html [ Failure ]
 webkit.org/b/157179 editing/pasteboard/drop-inputtext-acquires-style.html [ Failure ]
 webkit.org/b/157179 editing/pasteboard/drop-link.html [ Failure ]
-webkit.org/b/157179 editing/pasteboard/drop-text-without-selection.html [ Failure ]
+webkit.org/b/157179 editing/pasteboard/drop-text-without-selection.html [ ImageOnlyFailure ]
 webkit.org/b/157179 editing/pasteboard/get-data-text-plain-drop.html [ Failure ]
 webkit.org/b/157179 editing/pasteboard/smart-drag-drop.html [ Failure ]
 webkit.org/b/157179 editing/pasteboard/subframe-dragndrop-1.html [ Failure ]
@@ -2715,9 +2717,6 @@ webkit.org/b/39725 fast/events/drag-and-drop-autoscroll.html [ Skip ]
 webkit.org/b/107118 fast/canvas/canvas-quadratic-same-endpoint.html [ Failure ]
 
 webkit.org/b/109469 [ Debug ] fast/events/mouse-cursor-image-set.html [ Crash ]
-
-webkit.org/b/111606 fast/borders/border-fit.html [ Failure ]
-webkit.org/b/111606 fast/borders/border-fit-2.html [ Failure ]
 
 webkit.org/b/99893 svg/animations/mozilla/animateMotion-mpath-targetChange-1.svg [ ImageOnlyFailure Pass ]
 
@@ -3400,21 +3399,8 @@ webkit.org/b/201981 imported/w3c/web-platform-tests/service-workers/service-work
 webkit.org/b/201981 imported/w3c/web-platform-tests/service-workers/service-worker/resource-timing.sub.https.html [ Failure Pass ]
 webkit.org/b/201981 http/wpt/resource-timing/rt-resources-per-worker.html [ Failure Pass ]
 
-webkit.org/b/201982 fast/images/exif-orientation-background.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-canvas.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-composited.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-content.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-element-object-fit.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-element.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-image-document.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-image-object.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-svg-feimage.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-svg-image.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-webgl-texture.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/exif-orientation-background-image-no-repeat.html [ ImageOnlyFailure ]
 webkit.org/b/201982 fast/images/exif-orientation-background-image-repeat.html [ ImageOnlyFailure ]
 webkit.org/b/201982 fast/images/exif-orientation-border-image.html [ ImageOnlyFailure ]
-webkit.org/b/201982 fast/images/image-orientation-dynamic-from-image.html [ ImageOnlyFailure ]
 
 webkit.org/b/202225 accessibility/misspelling-range.html [ Failure ]
 webkit.org/b/202227 compositing/backing/layer-outside-tiled-parent.html [ Failure ]

@@ -98,6 +98,7 @@ public:
     bool isAccessibilityTableInstance() const override { return false; }
     bool isAccessibilityTableColumnInstance() const override { return false; }
     bool isAccessibilityProgressIndicatorInstance() const override { return false; }
+    bool isAccessibilityListBoxInstance() const override { return false; }
     bool isAXIsolatedObjectInstance() const override { return false; }
 
     bool isAttachmentElement() const override { return false; }
@@ -110,7 +111,6 @@ public:
     AccessibilityObject* passwordFieldOrContainingPasswordField() override { return nullptr; }
     bool isNativeTextControl() const override { return false; }
     bool isSearchField() const override { return false; }
-    bool isNativeListBox() const override { return false; }
     bool isListBoxOption() const override { return false; }
     bool isAttachment() const override { return false; }
     bool isMediaTimeline() const override { return false; }
@@ -248,7 +248,7 @@ public:
     bool canSetValueAttribute() const override { return false; }
     bool canSetNumericValue() const override { return false; }
     bool canSetSelectedAttribute() const override { return false; }
-    bool canSetSelectedChildrenAttribute() const override { return false; }
+    bool canSetSelectedChildren() const override { return false; }
     bool canSetExpandedAttribute() const override { return false; }
 
     Element* element() const override;
@@ -440,6 +440,7 @@ public:
     PlatformWidget platformWidget() const override { return nullptr; }
 #if PLATFORM(COCOA)
     RemoteAXObjectRef remoteParentObject() const override;
+    FloatRect convertRectToPlatformSpace(const FloatRect&, AccessibilityConversionSpace) const override;
 #endif
     Widget* widgetForAttachmentView() const override { return nullptr; }
     Page* page() const override;
@@ -500,6 +501,7 @@ public:
 
     bool canHaveSelectedChildren() const override { return false; }
     void selectedChildren(AccessibilityChildrenVector&) override { }
+    void setSelectedChildren(const AccessibilityChildrenVector&) override { }
     void visibleChildren(AccessibilityChildrenVector&) override { }
     void tabChildren(AccessibilityChildrenVector&) override { }
     bool shouldFocusActiveDescendant() const override { return false; }
@@ -728,7 +730,7 @@ public:
     bool hasApplePDFAnnotationAttribute() const override { return hasAttribute(HTMLNames::x_apple_pdf_annotationAttr); }
 #endif
 
-#if PLATFORM(COCOA) && !PLATFORM(IOS_FAMILY)
+#if PLATFORM(MAC)
     bool caretBrowsingEnabled() const override;
     void setCaretBrowsingEnabled(bool) override;
 #endif

@@ -24,8 +24,8 @@
 GPUProcess/GPUProcess.cpp
 GPUProcess/GPUConnectionToWebProcess.cpp
 GPUProcess/GPUProcessCreationParameters.cpp
-GPUProcess/graphics/RemoteImageBufferMessageHandlerProxy.cpp
-GPUProcess/graphics/RemoteRenderingBackendProxy.cpp
+GPUProcess/graphics/RemoteRenderingBackend.cpp
+GPUProcess/graphics/RemoteResourceCache.cpp
 GPUProcess/media/RemoteAudioSessionProxy.cpp
 GPUProcess/media/RemoteAudioSessionProxyManager.cpp
 GPUProcess/media/RemoteAudioTrackProxy.cpp
@@ -211,6 +211,7 @@ Shared/API/c/WKRenderLayer.cpp
 Shared/API/c/WKRenderObject.cpp
 Shared/WebTouchEvent.cpp @no-unify
 Shared/WebUserContentControllerDataTypes.cpp
+Shared/WebWheelEventCoalescer.cpp
 Shared/WebWheelEvent.cpp @no-unify
 Shared/WebsiteDataStoreParameters.cpp
 Shared/WebsitePoliciesData.cpp
@@ -471,11 +472,16 @@ UIProcess/WebAuthentication/AuthenticatorTransportService.cpp
 UIProcess/WebAuthentication/Authenticator.cpp
 UIProcess/WebAuthentication/WebAuthenticatorCoordinatorProxy.cpp
 UIProcess/WebAuthentication/WebAuthenticationRequestData.cpp
+UIProcess/WebAuthentication/WebAuthnProcessProxy.cpp
 
 UIProcess/WebsiteData/WebDeviceOrientationAndMotionAccessController.cpp
 UIProcess/WebsiteData/WebsiteDataRecord.cpp
 UIProcess/WebsiteData/WebsiteDataStore.cpp
 UIProcess/WebsiteData/WebsiteDataStoreConfiguration.cpp
+
+WebAuthnProcess/WebAuthnConnectionToWebProcess.cpp
+WebAuthnProcess/WebAuthnProcess.cpp
+WebAuthnProcess/WebAuthnProcessCreationParameters.cpp
 
 WebProcess/WebConnectionToUIProcess.cpp
 WebProcess/WebProcess.cpp
@@ -551,8 +557,8 @@ WebProcess/MediaStream/UserMediaPermissionRequestManager.cpp
 
 WebProcess/GPU/GPUProcessConnection.cpp
 WebProcess/GPU/graphics/ImageBufferShareableBitmapBackend.cpp
-WebProcess/GPU/graphics/RemoteImageBufferMessageHandler.cpp
-WebProcess/GPU/graphics/RemoteRenderingBackend.cpp
+WebProcess/GPU/graphics/RemoteImageBufferMessageHandlerProxy.cpp
+WebProcess/GPU/graphics/RemoteRenderingBackendProxy.cpp
 WebProcess/GPU/media/AudioTrackPrivateRemote.cpp
 WebProcess/GPU/media/MediaPlayerPrivateRemote.cpp
 WebProcess/GPU/media/RemoteAudioDestinationProxy.cpp
@@ -625,6 +631,7 @@ WebProcess/Storage/WebServiceWorkerProvider.cpp
 WebProcess/UserContent/WebUserContentController.cpp
 
 WebProcess/WebAuthentication/WebAuthenticatorCoordinator.cpp
+WebProcess/WebAuthentication/WebAuthnProcessConnection.cpp
 
 WebProcess/WebCoreSupport/SessionStateConversion.cpp
 WebProcess/WebCoreSupport/WebChromeClient.cpp
@@ -652,6 +659,7 @@ WebProcess/WebCoreSupport/WebSpeechSynthesisClient.cpp
 WebProcess/WebPage/DrawingArea.cpp
 WebProcess/WebPage/EventDispatcher.cpp
 WebProcess/WebPage/FindController.cpp
+WebProcess/WebPage/IPCTestingAPI.cpp
 WebProcess/WebPage/PageBanner.cpp
 WebProcess/WebPage/VisitedLinkTableController.cpp
 WebProcess/WebPage/WebBackForwardListProxy.cpp

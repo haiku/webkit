@@ -61,10 +61,23 @@ DownloadProxy::DownloadProxy(DownloadProxyMap& downloadProxyMap, WebsiteDataStor
 
 DownloadProxy::~DownloadProxy() = default;
 
-void DownloadProxy::cancel()
+static RefPtr<API::Data> createData(const IPC::DataReference& data)
 {
-    if (m_dataStore)
-        m_dataStore->networkProcess().send(Messages::NetworkProcess::CancelDownload(m_downloadID), 0);
+    if (data.isEmpty())
+        return nullptr;
+    return API::Data::create(data.data(), data.size());
+}
+
+void DownloadProxy::cancel(CompletionHandler<void(API::Data*)>&& completionHandler)
+{
+    if (m_dataStore) {
+        m_dataStore->networkProcess().sendWithAsyncReply(Messages::NetworkProcess::CancelDownload(m_downloadID), [this, protectedThis = makeRef(*this), completionHandler = WTFMove(completionHandler)] (const IPC::DataReference& resumeData) mutable {
+            m_legacyResumeData = createData(resumeData);
+            completionHandler(m_legacyResumeData.get());
+            m_downloadProxyMap.downloadFinished(*this);
+        });
+    } else
+        completionHandler(nullptr);
 }
 
 void DownloadProxy::invalidate()
@@ -127,19 +140,14 @@ void DownloadProxy::willSendRequest(ResourceRequest&& proposedRequest, const Res
     });
 }
 
-void DownloadProxy::didReceiveResponse(const ResourceResponse& response)
-{
-    m_client->didReceiveResponse(*this, response);
-}
-
 void DownloadProxy::didReceiveData(uint64_t bytesWritten, uint64_t totalBytesWritten, uint64_t totalBytesExpectedToWrite)
 {
     m_client->didReceiveData(*this, bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
 }
 
-void DownloadProxy::decideDestinationWithSuggestedFilename(const String& suggestedFilename, CompletionHandler<void(String, SandboxExtension::Handle, AllowOverwrite)>&& completionHandler)
+void DownloadProxy::decideDestinationWithSuggestedFilename(const WebCore::ResourceResponse& response, const String& suggestedFilename, CompletionHandler<void(String, SandboxExtension::Handle, AllowOverwrite)>&& completionHandler)
 {
-    m_client->decideDestinationWithSuggestedFilename(*this, ResourceResponseBase::sanitizeSuggestedFilename(suggestedFilename), [completionHandler = WTFMove(completionHandler)] (AllowOverwrite allowOverwrite, String destination) mutable {
+    m_client->decideDestinationWithSuggestedFilename(*this, response, ResourceResponseBase::sanitizeSuggestedFilename(suggestedFilename), [completionHandler = WTFMove(completionHandler)] (AllowOverwrite allowOverwrite, String destination) mutable {
         SandboxExtension::Handle sandboxExtensionHandle;
         if (!destination.isNull())
             SandboxExtension::createHandle(destination, SandboxExtension::Type::ReadWrite, sandboxExtensionHandle);
@@ -161,29 +169,11 @@ void DownloadProxy::didFinish()
     m_downloadProxyMap.downloadFinished(*this);
 }
 
-static RefPtr<API::Data> createData(const IPC::DataReference& data)
-{
-    if (data.isEmpty())
-        return 0;
-
-    return API::Data::create(data.data(), data.size());
-}
-
 void DownloadProxy::didFail(const ResourceError& error, const IPC::DataReference& resumeData)
 {
-    m_resumeData = createData(resumeData);
+    m_legacyResumeData = createData(resumeData);
 
     m_client->didFail(*this, error);
-
-    // This can cause the DownloadProxy object to be deleted.
-    m_downloadProxyMap.downloadFinished(*this);
-}
-
-void DownloadProxy::didCancel(const IPC::DataReference& resumeData)
-{
-    m_resumeData = createData(resumeData);
-
-    m_client->didCancel(*this);
 
     // This can cause the DownloadProxy object to be deleted.
     m_downloadProxyMap.downloadFinished(*this);

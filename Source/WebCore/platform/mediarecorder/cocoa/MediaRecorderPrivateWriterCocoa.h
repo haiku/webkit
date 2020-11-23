@@ -79,6 +79,8 @@ public:
     void appendData(Ref<SharedBuffer>&&);
 
     const String& mimeType() const;
+    unsigned audioBitRate() const;
+    unsigned videoBitRate() const;
 
 private:
     MediaRecorderPrivateWriter(bool hasAudio, bool hasVideo);
@@ -102,10 +104,10 @@ private:
 
     void finishAppendingCompressedAudioSampleBuffers(CompletionHandler<void()>&&);
     void finishAppendingCompressedVideoSampleBuffers(CompletionHandler<void()>&&);
-    void flushCompressedSampleBuffers(CompletionHandler<void()>&&);
+    void flushCompressedSampleBuffers(Function<void()>&&);
 
     void finishedFlushingSamples();
-    void updateTimeCode();
+    void completeFetchData();
 
     bool m_hasAudio { false };
     bool m_hasVideo { false };

@@ -1,3 +1,199 @@
+2020-10-18  Caio Lima  <ticaiolima@gmail.com>
+
+        [ESNext][JIT] Add support for UntypedUse on PutPrivateName's base operand
+        https://bugs.webkit.org/show_bug.cgi?id=217373
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/get-private-name-with-primitive.js: Added.
+        * stress/put-private-name-untyped-use.js: Added.
+        * stress/put-private-name-with-primitive.js: Added.
+
+2020-10-17  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Ensure %TypedArray% essential internal methods adhere to spec
+        https://bugs.webkit.org/show_bug.cgi?id=217854
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/array-prototype-splice-making-typed-array.js:
+        * stress/array-species-config-array-constructor.js:
+        * stress/delete-property-dfg-inline.js:
+        * stress/float32array-out-of-bounds.js:
+        * stress/put-direct-index-broken-2.js:
+        * stress/typedarray-access-monomorphic-neutered.js:
+        * stress/typedarray-access-neutered.js:
+        * stress/typedarray-configure-index.js:
+        * stress/typedarray-functions-with-neutered.js:
+        * stress/typedarray-getownproperty.js: Renamed from JSTests/stress/typedarray-getownproperty-not-configurable.js.
+        * stress/typed-array-canonical-numeric-index-string.js:
+        Adjust tests.
+
+        * test262/expectations.yaml:
+        Address all test failures under built-ins/TypedArrayConstructors/internals.
+        Note that there are a slew of corrections needed for these test cases,
+        which were discovered in the course of working on this patch:
+        https://github.com/tc39/test262/pull/2833#issuecomment-709635850
+        Accordingly, these remaining lines should all disappear in the future.
+
+2020-10-16  Saam Barati  <sbarati@apple.com>
+
+        Don't emit OpSpread with a constant as the destination
+        https://bugs.webkit.org/show_bug.cgi?id=217800
+        <rdar://problem/69492311>
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/spread-should-not-have-a-constant-as-dst.js: Added.
+        (foo):
+        (bar):
+
+2020-10-15  Saam Barati  <sbarati@apple.com>
+
+        Don't assign a bogus register to Load/ForwardVarargs in AvailabilityAnalysis before stack layout
+        https://bugs.webkit.org/show_bug.cgi?id=217789
+        <rdar://problem/69285703>
+
+        Reviewed by Keith Miller.
+
+        * stress/dont-assign-bogus-virtual-register-in-availability-analysis-before-stack-layout-runs.js: Added.
+        (bar):
+        (foo):
+
+2020-10-15  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        REGRESSION (r268489): test/built-ins/Object/entries/order-after-define-property.js failing on test262 bots
+        https://bugs.webkit.org/show_bug.cgi?id=217738
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/object-entries.js:
+
+2020-10-14  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Update test262 (2020.10.14)
+        https://bugs.webkit.org/show_bug.cgi?id=217736
+
+        Reviewed by Yusuke Suzuki.
+
+        * test262/config.yaml:
+        * test262/expectations.yaml:
+        * test262/harness/:
+        * test262/latest-changes-summary.txt:
+        * test262/test/:
+        * test262/test262-Revision.txt:
+
+2020-10-14  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Use @putByValDirect instead of Array.prototype.@push in built-ins
+        https://bugs.webkit.org/show_bug.cgi?id=175432
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/array-push-intrinsic.js: Added.
+        * test262/expectations.yaml: Mark 2 test cases as passing.
+
+2020-10-13  Saam Barati  <sbarati@apple.com>
+
+        JSObject::getPropertyNames should have a stack overflow check
+        https://bugs.webkit.org/show_bug.cgi?id=217677
+        <rdar://problem/69286436>
+
+        Reviewed by Tadeu Zagallo.
+
+        * stress/get-property-names-stack-overflow.js: Added.
+
+2020-10-12  Saam Barati  <sbarati@apple.com>
+
+        Array.prototype.sort's sortBucketSort accesses an array in an invalid way that can lead to incorrect results with indexed properties on the prototype chain
+        https://bugs.webkit.org/show_bug.cgi?id=217634
+        <rdar://problem/69489404>
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/sort-should-not-look-up-prototype-properties.js: Added.
+        (assert):
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        OpToPropertyKey only accepts temporary for destination
+        https://bugs.webkit.org/show_bug.cgi?id=217471
+
+        Reviewed by Saam Barati.
+
+        * stress/spread-to-property-key-constant.js: Added.
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] arguments.callee should become ThrowTypeError if function has non simple parameter list
+        https://bugs.webkit.org/show_bug.cgi?id=217574
+
+        Reviewed by Darin Adler.
+
+        * stress/arguments-and-non-simple-parameters.js: Added.
+        (shouldBe):
+        (ThrowTypeError.Object.getOwnPropertyDescriptor):
+        (testUnmappedArguments):
+        (testMappedArguments):
+        (argumentGenerator2.inner):
+        (argumentGenerator2):
+        (argumentGenerator3.inner):
+        (argumentGenerator3):
+        (argumentGenerator4):
+        (argumentGenerator5.inner.inner2):
+        (argumentGenerator5.inner):
+        (argumentGenerator5):
+        (argumentGenerator6):
+        (argumentGenerator7.inner):
+        (argumentGenerator7):
+        (argumentGenerator8.inner):
+        (argumentGenerator8):
+        (argumentGenerator9.inner):
+        (argumentGenerator9):
+        (argumentGenerator10.inner.inner2):
+        (argumentGenerator10.inner):
+        (argumentGenerator10):
+        * test262/expectations.yaml:
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] BigInt constructor should be constructible while it always throws an error
+        https://bugs.webkit.org/show_bug.cgi?id=217575
+
+        Reviewed by Darin Adler.
+
+        * stress/is-constructor.js:
+        * stress/non-constructable-constructors.js: Added.
+        (shouldThrow):
+
+2020-10-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] LowerCase when LanguageTag checks duplicate variants
+        https://bugs.webkit.org/show_bug.cgi?id=217571
+
+        Reviewed by Ross Kirsling.
+
+        * stress/intl-language-tag.js:
+
+2020-10-07  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [JSC] Revert String.prototype.item
+        https://bugs.webkit.org/show_bug.cgi?id=217449
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/item-method.js:
+        * test262/config.yaml:
+
+2020-10-07  Caio Lima  <ticaiolima@gmail.com>
+
+        [MIPS] Flaky test stress/array-species-create-should-handle-masquerader.js
+        https://bugs.webkit.org/show_bug.cgi?id=217433
+
+        Unreviewed test gardening.
+
+        * stress/array-species-create-should-handle-masquerader.js:
+
 2020-10-05  Ross Kirsling  <ross.kirsling@sony.com>
 
         %TypedArray%.from must do mapping and putting in lockstep

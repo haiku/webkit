@@ -143,7 +143,6 @@ bool RenderLineBreak::canBeSelectionLeaf() const
 
 VisiblePosition RenderLineBreak::positionForPoint(const LayoutPoint&, const RenderFragmentContainer*)
 {
-    ensureLineBoxes();
     return createVisiblePosition(0, Affinity::Downstream);
 }
 
@@ -175,28 +174,6 @@ IntRect RenderLineBreak::linesBoundingBox() const
         return { };
 
     return enclosingIntRect(box->rect());
-}
-
-IntRect RenderLineBreak::boundingBoxForRenderTreeDump() const
-{
-    auto box = LayoutIntegration::runFor(*this);
-    if (!box)
-        return { };
-
-    auto rect = box->rect();
-
-    // FIXME: Remove and rebase the tests.
-    bool inQuirksMode = !document().inNoQuirksMode();
-    if (inQuirksMode && !isWBR() && box->useLineBreakBoxRenderTreeDumpQuirk()) {
-        if (!box->isHorizontal()) {
-            auto baseline = style().isFlippedBlocksWritingMode() ? rect.x() + box->baseline() : rect.maxX() - box->baseline();
-            return enclosingIntRect(FloatRect(FloatPoint(baseline, rect.y()), FloatSize(0, rect.height())));
-        }
-        auto baseline = rect.y() + box->baseline();
-        return enclosingIntRect(FloatRect(FloatPoint(rect.x(), baseline), FloatSize(rect.width(), 0)));
-    }
-
-    return enclosingIntRect(rect);
 }
 
 void RenderLineBreak::absoluteRects(Vector<IntRect>& rects, const LayoutPoint& accumulatedOffset) const

@@ -27,13 +27,14 @@
  */
 
 [
+    ActiveDOMObject,
     Conditional=WEB_AUDIO,
     EnabledBySetting=AudioWorklet,
     Exposed=Window,
     JSGenerateToJSObject,
     SecureContext
 ] interface AudioWorkletNode : AudioNode {
-    constructor (BaseAudioContext context, DOMString name, optional AudioWorkletNodeOptions options);
+    [CallWith=GlobalObject] constructor (BaseAudioContext context, DOMString name, optional AudioWorkletNodeOptions options);
     readonly attribute AudioParamMap parameters;
     readonly attribute MessagePort port;
     attribute EventHandler onprocessorerror;

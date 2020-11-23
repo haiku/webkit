@@ -2498,7 +2498,7 @@ bool URLParser::needsNonSpecialDotSlash() const
 {
     auto pathStart = m_url.m_hostEnd + m_url.m_portLength;
     return !m_urlIsSpecial
-        && pathStart == m_url.m_schemeEnd + 1
+        && pathStart == m_url.m_schemeEnd + 1U
         && pathStart + 1 < m_url.m_string.length()
         && m_url.m_string[pathStart] == '/'
         && m_url.m_string[pathStart + 1] == '/';
@@ -2574,6 +2574,9 @@ bool URLParser::hasForbiddenHostCodePoint(const URLParser::LCharBuffer& asciiDom
 template<typename CharacterType>
 bool URLParser::parsePort(CodePointIterator<CharacterType>& iterator)
 {
+    if (UNLIKELY(m_urlIsFile))
+        return false;
+
     ASSERT(*iterator == ':');
     auto colonIterator = iterator;
     advance(iterator, colonIterator);

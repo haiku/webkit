@@ -348,11 +348,11 @@
       "emails" : [
          "shvaikalesh@gmail.com"
       ],
-      "expertise" : "JavaScript/ECMAScript",
+      "expertise" : "JavaScript/ECMAScript, JavaScript DOM Bindings",
       "nicks" : [
          "shvaikalesh"
       ],
-      "status" : "committer"
+      "status" : "reviewer"
    },
    "Alexis Menard" : {
       "emails" : [
@@ -3749,6 +3749,11 @@
       ],
       "nicks" : [
          "macpherson"
+      ]
+   },
+   "Luming Yin" : {
+      "emails" : [
+         "luming_yin@apple.com"
       ]
    },
    "L\u00e1szl\u00f3 Lang\u00f3" : {

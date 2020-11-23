@@ -69,9 +69,9 @@ public:
 
     DownloadID downloadID() const { return m_downloadID; }
     const WebCore::ResourceRequest& request() const { return m_request; }
-    API::Data* resumeData() const { return m_resumeData.get(); }
+    API::Data* legacyResumeData() const { return m_legacyResumeData.get(); }
 
-    void cancel();
+    void cancel(CompletionHandler<void(API::Data*)>&&);
 
     void invalidate();
     void processDidClose();
@@ -101,6 +101,8 @@ public:
 
     API::FrameInfo& frameInfo() { return m_frameInfo.get(); }
 
+    API::DownloadClient& client() { return m_client.get(); }
+
 private:
     explicit DownloadProxy(DownloadProxyMap&, WebsiteDataStore&, API::DownloadClient&, const WebCore::ResourceRequest&, const FrameInfoData&, WebPageProxy*);
 
@@ -110,22 +112,20 @@ private:
     // Message handlers.
     void didStart(const WebCore::ResourceRequest&, const String& suggestedFilename);
     void didReceiveAuthenticationChallenge(WebCore::AuthenticationChallenge&&, uint64_t challengeID);
-    void didReceiveResponse(const WebCore::ResourceResponse&);
     void didReceiveData(uint64_t bytesWritten, uint64_t totalBytesWritten, uint64_t totalBytesExpectedToWrite);
     void shouldDecodeSourceDataOfMIMEType(const String& mimeType, bool& result);
     void didCreateDestination(const String& path);
     void didFinish();
     void didFail(const WebCore::ResourceError&, const IPC::DataReference& resumeData);
-    void didCancel(const IPC::DataReference& resumeData);
     void willSendRequest(WebCore::ResourceRequest&& redirectRequest, const WebCore::ResourceResponse& redirectResponse);
-    void decideDestinationWithSuggestedFilename(const String& suggestedFilename, CompletionHandler<void(String, SandboxExtension::Handle, AllowOverwrite)>&&);
+    void decideDestinationWithSuggestedFilename(const WebCore::ResourceResponse&, const String& suggestedFilename, CompletionHandler<void(String, SandboxExtension::Handle, AllowOverwrite)>&&);
 
     DownloadProxyMap& m_downloadProxyMap;
     RefPtr<WebsiteDataStore> m_dataStore;
     Ref<API::DownloadClient> m_client;
     DownloadID m_downloadID;
 
-    RefPtr<API::Data> m_resumeData;
+    RefPtr<API::Data> m_legacyResumeData;
     WebCore::ResourceRequest m_request;
     String m_suggestedFilename;
     String m_destinationFilename;
