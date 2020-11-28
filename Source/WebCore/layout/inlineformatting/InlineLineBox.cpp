@@ -39,15 +39,33 @@ LineBox::InlineLevelBox::InlineLevelBox(const Box& layoutBox, InlineLayoutUnit l
 {
 }
 
+void LineBox::InlineLevelBox::setBaseline(InlineLayoutUnit baseline)
+{
+    // FIXME: Remove legacy rounding.
+    m_baseline = roundToInt(baseline);
+}
+
+void LineBox::InlineLevelBox::setDescent(InlineLayoutUnit descent)
+{
+    // FIXME: Remove legacy rounding.
+    m_descent = roundToInt(descent);
+}
+
+void LineBox::InlineLevelBox::setLayoutBounds(const LayoutBounds& layoutBounds)
+{
+    // FIXME: Remove legacy rounding.
+    m_layoutBounds = { InlineLayoutUnit(roundToInt(layoutBounds.ascent)), InlineLayoutUnit(roundToInt(layoutBounds.descent)) };
+}
+
 bool LineBox::InlineLevelBox::hasLineBoxRelativeAlignment() const
 {
     auto verticalAlignment = layoutBox().style().verticalAlign();
     return verticalAlignment == VerticalAlign::Top || verticalAlignment == VerticalAlign::Bottom;
 }
 
-LineBox::LineBox(InlineLayoutUnit contentLogicalWidth, IsLineVisuallyEmpty isLineVisuallyEmpty)
+LineBox::LineBox(InlineLayoutUnit contentLogicalWidth, IsLineConsideredEmpty isLineConsideredEmpty)
     : m_logicalSize(contentLogicalWidth, { })
-    , m_isLineVisuallyEmpty(isLineVisuallyEmpty == IsLineVisuallyEmpty::Yes)
+    , m_isConsideredEmpty(isLineConsideredEmpty == IsLineConsideredEmpty::Yes)
 {
 }
 
@@ -68,7 +86,7 @@ InlineRect LineBox::logicalRectForTextRun(const Line::Run& run) const
     ASSERT(run.isText() || run.isLineBreak());
     auto* parentInlineBox = &inlineLevelBoxForLayoutBox(run.layoutBox().parent());
     ASSERT(parentInlineBox->isInlineBox());
-    auto& fontMetrics = parentInlineBox->fontMetrics();
+    auto& fontMetrics = parentInlineBox->style().fontMetrics();
     auto runlogicalTop = parentInlineBox->logicalTop() + parentInlineBox->baseline() - fontMetrics.ascent();
 
     while (parentInlineBox != m_rootInlineBox.get() && !parentInlineBox->hasLineBoxRelativeAlignment()) {
@@ -83,9 +101,11 @@ InlineRect LineBox::logicalRectForTextRun(const Line::Run& run) const
 InlineRect LineBox::logicalRectForInlineLevelBox(const Box& layoutBox) const
 {
     auto* inlineBox = &inlineLevelBoxForLayoutBox(layoutBox);
-    auto inlineBoxLogicalRect = inlineBox->logicalRect();
-    auto inlineBoxAbsolutelogicalTop = inlineBox->logicalTop();
+    if (inlineBox->hasLineBoxRelativeAlignment())
+        return inlineBox->logicalRect();
 
+    auto inlineBoxLogicalRect = inlineBox->logicalRect();
+    auto inlineBoxAbsolutelogicalTop = inlineBoxLogicalRect.top();
     while (inlineBox != m_rootInlineBox.get() && !inlineBox->hasLineBoxRelativeAlignment()) {
         inlineBox = &inlineLevelBoxForLayoutBox(inlineBox->layoutBox().parent());
         ASSERT(inlineBox->isInlineBox());

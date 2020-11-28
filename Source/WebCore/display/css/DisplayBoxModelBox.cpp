@@ -28,6 +28,7 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
+#include "DisplayBoxDecorationData.h"
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/text/TextStream.h>
 
@@ -37,6 +38,13 @@ namespace Display {
 BoxModelBox::BoxModelBox(AbsoluteFloatRect borderBox, Style&& displayStyle, OptionSet<Flags> flags)
     : Box(borderBox, WTFMove(displayStyle), flags | Flags::BoxModelBox)
 {
+}
+
+BoxModelBox::~BoxModelBox() = default;
+
+void BoxModelBox::setBoxDecorationData(std::unique_ptr<BoxDecorationData>&& decorationData)
+{
+    m_boxDecorationData = WTFMove(decorationData);
 }
 
 String BoxModelBox::debugDescription() const

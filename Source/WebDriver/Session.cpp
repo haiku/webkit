@@ -1934,17 +1934,23 @@ String Session::virtualKeyForKey(UChar key, KeyModifier& modifier)
     case 0xE007U:
         return "Enter"_s;
     case 0xE008U:
-    case 0xE050U:
         modifier = KeyModifier::Shift;
         return "Shift"_s;
+    case 0xE050U:
+        modifier = KeyModifier::Shift;
+        return "ShiftRight"_s;
     case 0xE009U:
-    case 0xE051U:
         modifier = KeyModifier::Control;
         return "Control"_s;
+    case 0xE051U:
+        modifier = KeyModifier::Control;
+        return "ControlRight"_s;
     case 0xE00AU:
-    case 0xE052U:
         modifier = KeyModifier::Alternate;
         return "Alternate"_s;
+    case 0xE052U:
+        modifier = KeyModifier::Alternate;
+        return "AlternateRight"_s;
     case 0xE00BU:
         return "Pause"_s;
     case 0xE00CU:
@@ -1952,35 +1958,45 @@ String Session::virtualKeyForKey(UChar key, KeyModifier& modifier)
     case 0xE00DU:
         return "Space"_s;
     case 0xE00EU:
-    case 0xE054U:
         return "PageUp"_s;
+    case 0xE054U:
+        return "PageUpRight"_s;
     case 0xE00FU:
-    case 0xE055U:
         return "PageDown"_s;
+    case 0xE055U:
+        return "PageDownRight"_s;
     case 0xE010U:
-    case 0xE056U:
         return "End"_s;
+    case 0xE056U:
+        return "EndRight"_s;
     case 0xE011U:
-    case 0xE057U:
         return "Home"_s;
+    case 0xE057U:
+        return "HomeRight"_s;
     case 0xE012U:
-    case 0xE058U:
         return "LeftArrow"_s;
+    case 0xE058U:
+        return "LeftArrowRight"_s;
     case 0xE013U:
-    case 0xE059U:
         return "UpArrow"_s;
+    case 0xE059U:
+        return "UpArrowRight"_s;
     case 0xE014U:
-    case 0xE05AU:
         return "RightArrow"_s;
+    case 0xE05AU:
+        return "RightArrowRight"_s;
     case 0xE015U:
-    case 0xE05BU:
         return "DownArrow"_s;
+    case 0xE05BU:
+        return "DownArrowRight"_s;
     case 0xE016U:
-    case 0xE05CU:
         return "Insert"_s;
+    case 0xE05CU:
+        return "InsertRight"_s;
     case 0xE017U:
-    case 0xE05DU:
         return "Delete"_s;
+    case 0xE05DU:
+        return "DeleteRight"_s;
     case 0xE018U:
         return "Semicolon"_s;
     case 0xE019U:
@@ -2042,9 +2058,11 @@ String Session::virtualKeyForKey(UChar key, KeyModifier& modifier)
     case 0xE03CU:
         return "Function12"_s;
     case 0xE03DU:
-    case 0xE053U:
         modifier = KeyModifier::Meta;
         return "Meta"_s;
+    case 0xE053U:
+        modifier = KeyModifier::Meta;
+        return "MetaRight"_s;
     default:
         break;
     }
@@ -2076,7 +2094,8 @@ void Session::elementSendKeys(const String& elementID, const String& text, Funct
                     "function focus(element) {"
                     "    let doc = element.ownerDocument || element;"
                     "    let prevActiveElement = doc.activeElement;"
-                    "    if (element != prevActiveElement && prevActiveElement)"
+                    "    let elementRootNode = element.getRootNode();"
+                    "    if (elementRootNode.activeElement !== element && prevActiveElement)"
                     "        prevActiveElement.blur();"
                     "    element.focus();"
                     "    let tagName = element.tagName.toUpperCase();"
@@ -2085,7 +2104,7 @@ void Session::elementSendKeys(const String& elementID, const String& text, Funct
                     "    let isTextElement = tagName === 'TEXTAREA' || (tagName === 'INPUT' && element.type === 'text');"
                     "    if (isTextElement && element.selectionEnd == 0)"
                     "        element.setSelectionRange(element.value.length, element.value.length);"
-                    "    if (element != doc.activeElement)"
+                    "    if (elementRootNode.activeElement !== element)"
                     "        throw {name: 'ElementNotInteractable', message: 'Element is not focusable.'};"
                     "}";
 
@@ -2601,6 +2620,8 @@ static const char* automationSourceType(InputSource::Type type)
         return "Mouse";
     case InputSource::Type::Key:
         return "Keyboard";
+    case InputSource::Type::Wheel:
+        return "Wheel";
     }
     RELEASE_ASSERT_NOT_REACHED();
 }
@@ -2644,18 +2665,13 @@ void Session::performActions(Vector<Vector<Action>>&& actionsByTick, Function<vo
         parameters->setString("handle"_s, m_toplevelBrowsingContext.value());
         if (m_currentBrowsingContext)
             parameters->setString("frameHandle"_s, m_currentBrowsingContext.value());
-        auto inputSources = JSON::Array::create();
-        for (const auto& inputSource : m_activeInputSources) {
-            auto inputSourceObject = JSON::Object::create();
-            inputSourceObject->setString("sourceId"_s, inputSource.key);
-            inputSourceObject->setString("sourceType"_s, automationSourceType(inputSource.value.type));
-            inputSources->pushObject(WTFMove(inputSourceObject));
-        }
-        parameters->setArray("inputSources"_s, WTFMove(inputSources));
+
+        HashSet<String> inputSourcesSet;
         auto steps = JSON::Array::create();
         for (const auto& tick : actionsByTick) {
             auto states = JSON::Array::create();
             for (const auto& action : tick) {
+                inputSourcesSet.add(action.id);
                 auto state = JSON::Object::create();
                 auto& currentState = inputSourceState(action.id);
                 state->setString("sourceId"_s, action.id);
@@ -2691,6 +2707,7 @@ void Session::performActions(Vector<Vector<Action>>&& actionsByTick, Function<vo
                         break;
                     case Action::Subtype::KeyUp:
                     case Action::Subtype::KeyDown:
+                    case Action::Subtype::Scroll:
                         ASSERT_NOT_REACHED();
                     }
                     if (currentState.pressedButton)
@@ -2725,6 +2742,7 @@ void Session::performActions(Vector<Vector<Action>>&& actionsByTick, Function<vo
                     case Action::Subtype::PointerDown:
                     case Action::Subtype::PointerMove:
                     case Action::Subtype::PointerCancel:
+                    case Action::Subtype::Scroll:
                         ASSERT_NOT_REACHED();
                     }
                     if (currentState.pressedKey)
@@ -2737,6 +2755,36 @@ void Session::performActions(Vector<Vector<Action>>&& actionsByTick, Function<vo
                         state->setArray("pressedVirtualKeys"_s, WTFMove(virtualKeys));
                     }
                     break;
+                case Action::Type::Wheel:
+                    switch (action.subtype) {
+                    case Action::Subtype::Scroll: {
+                        state->setString("origin"_s, automationOriginType(action.origin->type));
+                        auto location = JSON::Object::create();
+                        location->setInteger("x"_s, action.x.value());
+                        location->setInteger("y"_s, action.y.value());
+                        state->setObject("location"_s, WTFMove(location));
+
+                        auto delta = JSON::Object::create();
+                        delta->setInteger("width"_s, action.deltaX.value());
+                        delta->setInteger("height"_s, action.deltaY.value());
+                        state->setObject("delta"_s, WTFMove(delta));
+
+                        if (action.origin->type == PointerOrigin::Type::Element)
+                            state->setString("nodeHandle"_s, action.origin->elementID.value());
+                        FALLTHROUGH;
+                    }
+                    case Action::Subtype::Pause:
+                        if (action.duration)
+                            state->setDouble("duration"_s, action.duration.value());
+                        break;
+                    case Action::Subtype::PointerUp:
+                    case Action::Subtype::PointerDown:
+                    case Action::Subtype::PointerMove:
+                    case Action::Subtype::PointerCancel:
+                    case Action::Subtype::KeyUp:
+                    case Action::Subtype::KeyDown:
+                        ASSERT_NOT_REACHED();
+                    }
                 }
                 states->pushObject(WTFMove(state));
             }
@@ -2746,6 +2794,17 @@ void Session::performActions(Vector<Vector<Action>>&& actionsByTick, Function<vo
         }
 
         parameters->setArray("steps"_s, WTFMove(steps));
+
+        auto inputSources = JSON::Array::create();
+        for (const auto& id : inputSourcesSet) {
+            const auto& inputSource = m_activeInputSources.get(id);
+            auto inputSourceObject = JSON::Object::create();
+            inputSourceObject->setString("sourceId"_s, id);
+            inputSourceObject->setString("sourceType"_s, automationSourceType(inputSource.type));
+            inputSources->pushObject(WTFMove(inputSourceObject));
+        }
+        parameters->setArray("inputSources"_s, WTFMove(inputSources));
+
         m_host->sendCommandToBackend("performInteractionSequence"_s, WTFMove(parameters), [protectedThis, completionHandler = WTFMove(completionHandler)] (SessionHost::CommandResponse&& response) {
             if (response.isError) {
                 completionHandler(CommandResult::fail(WTFMove(response.responseObject)));

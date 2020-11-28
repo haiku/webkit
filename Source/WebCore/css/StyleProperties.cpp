@@ -285,9 +285,9 @@ String StyleProperties::getPropertyValue(CSSPropertyID propertyID) const
         return get4Values(borderRadiusShorthand());
     case CSSPropertyGap:
         return get2Values(gapShorthand());
+    case CSSPropertyScrollMargin:
+        return get4Values(scrollMarginShorthand());
 #if ENABLE(CSS_SCROLL_SNAP)
-    case CSSPropertyScrollSnapMargin:
-        return get4Values(scrollSnapMarginShorthand());
     case CSSPropertyScrollPadding:
         return get4Values(scrollPaddingShorthand());
 #endif
@@ -1168,18 +1168,18 @@ String StyleProperties::asText() const
             case CSSPropertyPaddingInlineEnd:
                 shorthandPropertyID = CSSPropertyPaddingInline;
                 break;
+            case CSSPropertyScrollMarginTop:
+            case CSSPropertyScrollMarginRight:
+            case CSSPropertyScrollMarginBottom:
+            case CSSPropertyScrollMarginLeft:
+                shorthandPropertyID = CSSPropertyScrollMargin;
+                break;
 #if ENABLE(CSS_SCROLL_SNAP)
             case CSSPropertyScrollPaddingTop:
             case CSSPropertyScrollPaddingRight:
             case CSSPropertyScrollPaddingBottom:
             case CSSPropertyScrollPaddingLeft:
                 shorthandPropertyID = CSSPropertyScrollPadding;
-                break;
-            case CSSPropertyScrollSnapMarginTop:
-            case CSSPropertyScrollSnapMarginRight:
-            case CSSPropertyScrollSnapMarginBottom:
-            case CSSPropertyScrollSnapMarginLeft:
-                shorthandPropertyID = CSSPropertyScrollSnapMargin;
                 break;
 #endif
             case CSSPropertyTransitionProperty:
@@ -1321,7 +1321,6 @@ bool StyleProperties::traverseSubresources(const WTF::Function<bool (const Cache
 static const CSSPropertyID blockProperties[] = {
     CSSPropertyOrphans,
     CSSPropertyOverflow, // This can be also be applied to replaced elements
-    CSSPropertyWebkitAspectRatio,
     CSSPropertyColumnCount,
     CSSPropertyColumnGap,
     CSSPropertyRowGap,

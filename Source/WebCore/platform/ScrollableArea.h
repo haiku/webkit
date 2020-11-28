@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "RectEdges.h"
 #include "ScrollSnapOffsetsInfo.h"
 #include "ScrollTypes.h"
 #include "Scrollbar.h"
@@ -95,6 +96,7 @@ public:
     void setVerticalSnapOffsets(const Vector<LayoutUnit>&);
     void setHorizontalSnapOffsetRanges(const Vector<ScrollOffsetRange<LayoutUnit>>&);
     void setVerticalSnapOffsetRanges(const Vector<ScrollOffsetRange<LayoutUnit>>&);
+    void clearSnapOffsets();
     void clearHorizontalSnapOffsets();
     void clearVerticalSnapOffsets();
     unsigned currentHorizontalSnapPointIndex() const { return m_currentHorizontalSnapPointIndex; }
@@ -170,6 +172,7 @@ public:
     bool hasOverlayScrollbars() const;
     WEBCORE_EXPORT virtual void setScrollbarOverlayStyle(ScrollbarOverlayStyle);
     ScrollbarOverlayStyle scrollbarOverlayStyle() const { return static_cast<ScrollbarOverlayStyle>(m_scrollbarOverlayStyle); }
+    void invalidateScrollbars();
     bool useDarkAppearanceForScrollbars() const;
 
     virtual ScrollingNodeID scrollingNodeID() const { return 0; }
@@ -326,6 +329,8 @@ public:
     bool isPinnedInBothDirections(const IntSize&) const; 
     bool isPinnedHorizontallyInDirection(int horizontalScrollDelta) const; 
     bool isPinnedVerticallyInDirection(int verticalScrollDelta) const;
+
+    RectEdges<bool> edgePinnedState() const;
 
     // True if scrolling happens by moving compositing layers.
     virtual bool usesCompositedScrolling() const { return false; }

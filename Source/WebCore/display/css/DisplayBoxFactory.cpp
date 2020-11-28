@@ -1,0 +1,237 @@
+/*
+ * Copyright (C) 2020 Apple Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS''
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include "config.h"
+#include "DisplayBoxFactory.h"
+
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+
+#include "DisplayBoxDecorationData.h"
+#include "DisplayContainerBox.h"
+#include "DisplayFillLayerImageGeometry.h"
+#include "DisplayImageBox.h"
+#include "DisplayTextBox.h"
+#include "InlineLineGeometry.h"
+#include "LayoutBoxGeometry.h"
+#include "LayoutContainerBox.h"
+#include "LayoutInitialContainingBlock.h"
+#include "LayoutReplacedBox.h"
+#include "Logging.h"
+
+namespace WebCore {
+namespace Display {
+
+BoxFactory::BoxFactory(float pixelSnappingFactor)
+    : m_pixelSnappingFactor(pixelSnappingFactor)
+{
+}
+
+RootBackgroundPropagation BoxFactory::determineRootBackgroundPropagation(const Layout::ContainerBox& rootLayoutBox)
+{
+    auto* documentElementBox = documentElementBoxFromRootBox(rootLayoutBox);
+    auto* bodyBox = bodyBoxFromRootBox(rootLayoutBox);
+
+    if (documentElementBox && documentElementBox->style().hasBackground())
+        return RootBackgroundPropagation::None;
+
+    if (bodyBox && bodyBox->style().hasBackground())
+        return RootBackgroundPropagation::BodyToRoot;
+    
+    return RootBackgroundPropagation::None;
+}
+
+std::unique_ptr<Box> BoxFactory::displayBoxForRootBox(const Layout::ContainerBox& rootLayoutBox, const Layout::BoxGeometry& geometry, RootBackgroundPropagation rootBackgroundPropagation) const
+{
+    ASSERT(is<Layout::InitialContainingBlock>(rootLayoutBox));
+
+    // FIXME: Need to do logical -> physical coordinate mapping here.
+    auto borderBoxRect = LayoutRect { Layout::BoxGeometry::borderBoxRect(geometry) };
+
+    auto* documentElementBox = documentElementBoxFromRootBox(rootLayoutBox);
+
+    const RenderStyle* styleForBackground = documentElementBox ? &documentElementBox->style() : nullptr;
+
+    if (rootBackgroundPropagation == RootBackgroundPropagation::BodyToRoot) {
+        if (auto* bodyBox = bodyBoxFromRootBox(rootLayoutBox))
+            styleForBackground = &bodyBox->style();
+    }
+
+    auto style = Style { rootLayoutBox.style(), styleForBackground };
+
+    auto rootBox = makeUnique<ContainerBox>(snapRectToDevicePixels(borderBoxRect, m_pixelSnappingFactor), WTFMove(style));
+    setupBoxModelBox(*rootBox, rootLayoutBox, styleForBackground, geometry, { });
+    return rootBox;
+}
+
+std::unique_ptr<Box> BoxFactory::displayBoxForBodyBox(const Layout::Box& layoutBox, const Layout::BoxGeometry& geometry, RootBackgroundPropagation rootBackgroundPropagation, LayoutSize offsetFromRoot) const
+{
+    const RenderStyle* styleForBackground = &layoutBox.style();
+    
+    if (rootBackgroundPropagation == RootBackgroundPropagation::BodyToRoot)
+        styleForBackground = nullptr;
+    
+    auto style = Style { layoutBox.style(), styleForBackground };
+    return displayBoxForLayoutBox(layoutBox, styleForBackground, geometry, offsetFromRoot, WTFMove(style));
+}
+
+std::unique_ptr<Box> BoxFactory::displayBoxForLayoutBox(const Layout::Box& layoutBox, const Layout::BoxGeometry& geometry, LayoutSize offsetFromRoot) const
+{
+    auto style = Style { layoutBox.style() };
+    return displayBoxForLayoutBox(layoutBox, &layoutBox.style(), geometry, offsetFromRoot, WTFMove(style));
+}
+
+std::unique_ptr<Box> BoxFactory::displayBoxForLayoutBox(const Layout::Box& layoutBox, const RenderStyle* styleForBackground, const Layout::BoxGeometry& geometry, LayoutSize offsetFromRoot, Style&& style) const
+{
+    // FIXME: Need to map logical to physical rects.
+    auto borderBoxRect = LayoutRect { Layout::BoxGeometry::borderBoxRect(geometry) };
+    borderBoxRect.move(offsetFromRoot);
+    auto pixelSnappedBorderBoxRect = snapRectToDevicePixels(borderBoxRect, m_pixelSnappingFactor);
+
+    // FIXME: Handle isAnonymous()
+    
+    if (is<Layout::ReplacedBox>(layoutBox)) {
+        // FIXME: Don't assume it's an image.
+        RefPtr<Image> image;
+        if (auto* cachedImage = downcast<Layout::ReplacedBox>(layoutBox).cachedImage())
+            image = cachedImage->image();
+
+        auto imageBox = makeUnique<ImageBox>(pixelSnappedBorderBoxRect, WTFMove(style), WTFMove(image));
+        setupBoxModelBox(*imageBox, layoutBox, styleForBackground, geometry, offsetFromRoot);
+        return imageBox;
+    }
+    
+    if (is<Layout::ContainerBox>(layoutBox)) {
+        // FIXME: The decision to make a ContainerBox should be made based on whether this Display::Box will have children.
+        auto containerBox = makeUnique<ContainerBox>(pixelSnappedBorderBoxRect, WTFMove(style));
+        setupBoxModelBox(*containerBox, layoutBox, styleForBackground, geometry, offsetFromRoot);
+        return containerBox;
+    }
+
+    return makeUnique<Box>(snapRectToDevicePixels(borderBoxRect, m_pixelSnappingFactor), WTFMove(style));
+}
+
+std::unique_ptr<Box> BoxFactory::displayBoxForTextRun(const Layout::LineRun& run, const Layout::InlineLineGeometry& lineGeometry, LayoutSize offsetFromRoot) const
+{
+    ASSERT(run.text());
+    auto lineRect = lineGeometry.logicalRect();
+    auto lineLayoutRect = LayoutRect { lineRect.left(), lineRect.top(), lineRect.width(), lineRect.height() };
+
+    auto runRect = LayoutRect { run.logicalLeft(), run.logicalTop(), run.logicalWidth(), run.logicalHeight() };
+    runRect.moveBy(lineLayoutRect.location());
+    runRect.move(offsetFromRoot);
+
+    auto style = Style { run.layoutBox().style() };
+    return makeUnique<TextBox>(snapRectToDevicePixels(runRect, m_pixelSnappingFactor), WTFMove(style), run);
+}
+
+void BoxFactory::setupBoxGeometry(BoxModelBox& box, const Layout::Box&, const Layout::BoxGeometry& layoutGeometry, LayoutSize offsetFromRoot) const
+{
+    auto borderBoxRect = LayoutRect { Layout::BoxGeometry::borderBoxRect(layoutGeometry) };
+    borderBoxRect.move(offsetFromRoot);
+
+    auto paddingBoxRect = LayoutRect { layoutGeometry.paddingBox() };
+    paddingBoxRect.moveBy(borderBoxRect.location());
+    box.setAbsolutePaddingBoxRect(snapRectToDevicePixels(paddingBoxRect, m_pixelSnappingFactor));
+
+    auto contentBoxRect = LayoutRect { layoutGeometry.contentBox() };
+    contentBoxRect.moveBy(borderBoxRect.location());
+    box.setAbsoluteContentBoxRect(snapRectToDevicePixels(contentBoxRect, m_pixelSnappingFactor));
+
+    if (is<ReplacedBox>(box)) {
+        auto& replacedBox = downcast<ReplacedBox>(box);
+        // FIXME: Need to get the correct rect taking object-fit etc into account.
+        auto replacedContentRect = LayoutRect { layoutGeometry.contentBoxLeft(), layoutGeometry.contentBoxTop(), layoutGeometry.contentBoxWidth(), layoutGeometry.contentBoxHeight() };
+        replacedContentRect.moveBy(borderBoxRect.location());
+        auto pixelSnappedReplacedContentRect = snapRectToDevicePixels(replacedContentRect, m_pixelSnappingFactor);
+        replacedBox.setReplacedContentRect(pixelSnappedReplacedContentRect);
+    }
+}
+
+std::unique_ptr<BoxDecorationData> BoxFactory::constructBoxDecorationData(const Layout::Box& layoutBox, const RenderStyle* styleForBackground, const Layout::BoxGeometry& layoutGeometry, LayoutSize offsetFromRoot) const
+{
+    auto boxDecorationData = makeUnique<BoxDecorationData>();
+
+    if (styleForBackground) {
+        auto backgroundImageGeometry = calculateFillLayerImageGeometry(*styleForBackground, layoutGeometry, offsetFromRoot, m_pixelSnappingFactor);
+        boxDecorationData->setBackgroundImageGeometry(WTFMove(backgroundImageGeometry));
+    }
+
+    bool includeLogicalLeftEdge = true; // FIXME.
+    bool includeLogicalRightEdge = true; // FIXME.
+    auto borderEdges = calculateBorderEdges(layoutBox.style(), m_pixelSnappingFactor, includeLogicalLeftEdge, includeLogicalRightEdge);
+    boxDecorationData->setBorderEdges(WTFMove(borderEdges));
+
+    auto& renderStyle = layoutBox.style();
+
+    if (renderStyle.hasBorderRadius()) {
+        auto borderBoxRect = LayoutRect { Layout::BoxGeometry::borderBoxRect(layoutGeometry) };
+        auto borderRoundedRect = renderStyle.getRoundedBorderFor(borderBoxRect, includeLogicalLeftEdge, includeLogicalRightEdge);
+        auto snappedRoundedRect = borderRoundedRect.pixelSnappedRoundedRectForPainting(m_pixelSnappingFactor);
+
+        auto borderRadii = makeUnique<FloatRoundedRect::Radii>(snappedRoundedRect.radii());
+        boxDecorationData->setBorderRadii(WTFMove(borderRadii));
+    }
+
+    return boxDecorationData;
+}
+
+void BoxFactory::setupBoxModelBox(BoxModelBox& box, const Layout::Box& layoutBox, const RenderStyle* styleForBackground, const Layout::BoxGeometry& layoutGeometry, LayoutSize offsetFromRoot) const
+{
+    setupBoxGeometry(box, layoutBox, layoutGeometry, offsetFromRoot);
+
+    auto& renderStyle = layoutBox.style();
+    if (!(styleForBackground && styleForBackground->hasBackground()) && !renderStyle.hasBorder())
+        return;
+
+    auto boxDecorationData = constructBoxDecorationData(layoutBox, styleForBackground, layoutGeometry, offsetFromRoot);
+    box.setBoxDecorationData(WTFMove(boxDecorationData));
+}
+
+const Layout::ContainerBox* BoxFactory::documentElementBoxFromRootBox(const Layout::ContainerBox& rootLayoutBox)
+{
+    auto* documentBox = rootLayoutBox.firstChild();
+    if (!documentBox || !documentBox->isDocumentBox() || !is<Layout::ContainerBox>(documentBox))
+        return nullptr;
+
+    return downcast<Layout::ContainerBox>(documentBox);
+}
+
+const Layout::Box* BoxFactory::bodyBoxFromRootBox(const Layout::ContainerBox& rootLayoutBox)
+{
+    auto* documentBox = rootLayoutBox.firstChild();
+    if (!documentBox || !documentBox->isDocumentBox() || !is<Layout::ContainerBox>(documentBox))
+        return nullptr;
+
+    auto* bodyBox = downcast<Layout::ContainerBox>(documentBox)->firstChild();
+    if (!bodyBox || !bodyBox->isBodyBox())
+        return nullptr;
+
+    return bodyBox;
+}
+
+} // namespace Display
+} // namespace WebCore
+
+#endif // ENABLE(LAYOUT_FORMATTING_CONTEXT)

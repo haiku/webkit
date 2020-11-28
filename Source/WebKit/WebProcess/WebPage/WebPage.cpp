@@ -57,6 +57,7 @@
 #include "PluginProxy.h"
 #include "PluginView.h"
 #include "PrintInfo.h"
+#include "RemoteRenderingBackendProxy.h"
 #include "RemoteWebInspectorUI.h"
 #include "RemoteWebInspectorUIMessages.h"
 #include "SessionState.h"
@@ -115,7 +116,6 @@
 #include "WebPageProxyMessages.h"
 #include "WebPaymentCoordinator.h"
 #include "WebPerformanceLoggingClient.h"
-#include "WebPlugInClient.h"
 #include "WebPluginInfoProvider.h"
 #include "WebPopupMenu.h"
 #include "WebPreferencesDefinitions.h"
@@ -127,6 +127,7 @@
 #include "WebProgressTrackerClient.h"
 #include "WebServiceWorkerProvider.h"
 #include "WebSocketProvider.h"
+#include "WebSpeechRecognitionProvider.h"
 #include "WebSpeechSynthesisClient.h"
 #include "WebStorageNamespaceProvider.h"
 #include "WebTouchEvent.h"
@@ -149,6 +150,7 @@
 #include <WebCore/BackForwardController.h>
 #include <WebCore/Chrome.h>
 #include <WebCore/CommonVM.h>
+#include <WebCore/ContactsRequestData.h>
 #include <WebCore/ContextMenuController.h>
 #include <WebCore/DOMPasteAccess.h>
 #include <WebCore/DataTransfer.h>
@@ -182,7 +184,6 @@
 #include <WebCore/HTMLMenuElement.h>
 #include <WebCore/HTMLMenuItemElement.h>
 #include <WebCore/HTMLPlugInElement.h>
-#include <WebCore/HTMLPlugInImageElement.h>
 #include <WebCore/HTMLSelectElement.h>
 #include <WebCore/HTMLTextFormControlElement.h>
 #include <WebCore/HistoryController.h>
@@ -419,11 +420,10 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     , m_alwaysShowsHorizontalScroller { parameters.alwaysShowsHorizontalScroller }
     , m_alwaysShowsVerticalScroller { parameters.alwaysShowsVerticalScroller }
     , m_shouldRenderCanvasInGPUProcess { parameters.shouldRenderCanvasInGPUProcess }
+    , m_shouldRenderDOMInGPUProcess { parameters.shouldRenderDOMInGPUProcess }
+    , m_shouldPlayMediaInGPUProcess { parameters.shouldPlayMediaInGPUProcess }
 #if ENABLE(APP_BOUND_DOMAINS)
     , m_needsInAppBrowserPrivacyQuirks { parameters.needsInAppBrowserPrivacyQuirks }
-#endif
-#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
-    , m_determinePrimarySnapshottedPlugInTimer(RunLoop::main(), this, &WebPage::determinePrimarySnapshottedPlugInTimerFired)
 #endif
     , m_layerHostingMode(parameters.layerHostingMode)
 #if ENABLE(PLATFORM_DRIVEN_TEXT_CHECKING)
@@ -502,6 +502,7 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
         WebProcess::singleton().cookieJar(),
         makeUniqueRef<WebProgressTrackerClient>(*this),
         makeUniqueRef<WebFrameLoaderClient>(m_mainFrame.copyRef()),
+        makeUniqueRef<WebSpeechRecognitionProvider>(m_identifier),
         makeUniqueRef<MediaRecorderProvider>()
     );
     pageConfiguration.chromeClient = new WebChromeClient(*this);
@@ -516,7 +517,6 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     pageConfiguration.alternativeTextClient = makeUnique<WebAlternativeTextClient>(this);
 #endif
 
-    pageConfiguration.plugInClient = makeUnique<WebPlugInClient>(*this);
     pageConfiguration.diagnosticLoggingClient = makeUnique<WebDiagnosticLoggingClient>(*this);
     pageConfiguration.performanceLoggingClient = makeUnique<WebPerformanceLoggingClient>(*this);
 
@@ -682,8 +682,11 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
 
     m_userAgent = parameters.userAgent;
     
+    // Do not overwrite existing items. Due to process swapping and back/forward cache support, there may be other
+    // (suspended) WebPages in this process for the same WebPageProxy in the UIProcess. Overwriting the HistoryItems
+    // would break back/forward cache for those other pages since the HistoryItems hold the CachedPage.
     if (!parameters.itemStates.isEmpty())
-        restoreSessionInternal(parameters.itemStates, parameters.itemStatesWereRestoredByAPIRequest ? WasRestoredByAPIRequest::Yes : WasRestoredByAPIRequest::No, WebBackForwardListProxy::OverwriteExistingItem::Yes);
+        restoreSessionInternal(parameters.itemStates, parameters.itemStatesWereRestoredByAPIRequest ? WasRestoredByAPIRequest::Yes : WasRestoredByAPIRequest::No, WebBackForwardListProxy::OverwriteExistingItem::No);
 
     m_drawingArea->enablePainting();
     
@@ -722,7 +725,6 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     if (WebMediaKeyStorageManager* manager = webProcess.supplement<WebMediaKeyStorageManager>())
         m_page->settings().setMediaKeysStorageDirectory(manager->mediaKeyStorageDirectory());
 #endif
-    m_page->settings().setAppleMailPaginationQuirkEnabled(parameters.appleMailPaginationQuirkEnabled);
     
     if (parameters.viewScaleFactor != 1)
         scaleView(parameters.viewScaleFactor);
@@ -730,9 +732,20 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     m_page->addLayoutMilestones(parameters.observedLayoutMilestones);
 
 #if PLATFORM(COCOA)
-    m_page->settings().setContentDispositionAttachmentSandboxEnabled(true);
     setSmartInsertDeleteEnabled(parameters.smartInsertDeleteEnabled);
     WebCore::setAdditionalSupportedImageTypes(parameters.additionalSupportedImageTypes);
+
+    // FIXME(207716): The following should be removed when the GPU process is complete.
+    static bool hasConsumedMediaExtensionHandles = false;
+    if (!hasConsumedMediaExtensionHandles && parameters.mediaExtensionHandles.size()) {
+        SandboxExtension::consumePermanently(parameters.mediaExtensionHandles);
+        hasConsumedMediaExtensionHandles = true;
+    }
+    static bool hasConsumedGPUIOKitExtensionHandles = false;
+    if (!hasConsumedGPUIOKitExtensionHandles && parameters.gpuIOKitExtensionHandles.size()) {
+        SandboxExtension::consumePermanently(parameters.gpuIOKitExtensionHandles);
+        hasConsumedGPUIOKitExtensionHandles = true;
+    }
 #endif
 
 #if HAVE(APP_ACCENT_COLORS)
@@ -783,7 +796,7 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
 #endif
 
 #if ENABLE(GPU_PROCESS)
-    if (m_page->settings().useGPUProcessForMediaEnabled())
+    if (m_shouldPlayMediaInGPUProcess)
         WebProcess::singleton().ensureGPUProcessConnection().updateParameters(parameters);
 #endif
 
@@ -1052,21 +1065,13 @@ RefPtr<Plugin> WebPage::createPlugin(WebFrame* frame, HTMLPlugInElement* pluginE
     String frameURLString = frame->coreFrame()->loader().documentLoader()->responseURL().string();
     String pageURLString = m_page->mainFrame().loader().documentLoader()->responseURL().string();
 
-#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
-    HTMLPlugInImageElement& pluginImageElement = downcast<HTMLPlugInImageElement>(*pluginElement);
-    unsigned pluginArea = 0;
-    PluginProcessType processType = pluginElement->displayState() == HTMLPlugInElement::WaitingForSnapshot && !(plugInIsPrimarySize(pluginImageElement, pluginArea) && !plugInIntersectsSearchRect(pluginImageElement)) ? PluginProcessType::Snapshot : PluginProcessType::Normal;
-#else
-    PluginProcessType processType = pluginElement->displayState() == HTMLPlugInElement::WaitingForSnapshot ? PluginProcessType::Snapshot : PluginProcessType::Normal;
-#endif
-
     bool allowOnlyApplicationPlugins = !frame->coreFrame()->loader().arePluginsEnabled();
 
     uint64_t pluginProcessToken;
     uint32_t pluginLoadPolicy;
     String unavailabilityDescription;
     bool isUnsupported;
-    if (!sendSync(Messages::WebPageProxy::FindPlugin(parameters.mimeType, processType, parameters.url.string(), frameURLString, pageURLString, allowOnlyApplicationPlugins), Messages::WebPageProxy::FindPlugin::Reply(pluginProcessToken, newMIMEType, pluginLoadPolicy, unavailabilityDescription, isUnsupported)))
+    if (!sendSync(Messages::WebPageProxy::FindPlugin(parameters.mimeType, parameters.url.string(), frameURLString, pageURLString, allowOnlyApplicationPlugins), Messages::WebPageProxy::FindPlugin::Reply(pluginProcessToken, newMIMEType, pluginLoadPolicy, unavailabilityDescription, isUnsupported)))
         return nullptr;
 
     PluginModuleLoadPolicy loadPolicy = static_cast<PluginModuleLoadPolicy>(pluginLoadPolicy);
@@ -1100,8 +1105,7 @@ RefPtr<Plugin> WebPage::createPlugin(WebFrame* frame, HTMLPlugInElement* pluginE
         return nullptr;
     }
 
-    bool isRestartedProcess = (pluginElement->displayState() == HTMLPlugInElement::Restarting || pluginElement->displayState() == HTMLPlugInElement::RestartingWithPendingMouseClick);
-    return PluginProxy::create(pluginProcessToken, isRestartedProcess);
+    return PluginProxy::create(pluginProcessToken);
 }
 #endif // ENABLE(NETSCAPE_PLUGIN_API)
 
@@ -1463,10 +1467,6 @@ void WebPage::close()
 
     m_sandboxExtensionTracker.invalidate();
 
-#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
-    m_determinePrimarySnapshottedPlugInTimer.stop();
-#endif
-
 #if ENABLE(TEXT_AUTOSIZING)
     m_textAutoSizingAdjustmentTimer.stop();
 #endif
@@ -1700,14 +1700,20 @@ void WebPage::stopLoadingFrame(FrameIdentifier frameID)
     if (!frame)
         return;
 
-    corePage()->userInputBridge().stopLoadingFrame(frame->coreFrame());
+    auto* coreFrame = frame->coreFrame();
+    if (!coreFrame || !m_page)
+        return;
+
+    m_page->userInputBridge().stopLoadingFrame(*coreFrame);
 }
 
 void WebPage::stopLoading()
 {
-    SendStopResponsivenessTimer stopper;
+    if (!m_page || !m_mainFrame->coreFrame())
+        return;
 
-    corePage()->userInputBridge().stopLoadingFrame(m_mainFrame->coreFrame());
+    SendStopResponsivenessTimer stopper;
+    m_page->userInputBridge().stopLoadingFrame(*m_mainFrame->coreFrame());
 }
 
 bool WebPage::defersLoading() const
@@ -1728,7 +1734,10 @@ void WebPage::reload(uint64_t navigationID, uint32_t reloadOptions, SandboxExten
     m_pendingNavigationID = navigationID;
 
     m_sandboxExtensionTracker.beginReload(m_mainFrame.ptr(), WTFMove(sandboxExtensionHandle));
-    corePage()->userInputBridge().reloadFrame(m_mainFrame->coreFrame(), OptionSet<ReloadOption>::fromRaw(reloadOptions));
+    if (m_page && m_mainFrame->coreFrame())
+        m_page->userInputBridge().reloadFrame(*m_mainFrame->coreFrame(), OptionSet<ReloadOption>::fromRaw(reloadOptions));
+    else
+        ASSERT_NOT_REACHED();
 
     if (m_pendingNavigationID) {
         // This can happen if FrameLoader::reload() returns early because the document URL is empty.
@@ -2917,7 +2926,7 @@ bool WebPage::handleKeyEventByRelinquishingFocusToChrome(const KeyboardEvent& ev
     // Allow a shift-tab keypress event to relinquish focus even if we don't allow tab to cycle between
     // elements inside the view. We can only do this for shift-tab, not tab itself because
     // tabKeyCyclesThroughElements is used to make tab character insertion work in editable web views.
-    return m_page->focusController().relinquishFocusToChrome(FocusDirectionBackward);
+    return m_page->focusController().relinquishFocusToChrome(FocusDirection::Backward);
 }
 
 void WebPage::validateCommand(const String& commandName, CallbackID callbackID)
@@ -3246,12 +3255,12 @@ void WebPage::setInitialFocus(bool forward, bool isKeyboardEventValid, const Web
     if (isKeyboardEventValid && event.type() == WebEvent::KeyDown) {
         PlatformKeyboardEvent platformEvent(platform(event));
         platformEvent.disambiguateKeyDownEvent(PlatformEvent::RawKeyDown);
-        m_page->focusController().setInitialFocus(forward ? FocusDirectionForward : FocusDirectionBackward, &KeyboardEvent::create(platformEvent, &frame.windowProxy()).get());
+        m_page->focusController().setInitialFocus(forward ? FocusDirection::Forward : FocusDirection::Backward, &KeyboardEvent::create(platformEvent, &frame.windowProxy()).get());
         completionHandler();
         return;
     }
 
-    m_page->focusController().setInitialFocus(forward ? FocusDirectionForward : FocusDirectionBackward, nullptr);
+    m_page->focusController().setInitialFocus(forward ? FocusDirection::Forward : FocusDirection::Backward, nullptr);
     completionHandler();
 }
 
@@ -3740,9 +3749,6 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
     m_asynchronousPluginInitializationEnabledForAllPlugins = store.getBoolValueForKey(WebPreferencesKey::asynchronousPluginInitializationEnabledForAllPluginsKey());
     m_artificialPluginInitializationDelayEnabled = store.getBoolValueForKey(WebPreferencesKey::artificialPluginInitializationDelayEnabledKey());
 
-    m_scrollingPerformanceLoggingEnabled = store.getBoolValueForKey(WebPreferencesKey::scrollingPerformanceLoggingEnabledKey());
-    settings.setScrollingPerformanceLoggingEnabled(m_scrollingPerformanceLoggingEnabled);
-
     bool isAppNapEnabled = store.getBoolValueForKey(WebPreferencesKey::pageVisibilityBasedProcessSuppressionEnabledKey());
     if (m_isAppNapEnabled != isAppNapEnabled) {
         m_isAppNapEnabled = isAppNapEnabled;
@@ -3758,8 +3764,6 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
 
 #if PLATFORM(IOS_FAMILY)
     setForceAlwaysUserScalable(m_forceAlwaysUserScalable || store.getBoolValueForKey(WebPreferencesKey::forceAlwaysUserScalableKey()));
-
-    settings.setUseImageDocumentForSubframePDF(true);
 #if HAVE(AVKIT)
     DeprecatedGlobalSettings::setAVKitEnabled(true);
 #endif
@@ -3781,8 +3785,6 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
     }
 #endif
 
-    settings.setLayoutViewportHeightExpansionFactor(store.getDoubleValueForKey(WebPreferencesKey::layoutViewportHeightExpansionFactorKey()));
-
 #if ENABLE(APP_BOUND_DOMAINS)
     m_needsInAppBrowserPrivacyQuirks = store.getBoolValueForKey(WebPreferencesKey::needsInAppBrowserPrivacyQuirksKey());
 #endif
@@ -3798,9 +3800,11 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
 
 #if ENABLE(GPU_PROCESS)
     // FIXME: useGPUProcessForMediaEnabled should be a RuntimeEnabledFeature since it's global.
-    static_cast<WebMediaStrategy&>(platformStrategies()->mediaStrategy()).setUseGPUProcess(settings.useGPUProcessForMediaEnabled());
-    WebProcess::singleton().supplement<RemoteMediaPlayerManager>()->updatePreferences(settings);
-    WebProcess::singleton().setUseGPUProcessForMedia(settings.useGPUProcessForMediaEnabled());
+    static_cast<WebMediaStrategy&>(platformStrategies()->mediaStrategy()).setUseGPUProcess(m_shouldPlayMediaInGPUProcess);
+    WebProcess::singleton().supplement<RemoteMediaPlayerManager>()->setUseGPUProcess(m_shouldPlayMediaInGPUProcess);
+    WebProcess::singleton().setUseGPUProcessForCanvasRendering(m_shouldRenderCanvasInGPUProcess);
+    WebProcess::singleton().setUseGPUProcessForDOMRendering(m_shouldRenderDOMInGPUProcess);
+    WebProcess::singleton().setUseGPUProcessForMedia(m_shouldPlayMediaInGPUProcess);
 #endif
 
 #if ENABLE(IPC_TESTING_API)
@@ -4371,7 +4375,7 @@ void WebPage::didChooseFilesForOpenPanelWithDisplayStringAndIcon(const Vector<St
         RetainPtr<CFDataRef> dataRef = adoptCF(CFDataCreate(nullptr, iconData.data(), iconData.size()));
         RetainPtr<CGDataProviderRef> imageProviderRef = adoptCF(CGDataProviderCreateWithCFData(dataRef.get()));
         RetainPtr<CGImageRef> imageRef = adoptCF(CGImageCreateWithJPEGDataProvider(imageProviderRef.get(), nullptr, true, kCGRenderingIntentDefault));
-        icon = Icon::createIconForImage(imageRef.get());
+        icon = Icon::createIconForImage(WTFMove(imageRef));
     }
 
     m_activeOpenPanelResultListener->didChooseFilesWithDisplayStringAndIcon(files, displayString, icon.get());
@@ -4551,7 +4555,7 @@ void WebPage::restoreSelectionInFocusedEditableElement()
 
     if (auto document = frame.document()) {
         if (auto element = document->focusedElement())
-            element->updateFocusAppearance(SelectionRestorationMode::Restore, SelectionRevealMode::DoNotReveal);
+            element->updateFocusAppearance(SelectionRestorationMode::RestoreOrSelectAll, SelectionRevealMode::DoNotReveal);
     }
 }
 
@@ -4622,10 +4626,6 @@ void WebPage::addPluginView(PluginView* pluginView)
 
     m_pluginViews.add(pluginView);
     m_hasSeenPlugin = true;
-#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
-    LOG(Plugins, "Primary Plug-In Detection: triggering detection from addPluginView(%p)", pluginView);
-    m_determinePrimarySnapshottedPlugInTimer.startOneShot(0_s);
-#endif
 }
 
 void WebPage::removePluginView(PluginView* pluginView)
@@ -4633,9 +4633,6 @@ void WebPage::removePluginView(PluginView* pluginView)
     ASSERT(m_pluginViews.contains(pluginView));
 
     m_pluginViews.remove(pluginView);
-#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
-    LOG(Plugins, "Primary Plug-In Detection: removePluginView(%p)", pluginView);
-#endif
 }
 
 void WebPage::sendSetWindowFrame(const FloatRect& windowFrame)
@@ -5383,17 +5380,6 @@ FrameView* WebPage::mainFrameView() const
     return nullptr;
 }
 
-void WebPage::setScrollingPerformanceLoggingEnabled(bool enabled)
-{
-    m_scrollingPerformanceLoggingEnabled = enabled;
-
-    FrameView* frameView = m_mainFrame->coreFrame()->view();
-    if (!frameView)
-        return;
-
-    frameView->setScrollingPerformanceLoggingEnabled(enabled);
-}
-
 bool WebPage::canPluginHandleResponse(const ResourceResponse& response)
 {
 #if ENABLE(NETSCAPE_PLUGIN_API)
@@ -5404,7 +5390,7 @@ bool WebPage::canPluginHandleResponse(const ResourceResponse& response)
     String newMIMEType;
     String unavailabilityDescription;
     bool isUnsupported = false;
-    if (!sendSync(Messages::WebPageProxy::FindPlugin(response.mimeType(), PluginProcessType::Normal, response.url().string(), response.url().string(), response.url().string(), allowOnlyApplicationPlugins), Messages::WebPageProxy::FindPlugin::Reply(pluginProcessToken, newMIMEType, pluginLoadPolicy, unavailabilityDescription, isUnsupported)))
+    if (!sendSync(Messages::WebPageProxy::FindPlugin(response.mimeType(), response.url().string(), response.url().string(), response.url().string(), allowOnlyApplicationPlugins), Messages::WebPageProxy::FindPlugin::Reply(pluginProcessToken, newMIMEType, pluginLoadPolicy, unavailabilityDescription, isUnsupported)))
         return false;
 
     ASSERT(!isUnsupported);
@@ -6077,10 +6063,6 @@ void WebPage::didCommitLoad(WebFrame* frame)
     m_textAutoSizingAdjustmentTimer.stop();
 #endif
 
-#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
-    resetPrimarySnapshottedPlugIn();
-#endif
-
 #if USE(OS_STATE)
     m_loadCommitTime = WallTime::now();
 #endif
@@ -6108,12 +6090,6 @@ void WebPage::didFinishLoad(WebFrame& frame)
         return;
 
     WebProcess::singleton().sendPrewarmInformation(frame.url());
-
-#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
-    m_readyToFindPrimarySnapshottedPlugin = true;
-    LOG(Plugins, "Primary Plug-In Detection: triggering detection from didFinishLoad (marking as ready to detect).");
-    m_determinePrimarySnapshottedPlugInTimer.startOneShot(0_s);
-#endif
 
 #if ENABLE(VIEWPORT_RESIZING)
     shrinkToFitContent(ZoomToInitialScale::Yes);
@@ -6161,197 +6137,6 @@ void WebPage::testProcessIncomingSyncMessagesWhenWaitingForSyncReply(Messages::W
     RELEASE_ASSERT(IPC::UnboundedSynchronousIPCScope::hasOngoingUnboundedSyncIPC());
     reply(true);
 }
-
-#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
-static const int primarySnapshottedPlugInSearchLimit = 3000;
-static const float primarySnapshottedPlugInSearchBucketSize = 1.1;
-static const int primarySnapshottedPlugInMinimumWidth = 400;
-static const int primarySnapshottedPlugInMinimumHeight = 300;
-static const unsigned maxPrimarySnapshottedPlugInDetectionAttempts = 2;
-static const Seconds deferredPrimarySnapshottedPlugInDetectionDelay = 3_s;
-static const float overlappingImageBoundsScale = 1.1;
-static const float minimumOverlappingImageToPluginDimensionScale = .9;
-
-#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
-void WebPage::determinePrimarySnapshottedPlugInTimerFired()
-{
-    if (!m_page)
-        return;
-    
-    Settings& settings = m_page->settings();
-    if (!settings.snapshotAllPlugIns() && settings.primaryPlugInSnapshotDetectionEnabled())
-        determinePrimarySnapshottedPlugIn();
-}
-#endif
-
-void WebPage::determinePrimarySnapshottedPlugIn()
-{
-    if (!m_page->settings().plugInSnapshottingEnabled())
-        return;
-
-    LOG(Plugins, "Primary Plug-In Detection: began.");
-
-    if (!m_readyToFindPrimarySnapshottedPlugin) {
-        LOG(Plugins, "Primary Plug-In Detection: exiting - not ready to find plugins.");
-        return;
-    }
-
-    if (!m_hasSeenPlugin) {
-        LOG(Plugins, "Primary Plug-In Detection: exiting - we never saw a plug-in get added to the page.");
-        return;
-    }
-
-    if (m_didFindPrimarySnapshottedPlugin) {
-        LOG(Plugins, "Primary Plug-In Detection: exiting - we've already found a primary plug-in.");
-        return;
-    }
-
-    ++m_numberOfPrimarySnapshotDetectionAttempts;
-
-    layoutIfNeeded();
-
-    RefPtr<FrameView> mainFrameView = corePage()->mainFrame().view();
-    if (!mainFrameView)
-        return;
-
-    IntRect searchRect = IntRect(IntPoint(), corePage()->mainFrame().view()->contentsSize());
-    searchRect.intersect(IntRect(IntPoint(), IntSize(primarySnapshottedPlugInSearchLimit, primarySnapshottedPlugInSearchLimit)));
-
-    HitTestRequest request({ HitTestRequest::ReadOnly, HitTestRequest::Active, HitTestRequest::AllowChildFrameContent, HitTestRequest::IgnoreClipping, HitTestRequest::DisallowUserAgentShadowContent });
-
-    RefPtr<HTMLPlugInImageElement> candidatePlugIn;
-    unsigned candidatePlugInArea = 0;
-
-    for (RefPtr<Frame> frame = &corePage()->mainFrame(); frame; frame = frame->tree().traverseNextRendered()) {
-        if (!frame->loader().subframeLoader().containsPlugins())
-            continue;
-        if (!frame->document() || !frame->view())
-            continue;
-
-        Vector<Ref<HTMLPlugInImageElement>> nonPlayingPlugInImageElements;
-        for (auto& plugInImageElement : descendantsOfType<HTMLPlugInImageElement>(*frame->document())) {
-            if (plugInImageElement.displayState() == HTMLPlugInElement::Playing)
-                continue;
-            nonPlayingPlugInImageElements.append(plugInImageElement);
-        }
-
-        for (auto& plugInImageElement : nonPlayingPlugInImageElements) {
-            auto pluginRenderer = plugInImageElement->renderer();
-            if (!pluginRenderer || !pluginRenderer->isBox())
-                continue;
-            auto& pluginRenderBox = downcast<RenderBox>(*pluginRenderer);
-            if (!plugInIntersectsSearchRect(plugInImageElement.get()))
-                continue;
-
-            IntRect plugInRectRelativeToView = plugInImageElement->clientRect();
-            ScrollPosition scrollPosition = mainFrameView->documentScrollPositionRelativeToViewOrigin();
-            IntRect plugInRectRelativeToTopDocument(plugInRectRelativeToView.location() + scrollPosition, plugInRectRelativeToView.size());
-            HitTestResult hitTestResult(plugInRectRelativeToTopDocument.center());
-
-            if (!mainFrame() || !mainFrame()->document())
-                return;
-            mainFrame()->document()->hitTest(request, hitTestResult);
-
-            RefPtr<Element> element = hitTestResult.targetElement();
-            if (!element)
-                continue;
-
-            IntRect elementRectRelativeToView = element->clientRect();
-            IntRect elementRectRelativeToTopDocument(elementRectRelativeToView.location() + scrollPosition, elementRectRelativeToView.size());
-            LayoutRect inflatedPluginRect = plugInRectRelativeToTopDocument;
-            LayoutUnit xOffset { (inflatedPluginRect.width() * overlappingImageBoundsScale - inflatedPluginRect.width()) / 2 };
-            LayoutUnit yOffset { (inflatedPluginRect.height() * overlappingImageBoundsScale - inflatedPluginRect.height()) / 2 };
-            inflatedPluginRect.inflateX(xOffset);
-            inflatedPluginRect.inflateY(yOffset);
-
-            if (element != plugInImageElement.ptr()) {
-                if (!(is<HTMLImageElement>(*element)
-                    && inflatedPluginRect.contains(elementRectRelativeToTopDocument)
-                    && elementRectRelativeToTopDocument.width() > pluginRenderBox.width() * minimumOverlappingImageToPluginDimensionScale
-                    && elementRectRelativeToTopDocument.height() > pluginRenderBox.height() * minimumOverlappingImageToPluginDimensionScale))
-                    continue;
-                LOG(Plugins, "Primary Plug-In Detection: Plug-in is hidden by an image that is roughly aligned with it, autoplaying regardless of whether or not it's actually the primary plug-in.");
-                plugInImageElement->restartSnapshottedPlugIn();
-            }
-
-            if (plugInIsPrimarySize(plugInImageElement, candidatePlugInArea))
-                candidatePlugIn = WTFMove(plugInImageElement);
-        }
-    }
-    if (!candidatePlugIn) {
-        LOG(Plugins, "Primary Plug-In Detection: fail - did not find a candidate plug-in.");
-        if (m_numberOfPrimarySnapshotDetectionAttempts < maxPrimarySnapshottedPlugInDetectionAttempts) {
-            LOG(Plugins, "Primary Plug-In Detection: will attempt again in %.1f s.", deferredPrimarySnapshottedPlugInDetectionDelay.value());
-            m_determinePrimarySnapshottedPlugInTimer.startOneShot(deferredPrimarySnapshottedPlugInDetectionDelay);
-        }
-        return;
-    }
-
-    LOG(Plugins, "Primary Plug-In Detection: success - found a candidate plug-in - inform it.");
-    m_didFindPrimarySnapshottedPlugin = true;
-    m_primaryPlugInPageOrigin = m_page->mainFrame().document()->baseURL().host().toString();
-    m_primaryPlugInOrigin = candidatePlugIn->loadedUrl().host().toString();
-    m_primaryPlugInMimeType = candidatePlugIn->serviceType();
-
-    candidatePlugIn->setIsPrimarySnapshottedPlugIn(true);
-}
-
-void WebPage::resetPrimarySnapshottedPlugIn()
-{
-    m_readyToFindPrimarySnapshottedPlugin = false;
-    m_didFindPrimarySnapshottedPlugin = false;
-    m_numberOfPrimarySnapshotDetectionAttempts = 0;
-    m_hasSeenPlugin = false;
-}
-
-bool WebPage::matchesPrimaryPlugIn(const String& pageOrigin, const String& pluginOrigin, const String& mimeType) const
-{
-    if (!m_didFindPrimarySnapshottedPlugin)
-        return false;
-
-    return (pageOrigin == m_primaryPlugInPageOrigin && pluginOrigin == m_primaryPlugInOrigin && mimeType == m_primaryPlugInMimeType);
-}
-
-bool WebPage::plugInIntersectsSearchRect(HTMLPlugInImageElement& plugInImageElement)
-{
-    auto& mainFrame = corePage()->mainFrame();
-    if (!mainFrame.view())
-        return false;
-    if (!mainFrame.view()->renderView())
-        return false;
-
-    IntRect searchRect = IntRect(IntPoint(), corePage()->mainFrame().view()->contentsSize());
-    searchRect.intersect(IntRect(IntPoint(), IntSize(primarySnapshottedPlugInSearchLimit, primarySnapshottedPlugInSearchLimit)));
-
-    IntRect plugInRectRelativeToView = plugInImageElement.clientRect();
-    if (plugInRectRelativeToView.isEmpty())
-        return false;
-    ScrollPosition scrollPosition = mainFrame.view()->documentScrollPositionRelativeToViewOrigin();
-    IntRect plugInRectRelativeToTopDocument(plugInRectRelativeToView.location() + toIntSize(scrollPosition), plugInRectRelativeToView.size());
-
-    return plugInRectRelativeToTopDocument.intersects(searchRect);
-}
-
-bool WebPage::plugInIsPrimarySize(WebCore::HTMLPlugInImageElement& plugInImageElement, unsigned& candidatePlugInArea)
-{
-    auto* renderer = plugInImageElement.renderer();
-    if (!is<RenderBox>(renderer))
-        return false;
-
-    auto& box = downcast<RenderBox>(*renderer);
-    if (box.contentWidth() < primarySnapshottedPlugInMinimumWidth || box.contentHeight() < primarySnapshottedPlugInMinimumHeight)
-        return false;
-
-    LayoutUnit contentArea = box.contentWidth() * box.contentHeight();
-    if (contentArea > candidatePlugInArea * primarySnapshottedPlugInSearchBucketSize) {
-        candidatePlugInArea = contentArea.toUnsigned();
-        return true;
-    }
-
-    return false;
-}
-
-#endif // ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
 
 Optional<SimpleRange> WebPage::currentSelectionAsRange()
 {
@@ -6916,6 +6701,11 @@ void WebPage::showShareSheet(ShareDataWithParsedURL& shareData, WTF::CompletionH
     sendWithAsyncReply(Messages::WebPageProxy::ShowShareSheet(WTFMove(shareData)), WTFMove(callback));
 }
 
+void WebPage::showContactPicker(const WebCore::ContactsRequestData& requestData, CompletionHandler<void(Optional<Vector<WebCore::ContactInfo>>&&)>&& callback)
+{
+    sendWithAsyncReply(Messages::WebPageProxy::ShowContactPicker(requestData), WTFMove(callback));
+}
+
 WebCore::DOMPasteAccessResponse WebPage::requestDOMPasteAccess(const String& originIdentifier)
 {
     auto response = WebCore::DOMPasteAccessResponse::DeniedForGesture;
@@ -7212,23 +7002,6 @@ void WebPage::synchronizeCORSDisablingPatternsWithNetworkProcess()
     WebProcess::singleton().ensureNetworkProcessConnection().connection().send(Messages::NetworkConnectionToWebProcess::SetCORSDisablingPatterns(m_identifier, m_corsDisablingPatterns), 0);
 }
 
-bool WebPage::shouldUseRemoteRenderingFor(RenderingPurpose purpose)
-{
-#if ENABLE(GPU_PROCESS)
-    switch (purpose) {
-    case RenderingPurpose::Canvas:
-        return m_shouldRenderCanvasInGPUProcess;
-    case RenderingPurpose::MediaPainting:
-        return m_page->settings().useGPUProcessForMediaEnabled();
-    default:
-        break;
-    }
-#else
-    UNUSED_PARAM(purpose);
-#endif
-    return false;
-}
-
 #if ENABLE(MEDIA_USAGE)
 void WebPage::addMediaUsageManagerSession(MediaSessionIdentifier identifier, const String& bundleIdentifier, const URL& pageURL)
 {
@@ -7266,6 +7039,15 @@ void WebPage::notifyPageOfAppBoundBehavior()
 {
     if (!m_navigationHasOccured && !m_limitsNavigationsToAppBoundDomains)
         send(Messages::WebPageProxy::SetHasExecutedAppBoundBehaviorBeforeNavigation());
+}
+#endif
+
+#if ENABLE(GPU_PROCESS)
+RemoteRenderingBackendProxy& WebPage::ensureRemoteRenderingBackendProxy()
+{
+    if (!m_remoteRenderingBackendProxy)
+        m_remoteRenderingBackendProxy = RemoteRenderingBackendProxy::create();
+    return *m_remoteRenderingBackendProxy;
 }
 #endif
 

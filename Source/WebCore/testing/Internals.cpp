@@ -128,6 +128,8 @@
 #include "MediaProducer.h"
 #include "MediaRecorderProvider.h"
 #include "MediaResourceLoader.h"
+#include "MediaSession.h"
+#include "MediaSessionActionDetails.h"
 #include "MediaStreamTrack.h"
 #include "MediaUsageInfo.h"
 #include "MemoryCache.h"
@@ -136,6 +138,7 @@
 #include "MockLibWebRTCPeerConnection.h"
 #include "MockPageOverlay.h"
 #include "MockPageOverlayClient.h"
+#include "MockRTCRtpTransform.h"
 #include "NavigatorBeacon.h"
 #include "NavigatorMediaDevices.h"
 #include "NetworkLoadInformation.h"
@@ -150,6 +153,7 @@
 #include "PluginData.h"
 #include "PrintContext.h"
 #include "PseudoElement.h"
+#include "RTCRtpSFrameTransform.h"
 #include "Range.h"
 #include "ReadableStream.h"
 #include "RenderEmbeddedObject.h"
@@ -190,6 +194,7 @@
 #include "StyleRule.h"
 #include "StyleScope.h"
 #include "StyleSheetContents.h"
+#include "SystemSoundManager.h"
 #include "TextIterator.h"
 #include "TextPlaceholderElement.h"
 #include "TreeScope.h"
@@ -406,7 +411,7 @@ void InspectorStubFrontend::closeWindow()
 
 void InspectorStubFrontend::sendMessageToFrontend(const String& message)
 {
-    dispatchMessageAsync(message);
+    frontendAPIDispatcher().dispatchMessageAsync(message);
 }
 
 static bool markerTypeFrom(const String& markerType, DocumentMarker::MarkerType& result)
@@ -591,10 +596,6 @@ Internals::Internals(Document& document)
 #if ENABLE(VIDEO)
     if (document.page())
         document.page()->group().captionPreferences().setTestingMode(true);
-#endif
-
-#if ENABLE(MEDIA_STREAM)
-    setMediaCaptureRequiresSecureConnection(false);
 #endif
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
@@ -1566,6 +1567,26 @@ void Internals::setWebRTCVP9Support(bool value)
 #endif
 }
 
+void Internals::setWebRTCVP9VTBSupport(bool value)
+{
+#if USE(LIBWEBRTC)
+    if (auto* page = contextDocument()->page()) {
+        page->libWebRTCProvider().setVP9VTBSupport(value);
+        page->libWebRTCProvider().clearFactory();
+    }
+#endif
+}
+
+Ref<MockRTCRtpTransform> Internals::createMockRTCRtpTransform()
+{
+    return MockRTCRtpTransform::create();
+}
+
+uint64_t Internals::sframeCounter(const RTCRtpSFrameTransform& transform)
+{
+    return transform.counterForTesting();
+}
+
 void Internals::setEnableWebRTCEncryption(bool value)
 {
 #if USE(LIBWEBRTC)
@@ -1602,13 +1623,6 @@ void Internals::setShouldInterruptAudioOnPageVisibilityChange(bool shouldInterru
     Document* document = contextDocument();
     if (auto* page = document->page())
         page->settings().setInterruptAudioOnPageVisibilityChangeEnabled(shouldInterrupt);
-}
-
-void Internals::setMediaCaptureRequiresSecureConnection(bool enabled)
-{
-    Document* document = contextDocument();
-    if (auto* page = document->page())
-        page->settings().setMediaCaptureRequiresSecureConnection(enabled);
 }
 
 static ExceptionOr<std::unique_ptr<MediaRecorderPrivate>> createRecorderMockSource(MediaStreamPrivate& stream, const MediaRecorderPrivateOptions&)
@@ -2622,6 +2636,13 @@ unsigned Internals::numberOfIntersectionObservers(const Document& document) cons
 }
 #endif
 
+#if ENABLE(RESIZE_OBSERVER)
+unsigned Internals::numberOfResizeObservers(const Document& document) const
+{
+    return document.numberOfResizeObservers();
+}
+#endif
+
 uint64_t Internals::documentIdentifier(const Document& document) const
 {
     return document.identifier().toUInt64();
@@ -2660,11 +2681,7 @@ uint64_t Internals::pageIdentifier(const Document& document) const
 
 bool Internals::isAnyWorkletGlobalScopeAlive() const
 {
-#if ENABLE(CSS_PAINTING_API)
-    return !WorkletGlobalScope::allWorkletGlobalScopesSet().isEmpty();
-#else
-    return false;
-#endif
+    return WorkletGlobalScope::numberOfWorkletGlobalScopes();
 }
 
 String Internals::serviceWorkerClientIdentifier(const Document& document) const
@@ -3346,6 +3363,11 @@ void Internals::setFullscreenControlsHidden(bool hidden)
 }
 
 #if ENABLE(VIDEO_PRESENTATION_MODE)
+bool Internals::isChangingPresentationMode(HTMLVideoElement& element) const
+{
+    return element.isChangingPresentationMode();
+}
+
 void Internals::setMockVideoPresentationModeEnabled(bool enabled)
 {
     Document* document = contextDocument();
@@ -4023,9 +4045,9 @@ ExceptionOr<String> Internals::unavailablePluginReplacementText(Element& element
     return String { downcast<RenderEmbeddedObject>(*renderer).pluginReplacementTextIfUnavailable() };
 }
 
-bool Internals::isPluginSnapshotted(Element& element)
+bool Internals::isPluginSnapshotted(Element&)
 {
-    return is<HTMLPlugInElement>(element) && downcast<HTMLPlugInElement>(element).displayState() <= HTMLPlugInElement::DisplayingSnapshot;
+    return false;
 }
 
 bool Internals::pluginIsBelowSizeThreshold(Element& element)
@@ -4709,6 +4731,10 @@ ExceptionOr<String> Internals::pathStringWithShrinkWrappedRects(const Vector<dou
     return builder.result();
 }
 
+void Internals::systemBeep()
+{
+    SystemSoundManager::singleton().systemBeep();
+}
 
 String Internals::getCurrentMediaControlsStatusForElement(HTMLMediaElement& mediaElement)
 {
@@ -5962,5 +5988,83 @@ ExceptionOr<Internals::AttachmentThumbnailInfo> Internals::attachmentThumbnailIn
 }
 
 #endif
+
+#if ENABLE(MEDIA_SESSION)
+ExceptionOr<double> Internals::currentMediaSessionPosition(const MediaSession& session)
+{
+    if (auto currentPosition = session.currentPosition())
+        return *currentPosition;
+    return Exception { InvalidStateError };
+}
+
+ExceptionOr<void> Internals::sendMediaSessionAction(MediaSession& session, const MediaSessionActionDetails& actionDetails)
+{
+    if (auto handler = session.handlerForAction(actionDetails.action)) {
+        handler->handleEvent(actionDetails);
+        return { };
+    }
+    return Exception { InvalidStateError };
+}
+#endif
+
+constexpr ASCIILiteral string(PartialOrdering ordering)
+{
+    if (is_lt(ordering))
+        return "less"_s;
+    if (is_gt(ordering))
+        return "greater"_s;
+    if (is_eq(ordering))
+        return "equivalent"_s;
+    return "unordered"_s;
+}
+
+constexpr TreeType convertType(Internals::TreeType type)
+{
+    switch (type) {
+    case Internals::Tree:
+        return Tree;
+    case Internals::ShadowIncludingTree:
+        return ShadowIncludingTree;
+    case Internals::ComposedTree:
+        return ComposedTree;
+    }
+    ASSERT_NOT_REACHED();
+    return Tree;
+}
+
+String Internals::treeOrder(Node& a, Node& b, TreeType type)
+{
+    return string(treeOrderForTesting(convertType(type), a, b));
+}
+
+String Internals::treeOrderBoundaryPoints(Node& containerA, unsigned offsetA, Node& containerB, unsigned offsetB, TreeType type)
+{
+    return string(treeOrderForTesting(convertType(type), { containerA, offsetA }, { containerB, offsetB }));
+}
+
+bool Internals::rangeContainsNode(const AbstractRange& range, Node& node, TreeType type)
+{
+    return containsForTesting(convertType(type), makeSimpleRange(range), node);
+}
+
+bool Internals::rangeContainsBoundaryPoint(const AbstractRange& range, Node& container, unsigned offset, TreeType type)
+{
+    return containsForTesting(convertType(type), makeSimpleRange(range), { container, offset });
+}
+
+bool Internals::rangeContainsRange(const AbstractRange& outerRange, const AbstractRange& innerRange, TreeType type)
+{
+    return containsForTesting(convertType(type), makeSimpleRange(outerRange), makeSimpleRange(innerRange));
+}
+
+bool Internals::rangeIntersectsNode(const AbstractRange& range, Node& node, TreeType type)
+{
+    return intersectsForTesting(convertType(type), makeSimpleRange(range), node);
+}
+
+bool Internals::rangeIntersectsRange(const AbstractRange& a, const AbstractRange& b, TreeType type)
+{
+    return intersectsForTesting(convertType(type), makeSimpleRange(a), makeSimpleRange(b));
+}
 
 } // namespace WebCore

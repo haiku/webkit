@@ -27,6 +27,7 @@
 #include "CSSFontSelector.h"
 #include "FloatConversion.h"
 #include "FloatQuad.h"
+#include "InlineRunAndOffset.h"
 #include "RenderBlock.h"
 #include "RenderSVGRoot.h"
 #include "RenderSVGText.h"
@@ -115,11 +116,14 @@ std::unique_ptr<InlineTextBox> RenderSVGInlineText::createTextBox()
 {
     auto box = makeUnique<SVGInlineTextBox>(*this);
     box->setHasVirtualLogicalHeight();
-    return box;
+    return box; 
 }
 
-LayoutRect RenderSVGInlineText::localCaretRect(InlineBox* box, unsigned caretOffset, LayoutUnit*)
+LayoutRect RenderSVGInlineText::localCaretRect(const InlineRunAndOffset& runAndOffset, CaretRectMode) const
 {
+    auto* box = runAndOffset.run ? runAndOffset.run->legacyInlineBox() : nullptr;
+    auto caretOffset = runAndOffset.offset;
+
     if (!is<InlineTextBox>(box))
         return LayoutRect();
 
@@ -142,8 +146,9 @@ LayoutRect RenderSVGInlineText::localCaretRect(InlineBox* box, unsigned caretOff
 FloatRect RenderSVGInlineText::floatLinesBoundingBox() const
 {
     FloatRect boundingBox;
-    for (InlineTextBox* box = firstTextBox(); box; box = box->nextTextBox())
+    for (auto* box = firstTextBox(); box; box = box->nextTextBox())
         boundingBox.unite(box->calculateBoundaries());
+
     return boundingBox;
 }
 
@@ -188,12 +193,8 @@ VisiblePosition RenderSVGInlineText::positionForPoint(const LayoutPoint& point, 
     SVGInlineTextBox* closestDistanceBox = nullptr;
 
     AffineTransform fragmentTransform;
-    for (InlineTextBox* box = firstTextBox(); box; box = box->nextTextBox()) {
-        if (!is<SVGInlineTextBox>(*box))
-            continue;
-
-        auto& textBox = downcast<SVGInlineTextBox>(*box);
-        Vector<SVGTextFragment>& fragments = textBox.textFragments();
+    for (auto* box = firstTextBox(); box; box = box->nextTextBox()) {
+        Vector<SVGTextFragment>& fragments = box->textFragments();
 
         unsigned textFragmentsSize = fragments.size();
         for (unsigned i = 0; i < textFragmentsSize; ++i) {
@@ -208,7 +209,7 @@ VisiblePosition RenderSVGInlineText::positionForPoint(const LayoutPoint& point, 
 
             if (distance < closestDistance) {
                 closestDistance = distance;
-                closestDistanceBox = &textBox;
+                closestDistanceBox = box;
                 closestDistanceFragment = &fragment;
                 closestDistancePosition = fragmentRect.x();
             }
@@ -249,6 +250,11 @@ void RenderSVGInlineText::computeNewScaledFontForStyle(const RenderObject& rende
 
     scaledFont = FontCascade(WTFMove(fontDescription), 0, 0);
     scaledFont.update(&renderer.document().fontSelector());
+}
+
+SVGInlineTextBox* RenderSVGInlineText::firstTextBox() const
+{
+    return downcast<SVGInlineTextBox>(RenderText::firstTextBox());
 }
 
 }

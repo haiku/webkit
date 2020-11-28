@@ -157,13 +157,13 @@ static void getTransformFunctionValue(const TransformOperation* transformOp, Tra
         value = transformOp ? narrowPrecisionToFloat(downcast<ScaleTransformOperation>(*transformOp).z()) : 1;
         break;
     case TransformOperation::TRANSLATE_X:
-        value = transformOp ? narrowPrecisionToFloat(downcast<TranslateTransformOperation>(*transformOp).x(size)) : 0;
+        value = transformOp ? downcast<TranslateTransformOperation>(*transformOp).xAsFloat(size) : 0;
         break;
     case TransformOperation::TRANSLATE_Y:
-        value = transformOp ? narrowPrecisionToFloat(downcast<TranslateTransformOperation>(*transformOp).y(size)) : 0;
+        value = transformOp ? downcast<TranslateTransformOperation>(*transformOp).yAsFloat(size) : 0;
         break;
     case TransformOperation::TRANSLATE_Z:
-        value = transformOp ? narrowPrecisionToFloat(downcast<TranslateTransformOperation>(*transformOp).z(size)) : 0;
+        value = transformOp ? downcast<TranslateTransformOperation>(*transformOp).zAsFloat() : 0;
         break;
     default:
         break;
@@ -184,9 +184,9 @@ static void getTransformFunctionValue(const TransformOperation* transformOp, Tra
     case TransformOperation::TRANSLATE:
     case TransformOperation::TRANSLATE_3D: {
         const auto* translateTransformOp = downcast<TranslateTransformOperation>(transformOp);
-        value.setX(translateTransformOp ? narrowPrecisionToFloat(translateTransformOp->x(size)) : 0);
-        value.setY(translateTransformOp ? narrowPrecisionToFloat(translateTransformOp->y(size)) : 0);
-        value.setZ(translateTransformOp ? narrowPrecisionToFloat(translateTransformOp->z(size)) : 0);
+        value.setX(translateTransformOp ? translateTransformOp->xAsFloat(size) : 0);
+        value.setY(translateTransformOp ? translateTransformOp->yAsFloat(size) : 0);
+        value.setZ(translateTransformOp ? translateTransformOp->zAsFloat() : 0);
         break;
     }
     default:
@@ -321,6 +321,11 @@ bool GraphicsLayer::supportsLayerType(Type type)
 }
 
 bool GraphicsLayer::supportsBackgroundColorContent()
+{
+    return true;
+}
+
+bool GraphicsLayer::supportsRoundedClip()
 {
     return true;
 }
@@ -661,12 +666,6 @@ void GraphicsLayerCA::setTransform(const TransformationMatrix& t)
 
     GraphicsLayer::setTransform(t);
     noteLayerPropertyChanged(TransformChanged);
-
-    // If we are currently running a transform-related animation, a change in underlying
-    // transform value means we must re-evaluate all transform-related animations to ensure
-    // that the base value transform animations are current.
-    if (isRunningTransformAnimation())
-        noteLayerPropertyChanged(AnimationChanged | CoverageRectChanged);
 }
 
 void GraphicsLayerCA::setChildrenTransform(const TransformationMatrix& t)
@@ -971,14 +970,13 @@ void GraphicsLayerCA::setContentsRectClipsDescendants(bool contentsRectClipsDesc
     noteLayerPropertyChanged(ChildrenChanged | ContentsRectsChanged);
 }
 
-bool GraphicsLayerCA::setMasksToBoundsRect(const FloatRoundedRect& roundedRect)
+void GraphicsLayerCA::setMasksToBoundsRect(const FloatRoundedRect& roundedRect)
 {
     if (roundedRect == m_masksToBoundsRect)
-        return true;
+        return;
 
     GraphicsLayer::setMasksToBoundsRect(roundedRect);
     noteLayerPropertyChanged(MasksToBoundsRectChanged);
-    return true;
 }
 
 void GraphicsLayerCA::setShapeLayerPath(const Path& path)
@@ -1079,34 +1077,39 @@ void GraphicsLayerCA::pauseAnimation(const String& animationName, double timeOff
 {
     LOG_WITH_STREAM(Animations, stream << "GraphicsLayerCA " << this << " id " << primaryLayerID() << " pauseAnimation " << animationName << " (is running " << animationIsRunning(animationName) << ")");
 
-    auto index = m_animations.findMatching([&](LayerPropertyAnimation animation) {
-        return animation.m_name == animationName && !animation.m_pendingRemoval;
-    });
+    for (auto& animation : m_animations) {
+        // There may be several animations with the same name in the case of transform animations
+        // animating multiple components as individual animations.
+        if (animation.m_name == animationName && !animation.m_pendingRemoval) {
+            animation.m_playState = PlayState::PausePending;
+            animation.m_timeOffset = Seconds { timeOffset };
 
-    if (index == notFound)
-        return;
-
-    auto& animation = m_animations[index];
-    animation.m_playState = PlayState::PausePending;
-    animation.m_timeOffset = Seconds { timeOffset };
-
-    noteLayerPropertyChanged(AnimationChanged);
+            noteLayerPropertyChanged(AnimationChanged);
+        }
+    }
 }
 
 void GraphicsLayerCA::removeAnimation(const String& animationName)
 {
     LOG_WITH_STREAM(Animations, stream << "GraphicsLayerCA " << this << " id " << primaryLayerID() << " removeAnimation " << animationName << " (is running " << animationIsRunning(animationName) << ")");
 
-    auto index = m_animations.findMatching([&](LayerPropertyAnimation animation) {
-        return animation.m_name == animationName && !animation.m_pendingRemoval;
-    });
+    for (auto& animation : m_animations) {
+        // There may be several animations with the same name in the case of transform animations
+        // animating multiple components as individual animations.
+        if (animation.m_name == animationName && !animation.m_pendingRemoval) {
+            animation.m_pendingRemoval = true;
+            noteLayerPropertyChanged(AnimationChanged | CoverageRectChanged);
+        }
+    }
+}
 
-    if (index == notFound)
-        return;
-
-    m_animations[index].m_pendingRemoval = true;
-
-    noteLayerPropertyChanged(AnimationChanged | CoverageRectChanged);
+void GraphicsLayerCA::transformRelatedPropertyDidChange()
+{
+    // If we are currently running a transform-related animation, a change in underlying
+    // transform value means we must re-evaluate all transform-related animations to ensure
+    // that the base value transform animations are current.
+    if (isRunningTransformAnimation())
+        noteLayerPropertyChanged(AnimationChanged | CoverageRectChanged);
 }
 
 void GraphicsLayerCA::platformCALayerAnimationStarted(const String& animationKey, MonotonicTime startTime)
@@ -2590,7 +2593,7 @@ void GraphicsLayerCA::updateContentsImage()
         // FIXME: maybe only do trilinear if the image is being scaled down,
         // but then what if the layer size changes?
         m_contentsLayer->setMinificationFilter(PlatformCALayer::Trilinear);
-        m_contentsLayer->setContents(m_pendingContentsImage.get());
+        m_contentsLayer->setContents(m_pendingContentsImage->platformImage().get());
         m_pendingContentsImage = nullptr;
 
         if (m_layerClones) {
@@ -2861,6 +2864,25 @@ RefPtr<PlatformCALayer> GraphicsLayerCA::replicatedLayerRoot(ReplicaState& repli
 
 void GraphicsLayerCA::updateAnimations()
 {
+    auto baseTransformAnimationBeginTime = 1_s;
+    auto currentTime = Seconds(CACurrentMediaTime());
+    auto updateBeginTimes = [&](LayerPropertyAnimation& animation)
+    {
+        if (animation.m_pendingRemoval)
+            return;
+
+        // In case we have an offset, and we haven't set an explicit begin time previously,
+        // we need to record the beginTime now.
+        if (animation.m_timeOffset && !animation.m_beginTime)
+            animation.m_beginTime = currentTime;
+
+        // Now check if we have a resolved begin time and ensure the begin time we'll use for
+        // base transform animations matches the smallest known begin time to guarantee that
+        // such animations can combine with other explicit transform animations correctly.
+        if (auto computedBeginTime = animation.computedBeginTime())
+            baseTransformAnimationBeginTime = std::min(baseTransformAnimationBeginTime, *computedBeginTime);
+    };
+
     enum class Additive { Yes, No };
     auto addAnimation = [&](LayerPropertyAnimation& animation, Additive additive = Additive::Yes) {
         animation.m_animation->setAdditive(additive == Additive::Yes);
@@ -2890,7 +2912,7 @@ void GraphicsLayerCA::updateAnimations()
         auto animation = LayerPropertyAnimation(WTFMove(caAnimation), "base-transform-" + createCanonicalUUIDString(), property, 0, 0, 0_s);
         // To ensure the base value transform is applied along with all the interpolating animations, we set it to have started
         // as early as possible, which combined with the infinite duration ensures it's current for any given CA media time.
-        animation.m_beginTime = Seconds::fromNanoseconds(1);
+        animation.m_beginTime = baseTransformAnimationBeginTime;
 
         // Additivity will depend on the source of the matrix, if it was explicitly provided as an identity matrix, it
         // is the initial base value transform animation and must override the current transform value for this layer.
@@ -2900,8 +2922,10 @@ void GraphicsLayerCA::updateAnimations()
         m_baseValueTransformAnimations.append(WTFMove(animation));
     };
 
-    // Remove all running CA animations.
+    // Iterate through all animations to update each animation's begin time, if necessary,
+    // compute the base transform animation begin times and remove all running CA animations.
     for (auto& animation : m_animations) {
+        updateBeginTimes(animation);
         if (animation.m_playState == PlayState::Playing || animation.m_playState == PlayState::Paused)
             removeCAAnimationFromLayer(animation);
     }
@@ -2939,6 +2963,14 @@ void GraphicsLayerCA::updateAnimations()
             rotateAnimation = &animation;
             break;
         case AnimatedPropertyTransform:
+            // In the case of animations targeting the "transform" CSS property, there may be several
+            // animations created for a single KeyframeEffect, one for each transform component. In that
+            // case the animation index starts at 0 and increases for each component. If we encounter an
+            // index of 0 this means this animation establishes a new group of animation belonging to a
+            // single KeyframeEffect. As such, since the top-most KeyframeEffect replaces the previous
+            // ones, we can remove all the previously-added "transform" animations.
+            if (!animation.m_index)
+                transformAnimations.clear();
             transformAnimations.append(&animation);
             break;
         case AnimatedPropertyOpacity:
@@ -2969,15 +3001,15 @@ void GraphicsLayerCA::updateAnimations()
         else
             addBaseValueTransformAnimation(AnimatedPropertyTranslate);
 
-        if (scaleAnimation)
-            addAnimation(*scaleAnimation);
-        else
-            addBaseValueTransformAnimation(AnimatedPropertyScale);
-
         if (rotateAnimation)
             addAnimation(*rotateAnimation);
         else
             addBaseValueTransformAnimation(AnimatedPropertyRotate);
+
+        if (scaleAnimation)
+            addAnimation(*scaleAnimation);
+        else
+            addBaseValueTransformAnimation(AnimatedPropertyScale);
 
         for (auto* animation : transformAnimations)
             addAnimation(*animation);
@@ -2989,15 +3021,15 @@ void GraphicsLayerCA::updateAnimations()
         if (transformAnimations.isEmpty())
             addBaseValueTransformAnimation(AnimatedPropertyTransform);
 
-        if (rotateAnimation)
-            addAnimation(*rotateAnimation);
-        else
-            addBaseValueTransformAnimation(AnimatedPropertyRotate);
-
         if (scaleAnimation)
             addAnimation(*scaleAnimation);
         else
             addBaseValueTransformAnimation(AnimatedPropertyScale);
+
+        if (rotateAnimation)
+            addAnimation(*rotateAnimation);
+        else
+            addBaseValueTransformAnimation(AnimatedPropertyRotate);
 
         if (translateAnimation)
             addAnimation(*translateAnimation);
@@ -3021,18 +3053,8 @@ void GraphicsLayerCA::setAnimationOnLayer(LayerPropertyAnimation& animation)
 
     auto& caAnim = *animation.m_animation;
 
-    if (animation.m_timeOffset) {
-        // In case we have an offset, we need to record the beginTime now since we have to pass in an explicit
-        // value in the first place.
-        if (!animation.m_beginTime)
-            animation.m_beginTime = Seconds(CACurrentMediaTime());
-        caAnim.setBeginTime((animation.m_beginTime - animation.m_timeOffset).seconds());
-    } else if (animation.m_beginTime) {
-        // If we already have a begin time, then we already started in the past and must ensure we use that same
-        // begin time. Any other case will get use the CA transaction's time as its begin time and will be recorded
-        // in platformCALayerAnimationStarted().
-        caAnim.setBeginTime(animation.m_beginTime.seconds());
-    }
+    if (auto beginTime = animation.computedBeginTime())
+        caAnim.setBeginTime(beginTime->seconds());
 
     String animationID = animation.animationIdentifier();
 
@@ -3943,6 +3965,7 @@ void GraphicsLayerCA::changeLayerTypeTo(PlatformCALayer::LayerType newLayerType)
         | BackdropFiltersChanged
         | MaskLayerChanged
         | OpacityChanged
+        | EventRegionChanged
         | NameChanged
         | DebugIndicatorsChanged);
     

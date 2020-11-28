@@ -1100,11 +1100,12 @@ bool ArgumentCoder<ImageHandle>::decode(Decoder& decoder, ImageHandle& imageHand
     return true;
 }
 
-static void encodeNativeImage(Encoder& encoder, const NativeImagePtr& image)
+void ArgumentCoder<Ref<NativeImage>>::encode(Encoder& encoder, const Ref<NativeImage>& image)
 {
-    auto imageSize = nativeImageSize(image);
+    auto imageSize = image->size();
     auto bitmap = ShareableBitmap::createShareable(imageSize, { });
     auto graphicsContext = bitmap->createGraphicsContext();
+
     encoder << !!graphicsContext;
     if (!graphicsContext)
         return;
@@ -1114,66 +1115,42 @@ static void encodeNativeImage(Encoder& encoder, const NativeImagePtr& image)
     ShareableBitmap::Handle handle;
     bitmap->createHandle(handle);
 
+    encoder << image->renderingResourceIdentifier();
     encoder << handle;
 }
 
-static WARN_UNUSED_RETURN bool decodeNativeImage(Decoder& decoder, NativeImagePtr& nativeImage)
+Optional<Ref<NativeImage>> ArgumentCoder<Ref<NativeImage>>::decode(Decoder& decoder)
 {
     Optional<bool> didCreateGraphicsContext;
     decoder >> didCreateGraphicsContext;
     if (!didCreateGraphicsContext.hasValue() || !didCreateGraphicsContext.value())
-        return false;
+        return WTF::nullopt;
 
+    RenderingResourceIdentifier renderingResourceIdentifier;
+    if (!decoder.decode(renderingResourceIdentifier))
+        return WTF::nullopt;
+    
     ShareableBitmap::Handle handle;
     if (!decoder.decode(handle))
-        return false;
+        return WTF::nullopt;
 
     auto bitmap = ShareableBitmap::create(handle);
     if (!bitmap)
-        return false;
+        return WTF::nullopt;
 
     auto image = bitmap->createImage();
     if (!image)
-        return false;
+        return WTF::nullopt;
 
-    nativeImage = image->nativeImage();
+    auto nativeImage = image->nativeImage();
     if (!nativeImage)
-        return false;
+        return WTF::nullopt;
 
-    return true;
-}
+    nativeImage = NativeImage::create(nativeImage->platformImage(), renderingResourceIdentifier);
+    if (!nativeImage)
+        return WTF::nullopt;
 
-static void encodeOptionalNativeImage(Encoder& encoder, const NativeImagePtr& image)
-{
-    bool hasImage = !!image;
-    encoder << hasImage;
-
-    if (hasImage)
-        encodeNativeImage(encoder, image);
-}
-
-static WARN_UNUSED_RETURN bool decodeOptionalNativeImage(Decoder& decoder, NativeImagePtr& image)
-{
-    image = nullptr;
-
-    bool hasImage;
-    if (!decoder.decode(hasImage))
-        return false;
-
-    if (!hasImage)
-        return true;
-
-    return decodeNativeImage(decoder, image);
-}
-
-void ArgumentCoder<NativeImagePtr>::encode(Encoder& encoder, const NativeImagePtr& image)
-{
-    encodeOptionalNativeImage(encoder, image);
-}
-
-bool ArgumentCoder<NativeImagePtr>::decode(Decoder& decoder, NativeImagePtr& image)
-{
-    return decodeOptionalNativeImage(decoder, image);
+    return makeRef(*nativeImage);
 }
 
 void ArgumentCoder<Ref<Font>>::encode(Encoder& encoder, const Ref<WebCore::Font>& font)
@@ -3188,28 +3165,30 @@ Optional<WebCore::CDMInstanceSession::KeyStatusVector> ArgumentCoder<WebCore::CD
 
 void ArgumentCoder<Ref<WebCore::ImageData>>::encode(Encoder& encoder, const Ref<WebCore::ImageData>& imageData)
 {
-    // FIXME: Copying from the ImageData to the SharedBuffer is slow. Invent some way for the SharedBuffer to be populated directly.
-    auto sharedBuffer = WebCore::SharedBuffer::create(imageData->data()->data(), imageData->data()->byteLength());
     encoder << imageData->size();
-    encoder << sharedBuffer;
+
+    auto rawData = imageData->data();
+    encoder << static_cast<uint64_t>(rawData->byteLength());
+    encoder.encodeFixedLengthData(rawData->data(), rawData->byteLength(), 1);
 }
 
 Optional<Ref<WebCore::ImageData>> ArgumentCoder<Ref<WebCore::ImageData>>::decode(Decoder& decoder)
 {
     Optional<IntSize> imageDataSize;
-    Optional<Ref<SharedBuffer>> data;
-
     decoder >> imageDataSize;
     if (!imageDataSize)
         return WTF::nullopt;
 
-    decoder >> data;
-    if (!data)
+    Optional<uint64_t> dataLength;
+    decoder >> dataLength;
+    if (!dataLength)
         return WTF::nullopt;
 
-    // FIXME: Copying from the SharedBuffer into the ImageData is slow. Invent some way for the ImageData to simply just retain the SharedBuffer, and use it internally.
-    // Alternatively, we could create an overload for putImageData() which operates on the SharedBuffer directly.
-    auto imageData = ImageData::create(*imageDataSize, Uint8ClampedArray::create(reinterpret_cast<const uint8_t*>((*data)->data()), (*data)->size()));
+    auto rawData = Uint8ClampedArray::createUninitialized(*dataLength);
+    if (!decoder.decodeFixedLengthData(rawData->data(), rawData->length(), 1))
+        return WTF::nullopt;
+
+    auto imageData = ImageData::create(*imageDataSize, WTFMove(rawData));
     if (!imageData)
         return WTF::nullopt;
 

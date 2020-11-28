@@ -93,7 +93,7 @@ namespace WebCore {
 class BitmapTextureGL;
 class GLContext;
 class GraphicsContext;
-class GraphicsContextGLOpenGL;
+class GraphicsContextGL;
 class IntSize;
 class IntRect;
 class VideoTextureCopierGStreamer;
@@ -164,7 +164,7 @@ public:
     void setMuted(bool) final;
     MediaPlayer::NetworkState networkState() const final;
     MediaPlayer::ReadyState readyState() const final;
-    void setVisible(bool) final { }
+    void setVisible(bool visible) final { m_visible = visible; }
     void setSize(const IntSize&) final;
     // Prefer MediaTime based methods over float based.
     float duration() const final { return durationMediaTime().toFloat(); }
@@ -215,8 +215,8 @@ public:
 #endif
 
 #if USE(GSTREAMER_GL)
-    bool copyVideoTextureToPlatformTexture(GraphicsContextGLOpenGL*, PlatformGLObject, GCGLenum, GCGLint, GCGLenum, GCGLenum, GCGLenum, bool, bool) override;
-    NativeImagePtr nativeImageForCurrentTime() override;
+    bool copyVideoTextureToPlatformTexture(GraphicsContextGL*, PlatformGLObject, GCGLenum, GCGLint, GCGLenum, GCGLenum, GCGLenum, bool, bool) override;
+    RefPtr<NativeImage> nativeImageForCurrentTime() override;
 #endif
 
     void updateEnabledVideoTrack();
@@ -501,6 +501,8 @@ private:
 #if ENABLE(MEDIA_STREAM)
     RefPtr<MediaStreamPrivate> m_streamPrivate;
 #endif
+
+    bool m_visible { false };
 
     // playbin3 only:
     bool m_waitingForStreamsSelectedEvent { true };

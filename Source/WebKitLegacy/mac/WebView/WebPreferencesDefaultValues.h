@@ -60,9 +60,30 @@ bool defaultJavaScriptCanOpenWindowsAutomatically();
 bool defaultPassiveTouchListenersAsDefaultOnDocument();
 bool defaultRequiresUserGestureToLoadVideo();
 bool defaultWebSQLEnabled();
+bool defaultAllowContentSecurityPolicySourceStarToMatchAnyProtocol();
+#endif
+
+#if PLATFORM(MAC)
+bool defaultLoadDeferringEnabled();
+bool defaultWindowFocusRestricted();
+bool defaultUsePreHTML5ParserQuirks();
+bool defaultNeedsAdobeFrameReloadingQuirk();
+bool defaultTreatsAnyTextCSSLinkAsStylesheet();
+bool defaultNeedsFrameNameFallbackToIdQuirk();
+bool defaultNeedsKeyboardEventDisambiguationQuirks();
+bool defaultEnforceCSSMIMETypeInNoQuirksMode();
+bool defaultNeedsIsLoadingInAPISenseQuirk();
 #endif
 
 bool defaultAttachmentElementEnabled();
 bool defaultShouldRestrictBaseURLSchemes();
+bool defaultUseLegacyBackgroundSizeShorthandBehavior();
+bool defaultAllowDisplayOfInsecureContent();
+bool defaultAllowRunningOfInsecureContent();
+bool defaultShouldConvertInvalidURLsToBlank();
+
+#if PLATFORM(MAC)
+bool defaultPassiveWheelListenersAsDefaultOnDocument();
+#endif
 
 } // namespace WebKit

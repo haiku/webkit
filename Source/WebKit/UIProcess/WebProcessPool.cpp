@@ -157,7 +157,12 @@ using namespace WebCore;
 
 DEFINE_DEBUG_ONLY_GLOBAL(WTF::RefCountedLeakCounter, processPoolCounter, ("WebProcessPool"));
 
-const Seconds serviceWorkerTerminationDelay { 5_s };
+constexpr Seconds serviceWorkerTerminationDelay { 5_s };
+
+#if ENABLE(GPU_PROCESS)
+constexpr Seconds resetGPUProcessCrashCountDelay { 30_s };
+constexpr unsigned maximumGPUProcessRelaunchAttemptsBeforeKillingWebProcesses { 2 };
+#endif
 
 static uint64_t generateListenerIdentifier()
 {
@@ -260,6 +265,9 @@ WebProcessPool::WebProcessPool(API::ProcessPoolConfiguration& configuration)
     , m_processSuppressionDisabledForPageCounter([this](RefCounterEvent) { updateProcessSuppressionState(); })
     , m_hiddenPageThrottlingAutoIncreasesCounter([this](RefCounterEvent) { m_hiddenPageThrottlingTimer.startOneShot(0_s); })
     , m_hiddenPageThrottlingTimer(RunLoop::main(), this, &WebProcessPool::updateHiddenPageThrottlingAutoIncreaseLimit)
+#if ENABLE(GPU_PROCESS)
+    , m_resetGPUProcessCrashCountTimer(RunLoop::main(), [this] { m_recentGPUProcessCrashCount = 0; })
+#endif
     , m_foregroundWebProcessCounter([this](RefCounterEvent) { updateProcessAssertions(); })
     , m_backgroundWebProcessCounter([this](RefCounterEvent) { updateProcessAssertions(); })
     , m_backForwardCache(makeUniqueRef<WebBackForwardCache>(*this))
@@ -479,21 +487,38 @@ void WebProcessPool::serviceWorkerProcessCrashed(WebProcessProxy& proxy)
 }
 
 #if ENABLE(GPU_PROCESS)
+GPUProcessProxy& WebProcessPool::ensureGPUProcess()
+{
+    if (!m_gpuProcess)
+        m_gpuProcess = GPUProcessProxy::getOrCreate();
+    return *m_gpuProcess;
+}
+
 void WebProcessPool::gpuProcessCrashed(ProcessID identifier)
 {
+    WEBPROCESSPOOL_RELEASE_LOG_ERROR(Process, "gpuProcessCrashed: PID: %d", identifier);
+    m_gpuProcess = nullptr;
+
     m_client.gpuProcessDidCrash(this, identifier);
     Vector<RefPtr<WebProcessProxy>> processes = m_processes;
     for (auto& process : processes)
         process->gpuProcessCrashed();
-    terminateAllWebContentProcesses();
+
+    if (++m_recentGPUProcessCrashCount > maximumGPUProcessRelaunchAttemptsBeforeKillingWebProcesses) {
+        WEBPROCESSPOOL_RELEASE_LOG_ERROR(Process, "gpuProcessCrashed: GPU Process has crashed more than %u times in the last %g seconds, terminating all WebProcesses", maximumGPUProcessRelaunchAttemptsBeforeKillingWebProcesses, resetGPUProcessCrashCountDelay.seconds());
+        m_resetGPUProcessCrashCountTimer.stop();
+        m_recentGPUProcessCrashCount = 0;
+        terminateAllWebContentProcesses();
+    } else if (!m_resetGPUProcessCrashCountTimer.isActive())
+        m_resetGPUProcessCrashCountTimer.startOneShot(resetGPUProcessCrashCountDelay);
 }
 
 void WebProcessPool::getGPUProcessConnection(WebProcessProxy& webProcessProxy, Messages::WebProcessProxy::GetGPUProcessConnection::DelayedReply&& reply)
 {
-    GPUProcessProxy::singleton().getGPUProcessConnection(webProcessProxy, [this, weakThis = makeWeakPtr(*this), webProcessProxy = makeWeakPtr(webProcessProxy), reply = WTFMove(reply)] (auto& connectionInfo) mutable {
+    ensureGPUProcess().getGPUProcessConnection(webProcessProxy, [this, weakThis = makeWeakPtr(*this), webProcessProxy = makeWeakPtr(webProcessProxy), reply = WTFMove(reply)] (auto& connectionInfo) mutable {
         if (UNLIKELY(!IPC::Connection::identifierIsValid(connectionInfo.identifier()) && webProcessProxy && weakThis)) {
             WEBPROCESSPOOL_RELEASE_LOG_ERROR(Process, "getGPUProcessConnection: Failed first attempt, retrying");
-            GPUProcessProxy::singleton().getGPUProcessConnection(*webProcessProxy, WTFMove(reply));
+            ensureGPUProcess().getGPUProcessConnection(*webProcessProxy, WTFMove(reply));
             return;
         }
         reply(connectionInfo);
@@ -715,8 +740,6 @@ WebProcessDataStoreParameters WebProcessPool::webProcessDataStoreParameters(WebP
     if (!javaScriptConfigurationDirectory.isEmpty())
         SandboxExtension::createHandleWithoutResolvingPath(javaScriptConfigurationDirectory, SandboxExtension::Type::ReadWrite, javaScriptConfigurationDirectoryExtensionHandle);
         
-    auto plugInAutoStartOriginHashes = m_plugInAutoStartProvider.autoStartOriginHashesCopy(websiteDataStore.sessionID());
-
     return WebProcessDataStoreParameters {
         websiteDataStore.sessionID(),
         WTFMove(applicationCacheDirectory),
@@ -730,10 +753,10 @@ WebProcessDataStoreParameters WebProcessPool::webProcessDataStoreParameters(WebP
         WTFMove(mediaKeyStorageDirectoryExtensionHandle),
         WTFMove(javaScriptConfigurationDirectory),
         WTFMove(javaScriptConfigurationDirectoryExtensionHandle),
-        WTFMove(plugInAutoStartOriginHashes),
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
         websiteDataStore.thirdPartyCookieBlockingMode(),
         m_domainsWithUserInteraction,
+        m_domainsWithCrossPageStorageAccessQuirk,
 #endif
         websiteDataStore.resourceLoadStatisticsEnabled()
     };
@@ -796,8 +819,6 @@ void WebProcessPool::initializeNewWebProcess(WebProcessProxy& process, WebsiteDa
     parameters.notificationPermissions = supplement<WebNotificationManagerProxy>()->notificationPermissions();
 #endif
 
-    parameters.plugInAutoStartOrigins = copyToVector(m_plugInAutoStartProvider.autoStartOrigins());
-
     parameters.memoryCacheDisabled = m_memoryCacheDisabled;
     parameters.attrStyleEnabled = m_configuration->attrStyleEnabled();
 
@@ -807,10 +828,6 @@ void WebProcessPool::initializeNewWebProcess(WebProcessProxy& process, WebsiteDa
     parameters.hasSelectionServices = serviceController.hasSelectionServices();
     parameters.hasRichContentServices = serviceController.hasRichContentServices();
     serviceController.refreshExistingServices();
-#endif
-
-#if ENABLE(NETSCAPE_PLUGIN_API)
-    parameters.pluginLoadClientPolicies = m_pluginLoadClientPolicies;
 #endif
 
 #if OS(LINUX)
@@ -1441,6 +1458,7 @@ void WebProcessPool::stopMemorySampler()
 
 void WebProcessPool::terminateAllWebContentProcesses()
 {
+    WEBPROCESSPOOL_RELEASE_LOG_ERROR(Process, "terminateAllWebContentProcesses");
     Vector<RefPtr<WebProcessProxy>> processes = m_processes;
     for (auto& process : processes)
         process->terminate();
@@ -1628,53 +1646,6 @@ void WebProcessPool::setJavaScriptGarbageCollectorTimerEnabled(bool flag)
     sendToAllProcesses(Messages::WebProcess::SetJavaScriptGarbageCollectorTimerEnabled(flag));
 }
 
-Ref<API::Dictionary> WebProcessPool::plugInAutoStartOriginHashes() const
-{
-    return m_plugInAutoStartProvider.autoStartOriginsTableCopy();
-}
-
-void WebProcessPool::setPlugInAutoStartOriginHashes(API::Dictionary& dictionary)
-{
-    m_plugInAutoStartProvider.setAutoStartOriginsTable(dictionary);
-}
-
-void WebProcessPool::setPlugInAutoStartOrigins(API::Array& array)
-{
-    m_plugInAutoStartProvider.setAutoStartOriginsArray(array);
-}
-
-void WebProcessPool::setPlugInAutoStartOriginsFilteringOutEntriesAddedAfterTime(API::Dictionary& dictionary, WallTime time)
-{
-    m_plugInAutoStartProvider.setAutoStartOriginsFilteringOutEntriesAddedAfterTime(dictionary, time);
-}
-
-#if ENABLE(NETSCAPE_PLUGIN_API)
-void WebProcessPool::setPluginLoadClientPolicy(WebCore::PluginLoadClientPolicy policy, const String& host, const String& bundleIdentifier, const String& versionString)
-{
-    auto& policiesForHost = m_pluginLoadClientPolicies.ensure(host, [] {
-        return HashMap<String, HashMap<String, WebCore::PluginLoadClientPolicy>>();
-    }).iterator->value;
-    auto& versionsToPolicies = policiesForHost.ensure(bundleIdentifier, [] {
-        return HashMap<String, WebCore::PluginLoadClientPolicy>();
-    }).iterator->value;
-    versionsToPolicies.set(versionString, policy);
-
-    sendToAllProcesses(Messages::WebProcess::SetPluginLoadClientPolicy(policy, host, bundleIdentifier, versionString));
-}
-
-void WebProcessPool::resetPluginLoadClientPolicies(HashMap<String, HashMap<String, HashMap<String, WebCore::PluginLoadClientPolicy>>>&& pluginLoadClientPolicies)
-{
-    m_pluginLoadClientPolicies = WTFMove(pluginLoadClientPolicies);
-    sendToAllProcesses(Messages::WebProcess::ResetPluginLoadClientPolicies(m_pluginLoadClientPolicies));
-}
-
-void WebProcessPool::clearPluginClientPolicies()
-{
-    m_pluginLoadClientPolicies.clear();
-    sendToAllProcesses(Messages::WebProcess::ClearPluginClientPolicies());
-}
-#endif
-
 void WebProcessPool::addSupportedPlugin(String&& matchingDomain, String&& name, HashSet<String>&& mimeTypes, HashSet<String> extensions)
 {
 #if ENABLE(NETSCAPE_PLUGIN_API)
@@ -1744,6 +1715,10 @@ void WebProcessPool::updateProcessAssertions()
     WebsiteDataStore::forEachWebsiteDataStore([] (WebsiteDataStore& dataStore) {
         dataStore.networkProcess().updateProcessAssertion();
     });
+#if ENABLE(GPU_PROCESS)
+    if (auto* gpuProcess = GPUProcessProxy::singletonIfCreated())
+        gpuProcess->updateProcessAssertion();
+#endif
 #if ENABLE(SERVICE_WORKER)
     // Check on next run loop since the web process proxy tokens are probably being updated.
     callOnMainRunLoop([] {
@@ -1985,6 +1960,17 @@ void WebProcessPool::setDomainsWithUserInteraction(HashSet<WebCore::RegistrableD
     m_domainsWithUserInteraction = WTFMove(domains);
 }
 
+void WebProcessPool::setDomainsWithCrossPageStorageAccess(HashMap<TopFrameDomain, SubResourceDomain>&& domains, CompletionHandler<void()>&& completionHandler)
+{    
+    auto callbackAggregator = CallbackAggregator::create(WTFMove(completionHandler));
+
+    for (auto& process : processes())
+        process->sendWithAsyncReply(Messages::WebProcess::SetDomainsWithCrossPageStorageAccess(domains), [callbackAggregator] { });
+
+    for (auto& topDomain : domains.keys())
+        m_domainsWithCrossPageStorageAccessQuirk.add(topDomain, domains.get(topDomain));
+}
+
 void WebProcessPool::seedResourceLoadStatisticsForTesting(const RegistrableDomain& firstPartyDomain, const RegistrableDomain& thirdPartyDomain, bool shouldScheduleNotification, CompletionHandler<void()>&& completionHandler)
 {
     auto callbackAggregator = CallbackAggregator::create(WTFMove(completionHandler));
@@ -2022,7 +2008,7 @@ void WebProcessPool::updateAudibleMediaAssertions()
     m_audibleMediaActivity = AudibleMediaActivity {
         makeUniqueRef<ProcessAssertion>(getCurrentProcessID(), "WebKit Media Playback"_s, ProcessAssertionType::MediaPlayback)
 #if ENABLE(GPU_PROCESS)
-        , GPUProcessProxy::singletonIfCreated() ? makeUnique<ProcessAssertion>(GPUProcessProxy::singleton().processIdentifier(), "WebKit Media Playback"_s, ProcessAssertionType::MediaPlayback) : nullptr
+        , gpuProcess() ? makeUnique<ProcessAssertion>(gpuProcess()->processIdentifier(), "WebKit Media Playback"_s, ProcessAssertionType::MediaPlayback) : nullptr
 #endif
     };
 }

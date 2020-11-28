@@ -23,6 +23,7 @@
 
 #include "AXObjectCache.h"
 #include "AutoplayEvent.h"
+#include "ContactInfo.h"
 #include "Cursor.h"
 #include "DatabaseDetails.h"
 #include "DeviceOrientationOrMotionPermissionState.h"
@@ -113,6 +114,7 @@ class Widget;
 class MediaPlayerRequestInstallMissingPluginsCallback;
 #endif
 
+struct ContactsRequestData;
 struct ContentRuleListResults;
 struct DateTimeChooserParameters;
 struct GraphicsDeviceAdapter;
@@ -302,6 +304,7 @@ public:
 
     virtual void runOpenPanel(Frame&, FileChooser&) = 0;
     virtual void showShareSheet(ShareDataWithParsedURL&, WTF::CompletionHandler<void(bool)>&& callback) { callback(false); }
+    virtual void showContactPicker(const ContactsRequestData&, WTF::CompletionHandler<void(Optional<Vector<ContactInfo>>&&)>&& callback) { callback(WTF::nullopt); }
     
     // Asynchronous request to load an icon for specified filenames.
     virtual void loadIconForFiles(const Vector<String>&, FileIconLoader&) = 0;
@@ -320,8 +323,7 @@ public:
 
     virtual RefPtr<DisplayRefreshMonitor> createDisplayRefreshMonitor(PlatformDisplayID) const { return nullptr; }
 
-    virtual std::unique_ptr<ImageBuffer> createImageBuffer(const FloatSize&, ShouldAccelerate, ShouldUseDisplayList, RenderingPurpose, float, ColorSpace) const { return nullptr; }
-    virtual std::unique_ptr<ImageBuffer> createImageBuffer(const FloatSize&, RenderingMode, float, ColorSpace) const { return nullptr; }
+    virtual RefPtr<ImageBuffer> createImageBuffer(const FloatSize&, RenderingMode, RenderingPurpose, float, ColorSpace, PixelFormat) const { return nullptr; }
 
     // Pass nullptr as the GraphicsLayer to detatch the root layer.
     virtual void attachRootGraphicsLayer(Frame&, GraphicsLayer*) = 0;
@@ -384,7 +386,7 @@ public:
     virtual void removeMediaUsageManagerSession(MediaSessionIdentifier) { }
 #endif
 
-    virtual void exitVideoFullscreenForVideoElement(HTMLVideoElement&) { }
+    virtual void exitVideoFullscreenForVideoElement(HTMLVideoElement&, WTF::CompletionHandler<void(bool)>&& completionHandler = [](bool) { }) { completionHandler(true); }
     virtual void exitVideoFullscreenToModeWithoutAnimation(HTMLVideoElement&, HTMLMediaElementEnums::VideoFullscreenMode) { }
     virtual bool requiresFullscreenForVideoPlayback() { return false; } 
 

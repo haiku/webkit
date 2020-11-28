@@ -389,7 +389,7 @@ bool Element::dispatchMouseEvent(const PlatformMouseEvent& platformEvent, const 
     if (dispatchPointerEventIfNeeded(*this, mouseEvent.get(), platformEvent, didNotSwallowEvent) == ShouldIgnoreMouseEvent::Yes)
         return false;
 
-    if (Quirks::StorageAccessResult::ShouldCancelEvent == document().quirks().triggerOptionalStorageAccessQuirk(*this, eventType))
+    if (Quirks::StorageAccessResult::ShouldCancelEvent == document().quirks().triggerOptionalStorageAccessQuirk(*this, platformEvent, eventType, detail, relatedTarget))
         return false;
 
     ASSERT(!mouseEvent->target() || mouseEvent->target() != relatedTarget);
@@ -861,7 +861,7 @@ void Element::scrollIntoView(Optional<Variant<bool, ScrollIntoViewOptions>>&& ar
         return;
 
     bool insideFixed;
-    LayoutRect absoluteBounds = renderer()->absoluteAnchorRect(&insideFixed);
+    LayoutRect absoluteBounds = renderer()->absoluteAnchorRectWithScrollMargin(&insideFixed);
 
     ScrollIntoViewOptions options;
     if (arg) {
@@ -895,7 +895,7 @@ void Element::scrollIntoView(bool alignToTop)
         return;
 
     bool insideFixed;
-    LayoutRect absoluteBounds = renderer()->absoluteAnchorRect(&insideFixed);
+    LayoutRect absoluteBounds = renderer()->absoluteAnchorRectWithScrollMargin(&insideFixed);
     // Align to the top / bottom and to the closest edge.
     if (alignToTop)
         renderer()->scrollRectToVisible(absoluteBounds, insideFixed, { SelectionRevealMode::Reveal, ScrollAlignment::alignToEdgeIfNeeded, ScrollAlignment::alignTopAlways, ShouldAllowCrossOriginScrolling::No });
@@ -911,7 +911,7 @@ void Element::scrollIntoViewIfNeeded(bool centerIfNeeded)
         return;
 
     bool insideFixed;
-    LayoutRect absoluteBounds = renderer()->absoluteAnchorRect(&insideFixed);
+    LayoutRect absoluteBounds = renderer()->absoluteAnchorRectWithScrollMargin(&insideFixed);
     if (centerIfNeeded)
         renderer()->scrollRectToVisible(absoluteBounds, insideFixed, { SelectionRevealMode::Reveal, ScrollAlignment::alignCenterIfNeeded, ScrollAlignment::alignCenterIfNeeded, ShouldAllowCrossOriginScrolling::No });
     else
@@ -926,7 +926,7 @@ void Element::scrollIntoViewIfNotVisible(bool centerIfNotVisible)
         return;
     
     bool insideFixed;
-    LayoutRect absoluteBounds = renderer()->absoluteAnchorRect(&insideFixed);
+    LayoutRect absoluteBounds = renderer()->absoluteAnchorRectWithScrollMargin(&insideFixed);
     if (centerIfNotVisible)
         renderer()->scrollRectToVisible(absoluteBounds, insideFixed, { SelectionRevealMode::Reveal, ScrollAlignment::alignCenterIfNotVisible, ScrollAlignment::alignCenterIfNotVisible, ShouldAllowCrossOriginScrolling::No });
     else
@@ -2300,7 +2300,7 @@ void Element::addShadowRoot(Ref<ShadowRoot>&& newShadowRoot)
     {
         WidgetHierarchyUpdatesSuspensionScope suspendWidgetHierarchyUpdates;
         ScriptDisallowedScope::InMainThread scriptDisallowedScope;
-        if (renderer())
+        if (renderer() || hasDisplayContents())
             RenderTreeUpdater::tearDownRenderers(*this);
 
         ensureElementRareData().setShadowRoot(WTFMove(newShadowRoot));
@@ -2621,30 +2621,30 @@ static void checkForSiblingStyleChanges(Element& parent, SiblingCheckType checkT
 void Element::childrenChanged(const ChildChange& change)
 {
     ContainerNode::childrenChanged(change);
-    if (change.source == ChildChangeSource::Parser)
+    if (change.source == ChildChange::Source::Parser)
         checkForEmptyStyleChange(*this);
     else {
-        SiblingCheckType checkType = change.type == ElementRemoved ? SiblingElementRemoved : Other;
+        auto checkType = change.type == ChildChange::Type::ElementRemoved ? SiblingElementRemoved : Other;
         checkForSiblingStyleChanges(*this, checkType, change.previousSiblingElement, change.nextSiblingElement);
     }
 
     if (ShadowRoot* shadowRoot = this->shadowRoot()) {
         switch (change.type) {
-        case ElementInserted:
-        case ElementRemoved:
+        case ChildChange::Type::ElementInserted:
+        case ChildChange::Type::ElementRemoved:
             // For elements, we notify shadowRoot in Element::insertedIntoAncestor and Element::removedFromAncestor.
             break;
-        case AllChildrenRemoved:
-        case AllChildrenReplaced:
+        case ChildChange::Type::AllChildrenRemoved:
+        case ChildChange::Type::AllChildrenReplaced:
             shadowRoot->didRemoveAllChildrenOfShadowHost();
             break;
-        case TextInserted:
-        case TextRemoved:
-        case TextChanged:
+        case ChildChange::Type::TextInserted:
+        case ChildChange::Type::TextRemoved:
+        case ChildChange::Type::TextChanged:
             shadowRoot->didChangeDefaultSlot();
             break;
-        case NonContentsChildInserted:
-        case NonContentsChildRemoved:
+        case ChildChange::Type::NonContentsChildInserted:
+        case ChildChange::Type::NonContentsChildRemoved:
             break;
         }
     }
@@ -2993,7 +2993,7 @@ static RefPtr<Element> findFirstProgramaticallyFocusableElementInComposedTree(El
     return nullptr;
 }
 
-void Element::focus(bool restorePreviousSelection, FocusDirection direction)
+void Element::focus(SelectionRestorationMode restorationMode, FocusDirection direction)
 {
     if (!isConnected())
         return;
@@ -3041,7 +3041,7 @@ void Element::focus(bool restorePreviousSelection, FocusDirection direction)
             return;
     }
 
-    newTarget->revealFocusedElement(restorePreviousSelection ? SelectionRestorationMode::Restore : SelectionRestorationMode::SetDefault);
+    newTarget->revealFocusedElement(restorationMode);
 }
 
 void Element::revealFocusedElement(SelectionRestorationMode selectionMode)
@@ -3822,24 +3822,6 @@ bool Element::hasKeyframeEffects(PseudoId pseudoId) const
     return false;
 }
 
-OptionSet<AnimationImpact> Element::applyKeyframeEffects(PseudoId pseudoId, RenderStyle& targetStyle)
-{
-    OptionSet<AnimationImpact> impact;
-
-    for (const auto& effect : ensureKeyframeEffectStack(pseudoId).sortedEffects()) {
-        ASSERT(effect->animation());
-        effect->animation()->resolve(targetStyle);
-
-        if (effect->isRunningAccelerated() || effect->isAboutToRunAccelerated())
-            impact.add(AnimationImpact::RequiresRecomposite);
-
-        if (effect->triggersStackingContext())
-            impact.add(AnimationImpact::ForcesStackingContext);
-    }
-
-    return impact;
-}
-
 const AnimationCollection* Element::animations(PseudoId pseudoId) const
 {
     if (auto* animationData = animationRareData(pseudoId))
@@ -3847,14 +3829,14 @@ const AnimationCollection* Element::animations(PseudoId pseudoId) const
     return nullptr;
 }
 
-bool Element::hasCompletedTransitionsForProperty(PseudoId pseudoId, CSSPropertyID property) const
+bool Element::hasCompletedTransitionForProperty(PseudoId pseudoId, CSSPropertyID property) const
 {
     if (auto* animationData = animationRareData(pseudoId))
         return animationData->completedTransitionsByProperty().contains(property);
     return false;
 }
 
-bool Element::hasRunningTransitionsForProperty(PseudoId pseudoId, CSSPropertyID property) const
+bool Element::hasRunningTransitionForProperty(PseudoId pseudoId, CSSPropertyID property) const
 {
     if (auto* animationData = animationRareData(pseudoId))
         return animationData->runningTransitionsByProperty().contains(property);

@@ -731,7 +731,7 @@ void GraphicsContext::drawBidiText(const FontCascade& font, const TextRun& run, 
     bidiRuns.clear();
 }
 
-void GraphicsContext::drawNativeImage(const NativeImagePtr& image, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& options)
+void GraphicsContext::drawNativeImage(NativeImage& image, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& options)
 {
     if (paintingDisabled())
         return;
@@ -741,7 +741,7 @@ void GraphicsContext::drawNativeImage(const NativeImagePtr& image, const FloatSi
         return;
     }
 
-    platformDrawNativeImage(image, imageSize, destRect, srcRect, options);
+    drawPlatformImage(image.platformImage(), imageSize, destRect, srcRect, options);
 }
 
 ImageDrawResult GraphicsContext::drawImage(Image& image, const FloatPoint& destination, const ImagePaintingOptions& imagePaintingOptions)
@@ -760,9 +760,6 @@ ImageDrawResult GraphicsContext::drawImage(Image& image, const FloatRect& destin
     if (paintingDisabled())
         return ImageDrawResult::DidNothing;
 
-    if (m_impl)
-        return m_impl->drawImage(image, destination, source, options);
-
     InterpolationQualityMaintainer interpolationQualityForThisScope(*this, options.interpolationQuality());
     return image.draw(*this, destination, source, options);
 }
@@ -771,9 +768,6 @@ ImageDrawResult GraphicsContext::drawTiledImage(Image& image, const FloatRect& d
 {
     if (paintingDisabled())
         return ImageDrawResult::DidNothing;
-
-    if (m_impl)
-        return m_impl->drawTiledImage(image, destination, source, tileSize, spacing, options);
 
     InterpolationQualityMaintainer interpolationQualityForThisScope(*this, options.interpolationQuality());
     return image.drawTiled(*this, destination, source, tileSize, spacing, options);
@@ -784,9 +778,6 @@ ImageDrawResult GraphicsContext::drawTiledImage(Image& image, const FloatRect& d
 {
     if (paintingDisabled())
         return ImageDrawResult::DidNothing;
-
-    if (m_impl)
-        return m_impl->drawTiledImage(image, destination, source, tileScaleFactor, hRule, vRule, options);
 
     if (hRule == Image::StretchTile && vRule == Image::StretchTile) {
         // Just do a scale.
@@ -812,11 +803,16 @@ void GraphicsContext::drawImageBuffer(ImageBuffer& image, const FloatRect& desti
     if (paintingDisabled())
         return;
 
+    if (m_impl) {
+        m_impl->drawImageBuffer(image, destination, source, options);
+        return;
+    }
+
     InterpolationQualityMaintainer interpolationQualityForThisScope(*this, options.interpolationQuality());
     image.draw(*this, destination, source, options);
 }
 
-void GraphicsContext::drawConsumingImageBuffer(std::unique_ptr<ImageBuffer> image, const FloatPoint& destination, const ImagePaintingOptions& imagePaintingOptions)
+void GraphicsContext::drawConsumingImageBuffer(RefPtr<ImageBuffer> image, const FloatPoint& destination, const ImagePaintingOptions& imagePaintingOptions)
 {
     if (!image)
         return;
@@ -824,7 +820,7 @@ void GraphicsContext::drawConsumingImageBuffer(std::unique_ptr<ImageBuffer> imag
     drawConsumingImageBuffer(WTFMove(image), FloatRect(destination, imageLogicalSize), FloatRect(FloatPoint(), imageLogicalSize), imagePaintingOptions);
 }
 
-void GraphicsContext::drawConsumingImageBuffer(std::unique_ptr<ImageBuffer> image, const FloatRect& destination, const ImagePaintingOptions& imagePaintingOptions)
+void GraphicsContext::drawConsumingImageBuffer(RefPtr<ImageBuffer> image, const FloatRect& destination, const ImagePaintingOptions& imagePaintingOptions)
 {
     if (!image)
         return;
@@ -832,13 +828,31 @@ void GraphicsContext::drawConsumingImageBuffer(std::unique_ptr<ImageBuffer> imag
     drawConsumingImageBuffer(WTFMove(image), destination, FloatRect(FloatPoint(), FloatSize(imageLogicalSize)), imagePaintingOptions);
 }
 
-void GraphicsContext::drawConsumingImageBuffer(std::unique_ptr<ImageBuffer> image, const FloatRect& destination, const FloatRect& source, const ImagePaintingOptions& options)
+void GraphicsContext::drawConsumingImageBuffer(RefPtr<ImageBuffer> image, const FloatRect& destination, const FloatRect& source, const ImagePaintingOptions& options)
 {
     if (paintingDisabled() || !image)
         return;
-    
+
+    if (m_impl) {
+        m_impl->drawImageBuffer(*image, destination, source, options);
+        return;
+    }
+
     InterpolationQualityMaintainer interpolationQualityForThisScope(*this, options.interpolationQuality());
     ImageBuffer::drawConsuming(WTFMove(image), *this, destination, source, options);
+}
+
+void GraphicsContext::drawPattern(NativeImage& image, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& tileRect, const AffineTransform& patternTransform, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions& options)
+{
+    if (paintingDisabled() || !patternTransform.isInvertible())
+        return;
+
+    if (m_impl) {
+        m_impl->drawPattern(image, imageSize, destRect, tileRect, patternTransform, phase, spacing, options);
+        return;
+    }
+
+    drawPlatformPattern(image.platformImage(), imageSize, destRect, tileRect, patternTransform, phase, spacing, options);
 }
 
 void GraphicsContext::clipRoundedRect(const FloatRoundedRect& rect)
@@ -883,6 +897,19 @@ GraphicsContext::ClipToDrawingCommandsResult GraphicsContext::clipToDrawingComma
     drawingFunction(imageBuffer->context());
     clipToImageBuffer(*imageBuffer, destination);
     return ClipToDrawingCommandsResult::Success;
+}
+
+void GraphicsContext::clipToImageBuffer(ImageBuffer& imageBuffer, const FloatRect& destinationRect)
+{
+    if (paintingDisabled())
+        return;
+
+    if (m_impl) {
+        m_impl->clipToImageBuffer(imageBuffer, destinationRect);
+        return;
+    }
+
+    imageBuffer.clipToMask(*this, destinationRect);
 }
 
 #if !USE(CG) && !USE(DIRECT2D) && !USE(CAIRO) && !USE(HAIKU)

@@ -59,25 +59,25 @@ namespace JSC {
 @end
 */
 
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetInt8);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetInt16);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetInt32);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetUint8);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetUint16);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetUint32);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetFloat32);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetFloat64);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetInt8);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetInt16);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetInt32);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetUint8);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetUint16);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetUint32);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetFloat32);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetFloat64);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoGetterBuffer);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoGetterByteLength);
-JSC_DECLARE_HOST_FUNCTION(dataViewProtoGetterByteOffset);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetInt8);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetInt16);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetInt32);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetUint8);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetUint16);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetUint32);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetFloat32);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncGetFloat64);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetInt8);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetInt16);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetInt32);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetUint8);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetUint16);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetUint32);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetFloat32);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoFuncSetFloat64);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoGetterBuffer);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoGetterByteLength);
+static JSC_DECLARE_HOST_FUNCTION(dataViewProtoGetterByteOffset);
 
 }
 
@@ -138,7 +138,7 @@ EncodedJSValue getData(JSGlobalObject* globalObject, CallFrame* callFrame)
         RETURN_IF_EXCEPTION(scope, encodedJSValue());
     }
 
-    if (dataView->isNeutered())
+    if (dataView->isDetached())
         return throwVMTypeError(globalObject, scope, "Underlying ArrayBuffer has been detached from the view"_s);
 
     unsigned byteLength = dataView->length();
@@ -193,7 +193,7 @@ EncodedJSValue setData(JSGlobalObject* globalObject, CallFrame* callFrame)
         RETURN_IF_EXCEPTION(scope, encodedJSValue());
     }
 
-    if (dataView->isNeutered())
+    if (dataView->isDetached())
         return throwVMTypeError(globalObject, scope, "Underlying ArrayBuffer has been detached from the view"_s);
 
     unsigned byteLength = dataView->length();
@@ -235,7 +235,7 @@ JSC_DEFINE_HOST_FUNCTION(dataViewProtoGetterByteLength, (JSGlobalObject* globalO
     JSDataView* view = jsDynamicCast<JSDataView*>(vm, callFrame->thisValue());
     if (!view)
         return throwVMTypeError(globalObject, scope, "DataView.prototype.byteLength expects |this| to be a DataView object");
-    if (view->isNeutered())
+    if (view->isDetached())
         return throwVMTypeError(globalObject, scope, "Underlying ArrayBuffer has been detached from the view"_s);
 
     return JSValue::encode(jsNumber(view->length()));
@@ -249,7 +249,7 @@ JSC_DEFINE_HOST_FUNCTION(dataViewProtoGetterByteOffset, (JSGlobalObject* globalO
     JSDataView* view = jsDynamicCast<JSDataView*>(vm, callFrame->thisValue());
     if (!view)
         return throwVMTypeError(globalObject, scope, "DataView.prototype.byteOffset expects |this| to be a DataView object");
-    if (view->isNeutered())
+    if (view->isDetached())
         return throwVMTypeError(globalObject, scope, "Underlying ArrayBuffer has been detached from the view"_s);
 
     return JSValue::encode(jsNumber(view->byteOffset()));

@@ -26,6 +26,7 @@
 #pragma once
 
 #include "Element.h"
+#include "KeyframeEffectStack.h"
 #include "PseudoElement.h"
 #include "RenderElement.h"
 #include "RenderStyleConstants.h"
@@ -86,9 +87,9 @@ struct Styleable {
         return element.hasKeyframeEffects(pseudoId);
     }
 
-    OptionSet<AnimationImpact> applyKeyframeEffects(RenderStyle& style) const
+    OptionSet<AnimationImpact> applyKeyframeEffects(RenderStyle& targetStyle, const RenderStyle& previousLastStyleChangeEventStyle) const
     {
-        return element.applyKeyframeEffects(pseudoId, style);
+        return element.ensureKeyframeEffectStack(pseudoId).applyKeyframeEffects(targetStyle, previousLastStyleChangeEventStyle);
     }
 
     const AnimationCollection* animations() const
@@ -96,14 +97,14 @@ struct Styleable {
         return element.animations(pseudoId);
     }
 
-    bool hasCompletedTransitionsForProperty(CSSPropertyID property) const
+    bool hasCompletedTransitionForProperty(CSSPropertyID property) const
     {
-        return element.hasCompletedTransitionsForProperty(pseudoId, property);
+        return element.hasCompletedTransitionForProperty(pseudoId, property);
     }
 
-    bool hasRunningTransitionsForProperty(CSSPropertyID property) const
+    bool hasRunningTransitionForProperty(CSSPropertyID property) const
     {
-        return element.hasRunningTransitionsForProperty(pseudoId, property);
+        return element.hasRunningTransitionForProperty(pseudoId, property);
     }
 
     bool hasRunningTransitions() const

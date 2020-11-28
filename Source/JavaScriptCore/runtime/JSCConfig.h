@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "Gate.h"
 #include "Opcode.h"
 #include "OptionsList.h"
 #include <wtf/WTFConfig.h>
@@ -89,9 +90,7 @@ struct Config {
     struct {
         uint8_t exceptionInstructions[maxOpcodeLength + 1];
         uint8_t wasmExceptionInstructions[maxOpcodeLength + 1];
-        Opcode opcodeMap[numOpcodeIDs + numWasmOpcodeIDs];
-        Opcode opcodeMapWide16[numOpcodeIDs + numWasmOpcodeIDs];
-        Opcode opcodeMapWide32[numOpcodeIDs + numWasmOpcodeIDs];
+        const void* gateMap[numberOfGates];
     } llint;
 
 #if CPU(ARM64E) && ENABLE(PTRTAG_DEBUGGING)
@@ -114,9 +113,8 @@ extern "C" JS_EXPORT_PRIVATE Config g_jscConfig;
 
 #endif // ENABLE(UNIFIED_AND_FREEZABLE_CONFIG_RECORD)
 
-constexpr size_t offsetOfJSCConfigOpcodeMap = offsetof(JSC::Config, llint.opcodeMap);
-constexpr size_t offsetOfJSCConfigOpcodeMapWide16 = offsetof(JSC::Config, llint.opcodeMapWide16);
-constexpr size_t offsetOfJSCConfigOpcodeMapWide32 = offsetof(JSC::Config, llint.opcodeMapWide32);
+constexpr size_t offsetOfJSCConfigInitializeHasBeenCalled = offsetof(JSC::Config, initializeHasBeenCalled);
+constexpr size_t offsetOfJSCConfigGateMap = offsetof(JSC::Config, llint.gateMap);
 
 } // namespace JSC
 

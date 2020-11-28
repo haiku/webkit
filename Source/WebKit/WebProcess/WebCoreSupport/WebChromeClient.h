@@ -37,7 +37,6 @@ enum class StorageAccessWasGranted : bool;
 
 namespace WebKit {
 
-class RemoteRenderingBackendProxy;
 class WebFrame;
 class WebPage;
 
@@ -200,6 +199,7 @@ private:
 
     void runOpenPanel(WebCore::Frame&, WebCore::FileChooser&) final;
     void showShareSheet(WebCore::ShareDataWithParsedURL&, WTF::CompletionHandler<void(bool)>&&) final;
+    void showContactPicker(const WebCore::ContactsRequestData&, WTF::CompletionHandler<void(Optional<Vector<WebCore::ContactInfo>>&&)>&&) final;
     void loadIconForFiles(const Vector<String>&, WebCore::FileIconLoader&) final;
 
     void setCursor(const WebCore::Cursor&) final;
@@ -242,8 +242,7 @@ private:
     RefPtr<WebCore::DisplayRefreshMonitor> createDisplayRefreshMonitor(WebCore::PlatformDisplayID) const final;
 
 #if ENABLE(GPU_PROCESS)
-    RemoteRenderingBackendProxy& ensureRemoteRenderingBackendProxy() const;
-    std::unique_ptr<WebCore::ImageBuffer> createImageBuffer(const WebCore::FloatSize&, WebCore::ShouldAccelerate, WebCore::ShouldUseDisplayList, WebCore::RenderingPurpose, float resolutionScale, WebCore::ColorSpace) const final;
+    RefPtr<WebCore::ImageBuffer> createImageBuffer(const WebCore::FloatSize&, WebCore::RenderingMode, WebCore::RenderingPurpose, float resolutionScale, WebCore::ColorSpace, WebCore::PixelFormat) const final;
 #endif
 
     CompositingTriggerFlags allowedCompositingTriggers() const final
@@ -274,7 +273,7 @@ private:
     bool supportsVideoFullscreenStandby() final;
     void setMockVideoPresentationModeEnabled(bool) final;
     void enterVideoFullscreenForVideoElement(WebCore::HTMLVideoElement&, WebCore::HTMLMediaElementEnums::VideoFullscreenMode, bool standby) final;
-    void exitVideoFullscreenForVideoElement(WebCore::HTMLVideoElement&) final;
+    void exitVideoFullscreenForVideoElement(WebCore::HTMLVideoElement&, WTF::CompletionHandler<void(bool)>&& = [](bool) { }) final;
     void setUpPlaybackControlsManager(WebCore::HTMLMediaElement&) final;
     void clearPlaybackControlsManager() final;
     void playbackControlsMediaEngineChanged() final;
@@ -404,9 +403,6 @@ private:
 
     mutable bool m_cachedMainFrameHasHorizontalScrollbar { false };
     mutable bool m_cachedMainFrameHasVerticalScrollbar { false };
-#if ENABLE(GPU_PROCESS)
-    mutable std::unique_ptr<RemoteRenderingBackendProxy> m_remoteRenderingBackendProxy;
-#endif
     WebPage& m_page;
 };
 

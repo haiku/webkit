@@ -89,13 +89,6 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 + (void)_setInitialDefaultTextEncodingToSystemEncoding;
 + (void)_setIBCreatorID:(NSString *)string;
 
-// For DumpRenderTree use only.
-+ (void)_switchNetworkLoaderToNewTestingSession;
-+ (void)_setCurrentNetworkLoaderSessionCookieAcceptPolicy:(NSHTTPCookieAcceptPolicy)cookieAcceptPolicy;
-+ (void)_clearNetworkLoaderSession;
-// Used to set preference specified in the test via LayoutTestController.overridePreference(..).
-- (void)_setPreferenceForTestWithValue:(NSString *)value forKey:(NSString *)key;
-
 + (void)setWebKitLinkTimeVersion:(int)version;
 
 // For WebView's use only.
@@ -130,7 +123,6 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 @property (nonatomic) BOOL zoomsTextOnly;
 @property (nonatomic) BOOL javaScriptCanAccessClipboard;
 @property (nonatomic, getter=isXSSAuditorEnabled) BOOL XSSAuditorEnabled;
-@property (nonatomic) BOOL experimentalNotificationsEnabled;
 @property (nonatomic, getter=isFrameFlatteningEnabled) BOOL frameFlatteningEnabled;
 @property (nonatomic) WebKitFrameFlattening frameFlattening;
 @property (nonatomic) BOOL asyncFrameScrollingEnabled;
@@ -159,12 +151,11 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 @property (nonatomic) BOOL subpixelAntialiasedLayerTextEnabled;
 @property (nonatomic) BOOL showDebugBorders;
 @property (nonatomic) BOOL simpleLineLayoutEnabled;
-@property (nonatomic) BOOL simpleLineLayoutDebugBordersEnabled;
+@property (nonatomic) BOOL legacyLineLayoutVisualCoverageEnabled;
 @property (nonatomic) BOOL showRepaintCounter;
 @property (nonatomic) BOOL webAudioEnabled;
 @property (nonatomic) BOOL webGLEnabled;
 @property (nonatomic, getter=forceLowPowerGPUForWebGL) BOOL forceWebGLUsesLowPower;
-@property (nonatomic) BOOL accelerated2dCanvasEnabled;
 @property (nonatomic) BOOL paginateDuringLayoutEnabled;
 @property (nonatomic) BOOL hyperlinkAuditingEnabled;
 @property (nonatomic) BOOL mediaPlaybackRequiresUserGesture; // Deprecated. Use videoPlaybackRequiresUserGesture and audioPlaybackRequiresUserGesture instead.
@@ -310,6 +301,17 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 - (void)_setEnabled:(BOOL)value forFeature:(WebFeature *)feature;
 @end
 
+@interface WebPreferences (WebPrivateTesting)
++ (void)_switchNetworkLoaderToNewTestingSession;
++ (void)_setCurrentNetworkLoaderSessionCookieAcceptPolicy:(NSHTTPCookieAcceptPolicy)cookieAcceptPolicy;
++ (void)_clearNetworkLoaderSession;
+
+- (void)_setBoolPreferenceForTestingWithValue:(BOOL)value forKey:(NSString *)key;
+- (void)_setUInt32PreferenceForTestingWithValue:(uint32_t)value forKey:(NSString *)key;
+- (void)_setDoublePreferenceForTestingWithValue:(double)value forKey:(NSString *)key;
+- (void)_setStringPreferenceForTestingWithValue:(NSString *)value forKey:(NSString *)key;
+@end
+
 // FIXME: If these are not used anywhere, we should remove them and only use WebFeature mechanism for the preference.
 @interface WebPreferences (WebPrivatePreferencesConvertedToWebFeature)
 @property (nonatomic) BOOL userGesturePromisePropagationEnabled;
@@ -331,10 +333,9 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 @property (nonatomic) BOOL serverTimingEnabled;
 @property (nonatomic) BOOL CSSCustomPropertiesAndValuesEnabled;
 @property (nonatomic) BOOL resizeObserverEnabled;
-@property (nonatomic) BOOL adClickAttributionEnabled;
+@property (nonatomic) BOOL privateClickMeasurementEnabled;
 @property (nonatomic) BOOL fetchAPIKeepAliveEnabled;
 @property (nonatomic) BOOL genericCueAPIEnabled;
-@property (nonatomic) BOOL useGPUProcessForMediaEnabled;
 @property (nonatomic) BOOL aspectRatioOfImgFromWidthAndHeightEnabled;
 @property (nonatomic) BOOL referrerPolicyAttributeEnabled;
 @property (nonatomic) BOOL coreMathMLEnabled;
@@ -348,6 +349,7 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 @property (nonatomic, setter=_setMediaRecorderEnabled:) BOOL _mediaRecorderEnabled;
 @property (nonatomic) BOOL CSSIndividualTransformPropertiesEnabled;
 @property (nonatomic) BOOL contactPickerAPIEnabled;
+@property (nonatomic, setter=_setSpeechRecognitionEnabled:) BOOL _speechRecognitionEnabled;
 @end
 
 @interface WebPreferences (WebPrivateDeprecated)
@@ -365,6 +367,8 @@ extern NSString *WebPreferencesCacheModelChangedInternalNotification WEBKIT_DEPR
 @property (nonatomic) BOOL customElementsEnabled;
 @property (nonatomic, getter=isVideoPluginProxyEnabled) BOOL videoPluginProxyEnabled;
 @property (nonatomic, getter=isHixie76WebSocketProtocolEnabled) BOOL hixie76WebSocketProtocolEnabled;
+@property (nonatomic) BOOL accelerated2dCanvasEnabled;
+@property (nonatomic) BOOL experimentalNotificationsEnabled;
 
 - (void)setDiskImageCacheEnabled:(BOOL)enabled;
 

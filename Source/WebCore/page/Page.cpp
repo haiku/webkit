@@ -89,8 +89,8 @@
 #include "PerformanceLoggingClient.h"
 #include "PerformanceMonitor.h"
 #include "PlatformMediaSessionManager.h"
+#include "PlatformScreen.h"
 #include "PlatformStrategies.h"
-#include "PlugInClient.h"
 #include "PluginData.h"
 #include "PluginInfoProvider.h"
 #include "PluginViewBase.h"
@@ -117,6 +117,7 @@
 #include "Settings.h"
 #include "SharedBuffer.h"
 #include "SocketProvider.h"
+#include "SpeechRecognitionProvider.h"
 #include "StorageArea.h"
 #include "StorageNamespace.h"
 #include "StorageNamespaceProvider.h"
@@ -241,7 +242,6 @@ Page::Page(PageConfiguration&& pageConfiguration)
     , m_backForwardController(makeUnique<BackForwardController>(*this, WTFMove(pageConfiguration.backForwardClient)))
     , m_mainFrame(Frame::create(this, nullptr, WTFMove(pageConfiguration.loaderClientForMainFrame)))
     , m_editorClient(WTFMove(pageConfiguration.editorClient))
-    , m_plugInClient(WTFMove(pageConfiguration.plugInClient))
     , m_validationMessageClient(WTFMove(pageConfiguration.validationMessageClient))
     , m_diagnosticLoggingClient(WTFMove(pageConfiguration.diagnosticLoggingClient))
     , m_performanceLoggingClient(WTFMove(pageConfiguration.performanceLoggingClient))
@@ -251,6 +251,7 @@ Page::Page(PageConfiguration&& pageConfiguration)
 #if ENABLE(SPEECH_SYNTHESIS)
     , m_speechSynthesisClient(WTFMove(pageConfiguration.speechSynthesisClient))
 #endif
+    , m_speechRecognitionProvider((WTFMove(pageConfiguration.speechRecognitionProvider)))
     , m_mediaRecorderProvider((WTFMove(pageConfiguration.mediaRecorderProvider)))
     , m_libWebRTCProvider(WTFMove(pageConfiguration.libWebRTCProvider))
     , m_verticalScrollElasticity(ScrollElasticityAllowed)
@@ -735,7 +736,7 @@ auto Page::findTextMatches(const String& target, FindOptions options, unsigned l
         if (options.contains(Backwards)) {
             for (size_t i = result.ranges.size(); i > 0; --i) {
                 // FIXME: Seems like this should be is_gteq to correctly handle the same string found twice in a row.
-                if (is_gt(documentOrder(selectedRange.start, result.ranges[i - 1].end))) {
+                if (is_gt(treeOrder<ComposedTree>(selectedRange.start, result.ranges[i - 1].end))) {
                     result.indexForSelection = i - 1;
                     break;
                 }
@@ -743,7 +744,7 @@ auto Page::findTextMatches(const String& target, FindOptions options, unsigned l
         } else {
             for (size_t i = 0, size = result.ranges.size(); i < size; ++i) {
                 // FIXME: Seems like this should be is_lteq to correctly handle the same string found twice in a row.
-                if (is_lt(documentOrder(selectedRange.end, result.ranges[i].start))) {
+                if (is_lt(treeOrder<ComposedTree>(selectedRange.end, result.ranges[i].start))) {
                     result.indexForSelection = i;
                     break;
                 }
@@ -860,8 +861,8 @@ static void replaceRanges(Page& page, const Vector<FindReplacementRange>& ranges
             return false;
 
         if (firstFrame == secondFrame) {
-            // Use documentOrder instead of Node::compareDocumentPosition because some editing roots are inside shadow roots.
-            return is_gt(documentOrder(*firstNode, *secondNode));
+            // Must not use Node::compareDocumentPosition here because some editing roots are inside shadow roots.
+            return is_gt(treeOrder<ComposedTree>(*firstNode, *secondNode));
         }
 
         return frameToTraversalIndexMap.get(firstFrame) > frameToTraversalIndexMap.get(secondFrame);
@@ -2312,8 +2313,6 @@ VisibilityState Page::visibilityState() const
 {
     if (isVisible())
         return VisibilityState::Visible;
-    if (m_isPrerender)
-        return VisibilityState::Prerender;
     return VisibilityState::Hidden;
 }
 
@@ -3008,6 +3007,7 @@ void Page::appearanceDidChange()
         document.styleScope().evaluateMediaQueriesForAppearanceChange();
         document.updateElementsAffectedByMediaQueries();
         document.scheduleRenderingUpdate(RenderingUpdateStep::MediaQueryEvaluation);
+        document.invalidateScrollbars();
     });
 }
 
@@ -3370,6 +3370,11 @@ void Page::mainFrameDidChangeToNonInitialEmptyDocument()
     for (auto& userStyleSheet : m_userStyleSheetsPendingInjection)
         injectUserStyleSheet(userStyleSheet);
     m_userStyleSheetsPendingInjection.clear();
+}
+
+SpeechRecognitionConnection& Page::speechRecognitionConnection()
+{
+    return m_speechRecognitionProvider->speechRecognitionConnection();
 }
 
 WTF::TextStream& operator<<(WTF::TextStream& ts, RenderingUpdateStep step)

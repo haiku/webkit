@@ -294,7 +294,7 @@ static inline ScrollGranularity wheelGranularityToScrollGranularity(unsigned del
 static void handleWheelEventPhaseInScrollableArea(ScrollableArea& scrollableArea, const WheelEvent& wheelEvent)
 {
 #if PLATFORM(MAC)
-    if (wheelEvent.phase() == PlatformWheelEventPhaseMayBegin || wheelEvent.phase() == PlatformWheelEventPhaseCancelled)
+    if (wheelEvent.phase() == PlatformWheelEventPhase::MayBegin || wheelEvent.phase() == PlatformWheelEventPhase::Cancelled)
         scrollableArea.scrollAnimator().handleWheelEventPhase(wheelEvent.phase());
 #else
     UNUSED_PARAM(scrollableArea);
@@ -319,9 +319,9 @@ static bool handleWheelEventInAppropriateEnclosingBox(Node* startNode, const Whe
 {
     bool shouldHandleEvent = wheelEvent.deltaX() || wheelEvent.deltaY();
 #if ENABLE(WHEEL_EVENT_LATCHING)
-    shouldHandleEvent |= wheelEvent.phase() == PlatformWheelEventPhaseEnded;
+    shouldHandleEvent |= wheelEvent.phase() == PlatformWheelEventPhase::Ended;
 #if ENABLE(CSS_SCROLL_SNAP)
-    shouldHandleEvent |= wheelEvent.momentumPhase() == PlatformWheelEventPhaseEnded;
+    shouldHandleEvent |= wheelEvent.momentumPhase() == PlatformWheelEventPhase::Ended;
 #endif
 #endif
     if (!startNode->renderer())
@@ -2096,7 +2096,7 @@ static RefPtr<Node> targetNodeForClickEvent(Node* mousePressNode, Node* mouseRel
 
     // If mousePressNode and mouseReleaseNode differ, we should fire the event at their common ancestor if there is one.
     if (&mousePressNode->document() == &mouseReleaseNode->document()) {
-        if (auto commonAncestor = commonInclusiveAncestor(*mousePressNode, *mouseReleaseNode))
+        if (auto commonAncestor = commonInclusiveAncestor<ComposedTree>(*mousePressNode, *mouseReleaseNode))
             return commonAncestor;
     }
 
@@ -2738,7 +2738,7 @@ bool EventHandler::dispatchMouseEvent(const AtomString& eventType, Node* targetN
     // will set a selection inside it, which will also set the focused element.
     if (element && m_frame.selection().isRange()) {
         if (auto range = m_frame.selection().selection().toNormalizedRange()) {
-            if (contains(*range, *element) && element->isDescendantOf(m_frame.document()->focusedElement()))
+            if (contains<ComposedTree>(*range, *element) && element->isDescendantOf(m_frame.document()->focusedElement()))
                 return true;
         }
     }
@@ -2753,7 +2753,7 @@ bool EventHandler::dispatchMouseEvent(const AtomString& eventType, Node* targetN
         return false;
 
     if (element && m_mouseDownDelegatedFocus)
-        element->revealFocusedElement(SelectionRestorationMode::SetDefault);
+        element->revealFocusedElement(SelectionRestorationMode::SelectAll);
 
     return true;
 }
@@ -3494,16 +3494,16 @@ static FocusDirection focusDirectionForKey(const AtomString& keyIdentifier)
     static MainThreadNeverDestroyed<const AtomString> Left("Left", AtomString::ConstructFromLiteral);
     static MainThreadNeverDestroyed<const AtomString> Right("Right", AtomString::ConstructFromLiteral);
 
-    FocusDirection retVal = FocusDirectionNone;
+    FocusDirection retVal = FocusDirection::None;
 
     if (keyIdentifier == Down)
-        retVal = FocusDirectionDown;
+        retVal = FocusDirection::Down;
     else if (keyIdentifier == Up)
-        retVal = FocusDirectionUp;
+        retVal = FocusDirection::Up;
     else if (keyIdentifier == Left)
-        retVal = FocusDirectionLeft;
+        retVal = FocusDirection::Left;
     else if (keyIdentifier == Right)
-        retVal = FocusDirectionRight;
+        retVal = FocusDirection::Right;
 
     return retVal;
 }
@@ -3556,25 +3556,25 @@ static void handleKeyboardSelectionMovement(Frame& frame, KeyboardEvent& event)
     TextGranularity granularity = TextGranularity::CharacterGranularity;
 
     switch (focusDirectionForKey(event.keyIdentifier())) {
-    case FocusDirectionNone:
+    case FocusDirection::None:
         return;
-    case FocusDirectionForward:
-    case FocusDirectionBackward:
+    case FocusDirection::Forward:
+    case FocusDirection::Backward:
         ASSERT_NOT_REACHED();
         return;
-    case FocusDirectionUp:
+    case FocusDirection::Up:
         direction = SelectionDirection::Backward;
         granularity = isCommanded ? TextGranularity::DocumentBoundary : TextGranularity::LineGranularity;
         break;
-    case FocusDirectionDown:
+    case FocusDirection::Down:
         direction = SelectionDirection::Forward;
         granularity = isCommanded ? TextGranularity::DocumentBoundary : TextGranularity::LineGranularity;
         break;
-    case FocusDirectionLeft:
+    case FocusDirection::Left:
         direction = SelectionDirection::Left;
         granularity = (isCommanded) ? TextGranularity::LineBoundary : (isOptioned) ? TextGranularity::WordGranularity : TextGranularity::CharacterGranularity;
         break;
-    case FocusDirectionRight:
+    case FocusDirection::Right:
         direction = SelectionDirection::Right;
         granularity = (isCommanded) ? TextGranularity::LineBoundary : (isOptioned) ? TextGranularity::WordGranularity : TextGranularity::CharacterGranularity;
         break;
@@ -3609,7 +3609,7 @@ bool EventHandler::accessibilityPreventsEventPropagation(KeyboardEvent& event)
     if (event.keyIdentifier() == "U+0009")
         return true;
     FocusDirection direction = focusDirectionForKey(event.keyIdentifier());
-    if (direction != FocusDirectionNone)
+    if (direction != FocusDirection::None)
         return true;
 #else
     UNUSED_PARAM(event);
@@ -3631,7 +3631,7 @@ void EventHandler::defaultKeyboardEventHandler(KeyboardEvent& event)
             defaultBackspaceEventHandler(event);
         else {
             FocusDirection direction = focusDirectionForKey(event.keyIdentifier());
-            if (direction != FocusDirectionNone)
+            if (direction != FocusDirection::None)
                 defaultArrowEventHandler(direction, event);
         }
 
@@ -3911,7 +3911,7 @@ bool EventHandler::handleDrag(const MouseEventWithHitTestResults& event, CheckDr
             sourceOperationMask = dragState().dataTransfer->sourceOperationMask();
             
             // Yuck, a draggedImage:moveTo: message can be fired as a result of kicking off the
-            // drag with dragImage! Because of that dumb reentrancy, we may think we've not
+            // drag with dragImage! Because of that reentrancy, we may think we've not
             // started the drag when that happens. So we have to assume it's started before we kick it off.
             dragState().dataTransfer->setDragHasStarted();
         }
@@ -4112,7 +4112,7 @@ void EventHandler::defaultTabEventHandler(KeyboardEvent& event)
     if (!page->tabKeyCyclesThroughElements())
         return;
 
-    if (page->focusController().advanceFocus(event.shiftKey() ? FocusDirectionBackward : FocusDirectionForward, &event))
+    if (page->focusController().advanceFocus(event.shiftKey() ? FocusDirection::Backward : FocusDirection::Forward, &event))
         event.setDefaultHandled();
 }
 

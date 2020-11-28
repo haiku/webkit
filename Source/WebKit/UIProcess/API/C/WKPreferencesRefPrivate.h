@@ -56,10 +56,10 @@ WK_EXPORT void WKPreferencesResetAllInternalDebugFeatures(WKPreferencesRef);
 WK_EXPORT void WKPreferencesSetInternalDebugFeatureForKey(WKPreferencesRef, bool, WKStringRef);
 
 // The following generic setter functions are only intended for use by testing infrastructure.
-WK_EXPORT void WKPreferencesSetBoolValueForKey(WKPreferencesRef preferencesRef, bool value, WKStringRef key);
-WK_EXPORT void WKPreferencesSetDoubleValueForKey(WKPreferencesRef preferencesRef, double value, WKStringRef key);
-WK_EXPORT void WKPreferencesSetUInt32ValueForKey(WKPreferencesRef preferencesRef, uint32_t value, WKStringRef key);
-WK_EXPORT void WKPreferencesSetStringValueForKey(WKPreferencesRef preferencesRef, WKStringRef value, WKStringRef key);
+WK_EXPORT void WKPreferencesSetBoolValueForKeyForTesting(WKPreferencesRef preferencesRef, bool value, WKStringRef key);
+WK_EXPORT void WKPreferencesSetDoubleValueForKeyForTesting(WKPreferencesRef preferencesRef, double value, WKStringRef key);
+WK_EXPORT void WKPreferencesSetUInt32ValueForKeyForTesting(WKPreferencesRef preferencesRef, uint32_t value, WKStringRef key);
+WK_EXPORT void WKPreferencesSetStringValueForKeyForTesting(WKPreferencesRef preferencesRef, WKStringRef value, WKStringRef key);
 
 // For Test Runner Use only.
 WK_EXPORT void WKPreferencesResetTestRunnerOverrides(WKPreferencesRef preferencesRef);
@@ -240,10 +240,6 @@ WK_EXPORT bool WKPreferencesGetPluginSandboxProfilesEnabledForAllPlugins(WKPrefe
 WK_EXPORT void WKPreferencesSetArtificialPluginInitializationDelayEnabled(WKPreferencesRef preferencesRef, bool enabled);
 WK_EXPORT bool WKPreferencesGetArtificialPluginInitializationDelayEnabled(WKPreferencesRef preferencesRef);
 
-// Defaults to false
-WK_EXPORT void WKPreferencesSetTabToLinksEnabled(WKPreferencesRef preferencesRef, bool enabled);
-WK_EXPORT bool WKPreferencesGetTabToLinksEnabled(WKPreferencesRef preferencesRef);
-
 // Defaults to true
 WK_EXPORT void WKPreferencesSetInteractiveFormValidationEnabled(WKPreferencesRef preferencesRef, bool enabled);
 WK_EXPORT bool WKPreferencesGetInteractiveFormValidationEnabled(WKPreferencesRef preferencesRef);
@@ -321,8 +317,8 @@ WK_EXPORT void WKPreferencesSetSimpleLineLayoutEnabled(WKPreferencesRef, bool);
 WK_EXPORT bool WKPreferencesGetSimpleLineLayoutEnabled(WKPreferencesRef);
 
 // Defaults to false.
-WK_EXPORT void WKPreferencesSetSimpleLineLayoutDebugBordersEnabled(WKPreferencesRef, bool);
-WK_EXPORT bool WKPreferencesGetSimpleLineLayoutDebugBordersEnabled(WKPreferencesRef);
+WK_EXPORT void WKPreferencesSetLegacyLineLayoutVisualCoverageEnabled(WKPreferencesRef, bool);
+WK_EXPORT bool WKPreferencesGetLegacyLineLayoutVisualCoverageEnabled(WKPreferencesRef);
 
 WK_EXPORT void WKPreferencesSetContentChangeObserverEnabled(WKPreferencesRef, bool);
 WK_EXPORT bool WKPreferencesGetContentChangeObserverEnabled(WKPreferencesRef);

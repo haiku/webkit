@@ -470,6 +470,7 @@ void WebKitWebViewClient::didReceiveUserMessage(WKWPE::View&, UserMessage&& mess
 static gboolean webkitWebViewLoadFail(WebKitWebView* webView, WebKitLoadEvent, const char* failingURI, GError* error)
 {
     if (g_error_matches(error, WEBKIT_NETWORK_ERROR, WEBKIT_NETWORK_ERROR_CANCELLED)
+        || g_error_matches(error, WEBKIT_PLUGIN_ERROR, WEBKIT_PLUGIN_ERROR_WILL_HANDLE_LOAD)
         || g_error_matches(error, WEBKIT_POLICY_ERROR, WEBKIT_POLICY_ERROR_FRAME_LOAD_INTERRUPTED_BY_POLICY_CHANGE))
         return FALSE;
 
@@ -3601,7 +3602,6 @@ void webkit_web_view_set_zoom_level(WebKitWebView* webView, gdouble zoomLevel)
         return;
 
     auto& page = getPage(webView);
-    page.scalePage(1.0, IntPoint()); // Reset page scale when zoom level is changed
     if (webkit_settings_get_zoom_text_only(webView->priv->settings.get()))
         page.setTextZoomFactor(zoomLevel);
     else

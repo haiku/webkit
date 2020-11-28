@@ -42,7 +42,8 @@
 #import "FloatConversion.h"
 #import "GraphicsContext.h"
 #import "GraphicsContextCG.h"
-#import "GraphicsContextGLOpenGL.h"
+#import "GraphicsContextGL.h"
+#import "GraphicsContextGLCV.h"
 #import "ImageRotationSessionVT.h"
 #import "InbandMetadataTextTrackPrivateAVF.h"
 #import "InbandTextTrackPrivateAVFObjC.h"
@@ -60,7 +61,6 @@
 #import "TextEncoding.h"
 #import "TextTrackRepresentation.h"
 #import "VideoLayerManagerObjC.h"
-#import "VideoTextureCopierCV.h"
 #import "VideoTrackPrivateAVFObjC.h"
 #import "WebCoreAVFResourceLoader.h"
 #import "WebCoreCALayerExtras.h"
@@ -86,6 +86,7 @@
 #import <functional>
 #import <objc/runtime.h>
 #import <pal/avfoundation/MediaTimeAVFoundation.h>
+#import <pal/avfoundation/OutputContext.h>
 #import <pal/spi/cocoa/AVFoundationSPI.h>
 #import <pal/spi/cocoa/QuartzCoreSPI.h>
 #import <wtf/BlockObjCExceptions.h>
@@ -1127,7 +1128,7 @@ PlatformLayer* MediaPlayerPrivateAVFoundationObjC::platformLayer() const
 void MediaPlayerPrivateAVFoundationObjC::updateVideoFullscreenInlineImage()
 {
     updateLastImage(UpdateType::UpdateSynchronously);
-    m_videoLayerManager->updateVideoFullscreenInlineImage(m_lastImage);
+    m_videoLayerManager->updateVideoFullscreenInlineImage(m_lastImage ? m_lastImage->platformImage() : nullptr);
 }
 
 RetainPtr<PlatformLayer> MediaPlayerPrivateAVFoundationObjC::createVideoFullscreenLayer()
@@ -1139,7 +1140,7 @@ void MediaPlayerPrivateAVFoundationObjC::setVideoFullscreenLayer(PlatformLayer* 
 {
     if (videoFullscreenLayer)
         updateLastImage(UpdateType::UpdateSynchronously);
-    m_videoLayerManager->setVideoFullscreenLayer(videoFullscreenLayer, WTFMove(completionHandler), m_lastImage);
+    m_videoLayerManager->setVideoFullscreenLayer(videoFullscreenLayer, WTFMove(completionHandler), m_lastImage ? m_lastImage->platformImage() : nullptr);
     updateDisableExternalPlayback();
 }
 
@@ -2293,7 +2294,7 @@ void MediaPlayerPrivateAVFoundationObjC::updateLastImage(UpdateType type)
 
     MonotonicTime start = MonotonicTime::now();
 
-    m_lastImage = m_pixelBufferConformer->createImageFromPixelBuffer(m_lastPixelBuffer.get());
+    m_lastImage = NativeImage::create(m_pixelBufferConformer->createImageFromPixelBuffer(m_lastPixelBuffer.get()));
 
     INFO_LOG(LOGIDENTIFIER, "creating buffer took ", (MonotonicTime::now() - start).seconds());
 }
@@ -2314,8 +2315,8 @@ void MediaPlayerPrivateAVFoundationObjC::paintWithVideoOutput(GraphicsContext& c
 
     INFO_LOG(LOGIDENTIFIER);
 
-    FloatRect imageRect(0, 0, CGImageGetWidth(m_lastImage.get()), CGImageGetHeight(m_lastImage.get()));
-    context.drawNativeImage(m_lastImage.get(), imageRect.size(), outputRect, imageRect);
+    FloatRect imageRect { FloatPoint::zero(), m_lastImage->size() };
+    context.drawNativeImage(*m_lastImage, imageRect.size(), outputRect, imageRect);
 
     // If we have created an AVAssetImageGenerator in the past due to m_videoOutput not having an available
     // video frame, destroy it now that it is no longer needed.
@@ -2324,7 +2325,7 @@ void MediaPlayerPrivateAVFoundationObjC::paintWithVideoOutput(GraphicsContext& c
 
 }
 
-bool MediaPlayerPrivateAVFoundationObjC::copyVideoTextureToPlatformTexture(GraphicsContextGLOpenGL* context, PlatformGLObject outputTexture, GCGLenum outputTarget, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY)
+bool MediaPlayerPrivateAVFoundationObjC::copyVideoTextureToPlatformTexture(GraphicsContextGL* context, PlatformGLObject outputTexture, GCGLenum outputTarget, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY)
 {
     ASSERT(context);
 
@@ -2332,16 +2333,15 @@ bool MediaPlayerPrivateAVFoundationObjC::copyVideoTextureToPlatformTexture(Graph
     if (!m_lastPixelBuffer)
         return false;
 
-    size_t width = CVPixelBufferGetWidth(m_lastPixelBuffer.get());
-    size_t height = CVPixelBufferGetHeight(m_lastPixelBuffer.get());
-
-    if (!m_videoTextureCopier)
-        m_videoTextureCopier = makeUnique<VideoTextureCopierCV>(*context);
-
-    return m_videoTextureCopier->copyImageToPlatformTexture(m_lastPixelBuffer.get(), width, height, outputTexture, outputTarget, level, internalFormat, format, type, premultiplyAlpha, flipY);
+    auto contextCV = context->asCV();
+    if (!contextCV)
+        return false;
+    UNUSED_VARIABLE(premultiplyAlpha);
+    ASSERT_UNUSED(outputTarget, outputTarget == GraphicsContextGL::TEXTURE_2D);
+    return contextCV->copyPixelBufferToTexture(m_lastPixelBuffer.get(), outputTexture, level, internalFormat, format, type, GraphicsContextGL::FlipY(flipY));
 }
 
-NativeImagePtr MediaPlayerPrivateAVFoundationObjC::nativeImageForCurrentTime()
+RefPtr<NativeImage> MediaPlayerPrivateAVFoundationObjC::nativeImageForCurrentTime()
 {
     updateLastImage();
     return m_lastImage;
@@ -2745,24 +2745,8 @@ static NSString *exernalDeviceDisplayNameForPlayer(AVPlayer *player)
     if (!PAL::isAVFoundationFrameworkAvailable())
         return nil;
 
-    if ([PAL::getAVOutputContextClass() respondsToSelector:@selector(sharedAudioPresentationOutputContext)]) {
-        AVOutputContext *outputContext = [PAL::getAVOutputContextClass() sharedAudioPresentationOutputContext];
-
-        if (![outputContext respondsToSelector:@selector(supportsMultipleOutputDevices)]
-            || ![outputContext supportsMultipleOutputDevices]
-            || ![outputContext respondsToSelector:@selector(outputDevices)])
-            return [outputContext deviceName];
-
-        auto outputDeviceNames = adoptNS([[NSMutableArray alloc] init]);
-        for (AVOutputDevice *outputDevice in [outputContext outputDevices]) {
-ALLOW_DEPRECATED_DECLARATIONS_BEGIN
-            auto outputDeviceName = adoptNS([[outputDevice name] copy]);
-ALLOW_DEPRECATED_DECLARATIONS_END
-            [outputDeviceNames addObject:outputDeviceName.get()];
-        }
-
-        return [outputDeviceNames componentsJoinedByString:@" + "];
-    }
+    if (auto context = OutputContext::sharedAudioPresentationOutputContext())
+        return context->deviceName();
 
     if (player.externalPlaybackType != AVPlayerExternalPlaybackTypeAirPlay)
         return nil;

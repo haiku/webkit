@@ -27,6 +27,7 @@
 
 #include "InlineTextBox.h"
 #include "RenderText.h"
+#include <wtf/RefCountedArray.h>
 #include <wtf/Vector.h>
 
 namespace WebCore {
@@ -55,18 +56,15 @@ public:
 
     bool hasHyphen() const { return inlineTextBox()->hasHyphen(); }
     StringView text() const { return StringView(inlineTextBox()->renderer().text()).substring(inlineTextBox()->start(), inlineTextBox()->len()); }
-    unsigned localStartOffset() const { return inlineTextBox()->start(); }
-    unsigned localEndOffset() const { return inlineTextBox()->end(); }
+    unsigned start() const { return inlineTextBox()->start(); }
+    unsigned end() const { return inlineTextBox()->end(); }
     unsigned length() const { return inlineTextBox()->len(); }
 
-    inline unsigned offsetForPosition(float x) const { return inlineTextBox()->offsetForPosition(x); }
+    unsigned offsetForPosition(float x) const { return inlineTextBox()->offsetForPosition(x); }
+    float positionForOffset(unsigned offset) const { return inlineTextBox()->positionForOffset(offset); }
 
-    bool isLastTextRunOnLine() const
-    {
-        auto* next = nextInlineTextBoxInTextOrder();
-        return !next || &inlineTextBox()->root() != &next->root();
-    }
-    bool isLastTextRun() const { return !nextInlineTextBoxInTextOrder(); };
+    bool isSelectable(unsigned start, unsigned end) const { return inlineTextBox()->isSelected(start, end); }
+    LayoutRect selectionRect(unsigned start, unsigned end) const { return inlineTextBox()->localSelectionRect(start, end); }
 
     const RenderObject& renderer() const
     {
@@ -104,7 +102,7 @@ private:
     const InlineTextBox* nextInlineTextBoxInTextOrder() const;
 
     const InlineBox* m_inlineBox;
-    Vector<const InlineTextBox*> m_sortedInlineTextBoxes;
+    RefCountedArray<const InlineTextBox*> m_sortedInlineTextBoxes;
     size_t m_sortedInlineTextBoxIndex { 0 };
 };
 

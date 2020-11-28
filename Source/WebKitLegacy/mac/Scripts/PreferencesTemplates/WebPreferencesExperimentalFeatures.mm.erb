@@ -37,11 +37,11 @@ using namespace WebKit;
 + (NSArray<WebFeature *> *)_experimentalFeatures
 {
     static NSArray<WebFeature *> *features = @[
-<%- for @pref in @experimentalFeatures do -%>
+<%- for @pref in @exposedExperimentalFeatures do -%>
 <%- if @pref.condition -%>
 #if <%= @pref.condition %>
 <%- end -%>
-        [[WebFeature alloc] initWithKey:@"<%= @pref.name %>" name:@<%= @pref.humanReadableName %> details:@<%= @pref.humanReadableDescription %> defaultValue:DEFAULT_VALUE_FOR_<%= @pref.name %> hidden:<%= @pref.hidden %>],
+        [[WebFeature alloc] initWithKey:@"<%= @pref.name %>" preferenceKey:@"<%= @pref.preferenceKey %>" name:@<%= @pref.humanReadableName %> details:@<%= @pref.humanReadableDescription %> defaultValue:DEFAULT_VALUE_FOR_<%= @pref.name %> hidden:<%= @pref.hidden %>],
 <%- if @pref.condition -%>
 #endif
 <%- end -%>

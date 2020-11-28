@@ -28,10 +28,9 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
+#include "DisplayBoxFactory.h"
 #include "DisplayContainerBox.h"
-#include "DisplayImageBox.h"
 #include "DisplayStyle.h"
-#include "DisplayTextBox.h"
 #include "DisplayTree.h"
 #include "InlineFormattingState.h"
 #include "LayoutBoxGeometry.h"
@@ -48,144 +47,110 @@ namespace WebCore {
 namespace Display {
 
 TreeBuilder::TreeBuilder(float pixelSnappingFactor)
-    : m_pixelSnappingFactor(pixelSnappingFactor)
+    : m_boxFactory(pixelSnappingFactor)
 {
 }
 
-std::unique_ptr<Tree> TreeBuilder::build(const Layout::LayoutState& layoutState) const
+std::unique_ptr<Tree> TreeBuilder::build(const Layout::LayoutState& layoutState)
 {
     ASSERT(layoutState.hasRoot());
 
     auto& rootLayoutBox = layoutState.root();
 
+#if ENABLE(TREE_DEBUGGING)
     LOG_WITH_STREAM(FormattingContextLayout, stream << "Building display tree for:\n" << layoutTreeAsText(rootLayoutBox, &layoutState));
+#endif
+
+    m_rootBackgroundPropgation = BoxFactory::determineRootBackgroundPropagation(rootLayoutBox);
 
     auto geometry = layoutState.geometryForBox(rootLayoutBox);
-    auto rootDisplayBox = displayBoxForRootBox(geometry, rootLayoutBox);
+    auto rootDisplayBox = m_boxFactory.displayBoxForRootBox(rootLayoutBox, geometry, m_rootBackgroundPropgation);
     auto rootDisplayContainerBox = std::unique_ptr<ContainerBox> { downcast<ContainerBox>(rootDisplayBox.release()) };
 
     if (!rootLayoutBox.firstChild())
         return makeUnique<Tree>(WTFMove(rootDisplayContainerBox));
 
-    auto borderBox = LayoutRect { geometry.logicalRect() };
-    auto offset = toLayoutSize(borderBox.location());
-    recursiveBuildDisplayTree(layoutState, offset, *rootLayoutBox.firstChild(), *rootDisplayContainerBox);
+    auto borderBoxRect = LayoutRect { Layout::BoxGeometry::borderBoxRect(geometry) };
+    auto offset = toLayoutSize(borderBoxRect.location());
+    auto insertionPosition = InsertionPosition { *rootDisplayContainerBox };
 
+    recursiveBuildDisplayTree(layoutState, offset, *rootLayoutBox.firstChild(), insertionPosition);
+
+#if ENABLE(TREE_DEBUGGING)
     LOG_WITH_STREAM(FormattingContextLayout, stream << "Display tree:\n" << displayTreeAsText(*rootDisplayContainerBox));
+#endif
 
     return makeUnique<Tree>(WTFMove(rootDisplayContainerBox));
 }
 
-void TreeBuilder::buildInlineDisplayTree(const Layout::LayoutState& layoutState, LayoutSize offsetFromRoot, const Layout::ContainerBox& inlineFormattingRoot, ContainerBox& parentDisplayBox) const
+void TreeBuilder::insert(std::unique_ptr<Box>&& box, InsertionPosition& insertionPosition) const
+{
+    if (insertionPosition.currentChild) {
+        auto boxPtr = box.get();
+        insertionPosition.currentChild->setNextSibling(WTFMove(box));
+        insertionPosition.currentChild = boxPtr;
+    } else {
+        insertionPosition.currentChild = box.get();
+        insertionPosition.container.setFirstChild(WTFMove(box));
+    }
+}
+
+void TreeBuilder::buildInlineDisplayTree(const Layout::LayoutState& layoutState, LayoutSize offsetFromRoot, const Layout::ContainerBox& inlineFormattingRoot, InsertionPosition& insertionPosition) const
 {
     auto& inlineFormattingState = layoutState.establishedInlineFormattingState(inlineFormattingRoot);
 
-    Box* previousSiblingBox = nullptr;
-
     for (auto& run : inlineFormattingState.lineRuns()) {
-        auto& lineGeometry = inlineFormattingState.lines().at(run.lineIndex());
+        if (run.text()) {
+            auto& lineGeometry = inlineFormattingState.lines().at(run.lineIndex());
+            auto textBox = m_boxFactory.displayBoxForTextRun(run, lineGeometry, offsetFromRoot);
+            insert(WTFMove(textBox), insertionPosition);
+            continue;
+        }
 
-        auto lineRect = lineGeometry.logicalRect();
-        auto lineLayoutRect = LayoutRect { lineRect.left(), lineRect.top(), lineRect.width(), lineRect.height() };
+        if (is<Layout::ContainerBox>(run.layoutBox())) {
+            recursiveBuildDisplayTree(layoutState, offsetFromRoot, run.layoutBox(), insertionPosition);
+            continue;
+        }
 
-        auto runRect = LayoutRect { run.logicalLeft(), run.logicalTop(), run.logicalWidth(), run.logicalHeight() };
-        runRect.moveBy(lineLayoutRect.location());
-        runRect.move(offsetFromRoot);
-
-        auto style = Style { run.layoutBox().style() };
-        auto textBox = makeUnique<TextBox>(snapRectToDevicePixels(runRect, m_pixelSnappingFactor), WTFMove(style), run);
-        auto textBoxPtr = textBox.get();
-
-        if (previousSiblingBox)
-            previousSiblingBox->setNextSibling(WTFMove(textBox));
-        else
-            parentDisplayBox.setFirstChild(WTFMove(textBox));
-
-        previousSiblingBox = textBoxPtr;
+        auto geometry = layoutState.geometryForBox(run.layoutBox());
+        auto displayBox = m_boxFactory.displayBoxForLayoutBox(run.layoutBox(), geometry, offsetFromRoot);
+        insert(WTFMove(displayBox), insertionPosition);
     }
 }
 
-Box* TreeBuilder::recursiveBuildDisplayTree(const Layout::LayoutState& layoutState, LayoutSize offsetFromRoot, const Layout::Box& box, ContainerBox& parentDisplayBox, Box* previousSiblingBox) const
+void TreeBuilder::recursiveBuildDisplayTree(const Layout::LayoutState& layoutState, LayoutSize offsetFromRoot, const Layout::Box& layoutBox, InsertionPosition& insertionPosition) const
 {
-    auto geometry = layoutState.geometryForBox(box);
-    auto displayBox = displayBoxForLayoutBox(geometry, box, offsetFromRoot);
+    auto geometry = layoutState.geometryForBox(layoutBox);
+    std::unique_ptr<Box> displayBox;
     
-    Box* result = displayBox.get();
-
-    if (previousSiblingBox)
-        previousSiblingBox->setNextSibling(WTFMove(displayBox));
+    if (layoutBox.isBodyBox())
+        displayBox = m_boxFactory.displayBoxForBodyBox(layoutBox, geometry, m_rootBackgroundPropgation, offsetFromRoot);
     else
-        parentDisplayBox.setFirstChild(WTFMove(displayBox));
+        displayBox = m_boxFactory.displayBoxForLayoutBox(layoutBox, geometry, offsetFromRoot);
+    
+    insert(WTFMove(displayBox), insertionPosition);
 
-    if (!is<Layout::ContainerBox>(box))
-        return result;
+    if (!is<Layout::ContainerBox>(layoutBox))
+        return;
 
-    auto& layoutContainerBox = downcast<Layout::ContainerBox>(box);
+    auto& layoutContainerBox = downcast<Layout::ContainerBox>(layoutBox);
     if (!layoutContainerBox.hasChild())
-        return result;
+        return;
 
-    auto borderBox = LayoutRect { geometry.logicalRect() };
-    offsetFromRoot += toLayoutSize(borderBox.location());
+    auto borderBoxRect = LayoutRect { Layout::BoxGeometry::borderBoxRect(geometry) };
+    offsetFromRoot += toLayoutSize(borderBoxRect.location());
 
-    auto& displayContainerBox = downcast<ContainerBox>(*result);
-
+    auto positionForChildren = InsertionPosition { downcast<ContainerBox>(*insertionPosition.currentChild) };
+    
     if (layoutContainerBox.establishesInlineFormattingContext()) {
-        buildInlineDisplayTree(layoutState, offsetFromRoot, downcast<Layout::ContainerBox>(layoutContainerBox), displayContainerBox);
-        return result;
+        buildInlineDisplayTree(layoutState, offsetFromRoot, downcast<Layout::ContainerBox>(layoutContainerBox), positionForChildren);
+        return;
     }
 
-    Display::Box* currSiblingDisplayBox = nullptr;
     for (auto& child : Layout::childrenOfType<Layout::Box>(layoutContainerBox)) {
         if (layoutState.hasBoxGeometry(child))
-            currSiblingDisplayBox = recursiveBuildDisplayTree(layoutState, offsetFromRoot, child, displayContainerBox, currSiblingDisplayBox);
+            recursiveBuildDisplayTree(layoutState, offsetFromRoot, child, positionForChildren);
     }
-
-    return result;
-}
-
-std::unique_ptr<Box> TreeBuilder::displayBoxForRootBox(const Layout::BoxGeometry& geometry, const Layout::ContainerBox& rootBox) const
-{
-    // FIXME: Need to do logical -> physical coordinate mapping here.
-    auto borderBox = LayoutRect { geometry.logicalRect() };
-
-    auto style = Style { rootBox.style() };
-    return makeUnique<ContainerBox>(snapRectToDevicePixels(borderBox, m_pixelSnappingFactor), WTFMove(style));
-}
-
-std::unique_ptr<Box> TreeBuilder::displayBoxForLayoutBox(const Layout::BoxGeometry& geometry, const Layout::Box& layoutBox, LayoutSize offsetFromRoot) const
-{
-    // FIXME: Need to map logical to physical rects.
-    auto borderBox = LayoutRect { geometry.logicalRect() };
-    borderBox.move(offsetFromRoot);
-    auto pixelSnappedBorderBox = snapRectToDevicePixels(borderBox, m_pixelSnappingFactor);
-
-    // FIXME: Handle isAnonymous()
-    // FIXME: Do hoisting of <body> styles to the root where appropriate.
-
-    // FIXME: Need to do logical -> physical coordinate mapping here.
-    auto style = Style { layoutBox.style() };
-    
-    if (is<Layout::ReplacedBox>(layoutBox)) {
-        // FIXME: Wrong; geometry needs to vend the correct replaced content rect.
-        auto replacedContentRect = LayoutRect { geometry.contentBoxLeft(), geometry.contentBoxTop(), geometry.contentBoxWidth(), geometry.contentBoxHeight() };
-        replacedContentRect.moveBy(borderBox.location());
-        auto pixelSnappedReplacedContentRect = snapRectToDevicePixels(replacedContentRect, m_pixelSnappingFactor);
-
-        // FIXME: Don't assume it's an image.
-        auto imageBox = makeUnique<ImageBox>(pixelSnappedBorderBox, WTFMove(style), pixelSnappedReplacedContentRect);
-
-        if (auto* cachedImage = downcast<Layout::ReplacedBox>(layoutBox).cachedImage())
-            imageBox->setImage(cachedImage->image());
-
-        return imageBox;
-    }
-    
-    if (is<Layout::ContainerBox>(layoutBox)) {
-        // FIXME: The decision to make a ContainerBox should be made based on whether this Display::Box will have children.
-        return makeUnique<ContainerBox>(pixelSnappedBorderBox, WTFMove(style));
-    }
-
-    return makeUnique<Box>(snapRectToDevicePixels(borderBox, m_pixelSnappingFactor), WTFMove(style));
 }
 
 #if ENABLE(TREE_DEBUGGING)

@@ -50,6 +50,7 @@ public:
     public:
         InlineLayoutUnit initialLineHeight() const;
         bool hasSoftWrapOpportunityAtImage() const;
+        bool shouldInlineLevelBoxStretchLineBox(const LineBox&, const LineBox::InlineLevelBox&) const;
 
     private:
         friend class InlineFormattingContext;
@@ -69,8 +70,8 @@ private:
         InlineRect computedLineLogicalRect(const LineBox&, const LineBuilder::LineContent&) const;
         InlineLayoutUnit logicalTopForNextLine(const LineBuilder::LineContent&, InlineLayoutUnit previousLineLogicalBottom, const FloatingContext&) const;
 
-        ContentHeightAndMargin inlineBlockHeightAndMargin(const Box&, const HorizontalConstraints&, const OverriddenVerticalValues&) const;
-        ContentWidthAndMargin inlineBlockWidthAndMargin(const Box&, const HorizontalConstraints&, const OverriddenHorizontalValues&);
+        ContentHeightAndMargin inlineBlockContentHeightAndMargin(const Box&, const HorizontalConstraints&, const OverriddenVerticalValues&) const;
+        ContentWidthAndMargin inlineBlockContentWidthAndMargin(const Box&, const HorizontalConstraints&, const OverriddenHorizontalValues&);
 
     private:
         friend class InlineFormattingContext;

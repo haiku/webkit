@@ -81,19 +81,6 @@ WebAutomationSession::WebAutomationSession()
     , m_domainNotifier(makeUnique<AutomationFrontendDispatcher>(m_frontendRouter))
     , m_loadTimer(RunLoop::main(), this, &WebAutomationSession::loadTimerFired)
 {
-#if ENABLE(WEBDRIVER_ACTIONS_API)
-    // Set up canonical input sources to be used for 'performInteractionSequence' and 'cancelInteractionSequence'.
-#if ENABLE(WEBDRIVER_TOUCH_INTERACTIONS)
-    m_inputSources.add(SimulatedInputSource::create(SimulatedInputSourceType::Touch));
-#endif
-#if ENABLE(WEBDRIVER_MOUSE_INTERACTIONS)
-    m_inputSources.add(SimulatedInputSource::create(SimulatedInputSourceType::Mouse));
-#endif
-#if ENABLE(WEBDRIVER_KEYBOARD_INTERACTIONS)
-    m_inputSources.add(SimulatedInputSource::create(SimulatedInputSourceType::Keyboard));
-#endif
-    m_inputSources.add(SimulatedInputSource::create(SimulatedInputSourceType::Null));
-#endif // ENABLE(WEBDRIVER_ACTIONS_API)
 }
 
 WebAutomationSession::~WebAutomationSession()
@@ -164,6 +151,13 @@ void WebAutomationSession::terminate()
         callback(AUTOMATION_COMMAND_ERROR_WITH_NAME(InternalError));
     }
 #endif // ENABLE(WEBDRIVER_MOUSE_INTERACTIONS)
+
+#if ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
+    for (auto& identifier : copyToVector(m_pendingWheelEventsFlushedCallbacksPerPage.keys())) {
+        auto callback = m_pendingWheelEventsFlushedCallbacksPerPage.take(identifier);
+        callback(AUTOMATION_COMMAND_ERROR_WITH_NAME(InternalError));
+    }
+#endif // ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
 
 #if ENABLE(REMOTE_INSPECTOR)
     if (Inspector::FrontendChannel* channel = m_remoteChannel) {
@@ -381,7 +375,6 @@ void WebAutomationSession::switchToBrowsingContext(const Inspector::Protocol::Au
 
     m_client->requestSwitchToPage(*this, *page, [frameID, page = makeRef(*page), callback = WTFMove(callback)]() {
         page->setFocus(true);
-        page->process().send(Messages::WebAutomationSessionProxy::FocusFrame(page->webPageID(), frameID), 0);
 
         callback->sendSuccess();
     });
@@ -676,6 +669,15 @@ void WebAutomationSession::willShowJavaScriptDialog(WebPageProxy& page)
         }
 #endif // ENABLE(WEBDRIVER_KEYBOARD_INTERACTIONS)
     });
+
+#if ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
+        if (!m_pendingWheelEventsFlushedCallbacksPerPage.isEmpty()) {
+            for (auto key : copyToVector(m_pendingWheelEventsFlushedCallbacksPerPage.keys())) {
+                auto callback = m_pendingWheelEventsFlushedCallbacksPerPage.take(key);
+                callback(WTF::nullopt);
+            }
+        }
+#endif // ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
 }
     
 void WebAutomationSession::didEnterFullScreenForPage(const WebPageProxy&)
@@ -816,6 +818,16 @@ void WebAutomationSession::keyboardEventsFlushedForPage(const WebPageProxy& page
 #endif
 }
 
+void WebAutomationSession::wheelEventsFlushedForPage(const WebPageProxy& page)
+{
+#if ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
+    if (auto callback = m_pendingWheelEventsFlushedCallbacksPerPage.take(page.identifier()))
+        callback(WTF::nullopt);
+#else
+    UNUSED_PARAM(page);
+#endif
+}
+
 void WebAutomationSession::willClosePage(const WebPageProxy& page)
 {
     String handle = handleForWebPageProxy(page);
@@ -829,6 +841,10 @@ void WebAutomationSession::willClosePage(const WebPageProxy& page)
 #endif
 #if ENABLE(WEBDRIVER_KEYBOARD_INTERACTIONS)
     if (auto callback = m_pendingKeyboardEventsFlushedCallbacksPerPage.take(page.identifier()))
+        callback(AUTOMATION_COMMAND_ERROR_WITH_NAME(WindowNotFound));
+#endif
+#if ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
+    if (auto callback = m_pendingWheelEventsFlushedCallbacksPerPage.take(page.identifier()))
         callback(AUTOMATION_COMMAND_ERROR_WITH_NAME(WindowNotFound));
 #endif
 
@@ -1525,6 +1541,10 @@ bool WebAutomationSession::isSimulatingUserInteraction() const
     if (!m_pendingKeyboardEventsFlushedCallbacksPerPage.isEmpty())
         return true;
 #endif
+#if ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
+    if (!m_pendingWheelEventsFlushedCallbacksPerPage.isEmpty())
+        return true;
+#endif
 #if ENABLE(WEBDRIVER_TOUCH_INTERACTIONS)
     if (m_simulatingTouchInteraction)
         return true;
@@ -1538,17 +1558,6 @@ SimulatedInputDispatcher& WebAutomationSession::inputDispatcherForPage(WebPagePr
     return m_inputDispatchersByPage.ensure(page.identifier(), [&] {
         return SimulatedInputDispatcher::create(page, *this);
     }).iterator->value;
-}
-
-SimulatedInputSource* WebAutomationSession::inputSourceForType(SimulatedInputSourceType type) const
-{
-    // FIXME: this should use something like Vector's findMatching().
-    for (auto& inputSource : m_inputSources) {
-        if (inputSource->type == type)
-            return &inputSource.get();
-    }
-
-    return nullptr;
 }
 
 // MARK: SimulatedInputDispatcher::Client API
@@ -1671,6 +1680,40 @@ void WebAutomationSession::simulateKeyboardInteraction(WebPageProxy& page, Keybo
     // Otherwise, wait for keyboardEventsFlushedCallback to run when all events are handled.
 }
 #endif // ENABLE(WEBDRIVER_KEYBOARD_INTERACTIONS)
+
+#if ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
+void WebAutomationSession::simulateWheelInteraction(WebPageProxy& page, const WebCore::IntPoint& locationInViewport, const WebCore::IntSize& delta, AutomationCompletionHandler&& completionHandler)
+{
+    page.getWindowFrameWithCallback([this, protectedThis = makeRef(*this), completionHandler = WTFMove(completionHandler), page = makeRef(page), locationInViewport, delta](WebCore::FloatRect windowFrame) mutable {
+        auto clippedX = std::min(std::max(0.0f, static_cast<float>(locationInViewport.x())), windowFrame.size().width());
+        auto clippedY = std::min(std::max(0.0f, static_cast<float>(locationInViewport.y())), windowFrame.size().height());
+        if (clippedX != locationInViewport.x() || clippedY != locationInViewport.y()) {
+            completionHandler(AUTOMATION_COMMAND_ERROR_WITH_NAME(TargetOutOfBounds));
+            return;
+        }
+
+        // Bridge the flushed callback to our command's completion handler.
+        auto wheelEventsFlushedCallback = [completionHandler = WTFMove(completionHandler)](Optional<AutomationCommandError> error) mutable {
+            completionHandler(error);
+        };
+
+        auto& callbackInMap = m_pendingWheelEventsFlushedCallbacksPerPage.add(page->identifier(), nullptr).iterator->value;
+        if (callbackInMap)
+            callbackInMap(AUTOMATION_COMMAND_ERROR_WITH_NAME(Timeout));
+        callbackInMap = WTFMove(wheelEventsFlushedCallback);
+
+        platformSimulateWheelInteraction(page, locationInViewport, delta);
+
+        // If the event does not hit test anything in the window, then it may not have been delivered.
+        if (callbackInMap && !page->isProcessingWheelEvents()) {
+            auto callbackToCancel = m_pendingWheelEventsFlushedCallbacksPerPage.take(page->identifier());
+            callbackToCancel(WTF::nullopt);
+        }
+
+        // Otherwise, wait for wheelEventsFlushedCallback to run when all events are handled.
+    });
+}
+#endif
 #endif // ENABLE(WEBDRIVER_ACTIONS_API)
 
 #if ENABLE(WEBDRIVER_MOUSE_INTERACTIONS)
@@ -1854,9 +1897,67 @@ static SimulatedInputSourceType simulatedInputSourceTypeFromProtocolSourceType(I
         return SimulatedInputSourceType::Mouse;
     case Inspector::Protocol::Automation::InputSourceType::Touch:
         return SimulatedInputSourceType::Touch;
+    case Inspector::Protocol::Automation::InputSourceType::Wheel:
+        return SimulatedInputSourceType::Wheel;
     }
 
     RELEASE_ASSERT_NOT_REACHED();
+}
+#endif // ENABLE(WEBDRIVER_ACTIONS_API)
+
+#if ENABLE(WEBDRIVER_ACTIONS_API)
+// §15.4.2 Keyboard actions
+// https://w3c.github.io/webdriver/#dfn-normalised-key-value
+static VirtualKey normalizedVirtualKey(VirtualKey key)
+{
+    switch (key) {
+    case Inspector::Protocol::Automation::VirtualKey::ControlRight:
+        return Inspector::Protocol::Automation::VirtualKey::Control;
+    case Inspector::Protocol::Automation::VirtualKey::ShiftRight:
+        return Inspector::Protocol::Automation::VirtualKey::Shift;
+    case Inspector::Protocol::Automation::VirtualKey::AlternateRight:
+        return Inspector::Protocol::Automation::VirtualKey::Alternate;
+    case Inspector::Protocol::Automation::VirtualKey::MetaRight:
+        return Inspector::Protocol::Automation::VirtualKey::Meta;
+    case Inspector::Protocol::Automation::VirtualKey::DownArrowRight:
+        return Inspector::Protocol::Automation::VirtualKey::DownArrow;
+    case Inspector::Protocol::Automation::VirtualKey::UpArrowRight:
+        return Inspector::Protocol::Automation::VirtualKey::UpArrow;
+    case Inspector::Protocol::Automation::VirtualKey::LeftArrowRight:
+        return Inspector::Protocol::Automation::VirtualKey::LeftArrow;
+    case Inspector::Protocol::Automation::VirtualKey::RightArrowRight:
+        return Inspector::Protocol::Automation::VirtualKey::RightArrow;
+    case Inspector::Protocol::Automation::VirtualKey::PageUpRight:
+        return Inspector::Protocol::Automation::VirtualKey::PageUp;
+    case Inspector::Protocol::Automation::VirtualKey::PageDownRight:
+        return Inspector::Protocol::Automation::VirtualKey::PageDown;
+    case Inspector::Protocol::Automation::VirtualKey::EndRight:
+        return Inspector::Protocol::Automation::VirtualKey::End;
+    case Inspector::Protocol::Automation::VirtualKey::HomeRight:
+        return Inspector::Protocol::Automation::VirtualKey::Home;
+    case Inspector::Protocol::Automation::VirtualKey::DeleteRight:
+        return Inspector::Protocol::Automation::VirtualKey::Delete;
+    case Inspector::Protocol::Automation::VirtualKey::InsertRight:
+        return Inspector::Protocol::Automation::VirtualKey::Insert;
+    default:
+        return key;
+    }
+}
+
+static Optional<UChar32> pressedCharKey(const String& pressedCharKeyString)
+{
+    switch (pressedCharKeyString.length()) {
+    case 1:
+        return pressedCharKeyString.characterAt(0);
+    case 2: {
+        auto lead = pressedCharKeyString.characterAt(0);
+        auto trail = pressedCharKeyString.characterAt(1);
+        if (U16_IS_LEAD(lead) && U16_IS_TRAIL(trail))
+            return U16_GET_SUPPLEMENTARY(lead, trail);
+    }
+    }
+
+    return WTF::nullopt;
 }
 #endif // ENABLE(WEBDRIVER_ACTIONS_API)
 
@@ -1876,14 +1977,12 @@ void WebAutomationSession::performInteractionSequence(const Inspector::Protocol:
     if (frameNotFound)
         ASYNC_FAIL_WITH_PREDEFINED_ERROR(FrameNotFound);
 
-    HashMap<String, Ref<SimulatedInputSource>> sourceIdToInputSourceMap;
-    HashMap<SimulatedInputSourceType, String, WTF::IntHash<SimulatedInputSourceType>, WTF::StrongEnumHashTraits<SimulatedInputSourceType>> typeToSourceIdMap;
-
     // Parse and validate Automation protocol arguments. By this point, the driver has
     // already performed the steps in §17.3 Processing Actions Requests.
     if (!inputSources->length())
         ASYNC_FAIL_WITH_PREDEFINED_ERROR_AND_DETAILS(InvalidParameter, "The parameter 'inputSources' was not found or empty.");
 
+    HashSet<String> sourceIdSet;
     for (const auto& inputSourceValue : inputSources.get()) {
         auto inputSourceObject = inputSourceValue->asObject();
         if (!inputSourceObject)
@@ -1925,13 +2024,17 @@ void WebAutomationSession::performInteractionSequence(const Inspector::Protocol:
         if (inputSourceType == SimulatedInputSourceType::Keyboard)
             ASYNC_FAIL_WITH_PREDEFINED_ERROR_AND_DETAILS(NotImplemented, "Keyboard input sources are not yet supported.");
 #endif
-        if (typeToSourceIdMap.contains(inputSourceType))
-            ASYNC_FAIL_WITH_PREDEFINED_ERROR_AND_DETAILS(InvalidParameter, "Two input sources with the same type were specified.");
-        if (sourceIdToInputSourceMap.contains(sourceId))
+#if !ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
+        if (inputSourceType == SimulatedInputSourceType::Wheel)
+            ASYNC_FAIL_WITH_PREDEFINED_ERROR_AND_DETAILS(NotImplemented, "Wheel input sources are not yet supported.");
+#endif
+        if (sourceIdSet.contains(sourceId))
             ASYNC_FAIL_WITH_PREDEFINED_ERROR_AND_DETAILS(InvalidParameter, "Two input sources with the same sourceId were specified.");
 
-        typeToSourceIdMap.add(inputSourceType, sourceId);
-        sourceIdToInputSourceMap.add(sourceId, *inputSourceForType(inputSourceType));
+        sourceIdSet.add(sourceId);
+        m_inputSources.ensure(sourceId, [inputSourceType] {
+            return SimulatedInputSource::create(inputSourceType);
+        });
     }
 
     Vector<SimulatedInputKeyFrame> keyFrames;
@@ -1960,18 +2063,22 @@ void WebAutomationSession::performInteractionSequence(const Inspector::Protocol:
             if (!sourceId)
                 ASYNC_FAIL_WITH_PREDEFINED_ERROR_AND_DETAILS(InvalidParameter, "Step state lacks required 'sourceId' property.");
 
-            if (!sourceIdToInputSourceMap.contains(sourceId))
+            if (!m_inputSources.contains(sourceId))
                 ASYNC_FAIL_WITH_PREDEFINED_ERROR_AND_DETAILS(InvalidParameter, "Unknown 'sourceId' specified.");
 
-            SimulatedInputSource& inputSource = *sourceIdToInputSourceMap.get(sourceId);
+            SimulatedInputSource& inputSource = *m_inputSources.get(sourceId);
             SimulatedInputSourceState sourceState { };
 
             auto pressedCharKeyString = stateObject->getString("pressedCharKey"_s);
-            if (!!pressedCharKeyString)
-                sourceState.pressedCharKey = pressedCharKeyString.characterAt(0);
+            if (!!pressedCharKeyString) {
+                auto charKey = pressedCharKey(pressedCharKeyString);
+                if (!charKey)
+                    ASYNC_FAIL_WITH_PREDEFINED_ERROR_AND_DETAILS(InvalidParameter, "Invalid 'pressedCharKey'.");
+                sourceState.pressedCharKeys.add(*charKey);
+            }
 
             if (auto pressedVirtualKeysArray = stateObject->getArray("pressedVirtualKeys"_s)) {
-                VirtualKeySet pressedVirtualKeys { };
+                VirtualKeyMap pressedVirtualKeys;
 
                 for (auto it = pressedVirtualKeysArray->begin(); it != pressedVirtualKeysArray->end(); ++it) {
                     auto pressedVirtualKeyString = (*it)->asString();
@@ -1982,7 +2089,7 @@ void WebAutomationSession::performInteractionSequence(const Inspector::Protocol:
                     if (!parsedVirtualKey)
                         ASYNC_FAIL_WITH_PREDEFINED_ERROR_AND_DETAILS(InvalidParameter, "Encountered an unknown virtual key value.");
                     else
-                        pressedVirtualKeys.add(parsedVirtualKey.value());
+                        pressedVirtualKeys.add(normalizedVirtualKey(parsedVirtualKey.value()), parsedVirtualKey.value());
                 }
 
                 sourceState.pressedVirtualKeys = pressedVirtualKeys;
@@ -2010,6 +2117,13 @@ void WebAutomationSession::performInteractionSequence(const Inspector::Protocol:
                 auto y = locationObject->getInteger("y"_s);
                 if (x && y)
                     sourceState.location = WebCore::IntPoint(*x, *y);
+            }
+
+            if (auto deltaObject = stateObject->getObject("delta"_s)) {
+                auto deltaX = deltaObject->getInteger("width"_s);
+                auto deltaY = deltaObject->getInteger("height"_s);
+                if (deltaX && deltaY)
+                    sourceState.scrollDelta = WebCore::IntSize(*deltaX, *deltaY);
             }
 
             if (auto duration = stateObject->getInteger("duration"_s))
@@ -2057,11 +2171,12 @@ void WebAutomationSession::cancelInteractionSequence(const Inspector::Protocol::
     SimulatedInputDispatcher& inputDispatcher = inputDispatcherForPage(*page);
     inputDispatcher.cancel();
     
-    inputDispatcher.run(frameID, WTFMove(keyFrames), m_inputSources, [protectedThis = makeRef(*this), callback = WTFMove(callback)](Optional<AutomationCommandError> error) {
+    inputDispatcher.run(frameID, WTFMove(keyFrames), m_inputSources, [this, protectedThis = makeRef(*this), callback = WTFMove(callback)](Optional<AutomationCommandError> error) {
         if (error)
             callback->sendFailure(error.value().toProtocolString());
         else
             callback->sendSuccess();
+        m_inputSources.clear();
     });
 #endif // ENABLE(WEBDRIVER_ACTIONS_API)
 }

@@ -43,7 +43,7 @@ static inline bool isTextContent(const InlineContentBreaker::ContinuousContent& 
     // Due to commit boundary rules, we just need to check the first non-typeless inline item (can't have both [img] and [text])
     for (auto& run : continuousContent.runs()) {
         auto& inlineItem = run.inlineItem;
-        if (inlineItem.isContainerStart() || inlineItem.isContainerEnd())
+        if (inlineItem.isInlineBoxStart() || inlineItem.isInlineBoxEnd())
             continue;
         return inlineItem.isText();
     }
@@ -58,7 +58,7 @@ static inline bool isVisuallyEmptyWhitespaceContent(const InlineContentBreaker::
     for (auto& run : continuousContent.runs()) {
         auto& inlineItem = run.inlineItem;
         // FIXME: check for padding border etc.
-        if (inlineItem.isContainerStart() || inlineItem.isContainerEnd())
+        if (inlineItem.isInlineBoxStart() || inlineItem.isInlineBoxEnd())
             continue;
         return inlineItem.isText() && downcast<InlineTextItem>(inlineItem).isWhitespace();
     }
@@ -70,7 +70,7 @@ static inline bool isNonContentRunsOnly(const InlineContentBreaker::ContinuousCo
     // <span></span> <- non content runs.
     for (auto& run : continuousContent.runs()) {
         auto& inlineItem = run.inlineItem;
-        if (inlineItem.isContainerStart() || inlineItem.isContainerEnd())
+        if (inlineItem.isInlineBoxStart() || inlineItem.isInlineBoxEnd())
             continue;
         return false;
     }
@@ -195,14 +195,13 @@ InlineContentBreaker::Result InlineContentBreaker::processOverflowingContent(con
     ASSERT(continuousContent.logicalWidth() > lineStatus.availableWidth);
     if (continuousContent.hasTrailingCollapsibleContent()) {
         ASSERT(isTextContent(continuousContent));
-        auto IsEndOfLine = isContentWrappingAllowed(continuousContent) ? IsEndOfLine::Yes : IsEndOfLine::No;
         // First check if the content fits without the trailing collapsible part.
         if (continuousContent.nonCollapsibleLogicalWidth() <= lineStatus.availableWidth)
-            return { Result::Action::Keep, IsEndOfLine };
+            return { Result::Action::Keep, IsEndOfLine::No };
         // Now check if we can trim the line too.
         if (lineStatus.hasFullyCollapsibleTrailingRun && continuousContent.isFullyCollapsible()) {
             // If this new content is fully collapsible, it should surely fit.
-            return { Result::Action::Keep, IsEndOfLine };
+            return { Result::Action::Keep, IsEndOfLine::No };
         }
     } else if (lineStatus.collapsibleWidth && isNonContentRunsOnly(continuousContent)) {
         // Let's see if the non-content runs fit when the line has trailing collapsible content.
@@ -221,13 +220,12 @@ InlineContentBreaker::Result InlineContentBreaker::processOverflowingContent(con
             if (!trailingContent->runIndex && trailingContent->hasOverflow) {
                 // We tried to break the content but the available space can't even accommodate the first character.
                 // 1. Wrap the content over to the next line when we've got content on the line already.
-                // 2. Keep the first character on the empty line (or keep the whole run if it has only one character).
+                // 2. Keep the first character on the empty line (or keep the whole run if it has only one character/completely empty).
                 if (!lineStatus.isEmpty)
                     return { Result::Action::Wrap, IsEndOfLine::Yes };
                 auto leadingTextRunIndex = *firstTextRunIndex(continuousContent);
                 auto& inlineTextItem = downcast<InlineTextItem>(continuousContent.runs()[leadingTextRunIndex].inlineItem);
-                ASSERT(inlineTextItem.length());
-                if (inlineTextItem.length() == 1)
+                if (inlineTextItem.length() <= 1)
                     return Result { Result::Action::Keep, IsEndOfLine::Yes };
                 auto firstCharacterWidth = TextUtil::width(inlineTextItem, inlineTextItem.start(), inlineTextItem.start() + 1);
                 auto firstCharacterRun = PartialRun { 1, firstCharacterWidth };
@@ -253,7 +251,7 @@ InlineContentBreaker::Result InlineContentBreaker::processOverflowingContent(con
 Optional<TrailingTextContent> InlineContentBreaker::processOverflowingTextContent(const ContinuousContent& continuousContent, const LineStatus& lineStatus) const
 {
     auto isBreakableRun = [] (auto& run) {
-        ASSERT(run.inlineItem.isText() || run.inlineItem.isContainerStart() || run.inlineItem.isContainerEnd());
+        ASSERT(run.inlineItem.isText() || run.inlineItem.isInlineBoxStart() || run.inlineItem.isInlineBoxEnd());
         if (!run.inlineItem.isText()) {
             // Can't break horizontal spacing -> e.g. <span style="padding-right: 100px;">textcontent</span>, if the [container end] is the overflown inline item
             // we need to check if there's another inline item beyond the [container end] to split.
@@ -270,7 +268,7 @@ Optional<TrailingTextContent> InlineContentBreaker::processOverflowingTextConten
     size_t index = 0;
     while (index < runs.size()) {
         auto& run = runs[index];
-        ASSERT(run.inlineItem.isText() || run.inlineItem.isContainerStart() || run.inlineItem.isContainerEnd());
+        ASSERT(run.inlineItem.isText() || run.inlineItem.isInlineBoxStart() || run.inlineItem.isInlineBoxEnd());
         if (accumulatedRunWidth + run.logicalWidth > lineStatus.availableWidth && isBreakableRun(run)) {
             // At this point the available width can very well be negative e.g. when some part of the continuous text content can not be broken into parts ->
             // <span style="word-break: keep-all">textcontentwithnobreak</span><span>textcontentwithyesbreak</span>
@@ -344,6 +342,10 @@ Optional<InlineContentBreaker::PartialRun> InlineContentBreaker::tryBreakingText
 
     auto breakRule = wordBreakBehavior(style);
     if (breakRule == WordBreakRule::AtArbitraryPosition) {
+        if (!inlineTextItem.length()) {
+            // Empty text runs may be breakable based on style, but in practice we can't really split them any further.
+            return PartialRun { };
+        }
         if (findLastBreakablePosition) {
             // When the run can be split at arbitrary position,
             // let's just return the entire run when it is intended to fit on the line.

@@ -78,22 +78,22 @@ void WKPreferencesSetInternalDebugFeatureForKey(WKPreferencesRef preferencesRef,
     toImpl(preferencesRef)->setInternalDebugFeatureEnabledForKey(toWTFString(internalDebugFeatureKey), value);
 }
 
-void WKPreferencesSetBoolValueForKey(WKPreferencesRef preferencesRef, bool value, WKStringRef key)
+void WKPreferencesSetBoolValueForKeyForTesting(WKPreferencesRef preferencesRef, bool value, WKStringRef key)
 {
     toImpl(preferencesRef)->setBoolValueForKey(toWTFString(key), value);
 }
 
-void WKPreferencesSetDoubleValueForKey(WKPreferencesRef preferencesRef, double value, WKStringRef key)
+void WKPreferencesSetDoubleValueForKeyForTesting(WKPreferencesRef preferencesRef, double value, WKStringRef key)
 {
     toImpl(preferencesRef)->setBoolValueForKey(toWTFString(key), value);
 }
 
-void WKPreferencesSetUInt32ValueForKey(WKPreferencesRef preferencesRef, uint32_t value, WKStringRef key)
+void WKPreferencesSetUInt32ValueForKeyForTesting(WKPreferencesRef preferencesRef, uint32_t value, WKStringRef key)
 {
     toImpl(preferencesRef)->setUInt32ValueForKey(toWTFString(key), value);
 }
 
-void WKPreferencesSetStringValueForKey(WKPreferencesRef preferencesRef, WKStringRef value, WKStringRef key)
+void WKPreferencesSetStringValueForKeyForTesting(WKPreferencesRef preferencesRef, WKStringRef value, WKStringRef key)
 {
     toImpl(preferencesRef)->setStringValueForKey(toWTFString(key), toWTFString(value));
 }
@@ -484,16 +484,6 @@ void WKPreferencesSetWebGLEnabled(WKPreferencesRef preferencesRef, bool flag)
 bool WKPreferencesGetWebGLEnabled(WKPreferencesRef preferencesRef)
 {
     return toImpl(preferencesRef)->webGLEnabled();
-}
-
-void WKPreferencesSetAccelerated2DCanvasEnabled(WKPreferencesRef preferencesRef, bool flag)
-{
-    toImpl(preferencesRef)->setAccelerated2dCanvasEnabled(flag);
-}
-
-bool WKPreferencesGetAccelerated2DCanvasEnabled(WKPreferencesRef preferencesRef)
-{
-    return toImpl(preferencesRef)->accelerated2dCanvasEnabled();
 }
 
 void WKPreferencesSetNeedsSiteSpecificQuirks(WKPreferencesRef preferencesRef, bool flag)
@@ -1056,16 +1046,6 @@ bool WKPreferencesGetArtificialPluginInitializationDelayEnabled(WKPreferencesRef
     return toImpl(preferencesRef)->artificialPluginInitializationDelayEnabled();
 }
 
-void WKPreferencesSetTabToLinksEnabled(WKPreferencesRef preferencesRef, bool enabled)
-{
-    toImpl(preferencesRef)->setTabToLinksEnabled(enabled);
-}
-
-bool WKPreferencesGetTabToLinksEnabled(WKPreferencesRef preferencesRef)
-{
-    return toImpl(preferencesRef)->tabToLinksEnabled();
-}
-
 void WKPreferencesSetInteractiveFormValidationEnabled(WKPreferencesRef preferencesRef, bool enabled)
 {
     toImpl(preferencesRef)->setInteractiveFormValidationEnabled(enabled);
@@ -1086,14 +1066,13 @@ bool WKPreferencesGetScrollingPerformanceLoggingEnabled(WKPreferencesRef prefere
     return toImpl(preferencesRef)->scrollingPerformanceLoggingEnabled();
 }
 
-void WKPreferencesSetPlugInSnapshottingEnabled(WKPreferencesRef preferencesRef, bool enabled)
+void WKPreferencesSetPlugInSnapshottingEnabled(WKPreferencesRef, bool)
 {
-    toImpl(preferencesRef)->setPlugInSnapshottingEnabled(enabled);
 }
 
 bool WKPreferencesGetPlugInSnapshottingEnabled(WKPreferencesRef preferencesRef)
 {
-    return toImpl(preferencesRef)->plugInSnapshottingEnabled();
+    return false;
 }
 
 void WKPreferencesSetPluginSandboxProfilesEnabledForAllPlugins(WKPreferencesRef preferencesRef, bool enabled)
@@ -1109,34 +1088,31 @@ bool WKPreferencesGetPluginSandboxProfilesEnabledForAllPlugins(WKPreferencesRef 
     return toImpl(preferencesRef)->experimentalPlugInSandboxProfilesEnabled();
 }
 
-void WKPreferencesSetSnapshotAllPlugIns(WKPreferencesRef preferencesRef, bool enabled)
+void WKPreferencesSetSnapshotAllPlugIns(WKPreferencesRef, bool)
 {
-    toImpl(preferencesRef)->setSnapshotAllPlugIns(enabled);
 }
 
-bool WKPreferencesGetSnapshotAllPlugIns(WKPreferencesRef preferencesRef)
+bool WKPreferencesGetSnapshotAllPlugIns(WKPreferencesRef)
 {
-    return toImpl(preferencesRef)->snapshotAllPlugIns();
+    return false;
 }
 
-void WKPreferencesSetAutostartOriginPlugInSnapshottingEnabled(WKPreferencesRef preferencesRef, bool enabled)
+void WKPreferencesSetAutostartOriginPlugInSnapshottingEnabled(WKPreferencesRef, bool)
 {
-    toImpl(preferencesRef)->setAutostartOriginPlugInSnapshottingEnabled(enabled);
 }
 
 bool WKPreferencesGetAutostartOriginPlugInSnapshottingEnabled(WKPreferencesRef preferencesRef)
 {
-    return toImpl(preferencesRef)->autostartOriginPlugInSnapshottingEnabled();
+    return false;
 }
 
 void WKPreferencesSetPrimaryPlugInSnapshotDetectionEnabled(WKPreferencesRef preferencesRef, bool enabled)
 {
-    toImpl(preferencesRef)->setPrimaryPlugInSnapshotDetectionEnabled(enabled);
 }
 
 bool WKPreferencesGetPrimaryPlugInSnapshotDetectionEnabled(WKPreferencesRef preferencesRef)
 {
-    return toImpl(preferencesRef)->primaryPlugInSnapshotDetectionEnabled();
+    return false;
 }
 
 void WKPreferencesSetPDFPluginEnabled(WKPreferencesRef preferencesRef, bool enabled)
@@ -1299,14 +1275,14 @@ bool WKPreferencesGetSimpleLineLayoutEnabled(WKPreferencesRef preferencesRef)
     return toImpl(preferencesRef)->simpleLineLayoutEnabled();
 }
 
-void WKPreferencesSetSimpleLineLayoutDebugBordersEnabled(WKPreferencesRef preferencesRef, bool flag)
+void WKPreferencesSetLegacyLineLayoutVisualCoverageEnabled(WKPreferencesRef preferencesRef, bool flag)
 {
-    toImpl(preferencesRef)->setSimpleLineLayoutDebugBordersEnabled(flag);
+    toImpl(preferencesRef)->setLegacyLineLayoutVisualCoverageEnabled(flag);
 }
 
-bool WKPreferencesGetSimpleLineLayoutDebugBordersEnabled(WKPreferencesRef preferencesRef)
+bool WKPreferencesGetLegacyLineLayoutVisualCoverageEnabled(WKPreferencesRef preferencesRef)
 {
-    return toImpl(preferencesRef)->simpleLineLayoutDebugBordersEnabled();
+    return toImpl(preferencesRef)->legacyLineLayoutVisualCoverageEnabled();
 }
 
 void WKPreferencesSetContentChangeObserverEnabled(WKPreferencesRef preferencesRef, bool flag)

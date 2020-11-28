@@ -26,6 +26,8 @@
 #pragma once
 
 #include "DisplayList.h"
+#include "DisplayListDrawGlyphsRecorder.h"
+#include "DisplayListItems.h"
 #include "GraphicsContextImpl.h"
 #include "Image.h" // For Image::TileRule.
 #include "TextFlags.h"
@@ -47,29 +49,28 @@ struct ImagePaintingOptions;
 
 namespace DisplayList {
 
-class DrawingItem;
-
 class Recorder : public GraphicsContextImpl {
     WTF_MAKE_FAST_ALLOCATED;
     WTF_MAKE_NONCOPYABLE(Recorder);
 public:
-    class Observer;
-    WEBCORE_EXPORT Recorder(GraphicsContext&, DisplayList&, const GraphicsContextState&, const FloatRect& initialClip, const AffineTransform&, Observer* = nullptr);
+    class Delegate;
+    WEBCORE_EXPORT Recorder(GraphicsContext&, DisplayList&, const GraphicsContextState&, const FloatRect& initialClip, const AffineTransform&, Delegate* = nullptr, DrawGlyphsRecorder::DrawGlyphsDeconstruction = DrawGlyphsRecorder::DrawGlyphsDeconstruction::Deconstruct);
     WEBCORE_EXPORT virtual ~Recorder();
 
     WEBCORE_EXPORT void putImageData(AlphaPremultiplication inputFormat, const ImageData&, const IntRect& srcRect, const IntPoint& destPoint, AlphaPremultiplication destFormat);
 
-    size_t itemCount() const { return m_displayList.itemCount(); }
+    bool isEmpty() const { return m_displayList.isEmpty(); }
 
-    void appendItemAndUpdateExtent(Ref<DrawingItem>&&);
-
-    class Observer {
+    class Delegate {
     public:
-        virtual ~Observer() { }
-        virtual void willAppendItem(const Item&) { };
+        virtual ~Delegate() { }
+        virtual void willAppendItemOfType(ItemType) { }
+        virtual void didAppendItemOfType(ItemType) { }
+        virtual void cacheNativeImage(NativeImage&) { }
     };
 
 private:
+    friend class DrawGlyphsRecorder;
     bool hasPlatformContext() const override { return false; }
     PlatformGraphicsContext* platformContext() const override { return nullptr; }
 
@@ -101,11 +102,9 @@ private:
 
     void drawGlyphs(const Font&, const GlyphBuffer&, unsigned from, unsigned numGlyphs, const FloatPoint& anchorPoint, FontSmoothingMode) override;
 
-    ImageDrawResult drawImage(Image&, const FloatRect& destination, const FloatRect& source, const ImagePaintingOptions&) override;
-    ImageDrawResult drawTiledImage(Image&, const FloatRect& destination, const FloatPoint& source, const FloatSize& tileSize, const FloatSize& spacing, const ImagePaintingOptions&) override;
-    ImageDrawResult drawTiledImage(Image&, const FloatRect& destination, const FloatRect& source, const FloatSize& tileScaleFactor, Image::TileRule hRule, Image::TileRule vRule, const ImagePaintingOptions&) override;
-    void drawNativeImage(const NativeImagePtr&, const FloatSize& selfSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions&) override;
-    void drawPattern(Image&, const FloatRect& destRect, const FloatRect& srcRect, const AffineTransform&, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions&) override;
+    void drawImageBuffer(WebCore::ImageBuffer&, const FloatRect& destination, const FloatRect& source, const ImagePaintingOptions&) override;
+    void drawNativeImage(NativeImage&, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions&) override;
+    void drawPattern(NativeImage&, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const AffineTransform&, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions&) override;
 
     void drawRect(const FloatRect&, float borderThickness) override;
     void drawLine(const FloatPoint&, const FloatPoint&) override;
@@ -144,12 +143,33 @@ private:
 
     FloatRect roundToDevicePixels(const FloatRect&, GraphicsContext::RoundingMode) override;
 
-    template<typename ItemType>
-    ItemType& appendItem(Ref<ItemType>&&);
-    void willAppendItem(const Item&);
+    template<typename T, class... Args>
+    void append(Args&&... args)
+    {
+        willAppendItemOfType(T::itemType);
+        m_displayList.append<T>(std::forward<Args>(args)...);
+        didAppendItemOfType(T::itemType);
+
+        if constexpr (T::isDrawingItem) {
+            if (LIKELY(!m_displayList.tracksDrawingItemExtents()))
+                return;
+
+            auto item = T(std::forward<Args>(args)...);
+            if (auto rect = item.localBounds(graphicsContext()))
+                m_displayList.addDrawingItemExtent(extentFromLocalBounds(*rect));
+            else if (auto rect = item.globalBounds())
+                m_displayList.addDrawingItemExtent(*rect);
+            else
+                m_displayList.addDrawingItemExtent(WTF::nullopt);
+        }
+    }
+
+    void willAppendItemOfType(ItemType);
+    void didAppendItemOfType(ItemType);
+
+    void appendStateChangeItem(const GraphicsContextStateChange&, GraphicsContextState::StateChangeFlags);
 
     FloatRect extentFromLocalBounds(const FloatRect&) const;
-    void updateItemExtent(DrawingItem&) const;
     
     const AffineTransform& ctm() const;
     const FloatRect& clipBounds() const;
@@ -186,9 +206,11 @@ private:
     ContextState& currentState();
 
     DisplayList& m_displayList;
-    Observer* m_observer;
+    Delegate* m_delegate;
 
     Vector<ContextState, 32> m_stateStack;
+
+    DrawGlyphsRecorder m_drawGlyphsRecorder;
 };
 
 }

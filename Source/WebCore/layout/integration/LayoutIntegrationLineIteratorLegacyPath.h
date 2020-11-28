@@ -49,6 +49,17 @@ public:
     LayoutUnit selectionTop() const { return m_rootInlineBox->selectionTop(); }
     LayoutUnit selectionTopForHitTesting() const { return m_rootInlineBox->selectionTop(RootInlineBox::ForHitTesting::Yes); }
     LayoutUnit selectionBottom() const { return m_rootInlineBox->selectionBottom(); }
+    LayoutUnit lineBoxTop() const { return m_rootInlineBox->lineBoxTop(); }
+    LayoutUnit lineBoxBottom() const { return m_rootInlineBox->lineBoxBottom(); }
+
+    float y() const { return m_rootInlineBox->y(); }
+    float logicalLeft() const { return m_rootInlineBox->logicalLeft(); }
+    float logicalRight() const { return m_rootInlineBox->logicalRight(); }
+    float logicalHeight() const { return m_rootInlineBox->logicalHeight(); }
+    bool isHorizontal() const { return m_rootInlineBox->isHorizontal(); }
+
+    const RenderBlockFlow& containingBlock() const { return m_rootInlineBox->blockFlow(); }
+    const RootInlineBox* legacyRootInlineBox() const { return m_rootInlineBox; }
 
     void traverseNext()
     {

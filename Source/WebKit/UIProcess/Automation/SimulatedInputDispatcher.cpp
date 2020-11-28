@@ -43,6 +43,9 @@ SimulatedInputSourceState SimulatedInputSourceState::emptyStateForSourceType(Sim
     case SimulatedInputSourceType::Null:
     case SimulatedInputSourceType::Keyboard:
         break;
+    case SimulatedInputSourceType::Wheel:
+        result.scrollDelta = WebCore::IntSize();
+        FALLTHROUGH;
     case SimulatedInputSourceType::Mouse:
     case SimulatedInputSourceType::Touch:
         result.location = WebCore::IntPoint();
@@ -67,7 +70,7 @@ Seconds SimulatedInputKeyFrame::maximumDuration() const
     return result;
 }
 
-SimulatedInputKeyFrame SimulatedInputKeyFrame::keyFrameFromStateOfInputSources(HashSet<Ref<SimulatedInputSource>>& inputSources)
+SimulatedInputKeyFrame SimulatedInputKeyFrame::keyFrameFromStateOfInputSources(const HashMap<String, Ref<SimulatedInputSource>>& inputSources)
 {
     // The client of this class is required to intern SimulatedInputSource instances if the last state
     // from the previous command should be used as the inital state for the next command. This is the
@@ -75,18 +78,18 @@ SimulatedInputKeyFrame SimulatedInputKeyFrame::keyFrameFromStateOfInputSources(H
     Vector<SimulatedInputKeyFrame::StateEntry> entries;
     entries.reserveCapacity(inputSources.size());
 
-    for (auto& inputSource : inputSources)
+    for (const auto& inputSource : inputSources.values())
         entries.uncheckedAppend(std::pair<SimulatedInputSource&, SimulatedInputSourceState> { inputSource.get(), inputSource->state });
 
     return SimulatedInputKeyFrame(WTFMove(entries));
 }
 
-SimulatedInputKeyFrame SimulatedInputKeyFrame::keyFrameToResetInputSources(HashSet<Ref<SimulatedInputSource>>& inputSources)
+SimulatedInputKeyFrame SimulatedInputKeyFrame::keyFrameToResetInputSources(const HashMap<String, Ref<SimulatedInputSource>>& inputSources)
 {
     Vector<SimulatedInputKeyFrame::StateEntry> entries;
     entries.reserveCapacity(inputSources.size());
 
-    for (auto& inputSource : inputSources)
+    for (const auto& inputSource : inputSources.values())
         entries.uncheckedAppend(std::pair<SimulatedInputSource&, SimulatedInputSourceState> { inputSource.get(), SimulatedInputSourceState::emptyStateForSourceType(inputSource->type) });
 
     return SimulatedInputKeyFrame(WTFMove(entries));
@@ -336,44 +339,73 @@ void SimulatedInputDispatcher::transitionInputSourceToState(SimulatedInputSource
 #endif // !ENABLE(WEBDRIVER_TOUCH_INTERACTIONS)
         break;
     }
-    case SimulatedInputSourceType::Keyboard:
+    case SimulatedInputSourceType::Keyboard: {
 #if !ENABLE(WEBDRIVER_KEYBOARD_INTERACTIONS)
         RELEASE_ASSERT_NOT_REACHED();
 #else
+        auto comparePressedCharKeys = [](const auto& a, const auto& b) {
+            if (a.size() != b.size())
+                return false;
+            for (const auto& charKey : a) {
+                if (!b.contains(charKey))
+                    return false;
+            }
+            return true;
+        };
+
         // The "dispatch a key{Down,Up} action" algorithms (§17.4 Dispatching Actions).
-        if (!a.pressedCharKey && b.pressedCharKey) {
-            LOG(Automation, "SimulatedInputDispatcher[%p]: simulating KeyPress[key=%c] for transition to %d.%d", this, b.pressedCharKey.value(), m_keyframeIndex, m_inputSourceStateIndex);
-            m_client.simulateKeyboardInteraction(m_page, KeyboardInteraction::KeyPress, b.pressedCharKey.value(), WTFMove(eventDispatchFinished));
-        } else if (a.pressedCharKey && !b.pressedCharKey) {
-            LOG(Automation, "SimulatedInputDispatcher[%p]: simulating KeyRelease[key=%c] for transition to %d.%d", this, a.pressedCharKey.value(), m_keyframeIndex, m_inputSourceStateIndex);
-            m_client.simulateKeyboardInteraction(m_page, KeyboardInteraction::KeyRelease, a.pressedCharKey.value(), WTFMove(eventDispatchFinished));
-        } else if (a.pressedVirtualKeys != b.pressedVirtualKeys) {
+        if (!comparePressedCharKeys(a.pressedCharKeys, b.pressedCharKeys)) {
             bool simulatedAnInteraction = false;
-            for (VirtualKey key : b.pressedVirtualKeys) {
-                if (!a.pressedVirtualKeys.contains(key)) {
-                    ASSERT_WITH_MESSAGE(!simulatedAnInteraction, "Only one VirtualKey may differ at a time between two input source states.");
+            for (auto charKey : b.pressedCharKeys) {
+                if (!a.pressedCharKeys.contains(charKey)) {
+                    ASSERT_WITH_MESSAGE(!simulatedAnInteraction, "Only one CharKey may differ at a time between two input source states.");
                     if (simulatedAnInteraction)
                         continue;
                     simulatedAnInteraction = true;
-#if !LOG_DISABLED
-                    String virtualKeyName = Inspector::Protocol::AutomationHelpers::getEnumConstantValue(key);
-                    LOG(Automation, "SimulatedInputDispatcher[%p]: simulating KeyPress[key=%s] for transition to %d.%d", this, virtualKeyName.utf8().data(), m_keyframeIndex, m_inputSourceStateIndex);
-#endif
-                    m_client.simulateKeyboardInteraction(m_page, KeyboardInteraction::KeyPress, key, WTFMove(eventDispatchFinished));
+
+                    LOG(Automation, "SimulatedInputDispatcher[%p]: simulating KeyPress[key=%c] for transition to %d.%d", this, charKey, m_keyframeIndex, m_inputSourceStateIndex);
+                    m_client.simulateKeyboardInteraction(m_page, KeyboardInteraction::KeyPress, charKey, WTFMove(eventDispatchFinished));
                 }
             }
 
-            for (VirtualKey key : a.pressedVirtualKeys) {
-                if (!b.pressedVirtualKeys.contains(key)) {
+            for (auto charKey : a.pressedCharKeys) {
+                if (!b.pressedCharKeys.contains(charKey)) {
+                    ASSERT_WITH_MESSAGE(!simulatedAnInteraction, "Only one CharKey may differ at a time between two input source states.");
+                    if (simulatedAnInteraction)
+                        continue;
+                    simulatedAnInteraction = true;
+
+                    LOG(Automation, "SimulatedInputDispatcher[%p]: simulating KeyRelease[key=%c] for transition to %d.%d", this, charKey, m_keyframeIndex, m_inputSourceStateIndex);
+                    m_client.simulateKeyboardInteraction(m_page, KeyboardInteraction::KeyRelease, charKey, WTFMove(eventDispatchFinished));
+                }
+            }
+        } else if (a.pressedVirtualKeys != b.pressedVirtualKeys) {
+            bool simulatedAnInteraction = false;
+            for (const auto& iter : b.pressedVirtualKeys) {
+                if (!a.pressedVirtualKeys.contains(iter.key)) {
                     ASSERT_WITH_MESSAGE(!simulatedAnInteraction, "Only one VirtualKey may differ at a time between two input source states.");
                     if (simulatedAnInteraction)
                         continue;
                     simulatedAnInteraction = true;
 #if !LOG_DISABLED
-                    String virtualKeyName = Inspector::Protocol::AutomationHelpers::getEnumConstantValue(key);
+                    String virtualKeyName = Inspector::Protocol::AutomationHelpers::getEnumConstantValue(iter.value);
+                    LOG(Automation, "SimulatedInputDispatcher[%p]: simulating KeyPress[key=%s] for transition to %d.%d", this, virtualKeyName.utf8().data(), m_keyframeIndex, m_inputSourceStateIndex);
+#endif
+                    m_client.simulateKeyboardInteraction(m_page, KeyboardInteraction::KeyPress, iter.value, WTFMove(eventDispatchFinished));
+                }
+            }
+
+            for (const auto& iter : a.pressedVirtualKeys) {
+                if (!b.pressedVirtualKeys.contains(iter.key)) {
+                    ASSERT_WITH_MESSAGE(!simulatedAnInteraction, "Only one VirtualKey may differ at a time between two input source states.");
+                    if (simulatedAnInteraction)
+                        continue;
+                    simulatedAnInteraction = true;
+#if !LOG_DISABLED
+                    String virtualKeyName = Inspector::Protocol::AutomationHelpers::getEnumConstantValue(iter.value);
                     LOG(Automation, "SimulatedInputDispatcher[%p]: simulating KeyRelease[key=%s] for transition to %d.%d", this, virtualKeyName.utf8().data(), m_keyframeIndex, m_inputSourceStateIndex);
 #endif
-                    m_client.simulateKeyboardInteraction(m_page, KeyboardInteraction::KeyRelease, key, WTFMove(eventDispatchFinished));
+                    m_client.simulateKeyboardInteraction(m_page, KeyboardInteraction::KeyRelease, iter.value, WTFMove(eventDispatchFinished));
                 }
             }
         } else
@@ -381,9 +413,39 @@ void SimulatedInputDispatcher::transitionInputSourceToState(SimulatedInputSource
 #endif // !ENABLE(WEBDRIVER_KEYBOARD_INTERACTIONS)
         break;
     }
+    case SimulatedInputSourceType::Wheel:
+#if !ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
+        RELEASE_ASSERT_NOT_REACHED();
+#else
+        resolveLocation(a.location.valueOr(WebCore::IntPoint()), b.location, b.origin.valueOr(MouseMoveOrigin::Viewport), b.nodeHandle, [this, &a, &b, eventDispatchFinished = WTFMove(eventDispatchFinished)](Optional<WebCore::IntPoint> location, Optional<AutomationCommandError> error) mutable {
+            if (error) {
+                eventDispatchFinished(error);
+                return;
+            }
+
+            if (!location) {
+                eventDispatchFinished(AUTOMATION_COMMAND_ERROR_WITH_NAME(ElementNotInteractable));
+                return;
+            }
+
+            b.location = location;
+
+            if (!a.scrollDelta->isZero())
+                b.scrollDelta->contract(a.scrollDelta->width(), a.scrollDelta->height());
+
+            if (!b.scrollDelta->isZero()) {
+                LOG(Automation, "SimulatedInputDispatcher[%p]: simulating Wheel from (%d, %d) to (%d, %d) for transition to %d.%d", this, a.scrollDelta->width(), a.scrollDelta->height(), b.scrollDelta->width(), b.scrollDelta->height(), m_keyframeIndex, m_inputSourceStateIndex);
+                // FIXME: This does not interpolate mouse scrolls per the "perform a scroll" algorithm (§15.4.4 Wheel actions).
+                m_client.simulateWheelInteraction(m_page, b.location.value(), b.scrollDelta.value(), WTFMove(eventDispatchFinished));
+            } else
+                eventDispatchFinished(WTF::nullopt);
+        });
+#endif // !ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
+        break;
+    }
 }
 
-void SimulatedInputDispatcher::run(Optional<WebCore::FrameIdentifier> frameID, Vector<SimulatedInputKeyFrame>&& keyFrames, HashSet<Ref<SimulatedInputSource>>& inputSources, AutomationCompletionHandler&& completionHandler)
+void SimulatedInputDispatcher::run(Optional<WebCore::FrameIdentifier> frameID, Vector<SimulatedInputKeyFrame>&& keyFrames, const HashMap<String, Ref<SimulatedInputSource>>& inputSources, AutomationCompletionHandler&& completionHandler)
 {
     ASSERT(!isActive());
     if (isActive()) {
@@ -393,13 +455,10 @@ void SimulatedInputDispatcher::run(Optional<WebCore::FrameIdentifier> frameID, V
 
     m_frameID = frameID;
     m_runCompletionHandler = WTFMove(completionHandler);
-    for (const Ref<SimulatedInputSource>& inputSource : inputSources)
-        m_inputSources.add(inputSource.copyRef());
 
     // The "dispatch actions" algorithm (§17.4 Dispatching Actions).
-
     m_keyframes.reserveCapacity(keyFrames.size() + 1);
-    m_keyframes.append(SimulatedInputKeyFrame::keyFrameFromStateOfInputSources(m_inputSources));
+    m_keyframes.append(SimulatedInputKeyFrame::keyFrameFromStateOfInputSources(inputSources));
     m_keyframes.appendVector(WTFMove(keyFrames));
 
     LOG(Automation, "SimulatedInputDispatcher[%p]: starting input simulation using %zu keyframes", this, m_keyframes.size());
@@ -426,7 +485,6 @@ void SimulatedInputDispatcher::finishDispatching(Optional<AutomationCommandError
     auto finish = std::exchange(m_runCompletionHandler, nullptr);
     m_frameID = WTF::nullopt;
     m_keyframes.clear();
-    m_inputSources.clear();
     m_keyframeIndex = 0;
     m_inputSourceStateIndex = 0;
 

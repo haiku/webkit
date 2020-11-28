@@ -31,20 +31,28 @@
 namespace WebKit {
 using namespace WebCore;
 
-void RemoteResourceCache::cacheImageBuffer(RemoteResourceIdentifier remoteResourceIdentifier, std::unique_ptr<ImageBuffer>&& image)
+void RemoteResourceCache::cacheImageBuffer(Ref<ImageBuffer>&& imageBuffer)
 {
-    auto addResult = m_imageBuffers.add(remoteResourceIdentifier, WTFMove(image));
+    auto addResult = m_imageBuffers.add(imageBuffer->renderingResourceIdentifier(), WTFMove(imageBuffer));
     ASSERT_UNUSED(addResult, addResult.isNewEntry);
 }
 
-WebCore::ImageBuffer* RemoteResourceCache::cachedImageBuffer(RemoteResourceIdentifier remoteResourceIdentifier)
+ImageBuffer* RemoteResourceCache::cachedImageBuffer(RenderingResourceIdentifier renderingResourceIdentifier)
 {
-    return m_imageBuffers.get(remoteResourceIdentifier);
+    return m_imageBuffers.get(renderingResourceIdentifier);
 }
 
-void RemoteResourceCache::releaseRemoteResource(RemoteResourceIdentifier remoteResourceIdentifier)
+void RemoteResourceCache::cacheNativeImage(Ref<NativeImage>&& image)
 {
-    if (m_imageBuffers.remove(remoteResourceIdentifier))
+    auto addResult = m_nativeImages.add(image->renderingResourceIdentifier(), WTFMove(image));
+    ASSERT_UNUSED(addResult, addResult.isNewEntry);
+}
+
+void RemoteResourceCache::releaseRemoteResource(RenderingResourceIdentifier renderingResourceIdentifier)
+{
+    if (m_imageBuffers.remove(renderingResourceIdentifier))
+        return;
+    if (m_nativeImages.remove(renderingResourceIdentifier))
         return;
     // Caching the remote resource should have happened before releasing it.
     ASSERT_NOT_REACHED();

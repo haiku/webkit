@@ -50,6 +50,19 @@ AlwaysZoomOnDoubleTap:
   defaultValue:
     WebKit:
       default: false
+      
+AppHighlightsEnabled:
+  type: bool
+  humanReadableName: "App Highlights"
+  humanReadableDescription: "Enable persistant highlights for apps"
+  exposed: [ WebKit ]
+  defaultValue:
+    WebKitLegacy:
+      default: false
+    WebKit:
+      default: WebKit::defaultAppHighlightsEnabled()
+    WebCore:
+      default: false
 
 # FIXME: This is not relevent for WebKitLegacy, so should be excluded from WebKitLegacy entirely.
 ApplePayRemoteUIEnabled:
@@ -81,6 +94,7 @@ AsyncFrameScrollingEnabled:
   webcoreOnChange: setNeedsRelayoutAllFrames
   humanReadableName: "Async Frame Scrolling"
   humanReadableDescription: "Perform frame scrolling off the main thread"
+  exposed: [ WebKit ]
   defaultValue:
     WebKitLegacy:
       default: false
@@ -96,10 +110,12 @@ AsyncOverflowScrollingEnabled:
   webcoreOnChange: setNeedsRelayoutAllFrames
   humanReadableName: "Async Overflow Scrolling"
   humanReadableDescription: "Perform overflow scrolling off the main thread"
+  exposed: [ WebKit ]
   defaultValue:
     WebKitLegacy:
       default: false
     WebKit:
+      "USE(NICOSIA)": false
       "PLATFORM(IOS_FAMILY)": true
       default: WebKit::defaultAsyncFrameScrollingEnabled()
     WebCore:
@@ -303,6 +319,19 @@ ICECandidateFilteringEnabled:
       default: true
     WebCore:
       default: true
+
+IOSFormControlRefreshEnabled:
+  type: bool
+  humanReadableName: "iOS Form Control Refresh"
+  humanReadableDescription: "Enable the new appearance for form controls on iOS"
+  condition: ENABLE(IOS_FORM_CONTROL_REFRESH)
+  defaultValue:
+    WebKitLegacy:
+      default: false
+    WebKit:
+      default: false
+    WebCore:
+      default: false
 
 IPCTestingAPIEnabled:
   type: bool
@@ -714,15 +743,12 @@ UseGPUProcessForMediaEnabled:
   type: bool
   humanReadableName: "GPU Process: Media"
   humanReadableDescription: "Do all media loading and playback in the GPU Process"
+  webcoreBinding: none
   condition: ENABLE(GPU_PROCESS)
   exposed: [ WebKit ]
   defaultValue:
     WebKit:
       default: defaultUseGPUProcessForMediaEnabled()
-    WebKitLegacy:
-      default: false
-    WebCore:
-      default: false
 
 UseGPUProcessForWebGLEnabled:
   type: bool

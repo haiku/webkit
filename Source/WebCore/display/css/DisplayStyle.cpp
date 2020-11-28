@@ -29,36 +29,48 @@
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
 #include "BorderData.h"
+#include "FillLayer.h"
 #include "RenderStyle.h"
 #include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
 namespace Display {
 
+static RefPtr<FillLayer> deepCopy(const FillLayer& layer)
+{
+    RefPtr<FillLayer> firstLayer;
+    FillLayer* currCopiedLayer = nullptr;
+
+    for (auto* currLayer = &layer; currLayer; currLayer = currLayer->next()) {
+        RefPtr<FillLayer> layerCopy = currLayer->copy();
+
+        if (!firstLayer) {
+            firstLayer = layerCopy;
+            currCopiedLayer = layerCopy.get();
+        } else {
+            auto nextCopiedLayer = layerCopy.get();
+            currCopiedLayer->setNext(WTFMove(layerCopy));
+            currCopiedLayer = nextCopiedLayer;
+        }
+    }
+    return firstLayer;
+}
+
 Style::Style(const RenderStyle& style)
+    : Style(style, &style)
+{
+}
+
+Style::Style(const RenderStyle& style, const RenderStyle* styleForBackground)
     : m_fontCascade(style.fontCascade())
     , m_whiteSpace(style.whiteSpace())
     , m_tabSize(style.tabSize())
 {
-    // FIXME: Is currentColor resovled here?
+    // FIXME: Is currentColor resolved here?
     m_color = style.visitedDependentColorWithColorFilter(CSSPropertyColor);
 
-    m_backgroundColor = style.visitedDependentColorWithColorFilter(CSSPropertyBackgroundColor);
-
-    const auto& borderData = style.border();
-    
-    auto borderValueWithResolvedColor = [&style](const BorderValue& value, CSSPropertyID colorPropertyID) {
-        auto resolvedValue = value;
-        resolvedValue.setColor(style.visitedDependentColorWithColorFilter(colorPropertyID));
-        return resolvedValue;
-    };
-    
-    m_border.left = borderValueWithResolvedColor(borderData.left(), CSSPropertyBorderLeftColor);
-    m_border.right = borderValueWithResolvedColor(borderData.right(), CSSPropertyBorderRightColor);
-    m_border.top = borderValueWithResolvedColor(borderData.top(), CSSPropertyBorderTopColor);
-    m_border.bottom = borderValueWithResolvedColor(borderData.bottom(), CSSPropertyBorderBottomColor);
-
-    m_border.image = borderData.image();
+    if (styleForBackground)
+        setupBackground(*styleForBackground);
 
     if (!style.hasAutoUsedZIndex())
         m_zIndex = style.usedZIndex();
@@ -67,15 +79,41 @@ Style::Style(const RenderStyle& style)
     setIsFloating(style.floating() != Float::No);
 }
 
+void Style::setupBackground(const RenderStyle& style)
+{
+    m_backgroundColor = style.visitedDependentColorWithColorFilter(CSSPropertyBackgroundColor);
+    m_backgroundLayers = deepCopy(style.backgroundLayers());
+}
+
 bool Style::hasBackground() const
 {
     return m_backgroundColor.isVisible() || hasBackgroundImage();
 }
 
-bool Style::hasVisibleBorder() const
+bool Style::hasBackgroundImage() const
 {
-    bool haveImage = m_border.image.hasImage();
-    return m_border.left.isVisible(!haveImage) || m_border.right.isVisible(!haveImage) || m_border.top.isVisible(!haveImage) || m_border.bottom.isVisible(!haveImage);
+    return m_backgroundLayers && m_backgroundLayers->hasImage();
+}
+
+bool Style::backgroundHasOpaqueTopLayer() const
+{
+    auto* fillLayer = backgroundLayers();
+    if (!fillLayer)
+        return false;
+
+    if (fillLayer->clip() != FillBox::Border)
+        return false;
+
+    // FIXME: Check for overflow clip and local attachment.
+    // FIXME: Check for repeated, opaque and renderable image.
+
+    // If there is only one layer and no image, check whether the background color is opaque.
+    if (!fillLayer->next() && !fillLayer->hasImage()) {
+        if (backgroundColor().isOpaque())
+            return true;
+    }
+
+    return false;
 }
 
 bool Style::autoWrap() const

@@ -46,6 +46,7 @@
 #import "WebProcessMessages.h"
 #import "WebProcessProxyMessages.h"
 #import "WebSleepDisablerClient.h"
+#import "WebSystemSoundDelegate.h"
 #import "WebsiteDataStoreParameters.h"
 #import <JavaScriptCore/ConfigFile.h>
 #import <JavaScriptCore/Options.h>
@@ -67,6 +68,7 @@
 #import <WebCore/RuntimeApplicationChecks.h>
 #import <WebCore/SWContextManager.h>
 #import <WebCore/SystemBattery.h>
+#import <WebCore/SystemSoundManager.h>
 #import <WebCore/UTIUtilities.h>
 #import <WebCore/VersionChecks.h>
 #import <algorithm>
@@ -102,7 +104,6 @@
 
 #if PLATFORM(IOS_FAMILY)
 #import "AccessibilitySupportSPI.h"
-#import "AssertionServicesSPI.h"
 #import "RunningBoardServicesSPI.h"
 #import "UserInterfaceIdiom.h"
 #import "WKAccessibilityWebPageObjectIOS.h"
@@ -175,6 +176,8 @@ static id NSApplicationAccessibilityFocusedUIElement(NSApplication*, SEL)
 
 void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
 {
+    SandboxExtension::consumePermanently(parameters.diagnosticsExtensionHandles);
+
 #if HAVE(CATALYST_USER_INTERFACE_IDIOM_AND_SCALE_FACTOR)
     if (canLoad_UIKit__UIApplicationCatalystRequestViewServiceIdiomAndScaleFactor()) {
         auto [overrideUserInterfaceIdiom, overrideScaleFactor] = parameters.overrideUserInterfaceIdiomAndScale;
@@ -328,7 +331,6 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
     if (parameters.containerManagerExtensionHandle)
         SandboxExtension::consumePermanently(*parameters.containerManagerExtensionHandle);
     
-    SandboxExtension::consumePermanently(parameters.diagnosticsExtensionHandles);
 #if PLATFORM(IOS_FAMILY)
     SandboxExtension::consumePermanently(parameters.dynamicMachExtensionHandles);
     SandboxExtension::consumePermanently(parameters.dynamicIOKitExtensionHandles);
@@ -341,10 +343,6 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
     RenderThemeIOS::setCSSValueToSystemColorMap(WTFMove(parameters.cssValueToSystemColorMap));
     RenderThemeIOS::setFocusRingColor(parameters.focusRingColor);
 #endif
-
-    // FIXME(207716): The following should be removed when the GPU process is complete.
-    SandboxExtension::consumePermanently(parameters.mediaExtensionHandles);
-    SandboxExtension::consumePermanently(parameters.gpuIOKitExtensionHandles);
 
 #if ENABLE(CFPREFS_DIRECT_MODE)
     if (parameters.preferencesExtensionHandles) {
@@ -361,6 +359,8 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
 #endif
 
     updateProcessName();
+    
+    SystemSoundManager::singleton().setSystemSoundDelegate(makeUnique<WebSystemSoundDelegate>());
 }
 
 void WebProcess::platformSetWebsiteDataStoreParameters(WebProcessDataStoreParameters&& parameters)

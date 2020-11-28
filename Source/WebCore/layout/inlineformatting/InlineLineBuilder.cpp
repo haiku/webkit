@@ -174,7 +174,7 @@ LineCandidate::InlineContent::InlineContent(bool ignoreTrailingLetterSpacing)
 
 inline void LineCandidate::InlineContent::appendInlineItem(const InlineItem& inlineItem, InlineLayoutUnit logicalWidth)
 {
-    ASSERT(inlineItem.isText() || inlineItem.isBox() || inlineItem.isContainerStart() || inlineItem.isContainerEnd());
+    ASSERT(inlineItem.isText() || inlineItem.isBox() || inlineItem.isInlineBoxStart() || inlineItem.isInlineBoxEnd());
     auto collapsibleWidth = [&]() -> Optional<InlineLayoutUnit> {
         if (!inlineItem.isText())
             return { };
@@ -241,16 +241,16 @@ InlineLayoutUnit LineBuilder::inlineItemWidth(const InlineItem& inlineItem, Inli
         return boxGeometry.marginBoxWidth();
 
     if (layoutBox.isReplacedBox())
-        return boxGeometry.logicalWidth();
+        return boxGeometry.marginBoxWidth();
 
-    if (inlineItem.isContainerStart())
+    if (inlineItem.isInlineBoxStart())
         return boxGeometry.marginStart() + boxGeometry.borderLeft() + boxGeometry.paddingLeft().valueOr(0);
 
-    if (inlineItem.isContainerEnd())
+    if (inlineItem.isInlineBoxEnd())
         return boxGeometry.marginEnd() + boxGeometry.borderRight() + boxGeometry.paddingRight().valueOr(0);
 
     // Non-replaced inline box (e.g. inline-block)
-    return boxGeometry.logicalWidth();
+    return boxGeometry.marginBoxWidth();
 }
 
 LineBuilder::LineBuilder(const InlineFormattingContext& inlineFormattingContext, const FloatingContext& floatingContext, const ContainerBox& formattingContextRoot, const InlineItems& inlineItems)
@@ -276,7 +276,7 @@ LineBuilder::LineContent LineBuilder::layoutInlineContent(const InlineItemRange&
         , lineLogicalTopLeft
         , m_line.horizontalConstraint()
         , m_line.contentLogicalWidth()
-        , m_line.isVisuallyEmpty()
+        , m_line.isConsideredEmpty()
         , isLastLine
         , m_line.runs()};
 }
@@ -360,7 +360,7 @@ LineBuilder::InlineItemRange LineBuilder::close(const InlineItemRange& needsLayo
     if (runsExpandHorizontally)
         m_line.applyRunExpansion();
     auto lineEndsWithHyphen = false;
-    if (!m_line.isVisuallyEmpty()) {
+    if (!m_line.isConsideredEmpty()) {
         ASSERT(!m_line.runs().isEmpty());
         auto& lastTextContent = m_line.runs().last().textContent();
         lineEndsWithHyphen = lastTextContent && lastTextContent->needsHyphen();
@@ -474,11 +474,11 @@ void LineBuilder::nextContentForLine(LineCandidate& lineCandidate, size_t curren
             accumulatedWidth += floatWidth;
             continue;
         }
-        if (inlineItem.isText() || inlineItem.isContainerStart() || inlineItem.isContainerEnd() || inlineItem.isBox()) {
-            auto inlineItenmWidth = inlineItemWidth(inlineItem, currentLogicalRight);
-            lineCandidate.inlineContent.appendInlineItem(inlineItem, inlineItenmWidth);
-            currentLogicalRight += inlineItenmWidth;
-            accumulatedWidth += inlineItenmWidth;
+        if (inlineItem.isText() || inlineItem.isInlineBoxStart() || inlineItem.isInlineBoxEnd() || inlineItem.isBox()) {
+            auto logicalWidth = inlineItemWidth(inlineItem, currentLogicalRight);
+            lineCandidate.inlineContent.appendInlineItem(inlineItem, logicalWidth);
+            currentLogicalRight += logicalWidth;
+            accumulatedWidth += logicalWidth;
             continue;
         }
         if (inlineItem.isWordBreakOpportunity()) {
@@ -519,7 +519,7 @@ size_t LineBuilder::nextWrapOpportunity(size_t startIndex, const LineBuilder::In
             // [text][float box][text] is essentially just [text][text]
             continue;
         }
-        if (inlineItem.isContainerStart() || inlineItem.isContainerEnd()) {
+        if (inlineItem.isInlineBoxStart() || inlineItem.isInlineBoxEnd()) {
             // There's no wrapping opportunity between <span>text, <span></span> or </span>text. 
             continue;
         }
@@ -534,7 +534,7 @@ size_t LineBuilder::nextWrapOpportunity(size_t startIndex, const LineBuilder::In
             // [ex-][ample] vs. [ex-][container start][container end][ample]
             // where [ex-] is startContent and [ample] is the nextContent.
             for (auto candidateIndex = *previousInlineItemIndex + 1; candidateIndex < index; ++candidateIndex) {
-                if (m_inlineItems[candidateIndex].isContainerStart()) {
+                if (m_inlineItems[candidateIndex].isInlineBoxStart()) {
                     // inline content and [container start] and [container end] form unbreakable content.
                     // ex-<span></span>ample  : wrap opportunity is after "ex-".
                     // ex-</span></span>ample : wrap opportunity is after "ex-</span></span>".
@@ -597,7 +597,7 @@ LineBuilder::Result LineBuilder::handleFloatsAndInlineContent(InlineContentBreak
     auto& floatContent = lineCandidate.floatContent;
     // Check if this new content fits.
     auto availableWidth = m_line.availableWidth() - floatContent.intrusiveWidth();
-    auto isLineConsideredEmpty = m_line.isVisuallyEmpty() && !m_contentIsConstrainedByFloat;
+    auto isLineConsideredEmpty = m_line.isConsideredEmpty() && !m_contentIsConstrainedByFloat;
     auto lineStatus = InlineContentBreaker::LineStatus { availableWidth, m_line.trimmableTrailingWidth(), m_line.trailingSoftHyphenWidth(), m_line.isTrailingRunFullyTrimmable(), isLineConsideredEmpty };
     auto result = inlineContentBreaker.processInlineContent(continuousInlineContent, lineStatus);
     if (result.lastWrapOpportunityItem)

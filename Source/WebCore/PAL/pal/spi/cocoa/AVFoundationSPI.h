@@ -102,6 +102,7 @@ typedef NS_OPTIONS(NSUInteger, AVOutputDeviceFeatures) {
 @property (nonatomic, readonly) NSString *name;
 @property (nonatomic, readonly) NSString *deviceName;
 @property (nonatomic, readonly) AVOutputDeviceFeatures deviceFeatures;
+@property (nonatomic, readonly) BOOL supportsHeadTrackedSpatialAudio;
 @end
 
 #if !PLATFORM(IOS_FAMILY)
@@ -354,12 +355,13 @@ NS_ASSUME_NONNULL_END
 @end
 #endif
 
-#if !USE(APPLE_INTERNAL_SDK) && PLATFORM(IOS_FAMILY) && !PLATFORM(IOS_FAMILY_SIMULATOR) && !PLATFORM(MACCATALYST)
+#if !USE(APPLE_INTERNAL_SDK) && PLATFORM(IOS_FAMILY) && !PLATFORM(MACCATALYST)
 #import <AVFoundation/AVAudioSession.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
 @interface AVAudioSession (AVAudioSessionPrivate)
+- (instancetype)initAuxiliarySession;
 @property (readonly) NSString* routingContextUID;
 @end
 

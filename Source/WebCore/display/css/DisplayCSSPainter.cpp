@@ -28,145 +28,19 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
-#include "CachedImage.h"
-#include "Color.h"
+#include "DisplayBoxPainter.h"
 #include "DisplayContainerBox.h"
-#include "DisplayImageBox.h"
+#include "DisplayPaintingContext.h"
 #include "DisplayStyle.h"
-#include "DisplayTextBox.h"
 #include "DisplayTree.h"
 #include "GraphicsContext.h"
 #include "IntRect.h"
-#include "LayoutState.h"
-#include "TextRun.h"
 
 namespace WebCore {
 namespace Display {
 
-void CSSPainter::paintBoxDecorations(const BoxModelBox& displayBox, GraphicsContext& context)
-{
-    // FIXME: Table decoration painting is special.
-
-    auto borderBoxRect = displayBox.absoluteBorderBoxRect();
-    
-    const auto& style = displayBox.style();
-
-    // Background color
-    if (style.hasBackground()) {
-        context.fillRect(borderBoxRect, style.backgroundColor());
-        // FIXME: Paint background image.
-    }
-
-    // Border
-    if (style.hasVisibleBorder()) {
-        auto drawBorderSide = [&](auto start, auto end, const auto& borderStyle) {
-            if (!borderStyle.width())
-                return;
-            if (borderStyle.style() == BorderStyle::None || borderStyle.style() == BorderStyle::Hidden)
-                return;
-            context.setStrokeColor(borderStyle.color());
-            context.setStrokeThickness(borderStyle.width());
-            context.drawLine(start, end);
-        };
-
-        context.setFillColor(Color::transparentBlack);
-
-        // Top
-        {
-            auto borderWidth = style.borderTop().width();
-            auto start = borderBoxRect.minXMinYCorner();
-            auto end = FloatPoint { borderBoxRect.maxX(), start.y() + borderWidth };
-            drawBorderSide(start, end, style.borderTop());
-        }
-
-        // Right
-        {
-            auto borderWidth = style.borderRight().width();
-            auto start = FloatPoint { borderBoxRect.maxX() - borderWidth, borderBoxRect.y() };
-            auto end = FloatPoint { start.x() + borderWidth, borderBoxRect.maxY() };
-            drawBorderSide(start, end, style.borderRight());
-        }
-
-        // Bottom
-        {
-            auto borderWidth = style.borderBottom().width();
-            auto start = FloatPoint { borderBoxRect.x(), borderBoxRect.maxY() - borderWidth };
-            auto end = FloatPoint { borderBoxRect.maxX(), start.y() + borderWidth };
-            drawBorderSide(start, end, style.borderBottom());
-        }
-
-        // Left
-        {
-            auto borderWidth = style.borderLeft().width();
-            auto start = borderBoxRect.minXMinYCorner();
-            auto end = FloatPoint { start.x() + borderWidth, borderBoxRect.maxY() };
-            drawBorderSide(start, end, style.borderLeft());
-        }
-    }
-}
-
-void CSSPainter::paintBoxContent(const Box& box, GraphicsContext& context)
-{
-    if (is<ImageBox>(box)) {
-        auto& imageBox = downcast<ImageBox>(box);
-        
-        auto* image = imageBox.image();
-        auto imageRect = imageBox.replacedContentRect();
-
-        if (image)
-            context.drawImage(*image, imageRect);
-
-        return;
-    }
-    
-    if (is<TextBox>(box)) {
-        auto& textBox = downcast<TextBox>(box);
-        if (!textBox.text())
-            return;
-
-        auto& style = box.style();
-        auto textRect = box.absoluteBoxRect();
-
-        context.setStrokeColor(style.color());
-        context.setFillColor(style.color());
-
-        // FIXME: Add non-baseline align painting
-        auto baseline = textRect.y() + style.fontMetrics().ascent();
-        auto expansion = textBox.expansion();
-
-        auto textRun = TextRun { textBox.text()->content().substring(textBox.text()->start(), textBox.text()->length()), textRect.x(), expansion.horizontalExpansion, expansion.behavior };
-        textRun.setTabSize(!style.collapseWhiteSpace(), style.tabSize());
-        context.drawText(style.fontCascade(), textRun, { textRect.x(), baseline });
-        
-        return;
-    }
-}
-
-void CSSPainter::paintBox(const Box& box, GraphicsContext& context, const IntRect& dirtyRect)
-{
-    auto absoluteRect = box.absoluteBoxRect();
-    // FIXME: Need to account for visual overflow.
-    if (!dirtyRect.intersects(enclosingIntRect(absoluteRect)))
-        return;
-
-    if (is<ImageBox>(box)) {
-        auto& imageBox = downcast<ImageBox>(box);
-        
-        auto* image = imageBox.image();
-        auto imageRect = imageBox.replacedContentRect();
-
-        if (image)
-            context.drawImage(*image, imageRect);
-    }
-
-    if (is<BoxModelBox>(box))
-        paintBoxDecorations(downcast<BoxModelBox>(box), context);
-
-    paintBoxContent(box, context);
-}
-
 // FIXME: Make this an iterator.
-void CSSPainter::recursivePaintDescendants(const ContainerBox& containerBox, GraphicsContext& context, PaintPhase paintPhase)
+void CSSPainter::recursivePaintDescendants(const ContainerBox& containerBox, PaintingContext& paintingContext, PaintPhase paintPhase)
 {
     for (const auto* child = containerBox.firstChild(); child; child = child->nextSibling()) {
         auto& box = *child;
@@ -176,37 +50,37 @@ void CSSPainter::recursivePaintDescendants(const ContainerBox& containerBox, Gra
         switch (paintPhase) {
         case PaintPhase::BlockBackgrounds:
             if (!box.style().isFloating() && !box.style().isPositioned() && is<BoxModelBox>(box))
-                paintBoxDecorations(downcast<BoxModelBox>(box), context);
+                BoxPainter::paintBoxDecorations(downcast<BoxModelBox>(box), paintingContext);
             break;
         case PaintPhase::Floats:
             if (box.style().isFloating() && !box.style().isPositioned() && is<BoxModelBox>(box))
-                paintBoxDecorations(downcast<BoxModelBox>(box), context);
+                BoxPainter::paintBoxDecorations(downcast<BoxModelBox>(box), paintingContext);
             break;
         case PaintPhase::BlockForegrounds:
             if (!box.style().isFloating() && !box.style().isPositioned())
-                paintBoxContent(box, context);
+                BoxPainter::paintBoxContent(box, paintingContext);
         };
         if (is<ContainerBox>(box))
-            recursivePaintDescendants(downcast<ContainerBox>(box), context, paintPhase);
+            recursivePaintDescendants(downcast<ContainerBox>(box), paintingContext, paintPhase);
     }
 }
 
-void CSSPainter::paintStackingContext(const BoxModelBox& contextRoot, GraphicsContext& context, const IntRect& dirtyRect)
+void CSSPainter::paintStackingContext(const BoxModelBox& contextRoot, PaintingContext& paintingContext, const IntRect& dirtyRect)
 {
     UNUSED_PARAM(dirtyRect);
     
-    paintBoxDecorations(contextRoot, context);
+    BoxPainter::paintBoxDecorations(contextRoot, paintingContext);
 
     auto paintDescendants = [&](const ContainerBox& containerBox) {
         // For all its in-flow, non-positioned, block-level descendants in tree order: If the element is a block, list-item, or other block equivalent:
         // Box decorations.
         // Table decorations.
-        recursivePaintDescendants(containerBox, context, PaintPhase::BlockBackgrounds);
+        recursivePaintDescendants(containerBox, paintingContext, PaintPhase::BlockBackgrounds);
 
         // All non-positioned floating descendants, in tree order. For each one of these, treat the element as if it created a new stacking context,
         // but any positioned descendants and descendants which actually create a new stacking context should be considered part of the parent
         // stacking context, not this new one.
-        recursivePaintDescendants(containerBox, context, PaintPhase::Floats);
+        recursivePaintDescendants(containerBox, paintingContext, PaintPhase::Floats);
 
         // If the element is an inline element that generates a stacking context, then:
         // FIXME: Handle this case.
@@ -214,7 +88,7 @@ void CSSPainter::paintStackingContext(const BoxModelBox& contextRoot, GraphicsCo
         // Otherwise: first for the element, then for all its in-flow, non-positioned, block-level descendants in tree order:
         // 1. If the element is a block-level replaced element, then: the replaced content, atomically.
         // 2. Otherwise, for each line box of that element...
-        recursivePaintDescendants(containerBox, context, PaintPhase::BlockForegrounds);
+        recursivePaintDescendants(containerBox, paintingContext, PaintPhase::BlockForegrounds);
     };
 
     if (is<ContainerBox>(contextRoot)) {
@@ -234,7 +108,7 @@ void CSSPainter::paintStackingContext(const BoxModelBox& contextRoot, GraphicsCo
 
         // Stacking contexts formed by positioned descendants with negative z-indices (excluding 0) in z-index order (most negative first) then tree order.
         for (auto* box : negativeZOrderList)
-            paintStackingContext(*box, context, dirtyRect);
+            paintStackingContext(*box, paintingContext, dirtyRect);
 
         paintDescendants(containerBox);
 
@@ -244,12 +118,12 @@ void CSSPainter::paintStackingContext(const BoxModelBox& contextRoot, GraphicsCo
         // generated atomically.
         for (auto* box : positiveZOrderList) {
             if (box->style().isStackingContext())
-                paintStackingContext(*box, context, dirtyRect);
+                paintStackingContext(*box, paintingContext, dirtyRect);
             else if (is<ContainerBox>(*box)) {
-                paintBoxDecorations(*box, context);
+                BoxPainter::paintBoxDecorations(*box, paintingContext);
                 paintDescendants(downcast<ContainerBox>(*box));
             } else
-                paintBox(*box, context, dirtyRect);
+                BoxPainter::paintBox(*box, paintingContext, dirtyRect);
         }
     }
 }
@@ -281,9 +155,9 @@ void CSSPainter::recursiveCollectLayers(const ContainerBox& containerBox, Vector
     }
 }
 
-void CSSPainter::paintTree(const Tree& displayTree, GraphicsContext& context, const IntRect& dirtyRect)
+void CSSPainter::paintTree(const Tree& displayTree, PaintingContext& paintingContext, const IntRect& dirtyRect)
 {
-    paintStackingContext(displayTree.rootBox(), context, dirtyRect);
+    paintStackingContext(displayTree.rootBox(), paintingContext, dirtyRect);
 }
 
 } // namespace Display

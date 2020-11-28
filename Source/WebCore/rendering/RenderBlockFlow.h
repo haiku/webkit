@@ -343,14 +343,11 @@ public:
     bool hasLines() const;
     void invalidateLineLayoutPath() final;
 
-    enum LineLayoutPath { UndeterminedPath = 0, LineBoxesPath, LayoutFormattingContextPath, ForceLineBoxesPath };
+    enum LineLayoutPath { UndeterminedPath = 0, LineBoxesPath, ModernPath, ForceLineBoxesPath };
     LineLayoutPath lineLayoutPath() const { return static_cast<LineLayoutPath>(renderBlockFlowLineLayoutPath()); }
     void setLineLayoutPath(LineLayoutPath path) { setRenderBlockFlowLineLayoutPath(path); }
 
-    // Helper methods for computing line counts and heights for line counts.
-    RootInlineBox* lineAtIndex(int) const;
     int lineCount() const;
-    int heightForLineCount(int);
     void clearTruncation();
 
     void setHasMarkupTruncation(bool b) { setRenderBlockFlowHasMarkupTruncation(b); }
@@ -361,8 +358,8 @@ public:
     const ComplexLineLayout* complexLineLayout() const;
     ComplexLineLayout* complexLineLayout();
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-    const LayoutIntegration::LineLayout* layoutFormattingContextLineLayout() const;
-    LayoutIntegration::LineLayout* layoutFormattingContextLineLayout();
+    const LayoutIntegration::LineLayout* modernLineLayout() const;
+    LayoutIntegration::LineLayout* modernLineLayout();
 #endif
 
     void ensureLineBoxes();
@@ -401,6 +398,7 @@ public:
     void addFloatsToNewParent(RenderBlockFlow& toBlockFlow) const;
     
     LayoutUnit endPaddingWidthForCaret() const;
+    LayoutRect computeCaretRect(const LayoutRect& lineSelectionRect, float logicalLeftPosition, unsigned caretWidth, CaretRectMode = CaretRectMode::Normal) const;
 
 protected:
     bool shouldResetLogicalHeightBeforeLayout() const override { return true; }
@@ -530,7 +528,6 @@ private:
     GapRects inlineSelectionGaps(RenderBlock& rootBlock, const LayoutPoint& rootBlockPhysicalPosition, const LayoutSize& offsetFromRootBlock,
         LayoutUnit& lastLogicalTop, LayoutUnit& lastLogicalLeft, LayoutUnit& lastLogicalRight, const LogicalSelectionOffsetCaches&, const PaintInfo*) override;
     
-    Position positionForBox(InlineBox*, bool start = true) const;
     VisiblePosition positionForPointWithInlineChildren(const LayoutPoint& pointInLogicalContents, const RenderFragmentContainer*) override;
     void addFocusRingRectsForInlineChildren(Vector<LayoutRect>& rects, const LayoutPoint& additionalOffset, const RenderLayerModelObject*) override;
 
@@ -543,8 +540,8 @@ private:
     bool hasComplexLineLayout() const;
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-    bool hasLayoutFormattingContextLineLayout() const;
-    void layoutLFCLines(bool relayoutChildren, LayoutUnit& repaintLogicalTop, LayoutUnit& repaintLogicalBottom);
+    bool hasModernLineLayout() const;
+    void layoutModernLines(bool relayoutChildren, LayoutUnit& repaintLogicalTop, LayoutUnit& repaintLogicalBottom);
 #endif
 
     void adjustIntrinsicLogicalWidthsForColumns(LayoutUnit& minLogicalWidth, LayoutUnit& maxLogicalWidth) const;
@@ -618,19 +615,19 @@ inline ComplexLineLayout* RenderBlockFlow::complexLineLayout()
 }
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-inline bool RenderBlockFlow::hasLayoutFormattingContextLineLayout() const
+inline bool RenderBlockFlow::hasModernLineLayout() const
 {
     return WTF::holds_alternative<std::unique_ptr<LayoutIntegration::LineLayout>>(m_lineLayout);
 }
 
-inline const LayoutIntegration::LineLayout* RenderBlockFlow::layoutFormattingContextLineLayout() const
+inline const LayoutIntegration::LineLayout* RenderBlockFlow::modernLineLayout() const
 {
-    return hasLayoutFormattingContextLineLayout() ? WTF::get<std::unique_ptr<LayoutIntegration::LineLayout>>(m_lineLayout).get() : nullptr;
+    return hasModernLineLayout() ? WTF::get<std::unique_ptr<LayoutIntegration::LineLayout>>(m_lineLayout).get() : nullptr;
 }
 
-inline LayoutIntegration::LineLayout* RenderBlockFlow::layoutFormattingContextLineLayout()
+inline LayoutIntegration::LineLayout* RenderBlockFlow::modernLineLayout()
 {
-    return hasLayoutFormattingContextLineLayout() ? WTF::get<std::unique_ptr<LayoutIntegration::LineLayout>>(m_lineLayout).get() : nullptr;
+    return hasModernLineLayout() ? WTF::get<std::unique_ptr<LayoutIntegration::LineLayout>>(m_lineLayout).get() : nullptr;
 }
 #endif
 

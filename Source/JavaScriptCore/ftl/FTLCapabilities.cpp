@@ -203,7 +203,7 @@ inline CapabilityLevel canCompile(Node* node)
     case CheckVarargs:
     case CheckArray:
     case CheckArrayOrEmpty:
-    case CheckNeutered:
+    case CheckDetached:
     case CountExecution:
     case SuperSamplerBegin:
     case SuperSamplerEnd:
@@ -397,6 +397,8 @@ inline CapabilityLevel canCompile(Node* node)
     case PutByValWithThis:
     case PutPrivateName:
     case PutPrivateNameById:
+    case GetPrivateName:
+    case GetPrivateNameById:
     case MatchStructure:
     case FilterCallLinkStatus:
     case FilterGetByStatus:

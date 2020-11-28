@@ -60,34 +60,33 @@ using namespace JSC;
 
 // Attributes
 
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindowConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindowConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_DOMWindowConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_DOMWindowConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_ExposedToWorkerAndWindowConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_ExposedToWorkerAndWindowConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestConditionalIncludesConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestConditionalIncludesConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestConditionallyReadWriteConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestConditionallyReadWriteConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestDefaultToJSONConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestDefaultToJSONConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestDefaultToJSONFilteredByExposedConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestDefaultToJSONFilteredByExposedConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestEnabledBySettingConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestEnabledBySettingConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestEnabledForContextConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestEnabledForContextConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindowConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_DOMWindowConstructor);
+static JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_DOMWindowConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_ExposedToWorkerAndWindowConstructor);
+static JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_ExposedToWorkerAndWindowConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestConditionalIncludesConstructor);
+static JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestConditionalIncludesConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestConditionallyReadWriteConstructor);
+static JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestConditionallyReadWriteConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestDefaultToJSONConstructor);
+static JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestDefaultToJSONConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestDefaultToJSONFilteredByExposedConstructor);
+static JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestDefaultToJSONFilteredByExposedConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestEnabledBySettingConstructor);
+static JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestEnabledBySettingConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestEnabledForContextConstructor);
+static JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestEnabledForContextConstructor);
 #if ENABLE(Condition1) || ENABLE(Condition2)
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestInterfaceConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestInterfaceConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestInterfaceConstructor);
+static JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestInterfaceConstructor);
 #endif
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestNodeConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestNodeConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestObjectConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestObjectConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestPromiseRejectionEventConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestPromiseRejectionEventConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestNodeConstructor);
+static JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestNodeConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestObjectConstructor);
+static JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestObjectConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsDOMWindow_TestPromiseRejectionEventConstructor);
+static JSC_DECLARE_CUSTOM_SETTER(setJSDOMWindow_TestPromiseRejectionEventConstructor);
 
 using JSDOMWindowDOMConstructor = JSDOMConstructorNotConstructable<JSDOMWindow>;
 
@@ -178,7 +177,7 @@ static const struct CompactHashIndex JSDOMWindowPrototypeTableIndex[2] = {
 
 static const HashTableValue JSDOMWindowPrototypeTableValues[] =
 {
-    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsDOMWindowConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSDOMWindowConstructor) } },
+    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsDOMWindowConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
 };
 
 static const HashTable JSDOMWindowPrototypeTable = { 1, 1, true, JSDOMWindow::info(), JSDOMWindowPrototypeTableValues, JSDOMWindowPrototypeTableIndex };
@@ -226,19 +225,6 @@ JSC_DEFINE_CUSTOM_GETTER(jsDOMWindowConstructor, (JSGlobalObject* lexicalGlobalO
     if (UNLIKELY(!prototype))
         return throwVMTypeError(lexicalGlobalObject, throwScope);
     return JSValue::encode(JSDOMWindow::getConstructor(JSC::getVM(lexicalGlobalObject), prototype->globalObject()));
-}
-
-JSC_DEFINE_CUSTOM_SETTER(setJSDOMWindowConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
-{
-    VM& vm = JSC::getVM(lexicalGlobalObject);
-    auto throwScope = DECLARE_THROW_SCOPE(vm);
-    auto* prototype = jsDynamicCast<JSDOMWindowPrototype*>(vm, JSValue::decode(thisValue));
-    if (UNLIKELY(!prototype)) {
-        throwVMTypeError(lexicalGlobalObject, throwScope);
-        return false;
-    }
-    // Shadowing a built-in constructor
-    return prototype->putDirect(vm, vm.propertyNames->constructor, JSValue::decode(encodedValue));
 }
 
 static inline JSValue jsDOMWindow_DOMWindowConstructorGetter(JSGlobalObject& lexicalGlobalObject, JSDOMWindow& thisObject)

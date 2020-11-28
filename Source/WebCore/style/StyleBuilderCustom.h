@@ -26,7 +26,6 @@
 
 #pragma once
 
-#include "CSSAspectRatioValue.h"
 #include "CSSCursorImageValue.h"
 #include "CSSFontFamily.h"
 #include "CSSFontValue.h"
@@ -71,6 +70,7 @@ inline GapLength forwardInheritedValue(const GapLength& value) { auto copy = val
 class BuilderCustom {
 public:
     // Custom handling of inherit, initial and value setting.
+    DECLARE_PROPERTY_CUSTOM_HANDLERS(AspectRatio);
     DECLARE_PROPERTY_CUSTOM_HANDLERS(BorderImageOutset);
     DECLARE_PROPERTY_CUSTOM_HANDLERS(BorderImageRepeat);
     DECLARE_PROPERTY_CUSTOM_HANDLERS(BorderImageSlice);
@@ -98,7 +98,6 @@ public:
     DECLARE_PROPERTY_CUSTOM_HANDLERS(Stroke);
     DECLARE_PROPERTY_CUSTOM_HANDLERS(TextIndent);
     DECLARE_PROPERTY_CUSTOM_HANDLERS(TextShadow);
-    DECLARE_PROPERTY_CUSTOM_HANDLERS(WebkitAspectRatio);
     DECLARE_PROPERTY_CUSTOM_HANDLERS(WebkitBoxShadow);
     DECLARE_PROPERTY_CUSTOM_HANDLERS(FontVariantLigatures);
     DECLARE_PROPERTY_CUSTOM_HANDLERS(FontVariantNumeric);
@@ -1162,42 +1161,6 @@ inline void BuilderCustom::applyValueBaselineShift(BuilderState& builderState, C
     }
 }
 
-inline void BuilderCustom::applyInitialWebkitAspectRatio(BuilderState& builderState)
-{
-    builderState.style().setAspectRatioType(RenderStyle::initialAspectRatioType());
-    builderState.style().setAspectRatioDenominator(RenderStyle::initialAspectRatioDenominator());
-    builderState.style().setAspectRatioNumerator(RenderStyle::initialAspectRatioNumerator());
-}
-
-inline void BuilderCustom::applyInheritWebkitAspectRatio(BuilderState& builderState)
-{
-    if (builderState.parentStyle().aspectRatioType() == AspectRatioType::Auto)
-        return;
-    builderState.style().setAspectRatioType(builderState.parentStyle().aspectRatioType());
-    builderState.style().setAspectRatioDenominator(builderState.parentStyle().aspectRatioDenominator());
-    builderState.style().setAspectRatioNumerator(builderState.parentStyle().aspectRatioNumerator());
-}
-
-inline void BuilderCustom::applyValueWebkitAspectRatio(BuilderState& builderState, CSSValue& value)
-{
-    if (is<CSSPrimitiveValue>(value)) {
-        auto& primitiveValue = downcast<CSSPrimitiveValue>(value);
-
-        if (primitiveValue.valueID() == CSSValueFromDimensions)
-            return builderState.style().setAspectRatioType(AspectRatioType::FromDimensions);
-        if (primitiveValue.valueID() == CSSValueFromIntrinsic)
-            return builderState.style().setAspectRatioType(AspectRatioType::FromIntrinsic);
-
-        ASSERT(primitiveValue.valueID() == CSSValueAuto);
-        return builderState.style().setAspectRatioType(AspectRatioType::Auto);
-    }
-
-    auto& aspectRatioValue = downcast<CSSAspectRatioValue>(value);
-    builderState.style().setAspectRatioType(AspectRatioType::Specified);
-    builderState.style().setAspectRatioDenominator(aspectRatioValue.denominatorValue());
-    builderState.style().setAspectRatioNumerator(aspectRatioValue.numeratorValue());
-}
-
 inline void BuilderCustom::applyInitialWebkitTextEmphasisStyle(BuilderState& builderState)
 {
     builderState.style().setTextEmphasisFill(RenderStyle::initialTextEmphasisFill());
@@ -1210,6 +1173,40 @@ inline void BuilderCustom::applyInheritWebkitTextEmphasisStyle(BuilderState& bui
     builderState.style().setTextEmphasisFill(builderState.parentStyle().textEmphasisFill());
     builderState.style().setTextEmphasisMark(builderState.parentStyle().textEmphasisMark());
     builderState.style().setTextEmphasisCustomMark(builderState.parentStyle().textEmphasisCustomMark());
+}
+
+inline void BuilderCustom::applyInitialAspectRatio(BuilderState& builderState)
+{
+    builderState.style().setAspectRatioType(RenderStyle::initialAspectRatioType());
+    builderState.style().setAspectRatio(RenderStyle::initialAspectRatioWidth(), RenderStyle::initialAspectRatioHeight());
+}
+
+inline void BuilderCustom::applyInheritAspectRatio(BuilderState&)
+{
+}
+
+inline void BuilderCustom::applyValueAspectRatio(BuilderState& builderState, CSSValue& value)
+{
+    if (is<CSSPrimitiveValue>(value)) {
+        ASSERT(downcast<CSSPrimitiveValue>(value).valueID() == CSSValueAuto);
+        return builderState.style().setAspectRatioType(AspectRatioType::Auto);
+    }
+
+    if (!is<CSSValueList>(value))
+        return;
+
+    auto& list = downcast<CSSValueList>(value);
+    if (list.item(1)->isValueList()) {
+        builderState.style().setAspectRatioType(AspectRatioType::AutoAndRatio);
+        auto ratioList = downcast<CSSValueList>(list.item(1));
+        ASSERT(ratioList->length() == 2);
+        builderState.style().setAspectRatio(downcast<CSSPrimitiveValue>(ratioList->item(0))->doubleValue(), downcast<CSSPrimitiveValue>(ratioList->item(1))->doubleValue());
+        return;
+    }
+
+    builderState.style().setAspectRatioType(AspectRatioType::Ratio);
+    ASSERT(list.length() == 2);
+    builderState.style().setAspectRatio(downcast<CSSPrimitiveValue>(list.item(0))->doubleValue(), downcast<CSSPrimitiveValue>(list.item(1))->doubleValue());
 }
 
 inline void BuilderCustom::applyValueWebkitTextEmphasisStyle(BuilderState& builderState, CSSValue& value)

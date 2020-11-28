@@ -32,6 +32,7 @@
 #include "SampleBufferDisplayLayerManager.h"
 #include <WebCore/PlatformMediaSession.h>
 #include <wtf/RefCounted.h>
+#include <wtf/WeakHashSet.h>
 #include <wtf/text/WTFString.h>
 
 namespace IPC {
@@ -81,6 +82,20 @@ public:
 
     void updateParameters(const WebPageCreationParameters&);
 
+#if ENABLE(VP9)
+    bool isVP9DecoderEnabled() const { return m_enableVP9Decoder; }
+    bool isVPSWDecoderEnabled() const { return m_enableVP9SWDecoder; }
+#endif
+
+    class Client : public CanMakeWeakPtr<Client> {
+    public:
+        virtual ~Client() = default;
+
+        virtual void gpuProcessConnectionDidClose(GPUProcessConnection&) { }
+    };
+    void addClient(const Client& client) { m_clients.add(client); }
+    void removeClient(const Client& client) { m_clients.remove(client); }
+
 private:
     GPUProcessConnection(IPC::Connection::Identifier);
 
@@ -112,6 +127,7 @@ private:
     bool m_enableVP9Decoder { false };
     bool m_enableVP9SWDecoder { false };
 #endif
+    WeakHashSet<Client> m_clients;
 };
 
 } // namespace WebKit

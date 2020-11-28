@@ -1,3 +1,1373 @@
+2020-11-12  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Uncaught Exception: TypeError: undefined is not an object (evaluating 'target.DOMAgent.hideHighlight')
+        https://bugs.webkit.org/show_bug.cgi?id=218836
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Controllers/DOMManager.js:
+        (WI.DOMManager.prototype.hideDOMNodeHighlight):
+        Some views eagerly call this when `detached`, possibly even before the `WI.mainTarget` has
+        been established (i.e. it's still a `WI.MultiplexingBackendTarget`). Rather than add a
+        specific check for the `WI.mainTarget`, just iterate over `WI.targets` and check each target
+        since that's eventually what's going to need to be done anyways.
+
+2020-11-12  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(?): Graphics: cannot click on recording icon more than once
+        https://bugs.webkit.org/show_bug.cgi?id=218834
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/ContextMenuUtilities.js:
+        (WI.addMouseDownContextMenuHandlers):
+        Only ignore future `"mousedown"` events if the `WI.ContextMenu` actually has items.
+
+2020-11-12  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(?): Sources: WebSocket status not shown when organized By Path
+        https://bugs.webkit.org/show_bug.cgi?id=218679
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/SourcesNavigationSidebarPanel.js:
+        (WI.SourcesNavigationSidebarPanel.prototype._addResource):
+        Make sure to use `WI.WebSocketResourceTreeElement` for `WI.WebSocketResource`.
+
+2020-11-11  John Wilander  <wilander@apple.com>
+
+        PCM: Change from ad-click-attribution to private-click-measurement (in all forms, including .well-known URL)
+        https://bugs.webkit.org/show_bug.cgi?id=218730
+        <rdar://problem/71094296>
+
+        Reviewed by Alex Christensen.
+
+        Change to the official name of the proposed standard Private Click Measurement
+        https://github.com/privacycg/private-click-measurement.
+
+        This includes a change of the reporting URL from 
+        "/.well-known/ad-click-attribution/" to
+        "/.well-known/private-click-measurement/".
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Base/Main.js:
+        * UserInterface/Models/ConsoleMessage.js:
+        * UserInterface/Models/IssueMessage.js:
+        (WI.IssueMessage):
+        * UserInterface/Protocol/Legacy/14.0/InspectorBackendCommands.js:
+
+2020-11-11  Brian Burg  <bburg@apple.com>
+
+        [Cocoa] Inspector Extensions: Add _WKInspectorExtension and related plumbing
+        https://bugs.webkit.org/show_bug.cgi?id=217783
+        <rdar://problem/69968787>
+
+        Reviewed by Devin Rousso.
+
+        * UserInterface/Main.html: Add new files.
+
+        * UserInterface/Controllers/AppControllerBase.js:
+        (WI.AppControllerBase):
+        (WI.AppControllerBase.prototype.get extensionController):
+        Hang the extension controller off of the global singleton, as there can only be one.
+
+        * UserInterface/Controllers/WebInspectorExtensionController.js:
+        (WI.WebInspectorExtensionController):
+        (WI.WebInspectorExtensionController.prototype.registerExtension):
+        (WI.WebInspectorExtensionController.prototype.unregisterExtension):
+        Added. For now, just keep the UUIDs in a map and log the result.
+
+        * UserInterface/Models/WebInspectorExtension.js:
+        (WI.WebInspectorExtension):
+        (WI.WebInspectorExtension.prototype.get extensionID):
+        (WI.WebInspectorExtension.prototype.get displayName):
+        Added. This is a data object for now.
+
+        * UserInterface/Protocol/InspectorFrontendAPI.js:
+        (InspectorFrontendAPI.loadCompleted):
+        (InspectorFrontendAPI.registerExtension):
+        (InspectorFrontendAPI.unregisterExtension):
+        Added. Forward invocations to the extension controller.
+
+2020-11-10  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r269660.
+        https://bugs.webkit.org/show_bug.cgi?id=218786
+
+        Crashing in EWS iOS simulator bots
+
+        Reverted changeset:
+
+        "PCM: Change from ad-click-attribution to private-click-
+        measurement (in all forms, including .well-known URL)"
+        https://bugs.webkit.org/show_bug.cgi?id=218730
+        https://trac.webkit.org/changeset/269660
+
+2020-11-10  John Wilander  <wilander@apple.com>
+
+        PCM: Change from ad-click-attribution to private-click-measurement (in all forms, including .well-known URL)
+        https://bugs.webkit.org/show_bug.cgi?id=218730
+        <rdar://problem/71094296>
+
+        Reviewed by Devin Rousso.
+
+        Change to the official name of the proposed standard Private Click Measurement
+        https://github.com/privacycg/private-click-measurement.
+
+        This includes a change of the reporting URL from 
+        "/.well-known/ad-click-attribution/" to
+        "/.well-known/private-click-measurement/".
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Base/Main.js:
+        * UserInterface/Models/ConsoleMessage.js:
+        * UserInterface/Models/IssueMessage.js:
+        (WI.IssueMessage):
+        * UserInterface/Protocol/Legacy/14.0/InspectorBackendCommands.js:
+
+2020-11-06  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Sources: default breakpoint action should be evaluate
+        https://bugs.webkit.org/show_bug.cgi?id=218674
+
+        Reviewed by Joseph Pecoraro.
+
+        * UserInterface/Views/BreakpointPopover.js:
+        (WI.BreakpointPopover.prototype._handleAddActionButtonClick):
+
+2020-11-06  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r269486.
+
+        Caused 50+ timeouts on Mac Debug WK2
+
+        Reverted changeset:
+
+        "[Cocoa] Inspector Extensions: Add _WKInspectorExtension and
+        related plumbing"
+        https://bugs.webkit.org/show_bug.cgi?id=217783
+        https://trac.webkit.org/changeset/269486
+
+2020-11-05  Brian Burg  <bburg@apple.com>
+
+        [Cocoa] Inspector Extensions: Add _WKInspectorExtension and related plumbing
+        https://bugs.webkit.org/show_bug.cgi?id=217783
+        <rdar://problem/69968787>
+
+        Reviewed by Devin Rousso.
+
+        * UserInterface/Main.html: Add new files.
+
+        * UserInterface/Controllers/AppControllerBase.js:
+        (WI.AppControllerBase):
+        (WI.AppControllerBase.prototype.get extensionController):
+        Hang the extension controller off of the global singleton, as there can only be one.
+
+        * UserInterface/Controllers/WebInspectorExtensionController.js:
+        (WI.WebInspectorExtensionController):
+        (WI.WebInspectorExtensionController.prototype.registerExtension):
+        (WI.WebInspectorExtensionController.prototype.unregisterExtension):
+        Added. For now, just keep the UUIDs in a map and log the result.
+
+        * UserInterface/Models/WebInspectorExtension.js:
+        (WI.WebInspectorExtension):
+        (WI.WebInspectorExtension.prototype.get extensionID):
+        (WI.WebInspectorExtension.prototype.get displayName):
+        Added. This is a data object for now.
+
+        * UserInterface/Protocol/InspectorFrontendAPI.js:
+        (InspectorFrontendAPI.loadCompleted):
+        (InspectorFrontendAPI.registerExtension):
+        (InspectorFrontendAPI.unregisterExtension):
+        Added. Forward invocations to the extension controller.
+
+2020-11-05  Patrick Angle  <pangle@apple.com>
+
+        Web Inspector: REGRESSION(?): Sources: override banner is squished for large images
+        https://bugs.webkit.org/show_bug.cgi?id=218196
+
+        Reviewed by Devin Rousso.
+
+        Progressions made in https://trac.webkit.org/changeset/266695/webkit caused the image container to occupy the
+        maximum amount of space possible, which caused the override banner to be squished and a scrollbar to appear.
+        This is resolved by making sure the minimum dimensions of the image containers are 0, so that the container can
+        be `flex-shrink`ed.
+
+        * UserInterface/Views/ImageResourceContentView.css:
+        (.content-view.resource.image > .img-container):
+
+2020-11-04  David Kilzer  <ddkilzer@apple.com>
+
+        WebKit should remove unused debug variant support
+        <https://webkit.org/b/218315>
+        <rdar://problem/70785369>
+
+        Reviewed by Darin Adler.
+
+        Remove support for building the debug variant since it is
+        currently unused. We now set default values for the
+        DEAD_CODE_STRIPPING, DEBUG_DEFINES, GCC_OPTIMIZATION_LEVEL and
+        STRIP_INSTALLED_PRODUCT variables.
+
+        Also move these values out of the Xcode project into
+        Base.xcconfig files using the [config=Debug] specifier so that
+        these overrides are next to the definitions.
+
+        Additional changes in behavior are noted below.
+
+        * Configurations/Base.xcconfig:
+        - Set up DEAD_CODE_STRIPPING, DEBUG_DEFINES,
+          GCC_OPTIMIZATION_LEVEL and STRIP_INSTALLED_PRODUCT the same
+          as other WebKit projects. Previously dead code was always
+          stripped in Debug builds. Previously symbols were never
+          stripped in Release or Production builds. Previously Debug
+          builds were built with -Os instead of -O0.
+
+        * WebInspectorUI.xcodeproj/project.pbxproj:
+        - Move DEBUG_DEFINES to Base.xcconfig.
+
+2020-11-04  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: use weak collections for holding event listeners
+        https://bugs.webkit.org/show_bug.cgi?id=196956
+
+        Reviewed by Brian Burg.
+
+        Replace the `ListMultimap`/`LinkedList` with a `Multimap` for holding listener data:
+        ```
+            Map<String eventType, Set<{Function listener, WeakRef thisObject}>> _listeners;
+        ```
+        This preserves addition order while also not strongly holding any `thisObject` so they can
+        be GCed (and remove the `listener` along with it).
+
+        * UserInterface/Base/Object.js:
+        (WI.Object.addEventListener):
+        (WI.Object.singleFireEventListener):
+        (WI.Object.awaitEvent):
+        (WI.Object.removeEventListener):
+        (WI.Object.prototype.singleFireEventListener):
+        (WI.Object.prototype.removeEventListener):
+        (WI.Object.prototype.dispatchEventToListeners.dispatch):
+        (WI.Object.hasEventListeners):
+        (WI.Object.activelyListeningObjectsWithPrototype): Added.
+        (WI.Object.prototype.activelyListeningObjectsWithPrototype): Added.
+
+        * UserInterface/Base/SearchUtilities.js:
+        (WI.SearchUtilities.createSettings):
+        (WI.SearchUtilities.createSettingsButton):
+        * UserInterface/Base/Main.js:
+        (WI.loaded):
+        (WI.contentLoaded):
+        * UserInterface/Models/Resource.js:
+        (WI.Resource.prototype.requestContent):
+        * UserInterface/Controllers/RuntimeManager.js:
+        (WI.RuntimeManager):
+        * UserInterface/Views/AuditTestCaseContentView.js:
+        (WI.AuditTestCaseContentView.prototype.showRunningPlaceholder):
+        * UserInterface/Views/AuditTestContentView.js:
+        (WI.AuditTestContentView.prototype.showNoResultPlaceholder):
+        * UserInterface/Views/AuditTestGroupContentView.js:
+        (WI.AuditTestGroupContentView.prototype.showRunningPlaceholder):
+        * UserInterface/Views/CodeMirrorEditor.js:
+        (WI.CodeMirrorEditor.create):
+        * UserInterface/Debug/Bootstrap.js:
+        (WI.runBootstrapOperations):
+        * UserInterface/Views/ConsoleDrawer.js:
+        (WI.ConsoleDrawer):
+        * UserInterface/Views/ConsoleMessageView.js:
+        (WI.ConsoleMessageView.prototype.clearSessionState):
+        (WI.ConsoleMessageView.prototype._appendSavedResultIndex):
+        (WI.ConsoleMessageView.prototype._rootPropertyPathForObject):
+        * UserInterface/Views/ContentBrowser.js:
+        (WI.ContentBrowser):
+        (WI.ContentBrowser.prototype.async handleFindNextShortcut):
+        (WI.ContentBrowser.prototype.async handleFindPreviousShortcut):
+        * UserInterface/Views/HeapSnapshotContentView.js:
+        (WI.HeapSnapshotContentView):
+        * UserInterface/Views/LogContentView.js:
+        (WI.LogContentView):
+        * UserInterface/Views/MediaTimelineOverviewGraph.js:
+        (WI.MediaTimelineOverviewGraph.prototype._processRecord):
+        * UserInterface/Views/NetworkDetailView.js:
+        (WI.NetworkDetailView.prototype.initialLayout):
+        * UserInterface/Views/ObjectTreeView.js:
+        (WI.ObjectTreeView.prototype.addShowMoreIfNeeded):
+        * UserInterface/Views/SearchSidebarPanel.js:
+        (WI.SearchSidebarPanel):
+        (WI.SearchSidebarPanel.prototype.closed):
+        (WI.SearchSidebarPanel.prototype.performSearch):
+        * UserInterface/Views/SettingEditor.js:
+        (WI.SettingEditor.createForSetting):
+        * UserInterface/Views/SettingsTabContentView.js:
+        (WI.SettingsTabContentView.prototype._createGeneralSettingsView):
+        (WI.SettingsTabContentView.prototype._createConsoleSettingsView):
+        (WI.SettingsTabContentView.prototype._createExperimentalSettingsView.listenForChange):
+        (WI.SettingsTabContentView.prototype._createExperimentalSettingsView):
+        (WI.SettingsTabContentView.prototype._createDebugSettingsView):
+        * UserInterface/Views/ShaderProgramContentView.js:
+        (WI.ShaderProgramContentView):
+        * UserInterface/Views/SourcesNavigationSidebarPanel.js:
+        (WI.SourcesNavigationSidebarPanel):
+        (WI.SourcesNavigationSidebarPanel.prototype.closed):
+        (WI.SourcesNavigationSidebarPanel.prototype.createContentTreeOutline):
+        * UserInterface/Views/SpreadsheetCSSStyleDeclarationSection.js:
+        (WI.SpreadsheetCSSStyleDeclarationSection.prototype.initialLayout):
+        * UserInterface/Views/SpreadsheetStyleProperty.js:
+        (WI.SpreadsheetStyleProperty.prototype._createInlineSwatch):
+        * UserInterface/Views/ThreadTreeElement.js:
+        (WI.ThreadTreeElement.prototype._updateStatus):
+        * UserInterface/Views/TimelineTreeElement.js:
+        (WI.TimelineTreeElement.prototype._showCloseButton):
+        Update callers of `WI.Object.prototype.addEventListener` to always pass a `thisObject`. This
+        is especially important for inlined `listener`, as there needs to be a strong reference to
+        some "longer lived" `thisObject` (which is held by a `WeakRef`) in order for the `listener`
+        to not be GCed.
+
+        * UserInterface/Models/DOMNodeStyles.js:
+        (WI.DOMNodeStyles):
+        (WI.DOMNodeStyles.prototype._parseStyleDeclarationPayload):
+        (WI.DOMNodeStyles.prototype._parseRulePayload):
+        (WI.DOMNodeStyles.prototype._handleCSSStyleSheetContentDidChange): Added.
+        (WI.DOMNodeStyles.prototype._styleSheetContentDidChange): Deleted.
+        * UserInterface/Views/TimelineRecordingProgressView.js:
+        (WI.TimelineRecordingProgressView):
+        (WI.TimelineRecordingProgressView.prototype.set visible):
+        (WI.TimelineRecordingProgressView.prototype._updateState):
+        Use a global event listener instead of adding event listeners to specific objects as it's
+        already likely that all the objects would be listened to anyways.
+
+        * UserInterface/Models/DOMTree.js:
+        (WI.DOMTree.prototype.disconnect):
+        * UserInterface/Controllers/ApplicationCacheManager.js:
+        (WI.ApplicationCacheManager.prototype.disable):
+        * UserInterface/Controllers/CallFrameTreeController.js:
+        (WI.CallFrameTreeController.prototype.disconnect):
+        * UserInterface/Controllers/DOMStorageManager.js:
+        (WI.DOMStorageManager.prototype.disable):
+        * UserInterface/Controllers/DatabaseManager.js:
+        (WI.DatabaseManager.prototype.disable):
+        * UserInterface/Controllers/IndexedDBManager.js:
+        (WI.IndexedDBManager.prototype.disable):
+        * UserInterface/Controllers/TimelineManager.js:
+        (WI.TimelineManager.prototype.capturingStopped):
+        * UserInterface/Views/ApplicationCacheDetailsSidebarPanel.js:
+        (WI.ApplicationCacheDetailsSidebarPanel.prototype.closed):
+        * UserInterface/Views/ApplicationCacheFrameContentView.js:
+        (WI.ApplicationCacheFrameContentView.prototype.closed):
+        * UserInterface/Views/AuditNavigationSidebarPanel.js:
+        (WI.AuditNavigationSidebarPanel.prototype.closed):
+        * UserInterface/Views/AuditTreeElement.js:
+        (WI.AuditTreeElement.prototype.ondetach):
+        * UserInterface/Views/CPUTimelineView.js:
+        (WI.CPUTimelineView.prototype.closed):
+        * UserInterface/Views/CanvasContentView.js:
+        (WI.CanvasContentView.prototype.detached):
+        * UserInterface/Views/CanvasOverviewContentView.js:
+        (WI.CanvasOverviewContentView.prototype.detached):
+        * UserInterface/Views/CanvasSidebarPanel.js:
+        (WI.CanvasSidebarPanel.prototype.set canvas):
+        (WI.CanvasSidebarPanel.prototype.set recording):
+        (WI.CanvasSidebarPanel.prototype.hidden):
+        * UserInterface/Views/ClusterContentView.js:
+        (WI.ClusterContentView.prototype.closed):
+        * UserInterface/Views/CollectionContentView.js:
+        (WI.CollectionContentView.prototype.removeContentViewForItem):
+        (WI.CollectionContentView.prototype.detached):
+        * UserInterface/Views/ContentBrowserTabContentView.js:
+        (WI.ContentBrowserTabContentView.prototype.hidden):
+        (WI.ContentBrowserTabContentView.prototype.closed):
+        * UserInterface/Views/DOMNodeDetailsSidebarPanel.js:
+        (WI.DOMNodeDetailsSidebarPanel.prototype.closed):
+        * UserInterface/Views/DOMTreeContentView.js:
+        (WI.DOMTreeContentView.prototype.closed):
+        * UserInterface/Views/DOMTreeUpdater.js:
+        (WI.DOMTreeUpdater.prototype.close):
+        * UserInterface/Views/ElementsTabContentView.js:
+        (WI.ElementsTabContentView.prototype.closed):
+        * UserInterface/Views/FrameDOMTreeContentView.js:
+        (WI.FrameDOMTreeContentView.prototype.closed):
+        * UserInterface/Views/GeneralStyleDetailsSidebarPanel.js:
+        (WI.GeneralStyleDetailsSidebarPanel.prototype.removeEventListeners):
+        * UserInterface/Views/HeapAllocationsTimelineView.js:
+        (WI.HeapAllocationsTimelineView):
+        (WI.HeapAllocationsTimelineView.prototype.closed):
+        * UserInterface/Views/ImageResourceContentView.js:
+        (WI.ImageResourceContentView.prototype.closed): Deleted.
+        * UserInterface/Views/InlineSwatch.js:
+        (WI.InlineSwatch.prototype.didDismissPopover):
+        * UserInterface/Views/LayoutTimelineView.js:
+        (WI.LayoutTimelineView.prototype.closed):
+        * UserInterface/Views/LocalResourceOverrideWarningView.js:
+        (WI.LocalResourceOverrideWarningView.prototype.detached):
+        * UserInterface/Views/MemoryTimelineView.js:
+        (WI.MemoryTimelineView.prototype.closed):
+        * UserInterface/Views/MultipleScopeBarItem.js:
+        (WI.MultipleScopeBarItem.prototype.set scopeBarItems):
+        * UserInterface/Views/NavigationSidebarPanel.js:
+        (WI.NavigationSidebarPanel.prototype.closed):
+        * UserInterface/Views/NetworkTimelineView.js:
+        (WI.NetworkTimelineView.prototype.closed):
+        * UserInterface/Views/OverviewTimelineView.js:
+        (WI.OverviewTimelineView.prototype.closed):
+        * UserInterface/Views/ProbeDetailsSidebarPanel.js:
+        (WI.ProbeDetailsSidebarPanel.prototype.closed):
+        * UserInterface/Views/QuickConsole.js:
+        (WI.QuickConsole.prototype.closed):
+        * UserInterface/Views/RecordingContentView.js:
+        (WI.RecordingContentView.prototype._handleRecordingProcessedAction):
+        * UserInterface/Views/RenderingFrameTimelineView.js:
+        (WI.RenderingFrameTimelineView.prototype.closed):
+        * UserInterface/Views/ResourceCollectionContentView.js:
+        (WI.ResourceCollectionContentView.prototype.detached):
+        (WI.ResourceCollectionContentView.prototype.contentViewRemoved):
+        * UserInterface/Views/ResourceContentView.js:
+        (WI.ResourceContentView.prototype.closed):
+        * UserInterface/Views/ResourceDetailsSidebarPanel.js:
+        (WI.ResourceDetailsSidebarPanel.prototype.set resource):
+        (WI.ResourceDetailsSidebarPanel.prototype._applyResourceEventListeners):
+        (WI.ResourceDetailsSidebarPanel.prototype._handleResourceInitiatedResourcesDidChange): Added.
+        * UserInterface/Views/ResourceHeadersContentView.js:
+        (WI.ResourceHeadersContentView.prototype.closed):
+        * UserInterface/Views/ResourceSecurityContentView.js:
+        (WI.ResourceSecurityContentView.prototype.closed):
+        * UserInterface/Views/ResourceSizesContentView.js:
+        (WI.ResourceSizesContentView.prototype.closed):
+        * UserInterface/Views/ResourceTimingContentView.js:
+        (WI.ResourceTimingContentView.prototype.closed):
+        * UserInterface/Views/ScopeChainDetailsSidebarPanel.js:
+        (WI.ScopeChainDetailsSidebarPanel.prototype._generateCallFramesSection):
+        (WI.ScopeChainDetailsSidebarPanel.prototype._generateWatchExpressionsSection):
+        (WI.ScopeChainDetailsSidebarPanel.prototype.closed):
+        * UserInterface/Views/ScriptContentView.js:
+        (WI.ScriptContentView.prototype.closed):
+        * UserInterface/Views/ScriptDetailsTimelineView.js:
+        (WI.ScriptDetailsTimelineView.prototype.closed):
+        * UserInterface/Views/ScriptProfileTimelineView.js:
+        (WI.ScriptProfileTimelineView.prototype.closed):
+        * UserInterface/Views/SourceCodeTextEditor.js:
+        (WI.SourceCodeTextEditor.prototype.close):
+        (WI.SourceCodeTextEditor.prototype._showPopover):
+        (WI.SourceCodeTextEditor.prototype._showPopoverForObject):
+        (WI.SourceCodeTextEditor.prototype._dismissPopover):
+        (WI.SourceCodeTextEditor.prototype._trackPopoverEvents): Deleted.
+        * UserInterface/Views/StorageSidebarPanel.js:
+        (WI.StorageSidebarPanel.prototype.closed):
+        * UserInterface/Views/TextResourceContentView.js:
+        (WI.TextResourceContentView.prototype.closed):
+        * UserInterface/Views/TimelineOverview.js:
+        (WI.TimelineOverview.prototype.closed):
+        * UserInterface/Views/TimelineRecordingContentView.js:
+        (WI.TimelineRecordingContentView):
+        (WI.TimelineRecordingContentView.prototype.closed):
+        (WI.TimelineRecordingContentView.prototype._recordingUnloaded):
+        * UserInterface/Views/TimelineRuler.js:
+        (WI.TimelineRuler.prototype.clearMarkers):
+        * UserInterface/Views/TimelineTabContentView.js:
+        (WI.TimelineTabContentView.prototype.closed):
+        * UserInterface/Views/TreeOutlineGroup.js:
+        (WI.TreeOutlineGroup.prototype.itemRemoved):
+        Replace the `removeEventListener(null, null, this)` pattern by instead having callers remove
+        each event listener explicitly. This is a safer design as it can avoid situations where
+        parent classes inadvertently remove event listeners added by subclasses. For objects with
+        lots of event listeners this is also more efficient as it doesn't require as much iteration.
+
+        * UserInterface/Views/RecordingActionTreeElement.js:
+        (WI.RecordingActionTreeElement):
+        (WI.RecordingActionTreeElement.prototype._handleValidityChanged):
+        Use `singleFireEventListener` where possible.
+
+        * UserInterface/Controllers/DebuggerManager.js:
+        (WI.DebuggerManager.prototype.pause):
+        (WI.DebuggerManager.prototype.resume):
+        (WI.DebuggerManager.prototype.stepNext):
+        (WI.DebuggerManager.prototype.stepOver):
+        (WI.DebuggerManager.prototype.stepInto):
+        (WI.DebuggerManager.prototype.stepOut):
+        * UserInterface/Views/BreakpointTreeElement.js:
+        (WI.BreakpointTreeElement.prototype.onattach):
+        (WI.BreakpointTreeElement.prototype.ondetach):
+        (WI.BreakpointTreeElement.prototype.get listenerSet): Deleted.
+        * UserInterface/Views/DataGrid.js:
+        (WI.DataGrid.prototype.insertColumn):
+        (WI.DataGrid.prototype.removeColumn):
+        * UserInterface/Views/JavaScriptBreakpointTreeElement.js:
+        (WI.JavaScriptBreakpointTreeElement):
+        (WI.JavaScriptBreakpointTreeElement.prototype.onattach):
+        (WI.JavaScriptBreakpointTreeElement.prototype.ondetach):
+        * UserInterface/Views/ProbeSetDataGrid.js:
+        (WI.ProbeSetDataGrid):
+        (WI.ProbeSetDataGrid.prototype.closed):
+        (WI.ProbeSetDataGrid.prototype._setupData):
+        (WI.ProbeSetDataGrid.prototype._teardownData):
+        * UserInterface/Views/ProbeSetDetailsSection.js:
+        (WI.ProbeSetDetailsSection):
+        (WI.ProbeSetDetailsSection.prototype.closed):
+        Remove the legacy `WI.EventListener` and `WI.EventListenerSet` as they basically do the same
+        thing as `WI.Object` with extra steps.
+
+        * UserInterface/Models/WebSocketResource.js:
+        * UserInterface/Proxies/HeapSnapshotWorkerProxy.js:
+        * UserInterface/Controllers/TargetManager.js:
+        * UserInterface/Views/DataGridNode.js:
+        (WI.DataGridNode.prototype.collapse):
+        (WI.DataGridNode.prototype.expand):
+        (WI.DataGridNode.prototype.reveal):
+        (WI.DataGridNode.prototype.traverseNextNode):
+        (WI.DataGridNode.prototype.traversePreviousNode):
+        * UserInterface/Views/HeapSnapshotClassDataGridNode.js:
+        (WI.HeapSnapshotClassDataGridNode):
+        (WI.HeapSnapshotClassDataGridNode.prototype._populate):
+        * UserInterface/Views/HeapSnapshotInstanceDataGridNode.js:
+        (WI.HeapSnapshotInstanceDataGridNode):
+        * UserInterface/Views/ProfileDataGridNode.js:
+        (WI.ProfileDataGridNode):
+        (WI.ProfileDataGridNode.prototype._populate):
+        * UserInterface/Views/ProfileNodeDataGridNode.js:
+        (WI.ProfileNodeDataGridNode):
+        (WI.ProfileNodeDataGridNode.prototype._populate):
+        * UserInterface/Views/TreeOutline.js:
+        * UserInterface/Workers/HeapSnapshot/HeapSnapshotWorker.js:
+        (HeapSnapshotWorker.prototype.createSnapshot):
+        Ensure that all event names are strings defined on the class `Event` object.
+
+        * UserInterface/Views/Sidebar.js:
+        (WI.Sidebar.prototype.set selectedSidebarPanel):
+        Drive-by: fix an issue where `hidden` is called twice, once from the selected sidebar panel
+        being changed and then again when that sidebar panel is removed.
+
+        * .eslintrc:
+        * UserInterface/Base/EventListener.js: Removed.
+        * UserInterface/Base/EventListenerSet.js: Removed.
+        * UserInterface/Base/LinkedList.js: Removed.
+        * UserInterface/Base/ListMultimap.js: Removed.
+        * UserInterface/Main.html:
+        * UserInterface/Test.html:
+        * UserInterface/TestStub.html:
+        * Tools/SourceMaps/index.html:
+
+2020-11-03  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Elements: should have the option to Edit Breakpoint... or at least Reveal Breakpoint in Sources Tab
+        https://bugs.webkit.org/show_bug.cgi?id=218366
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/BreakpointPopover.js:
+        (WI.BreakpointPopover.appendContextMenuItems):
+        * UserInterface/Views/DOMTreeElement.js:
+        (WI.DOMTreeElement.prototype.get statusImageElement): Added.
+        (WI.DOMTreeElement.prototype._statusImageContextmenu):
+        * UserInterface/Views/DOMTreeOutline.js:
+        (WI.DOMTreeOutline.prototype.populateContextMenu):
+        * UserInterface/Views/ContextMenuUtilities.js:
+        (WI.appendContextMenuItemsForDOMNodeBreakpoints):
+        Show an "Edit Breakpoint..." action (via `WI.BreakpointPopover.appendContextMenuItems`) when
+        there is only one `WI.DOMBreakpoint` (if there are multiple then it would be confusing),
+        otherwise using "Breakpoints" (plural) for the other actions.
+
+        * UserInterface/Base/Main.js:
+        (WI.showSourcesTab):
+        * UserInterface/Views/EventListenerSectionGroup.js:
+        (WI.EventListenerSectionGroup):
+        * UserInterface/Views/SourceCodeTextEditor.js:
+        (WI.SourceCodeTextEditor.prototype.textEditorGutterContextMenu):
+        * UserInterface/Views/SourcesTabContentView.js:
+        (WI.SourcesTabContentView.prototype.revealAndSelectRepresentedObject): Added.
+        (WI.SourcesTabContentView.prototype.revealAndSelectBreakpoint): Deleted.
+        Rename `breakpointToSelect` to `representedObjectToSelect` for more flexibility in the case
+        that there are multiple `WI.DOMBreakpoint` for the given `WI.DOMNode`, in which case we want
+        to select the `WI.DOMNode` instead.
+
+        * Localizations/en.lproj/localizedStrings.js:
+
+2020-10-30  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Extra closing parenthesis added after var in styles panel
+        https://bugs.webkit.org/show_bug.cgi?id=218295
+        <rdar://problem/70771314>
+
+        Reviewed by Devin Rousso.
+
+        * UserInterface/Views/SpreadsheetStyleProperty.js:
+        (WI.SpreadsheetStyleProperty.prototype._addVariableTokens):
+        Remove `contents.push(token)` which was adding `)`. The closing parenthesis that was already
+        included in rawTokens above.
+        Drive-by: rawTokens.slice() should never include `i` as the 2nd argument. `i` is an index of an item
+        in the `tokens` - a different array.
+
+2020-10-29  Federico Bucchi  <fbucchi@apple.com>
+
+        Web Inspector: Uncaught Exception: undefined is not an object (evaluating 'value.truncate')
+        https://bugs.webkit.org/show_bug.cgi?id=218061
+        <rdar://problem/70551334>
+
+        Reviewed by Devin Rousso.
+
+        * UserInterface/Views/DOMStorageContentView.js:
+        (WI.DOMStorageContentView.prototype.itemUpdated):
+
+2020-10-29  Federico Bucchi  <fbucchi@apple.com>
+
+        Web Inspector: update styles to use CSS properties with neutral directionality
+        https://bugs.webkit.org/show_bug.cgi?id=217447
+        <rdar://problem/70064975>
+
+        Reviewed by Devin Rousso.
+
+        * UserInterface/Debug/UncaughtExceptionReporter.css:
+        (.uncaught-exception-sheet):
+        (.uncaught-exception-sheet h1 > img):
+        (.uncaught-exception-sheet h2 > img):
+        (.uncaught-exception-sheet dd):
+        (.uncaught-exception-sheet ul):
+        * UserInterface/Views/AuditNavigationSidebarPanel.css:
+        (.content-view.tab.audit .content-view .reference-page-link-container):
+        (body[dir=ltr] .content-view.tab.audit .content-view .reference-page-link-container): Deleted.
+        (body[dir=rtl] .content-view.tab.audit .content-view .reference-page-link-container): Deleted.
+        * UserInterface/Views/AuditTestCaseContentView.css:
+        (.content-view.audit-test-case > header):
+        (.content-view.audit-test-case > header h1 > img):
+        (.content-view.audit-test-case > header > .metadata > .source):
+        (.content-view.audit-test-case > header > .metadata > .duration):
+        * UserInterface/Views/AuditTestContentView.css:
+        (.content-view.audit-test > header):
+        * UserInterface/Views/AuditTestGroupContentView.css:
+        (.content-view.audit-test-group > header):
+        (.content-view.audit-test-group > header > nav > .scope-bar > li:last-child):
+        (.content-view.audit-test-group > header > nav > .scope-bar > li > img):
+        (.content-view.audit-test-group > header > .percentage-pass):
+        * UserInterface/Views/BezierEditor.css:
+        (.bezier-editor > .bezier-preview-timing):
+        * UserInterface/Views/BlackboxSettingsView.css:
+        (.settings-view.blackbox > table > tbody td.remove-blackbox > .remove-blackbox-button):
+        * UserInterface/Views/BoxModelDetailsSectionRow.css:
+        (.details-section .row.box-model .box.border > .label):
+        * UserInterface/Views/BoxShadowEditor.css:
+        (.box-shadow-editor > table > tr > td):
+        (.box-shadow-editor > table > tr.offset-x > td > svg):
+        * UserInterface/Views/BreakpointActionView.css:
+        (:matches(.breakpoint-action-append-button, .breakpoint-action-remove-button)):
+        (.breakpoint-action-block-body > .description):
+        * UserInterface/Views/BreakpointPopover.css:
+        (.popover .edit-breakpoint-popover-content input:is(#edit-breakpoint-popover-ignore-count, #edit-breakpoint-popover-auto-continue)):
+        (.popover .edit-breakpoint-popover-content > .reference-page-link-container):
+        (body[dir=ltr] .popover .edit-breakpoint-popover-content > .reference-page-link-container): Deleted.
+        (body[dir=rtl] .popover .edit-breakpoint-popover-content > .reference-page-link-container): Deleted.
+        * UserInterface/Views/ButtonNavigationItem.css:
+        (.navigation-bar .item.button.image-and-text > span):
+        * UserInterface/Views/CPUTimelineOverviewGraph.css:
+        (.timeline-overview-graph.cpu > .legend):
+        (body[dir=ltr] .timeline-overview-graph.cpu > .legend): Deleted.
+        (body[dir=rtl] .timeline-overview-graph.cpu > .legend): Deleted.
+        * UserInterface/Views/CPUTimelineView.css:
+        (.timeline-view.cpu > .content .subtitle > .info):
+        (.timeline-view.cpu > .content > .details > .timeline-ruler):
+        (.timeline-view.cpu > .content > .overview > .divider):
+        (.timeline-view.cpu > .content > .overview .legend):
+        (.timeline-view.cpu > .content > .overview .legend .swatch):
+        (.timeline-view.cpu > .content > .overview > .chart > .container.stats > table .filter.active + .filter.active):
+        (body[dir=ltr] .timeline-view.cpu > .content > .details > .timeline-ruler): Deleted.
+        (body[dir=rtl] .timeline-view.cpu > .content > .details > .timeline-ruler): Deleted.
+        (body[dir=ltr] .timeline-view.cpu > .content > .overview > .divider): Deleted.
+        (body[dir=rtl] .timeline-view.cpu > .content > .overview > .divider): Deleted.
+        * UserInterface/Views/CPUUsageCombinedView.css:
+        (.cpu-usage-combined-view > .details):
+        (.cpu-usage-combined-view > .details > .legend-container > .row > .swatch):
+        (body[dir=ltr] .cpu-usage-combined-view > .details): Deleted.
+        (body[dir=rtl] .cpu-usage-combined-view > .details): Deleted.
+        * UserInterface/Views/CPUUsageView.css:
+        (.cpu-usage-view > .details):
+        (body[dir=ltr] .cpu-usage-view > .details): Deleted.
+        (body[dir=rtl] .cpu-usage-view > .details): Deleted.
+        * UserInterface/Views/CallFrameTreeElement.css:
+        (.tree-outline .item.call-frame .status):
+        (body[dir=rtl] .tree-outline .item.call-frame .status):
+        (.tree-outline:not(.single-thread) > .children > .item.call-frame.async-boundary):
+        (.tree-outline .item.call-frame.async-boundary .icon):
+        (.tree-outline .item.call-frame.async-boundary::after):
+        (.tree-outline .item.call-frame.async-boundary::before):
+        (body[dir=ltr] .tree-outline .item.call-frame .status): Deleted.
+        * UserInterface/Views/CallFrameView.css:
+        (.call-frame .icon):
+        * UserInterface/Views/CanvasDetailsSidebarPanel.css:
+        (.sidebar > .panel.details.canvas .details-section.canvas-extensions .content > ul):
+        * UserInterface/Views/CanvasOverviewContentView.css:
+        (.content-view.canvas-overview > .content-view.canvas > footer > .view-related-items > img + img):
+        (.content-view.canvas-overview > .content-view.canvas > footer .memory-cost):
+        * UserInterface/Views/CheckboxNavigationItem.css:
+        (.navigation-bar .item.checkbox label):
+        * UserInterface/Views/ColorPicker.css:
+        (.color-picker .slider):
+        (.color-picker > .color-inputs > div + div):
+        * UserInterface/Views/ComputedStyleSection.css:
+        (.computed-style-section .computed-property-item .disclosure-button):
+        * UserInterface/Views/ConsoleMessageView.css:
+        (.console-message.expandable .console-top-level-message::before):
+        * UserInterface/Views/CookiePopover.css:
+        (.popover .cookie-popover-content > table > tr > td):
+        * UserInterface/Views/CreateAuditPopover.css:
+        (.popover .create-audit-content > .editor-wrapper > .reference-page-link):
+        * UserInterface/Views/DOMNodeDetailsSidebarPanel.css:
+        (.sidebar > .panel.dom-node-details .details-section.dom-node-associated-data > .content .row):
+        * UserInterface/Views/DOMTreeContentView.css:
+        (.content-view.dom-tree .tree-outline.dom):
+        (.content-view.dom-tree.show-gutter .tree-outline.dom):
+        (.content-view.dom-tree .tree-outline.dom li .status-image):
+        (body[dir=rtl] .content-view.dom-tree .tree-outline.dom li .status-image):
+        (body[dir=ltr] .content-view.dom-tree .tree-outline.dom li .status-image): Deleted.
+        * UserInterface/Views/DOMTreeOutline.css:
+        (.tree-outline.dom ol):
+        (.tree-outline.dom li:matches(.hovered, .selected) + ol.children.expanded):
+        * UserInterface/Views/DataGrid.css:
+        (.data-grid th:matches(.sort-ascending, .sort-descending) > .header-cell-content:first-child::after):
+        (.data-grid td .icon):
+        (.data-grid td .go-to-arrow):
+        (body[dir=ltr] .data-grid th:matches(.sort-ascending, .sort-descending) > .header-cell-content:first-child::after): Deleted.
+        (body[dir=rtl] .data-grid th:matches(.sort-ascending, .sort-descending) > .header-cell-content:first-child::after): Deleted.
+        * UserInterface/Views/DetailsSection.css:
+        (.details-section > .header):
+        (.details-section > .header > label > input[type="checkbox"]):
+        (.details-section > .header .go-to-arrow):
+        (.details-section > .content > .group > .row.simple > .label):
+        (.details-section > .content > .group > .row.simple > .value):
+        (.details-section > .content > .group > .row.simple > .value .go-to-arrow):
+        * UserInterface/Views/ErrorObjectView.css:
+        (.error-object > .formatted-error::before):
+        (.error-object .content):
+        * UserInterface/Views/FilterBar.css:
+        (.filter-bar > input[type="search"]):
+        (:matches(.filter-bar, .search-bar) > input[type="search"]::-webkit-search-results-button):
+        (:matches(.filter-bar, .search-bar) > .navigation-bar + input[type="search"]):
+        (:matches(.filter-bar, .search-bar) > input[type="search"]:focus):
+        (:matches(.filter-bar, .search-bar) > input[type="search"] + :empty):
+        (:matches(.filter-bar, .search-bar) > input[type="search"] + .navigation-bar > .item.scope-bar:last-child):
+        * UserInterface/Views/FindBanner.css:
+        (.find-banner > :first-child):
+        (.find-banner > :last-child):
+        (.find-banner > input[type="search"]):
+        (.find-banner > button.segmented):
+        (.find-banner > button.segmented.previous-result):
+        (.find-banner > button.segmented.next-result):
+        (body[dir=ltr] .find-banner > button.segmented.next-result):
+        (body[dir=rtl] .find-banner > button.segmented.next-result):
+        (.find-banner > button.segmented.next-result > .glyph):
+        (.find-banner.console-find-banner > input[type="search"]::-webkit-textfield-decoration-container):
+        (body[dir=ltr] .find-banner > button.segmented.previous-result): Deleted.
+        (body[dir=rtl] .find-banner > button.segmented.previous-result): Deleted.
+        * UserInterface/Views/FlexibleSpaceNavigationItem.css:
+        (.navigation-bar .item.flexible-space.align-start > .item):
+        (.navigation-bar .item.flexible-space.align-end > .item):
+        * UserInterface/Views/FontResourceContentView.css:
+        (.content-view.resource.font .preview > .line > .metric):
+        * UserInterface/Views/GeneralStyleDetailsSidebarPanel.css:
+        (.sidebar > .panel.details.css-style > .content ~ .options-container > .new-rule):
+        (.sidebar > .panel.details.css-style > .content ~ .options-container > .toggle-class-toggle):
+        (.panel.exclusive-presentation.details.css-style > .content > .rules):
+        * UserInterface/Views/GraphicsOverviewContentView.css:
+        (.content-view.graphics-overview > section > .header):
+        * UserInterface/Views/HierarchicalPathComponent.css:
+        (.hierarchical-path-component > :matches(.icon, .selector-arrows)):
+        (.hierarchical-path-component > select):
+        (.hierarchical-path-component > .separator):
+        (.hierarchical-path-component.text-only):
+        (body[dir=ltr] .hierarchical-path-component > select): Deleted.
+        (body[dir=rtl] .hierarchical-path-component > select): Deleted.
+        (body[dir=ltr] .hierarchical-path-component.text-only > select): Deleted.
+        (body[dir=rtl] .hierarchical-path-component.text-only > select): Deleted.
+        * UserInterface/Views/LayerTreeDetailsSidebarPanel.css:
+        (.layer-tree-popover ul):
+        * UserInterface/Views/Layers3DContentView.css:
+        (.content-view.layers-3d .layer-info ul):
+        * UserInterface/Views/LocalResourceOverridePopover.css:
+        (.popover .local-resource-override-popover-content label.is-case-sensitive):
+        (.popover .local-resource-override-popover-content .editor.status-text):
+        * UserInterface/Views/LogContentView.css:
+        (.content-view.log > .hidden-messages-banner > button):
+        (.content-view.log > .hidden-messages-banner > .dismiss):
+        (.console-group-title::before):
+        (body[dir=rtl] .console-group-title::before):
+        (body[dir=ltr] .content-view.log > .hidden-messages-banner > .dismiss): Deleted.
+        (body[dir=rtl] .content-view.log > .hidden-messages-banner > .dismiss): Deleted.
+        (body[dir=ltr] .console-group-title::before): Deleted.
+        * UserInterface/Views/Main.css:
+        (.go-to-link:not(.dont-float)):
+        (@media (-webkit-device-pixel-ratio: 1) .reference-page-link):
+        (.device-settings-content .container > * + *):
+        (.device-settings-content label > input):
+        (.device-settings-content > .reference-page-link-container):
+        (body[dir=ltr] .device-settings-content > .reference-page-link-container): Deleted.
+        (body[dir=rtl] .device-settings-content > .reference-page-link-container): Deleted.
+        * UserInterface/Views/MemoryCategoryView.css:
+        (.memory-category-view > .details):
+        (body[dir=ltr] .memory-category-view > .details): Deleted.
+        (body[dir=rtl] .memory-category-view > .details): Deleted.
+        * UserInterface/Views/MemoryTimelineOverviewGraph.css:
+        (.timeline-overview-graph.memory > .legend):
+        (.timeline-overview-graph.memory .memory-pressure-event):
+        (body[dir=ltr] .timeline-overview-graph.memory > .legend): Deleted.
+        (body[dir=rtl] .timeline-overview-graph.memory > .legend): Deleted.
+        (body[dir=ltr] .timeline-overview-graph.memory .memory-pressure-event): Deleted.
+        (body[dir=rtl] .timeline-overview-graph.memory .memory-pressure-event): Deleted.
+        * UserInterface/Views/MemoryTimelineView.css:
+        (.timeline-view.memory > .content > .details > .timeline-ruler):
+        (.timeline-view.memory > .content > .overview > .divider):
+        (.timeline-view.memory .legend):
+        (.timeline-view.memory .legend .swatch):
+        (body[dir=ltr] .timeline-view.memory > .content > .details > .timeline-ruler): Deleted.
+        (body[dir=rtl] .timeline-view.memory > .content > .details > .timeline-ruler): Deleted.
+        (body[dir=ltr] .timeline-view.memory > .content > .overview > .divider): Deleted.
+        (body[dir=rtl] .timeline-view.memory > .content > .overview > .divider): Deleted.
+        * UserInterface/Views/NetworkTableContentView.css:
+        (.content-view.tab.network > .content-browser > .navigation-bar .hierarchical-path .icon):
+        (.content-view.network .network-table > .table .icon):
+        (.network-table > .table.grouped .data-container .cell:not(.parent).name):
+        (.network-table > .table.grouped .data-container .cell.child.name):
+        (.network-table > .table .cell.domain > .lock):
+        (.network-table > .table .cell.name > .status):
+        (.network-table > .table :not(.header) .cell.waterfall):
+        (.network-table > .statistics > .statistic > .text):
+        (body[dir=ltr] .network-table > .table :not(.header) .cell.waterfall): Deleted.
+        (body[dir=rtl] .network-table > .table :not(.header) .cell.waterfall): Deleted.
+        * UserInterface/Views/ObjectTreeArrayIndexTreeElement.css:
+        (.object-tree-array-index .index-value .object-tree .tree-outline.object):
+        (.object-tree-array-index .index-value .formatted-node .tree-outline.dom):
+        * UserInterface/Views/ObjectTreePropertyTreeElement.css:
+        (.item.object-tree-property.prototype-property + ol):
+        * UserInterface/Views/ObjectTreeView.css:
+        (.tree-outline.object ol):
+        (.tree-outline.object li > button[disabled] + .indeterminate-progress-spinner):
+        * UserInterface/Views/OpenResourceDialog.css:
+        (.open-resource-dialog > .field):
+        (.open-resource-dialog > .field::before):
+        (.open-resource-dialog > .field > input):
+        (.open-resource-dialog > .field > img):
+        (.open-resource-dialog > .tree-outline .item):
+        (body[dir=ltr] .open-resource-dialog > .field::before): Deleted.
+        (body[dir=rtl] .open-resource-dialog > .field::before): Deleted.
+        (body[dir=ltr] .open-resource-dialog > .field > img): Deleted.
+        (body[dir=rtl] .open-resource-dialog > .field > img): Deleted.
+        * UserInterface/Views/QuickConsole.css:
+        (.quick-console > .navigation-bar .active-execution-context):
+        (.quick-console > .navigation-bar .active-execution-context > .selector-arrows):
+        (.quick-console > .navigation-bar .active-execution-context:not(.automatic)):
+        * UserInterface/Views/RecordingActionTreeElement.css:
+        (.item.recording-action:not(.initial-state)::before):
+        (.tree-outline:not(.hide-disclosure-buttons) .item.recording-action:not(.initial-state, .parent) > .icon):
+        * UserInterface/Views/RecordingStateDetailsSidebarPanel.css:
+        (.sidebar > .panel.details.recording-state > .content .details-section > .header .source):
+        * UserInterface/Views/ResourceDetailsSection.css:
+        (.resource-details > section > .details):
+        (.resource-details > section > .details > p):
+        (.resource-details > section > .details > .pair):
+        (.resource-details > section > .details > .pair > .key):
+        (body[dir=ltr] .resource-details > section > .details): Deleted.
+        (body[dir=rtl] .resource-details > section > .details): Deleted.
+        * UserInterface/Views/ResourceSecurityContentView.css:
+        (.resource-security .details > .show-certificate > .key > .error):
+        * UserInterface/Views/ResourceSizesContentView.css:
+        (.resource-sizes > .content > section.network .warning):
+        * UserInterface/Views/ResourceTimingBreakdownView.css:
+        (.resource-timing-breakdown > table > tr > td.time):
+        * UserInterface/Views/ScopeBar.css:
+        (.scope-bar > li.multiple > select):
+        (.scope-bar > li.multiple > .arrows):
+        (body[dir=ltr] .scope-bar > li.multiple > select): Deleted.
+        (body[dir=rtl] .scope-bar > li.multiple > select): Deleted.
+        * UserInterface/Views/SearchSidebarPanel.css:
+        (.sidebar > .panel.navigation.search > .search-bar > .search-settings):
+        * UserInterface/Views/SettingsTabContentView.css:
+        (.content-view.tab.settings > .settings-view > .container button):
+        (.content-view.tab.settings > .settings-view > .container > .title):
+        (.content-view.tab.settings > .settings-view > .container > .editor-group > .editor input[type="checkbox"]):
+        (.content-view.tab.settings > .settings-view > .container > .editor-group > .editor input[type="number"]):
+        (.content-view.tab.settings > .settings-view > .container.reference > a):
+        * UserInterface/Views/ShaderProgramContentView.css:
+        (.content-view.shader-program > .shader.compute,):
+        (body[dir=ltr] .content-view.shader-program > .shader.vertex:not(.shares-vertex-fragment-shader),):
+        (body[dir=ltr] .content-view.shader-program > .shader.fragment,):
+        * UserInterface/Views/SingleSidebar.css:
+        (.single-sidebar.trailing > .resizer):
+        (.single-sidebar.leading > .resizer):
+        (body[dir=ltr] .single-sidebar.trailing > .resizer,): Deleted.
+        (body[dir=ltr] .single-sidebar.leading > .resizer,): Deleted.
+        * UserInterface/Views/SourcesNavigationSidebarPanel.css:
+        (.sidebar > .panel.navigation.sources > .content .tree-outline.single-thread):
+        * UserInterface/Views/SpreadsheetCSSStyleDeclarationEditor.css:
+        (.spreadsheet-style-declaration-editor .property .select-variable-property):
+        * UserInterface/Views/SpreadsheetCSSStyleDeclarationSection.css:
+        (.spreadsheet-css-declaration .selector > .icon):
+        (.spreadsheet-css-declaration .selector > .icon + *):
+        (.spreadsheet-css-declaration .selector.style-attribute > span):
+        * UserInterface/Views/SpringEditor.css:
+        (.spring-editor > .spring-timing):
+        (.spring-editor > .spring-timing::before):
+        (.spring-editor > .spring-timing::after):
+        (body[dir=ltr] .spring-editor > .spring-timing::before,): Deleted.
+        (body[dir=ltr] .spring-editor > .spring-timing::after,): Deleted.
+        * UserInterface/Views/TabBar.css:
+        (.tab-bar > .navigation-bar > .item.group > .item:nth-child(1 of :not(.hidden))):
+        (.tab-bar > .navigation-bar > .item.group > .item:nth-last-child(1 of :not(.hidden))):
+        (body:not(.docked) .tab-bar > .tabs > .item:nth-child(n + 3 of :not(.hidden)),):
+        (body:not(.docked) .tab-bar > .tabs:not(.hide-border-end) > .item:nth-last-child(1 of :not(.hidden))):
+        (body:not(.docked) .tab-bar > .tabs:not(.animating) > .item:not(.selected, .disabled):hover,):
+        (body:not(.docked) .tab-bar > .tabs:not(.animating) > .item:last-child:not(.selected, .disabled):hover):
+        (.tab-bar > .tabs > .item > .name):
+        (body[dir=ltr]:not(.docked) .tab-bar > .tabs > .item:nth-child(n + 3 of :not(.hidden)),): Deleted.
+        (body[dir=ltr]:not(.docked) .tab-bar > .tabs:not(.hide-border-end) > .item:nth-last-child(1 of :not(.hidden)),): Deleted.
+        (body[dir=ltr]:not(.docked) .tab-bar > .tabs:not(.animating) > .item:not(.selected, .disabled):hover,): Deleted.
+        (body[dir=ltr]:not(.docked) .tab-bar > .tabs:not(.animating) > .item:last-child:not(.selected, .disabled):hover,): Deleted.
+        * UserInterface/Views/Table.css:
+        (.table > .header > :matches(.sort-ascending, .sort-descending)):
+        (.table > .header > :matches(.sort-ascending, .sort-descending)::after):
+        (.table > .header .cell:not(:first-child)::before):
+        (body[dir=ltr] .table > .header > :matches(.sort-ascending, .sort-descending)::after): Deleted.
+        (body[dir=rtl] .table > .header > :matches(.sort-ascending, .sort-descending)::after): Deleted.
+        (body[dir=ltr] .table > .header .cell:not(:first-child)::before): Deleted.
+        (body[dir=rtl] .table > .header .cell:not(:first-child)::before): Deleted.
+        * UserInterface/Views/ThreadTreeElement.css:
+        (.tree-outline > .item.thread + ol > .item.truncated-call-frames):
+        (.tree-outline > .item.thread + ol > .item.truncated-call-frames .icon):
+        * UserInterface/Views/TimelineOverview.css:
+        (.timeline-overview > :matches(.navigation-bar.timelines, .tree-outline.timelines)):
+        (.timeline-overview:not(.frames) > :matches(.scroll-container, .timeline-ruler, .graphs-container)):
+        (.timeline-overview > .scroll-container > .scroll-width-sizer):
+        (body[dir=ltr] .timeline-overview > :matches(.navigation-bar.timelines, .tree-outline.timelines)): Deleted.
+        (body[dir=rtl] .timeline-overview > :matches(.navigation-bar.timelines, .tree-outline.timelines)): Deleted.
+        (body[dir=ltr] .timeline-overview:not(.frames) > :matches(.scroll-container, .timeline-ruler, .graphs-container)): Deleted.
+        (body[dir=rtl] .timeline-overview:not(.frames) > :matches(.scroll-container, .timeline-ruler, .graphs-container)): Deleted.
+        (body[dir=ltr] .timeline-overview > .scroll-container > .scroll-width-sizer): Deleted.
+        (body[dir=rtl] .timeline-overview > .scroll-container > .scroll-width-sizer): Deleted.
+        * UserInterface/Views/TimelineRecordBar.css:
+        (.timeline-record-bar > img):
+        (.timeline-record-bar > .segment):
+        (body[dir=ltr] .timeline-record-bar > .segment:last-of-type):
+        (body[dir=ltr] .timeline-record-bar > .segment): Deleted.
+        (body[dir=rtl] .timeline-record-bar > .segment): Deleted.
+        * UserInterface/Views/TimelineRecordingContentView.css:
+        (.content-view.timeline-recording > .content-browser .recording-progress > .status > .indeterminate-progress-spinner):
+        * UserInterface/Views/TimelineRuler.css:
+        (.timeline-ruler > .header > .divider > .label):
+        (.timeline-ruler > .markers > .marker):
+        (.timeline-ruler > .markers > .marker::before):
+        (.timeline-ruler > .markers > .marker::after):
+        (.timeline-ruler > .shaded-area.left):
+        (.timeline-ruler > .shaded-area.right):
+        (body[dir=ltr] .timeline-ruler > .header > .divider > .label): Deleted.
+        (body[dir=rtl] .timeline-ruler > .header > .divider > .label): Deleted.
+        (body[dir=ltr] .timeline-ruler > .markers > .marker): Deleted.
+        (body[dir=rtl] .timeline-ruler > .markers > .marker): Deleted.
+        (body[dir=ltr] .timeline-ruler > .markers > .marker::before): Deleted.
+        (body[dir=rtl] .timeline-ruler > .markers > .marker::before): Deleted.
+        (body[dir=ltr] .timeline-ruler > .markers > .marker::after): Deleted.
+        (body[dir=rtl] .timeline-ruler > .markers > .marker::after): Deleted.
+        (body[dir=ltr] .timeline-ruler > .shaded-area.left,): Deleted.
+        (body[dir=ltr] .timeline-ruler > .shaded-area.right,): Deleted.
+        * UserInterface/Views/TreeOutline.css:
+        (.tree-outline:not(.hide-disclosure-buttons) .item:not(.parent) > .icon):
+        (.tree-outline .item .icon):
+        (.tree-outline .item .status):
+        * UserInterface/Views/TreeOutline.js:
+        (WI.TreeOutline._generateStyleRulesIfNeeded):
+        * UserInterface/Views/TypeTreeElement.css:
+        (.item.type-tree-element.prototype):
+        (.item.type-tree-element.prototype + ol):
+        * UserInterface/Views/TypeTreeView.css:
+        (.tree-outline.type):
+        (.tree-outline.type ol):
+        (.tree-outline.type li .empty-message):
+        * UserInterface/Views/WebSocketContentView.css:
+        (.web-socket.content-view > .data-grid .data-column > div):
+        (.web-socket.content-view .icon):
+        (body[dir=ltr] .web-socket.content-view .icon): Deleted.
+        (body[dir=rtl] .web-socket.content-view .icon): Deleted.
+
+2020-10-28  Federico Bucchi  <fbucchi@apple.com>
+
+        Web Inspector: Network: background color of rows from previous session is wrong
+        https://bugs.webkit.org/show_bug.cgi?id=218058
+        <rdar://problem/70550459>
+
+        Reviewed by Devin Rousso.
+
+        * UserInterface/Views/NetworkTableContentView.css:
+        (.network-table > .table li:not(.filler, .selected) .cell:not(.name, .current-session),):
+        (.network-table > .table li:not(.filler, .selected) .cell:not(.current-session)): Deleted.
+
+2020-10-27  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: truncate data URLs in the Resources sidebar and Headers panel
+        https://bugs.webkit.org/show_bug.cgi?id=218262
+
+        Reviewed by Darin Adler.
+
+        * UserInterface/Base/Main.js:
+        (WI.createResourceLink):
+        * UserInterface/Views/ResourceDetailsSidebarPanel.js:
+        (WI.ResourceDetailsSidebarPanel.prototype._refreshURL):
+        * UserInterface/Views/ResourceHeadersContentView.js:
+        (WI.ResourceHeadersContentView.prototype._refreshSummarySection):
+
+2020-10-27  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Search: don't steal focus from the search field when shown
+        https://bugs.webkit.org/show_bug.cgi?id=218260
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/SearchSidebarPanel.js:
+        (WI.SearchSidebarPanel.prototype.focusSearchField):
+        (WI.SearchSidebarPanel.prototype.performSearch.createTreeElementForMatchObject):
+
+2020-10-27  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(r266669): Uncaught Exception: TypeError: node.nodeType is not a function. (In 'node.nodeType()', 'node.nodeType' is undefined)
+        https://bugs.webkit.org/show_bug.cgi?id=218254
+
+        Reviewed by Joseph Pecoraro.
+
+        r266669 changed `WI.DOMBreakpoint` to use `WI.DOMNode` instead of `DOM.NodeId`, meaning that
+        `WI.DOMTreeContentView.prototype._updateBreakpointStatus` now expects a `WI.DOMNode`.
+
+        * UserInterface/Views/DOMTreeContentView.js:
+        (WI.DOMTreeContentView.prototype._domTreeElementAdded):
+
+2020-10-26  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: console command line API should be exposed to breakpoint conditions/actions
+        https://bugs.webkit.org/show_bug.cgi?id=218141
+        <rdar://problem/70636727>
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Controllers/CodeMirrorCompletionController.js:
+        (WI.CodeMirrorCompletionController):
+        (WI.CodeMirrorCompletionController.prototype.get mode): Added.
+        (WI.CodeMirrorCompletionController.prototype.get delegate): Deleted.
+        * UserInterface/Controllers/JavaScriptRuntimeCompletionProvider.js:
+        (WI.JavaScriptRuntimeCompletionProvider.prototype.completionControllerCompletionsNeeded):
+        (WI.JavaScriptRuntimeCompletionProvider.prototype.completionControllerCompletionsNeeded.shouldExposeEvent): Added.
+        (WI.JavaScriptRuntimeCompletionProvider.prototype.completionControllerCompletionsNeeded.shouldExposeException): Added.
+        (WI.JavaScriptRuntimeCompletionProvider.prototype.completionControllerCompletionsNeeded.receivedPropertyNames):
+        Introduce a `Mode` enum that can be fetched by completion providers to adjust functionality.
+
+        * UserInterface/Views/BreakpointPopover.js:
+        (WI.BreakpointPopover.appendContextMenuItems):
+        (WI.BreakpointPopover.prototype.show):
+        (WI.BreakpointPopover.prototype.breakpointActionViewCodeMirrorCompletionControllerMode): Added.
+        (WI.BreakpointPopover.prototype.get codeMirrorCompletionControllerMode): Added.
+        * UserInterface/Views/EventBreakpointPopover.js:
+        (WI.EventBreakpointPopover.prototype.get codeMirrorCompletionControllerMode): Added.
+        * UserInterface/Views/BreakpointActionView.js:
+        (WI.BreakpointActionView.prototype._updateBody):
+        Use a `Mode` that always exposes `$event`/`$exception` depending on the breakpoint type.
+
+        * UserInterface/Views/ConsolePrompt.js:
+        (WI.ConsolePrompt):
+        Use a `Mode` that only exposes `$event`/`$exception` when paused for an event/exeption.
+
+        * UserInterface/Views/ScopeChainDetailsSidebarPanel.js:
+        (WI.ScopeChainDetailsSidebarPanel.prototype._addWatchExpressionButtonClicked):
+        Use a `Mode` that always exposes `$event`/`$exception` since watch expressions track values
+        over time, and may therefore not always have an `$event`/`$exception` set.
+
+        * UserInterface/Views/TextEditor.js:
+        (WI.TextEditor):
+        Use the default `Mode` that never exposes `$event`/`$exception`.
+
+2020-10-26  Patrick Angle  <pangle@apple.com>
+
+        Web Inspector: Uncaught Exception: TypeError: undefined is not an object (evaluating 'this._boxModelDiagramRow.minimumWidth')
+        https://bugs.webkit.org/show_bug.cgi?id=218135
+
+        Reviewed by Brian Burg.
+
+        minimumWidth may be retrieved before the ComputedStylesDetailsPanel has done its initial layout, which means the
+        _boxModelDiagramRow will not have been initialized. In this case, we want to return 0 causing the absolute
+        minimum width of a sidebar to be used for calculations instead.
+
+        * UserInterface/Views/ComputedStyleDetailsPanel.js:
+        (WI.ComputedStyleDetailsPanel.prototype.get minimumWidth):
+
+2020-10-26  Patrick Angle  <pangle@apple.com>
+
+        Web Inspector: Change minimum width of #tab-browser to a more reasonable value
+        https://bugs.webkit.org/show_bug.cgi?id=217998
+
+        Reviewed by Brian Burg.
+
+        Adjusted the minimum width of the #tab-browser to be 200px, which is a more reasonable minimum usable width.
+        Additionally, adjusted the threshold for which multiple sidebars are shown by 50px so that the size of the
+        #tab-browser does not have to become its minimum width before hiding the additional sidebars.
+
+        * UserInterface/Base/Main.js:
+        * UserInterface/Views/Main.css:
+        (#tab-browser):
+        * UserInterface/Views/MultiSidebar.js:
+        (WI.MultiSidebar.prototype._updateMinimumWidthForMultipleSidebars):
+
+2020-10-23  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Typo in experimentalEnableStyelsJumpToVariableDeclaration
+        https://bugs.webkit.org/show_bug.cgi?id=218119
+
+        Reviewed by Devin Rousso.
+
+        Replace "Styels" with "Styles".
+
+        * UserInterface/Base/Setting.js:
+        * UserInterface/Views/SettingsTabContentView.js:
+        (WI.SettingsTabContentView.prototype._createExperimentalSettingsView):
+        * UserInterface/Views/SpreadsheetStyleProperty.js:
+        (WI.SpreadsheetStyleProperty.prototype._addVariableTokens):
+
+2020-10-22  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(r266074): Sources: icon for non-JavaScript breakpoints doesn't change when breakpoints are globally disabled
+        https://bugs.webkit.org/show_bug.cgi?id=218064
+
+        Reviewed by Joseph Pecoraro.
+
+        * UserInterface/Models/Breakpoint.js:
+        (WI.Breakpoint.prototype.get resolved): Added.
+        * UserInterface/Models/JavaScriptBreakpoint.js:
+        (WI.JavaScriptBreakpoint.prototype.get resolved):
+        Add `get resolved` to the base class based on `WI.debuggerManager.breakpointsEnabled`. Use
+        it in the subclass as part of the result.
+
+        * UserInterface/Views/BreakpointTreeElement.js:
+        (WI.BreakpointTreeElement.prototype.updateStatus):
+        (WI.BreakpointTreeElement.prototype._dataUpdated):
+        * UserInterface/Views/BreakpointTreeElement.css:
+        (.item.breakpoint .status > .status-image:not(.resolved)): Added.
+        * UserInterface/Views/JavaScriptBreakpointTreeElement.css:
+        (.item.breakpoint.javascript .status > .status-image): Deleted.
+        (.item.breakpoint.javascript .status > .status-image.resolved): Deleted.
+        * UserInterface/Views/JavaScriptBreakpointTreeElement.js:
+        (WI.JavaScriptBreakpointTreeElement.prototype.updateStatus): Deleted.
+        Eliminate unnecessary protected function now that all breakpoints have a `get resolved`.
+        Drive-by: inline CSS class name constants.
+
+2020-10-20  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(r266074): Uncaught Exception: undefined is not an object (evaluating 'this._allListenersBreakpoint.disabled')
+        https://bugs.webkit.org/show_bug.cgi?id=217992
+
+        Reviewed by Joseph Pecoraro.
+
+        r266074 changed it such that `_allListenersBreakpoint` doesn't always exist, so check that
+        it exists before getting a property from it.
+
+        * UserInterface/Controllers/DOMDebuggerManager.js:
+        (WI.DOMDebuggerManager.prototype.listenerBreakpointForEventName):
+
+2020-10-20  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        REGRESSION(r268691): Web Inspector: WI.Sidebar.Event.CollapsedStateChanged is undefined
+        https://bugs.webkit.org/show_bug.cgi?id=217939
+
+        Reviewed by Brian Burg.
+
+        r268691 added an event listener for CollapsedStateChanged, which is undefined.
+
+        * UserInterface/Base/Main.js:
+
+2020-10-20  Philippe Normand  <pnormand@igalia.com>
+
+        Web Inspector: Add setScreenSizeOverride API to the Page agent
+        https://bugs.webkit.org/show_bug.cgi?id=213242
+
+        Reviewed by Devin Rousso.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Base/Main.js:
+        (WI.loaded): Add a new drop-down menu allowing to override the device screen size.
+
+2020-10-19  Patrick Angle  <pangle@apple.com>
+
+        Web Inspector: Support three-column pane arrangement in Elements Tab
+        https://bugs.webkit.org/show_bug.cgi?id=217396
+
+        Reviewed by Devin Rousso.
+
+        The new multiple-sidebar layout for the Elements tab (and any other tab for which it is enabled in the future)
+        is achieved with a new WI.MultiSidebar, which is itself a WI.Sidebar and contains multiple new WI.SingleSidebar.
+        SingleSidebar replaces usage of the former Sidebar in favor of Sidebar being a common base shared between the
+        SingleSidebar and MultiSidebar.
+
+        A MultiSidebar supports showing multiple sidebars, and makes that decision based on the user having enabled
+        showing multiple sidebars and the `WI.SidebarPanel.prototype.allowExclusivePresentation` property on specific
+        SidebarPanels. The MultiSidebar manages these sidebars and their presentation, with some added properties to
+        manage the visibility of multiple sidebars. A MultiSidebar can display any number of sidebar panels
+        simultaneously. A MultiSidebar will always have a `primarySidebar` (although it may be collapsed), which is
+        where most panels will be presented. Additional panels that are marked as allowing exclusive presentation are
+        laid out in natural language order when the `MultiSidebar`'s side is `Leading` and reverse order when it is
+        `Trailing`. This allows the sidebar to remain conceptually anchored, so the `primarySidebar` in the set does not
+        change locations when adding or removing other sidebars from the set.
+
+        The presentation of more than the `primarySidebar` is dependant on the following conditions:
+        1. The tab (e.g. Elements Tab) must allow the three-panel layout.
+        2. At least one panel in the MultiSidebar must allow exclusive presentation (e.g. Styles when enabled in
+        Experimental Settings).
+        3. There must be at least one other panel to keep in the primary sidebar.
+        4. There must be enough available space horizontally to satisfy the minimum width of both the `primarySidebar`
+        and any sidebar panels that will be shown by themselves.
+
+        This feature is behind an Experimental Feature setting, and is disabled by default.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Base/Main.js: Use new SingleSidebar and MultiSidebars, include each detail sidebar in maximum
+        width calculations, and listen for both width and collapse events.
+        * UserInterface/Base/Setting.js: Added setting for allowing Styles panel to be exclusive.
+        * UserInterface/Main.html:
+        * UserInterface/Views/ComputedStyleDetailsPanel.css: Hide shared elements between Styles and Computed when both
+        are visible.
+        (.multi-sidebar.showing-multiple > .sidebar > .panel.details.style-computed > .content > .pseudo-classes,):
+        * UserInterface/Views/ElementsTabContentView.js:
+        (WI.ElementsTabContentView.prototype.get allowMultipleDetailSidebars):
+        * UserInterface/Views/GeneralStyleDetailsSidebarPanel.css: Show pseudo-class rules as if they were a navigation
+        bar only when shown exclusively. Otherwise, still allow them to wrap like normal.
+        (.panel.exclusive-presentation.details.css-style > .content > .pseudo-classes):
+        (.panel.exclusive-presentation.details.css-style > .content > .pseudo-classes > .group):
+        (.panel.exclusive-presentation.details.css-style > .content > .rules):
+        (.sidebar > .panel.details.css-style.style-rules > .content ~ :matches(.options-container, .class-list-container)): Removed.
+        * UserInterface/Views/GeneralStyleDetailsSidebarPanel.js: If showing exclusively, prevent wrapping pseudo-class
+        rules by reporting their combined minimum width.
+        (WI.GeneralStyleDetailsSidebarPanel.prototype.get minimumWidth):
+        * UserInterface/Views/Main.css:
+        (#tab-browser): Match existing assumption for minimum tab-browser width.
+        (#details-sidebar): Match assumption for minimum sidebar width.
+        * UserInterface/Views/MultiSidebar.css: Added.
+        (.multi-sidebar):
+        (.multi-sidebar.trailing):
+        (.multi-sidebar.collapsed):
+        * UserInterface/Views/MultiSidebar.js: A Sidebar subclass that manages multiple SingleSidebars, and dynamically
+        presents them as space is available.
+        (WI.MultiSidebar):
+        (WI.MultiSidebar.prototype.get sidebars):
+        (WI.MultiSidebar.prototype.get primarySidebar):
+        (WI.MultiSidebar.prototype.get allowMultipleSidebars):
+        (WI.MultiSidebar.prototype.set allowMultipleSidebars):
+        (WI.MultiSidebar.prototype.get multipleSidebarsVisible):
+        (WI.MultiSidebar.prototype.set multipleSidebarsVisible):
+        (WI.MultiSidebar.prototype.addSidebar):
+        (WI.MultiSidebar.prototype.removeSidebar):
+        (WI.MultiSidebar.prototype.get selectedSidebarPanel):
+        (WI.MultiSidebar.prototype.set selectedSidebarPanel):
+        (WI.MultiSidebar.prototype.get collapsable):
+        (WI.MultiSidebar.prototype.set collapsable):
+        (WI.MultiSidebar.prototype.get minimumWidth):
+        (WI.MultiSidebar.prototype.get width):
+        (WI.MultiSidebar.prototype.didInsertSidebarPanel):
+        (WI.MultiSidebar.prototype.didRemoveSidebarPanel):
+        (WI.MultiSidebar.prototype.didSetCollapsed):
+        (WI.MultiSidebar.prototype.get _canShowMultipleSidebars):
+        (WI.MultiSidebar.prototype._updateMinimumWidthForMultipleSidebars):
+        (WI.MultiSidebar.prototype.get _hasWidthForMultipleSidebars):
+        (WI.MultiSidebar.prototype.get _hasSidebarPanelSupportingExclusive):
+        (WI.MultiSidebar.prototype._updateMultipleSidebarLayout):
+        (WI.MultiSidebar.prototype._canSidebarPanelBeExclusive):
+        (WI.MultiSidebar.prototype._makeSidebarPanelExclusive):
+        (WI.MultiSidebar.prototype._makeSidebarPanelNotExclusive):
+        (WI.MultiSidebar.prototype._nonExclusiveIndexOfSidebarPanel):
+        (WI.MultiSidebar.prototype._findSidebarForSidebarPanel):
+        (WI.MultiSidebar.prototype._addSidebarEventListeners):
+        (WI.MultiSidebar.prototype._removeSidebarEventListeners):
+        (WI.MultiSidebar.prototype._handleSidebarPanelSelected):
+        (WI.MultiSidebar.prototype._handleSidebarCollapsedStateDidChange):
+        (WI.MultiSidebar.prototype._handleSidebarWidthDidChange):
+        (WI.MultiSidebar.prototype._handleWindowResize):
+        * UserInterface/Views/RulesStyleDetailsSidebarPanel.js: If enabled in settings, allow Styles panel to be its own
+        sidebar.
+        (WI.RulesStyleDetailsSidebarPanel.prototype.get allowExclusivePresentation):
+        (WI.RulesStyleDetailsSidebarPanel):
+        * UserInterface/Views/SettingsTabContentView.js: Add setting for showing the Styles panel as its own sidebar.
+        (WI.SettingsTabContentView.prototype._createExperimentalSettingsView):
+        * UserInterface/Views/Sidebar.css: Moved navigation and resizing to SingleSidebar.css.
+        (.sidebar):
+        (.sidebar.collapsed):
+        (.sidebar > .navigation-bar): Deleted.
+        (.sidebar.has-navigation-bar > .panel): Deleted.
+        (body[dir=ltr] .sidebar.right > .resizer,): Deleted.
+        (body[dir=ltr] .sidebar.left > .resizer,): Deleted.
+        (body[dir=ltr] .sidebar.left,): Deleted.
+        (body[dir=ltr] .sidebar.right,): Deleted.
+        * UserInterface/Views/Sidebar.js: Common base class for both SingleSidebar and MultiSidebar. Moved existing
+        navigation and resizing behavior to SingleSidebar.
+        (WI.Sidebar):
+        (WI.Sidebar.get sidebarPanels):
+        (WI.Sidebar.prototype.get side):
+        (WI.Sidebar.prototype.addSidebarPanel):
+        (WI.Sidebar.prototype.insertSidebarPanel):
+        (WI.Sidebar.prototype.removeSidebarPanel):
+        (WI.Sidebar.prototype.get selectedSidebarPanel):
+        (WI.Sidebar.prototype.set selectedSidebarPanel):
+        (WI.Sidebar.prototype.get collapsed):
+        (WI.Sidebar.prototype.set collapsed):
+        (WI.Sidebar.prototype.get collapsable):
+        (WI.Sidebar.prototype.set collapsable):
+        (WI.Sidebar.prototype.get minimumWidth):
+        (WI.Sidebar.prototype.get maximumWidth):
+        (WI.Sidebar.prototype.shouldInsertSidebarPanel):
+        (WI.Sidebar.prototype.didInsertSidebarPanel):
+        (WI.Sidebar.prototype.didRemoveSidebarPanel):
+        (WI.Sidebar.prototype.willSetSelectedSidebarPanel):
+        (WI.Sidebar.prototype.didSetSelectedSidebarPanel):
+        (WI.Sidebar.prototype.didSetCollapsed):
+        (WI.Sidebar.prototype._findSidebarPanel):
+        (WI.Sidebar.prototype.get width): Deleted.
+        (WI.Sidebar.prototype.set width): Deleted.
+        (WI.Sidebar.prototype.get sidebarPanels): Deleted.
+        (WI.Sidebar.prototype.findSidebarPanel): Deleted.
+        (WI.Sidebar.prototype.resizerDragStarted): Deleted.
+        (WI.Sidebar.prototype.resizerDragging): Deleted.
+        (WI.Sidebar.prototype.resizerDragEnded): Deleted.
+        (WI.Sidebar.prototype._recalculateWidth): Deleted.
+        (WI.Sidebar.prototype._navigationItemSelected): Deleted.
+        * UserInterface/Views/SidebarPanel.js: Support tracking exclusive display as well as enabling exclusive display.
+        (WI.SidebarPanel):
+        (WI.SidebarPanel.prototype.get exclusive):
+        (WI.SidebarPanel.prototype.set exclusive):
+        (WI.SidebarPanel.prototype.get allowExclusivePresentation):
+        * UserInterface/Views/SingleSidebar.css: Moved navigation and resizing from Sidebar.css.
+        (.single-sidebar > .navigation-bar):
+        (.single-sidebar.has-navigation-bar > .panel):
+        (body[dir=ltr] .single-sidebar.trailing > .resizer,):
+        (body[dir=ltr] .single-sidebar.leading > .resizer,):
+        (.single-sidebar.leading):
+        (.single-sidebar.trailing):
+        * UserInterface/Views/SingleSidebar.js: Added. Contains navigation and resizing previously in Sidebar.js.
+        (WI.SingleSidebar):
+        (WI.SingleSidebar.prototype.get allowResizingToCollapse):
+        (WI.SingleSidebar.prototype.set allowResizingToCollapse):
+        (WI.SingleSidebar.prototype.get minimumWidth):
+        (WI.SingleSidebar.prototype.get width):
+        (WI.SingleSidebar.prototype.set width):
+        (WI.SingleSidebar.prototype.shouldInsertSidebarPanel):
+        (WI.SingleSidebar.prototype.didInsertSidebarPanel):
+        (WI.SingleSidebar.prototype.didRemoveSidebarPanel):
+        (WI.SingleSidebar.prototype.willSetSelectedSidebarPanel):
+        (WI.SingleSidebar.prototype.didSetSelectedSidebarPanel):
+        (WI.SingleSidebar.prototype.didSetCollapsed):
+        (WI.SingleSidebar.prototype.resizerDragStarted):
+        (WI.SingleSidebar.prototype.resizerDragging):
+        (WI.SingleSidebar.prototype.resizerDragEnded):
+        (WI.SingleSidebar.prototype._recalculateWidth):
+        (WI.SingleSidebar.prototype._handleNavigationItemSelected):
+        * UserInterface/Views/SpreadsheetRulesStyleDetailsPanel.css: The last rule row should not show a bottom border,
+        otherwise a double-border is visible at the bottom of the sidebar.
+        (.sidebar > .panel.details.css-style > .content > .rules > :nth-last-child(1 of .spreadsheet-css-declaration)):
+        * UserInterface/Views/TabBrowser.js: Updated naming of handlers and added support for multiple detail sidebars.
+        (WI.TabBrowser):
+        (WI.TabBrowser._handleSidebarPanelSelected):
+        (WI.TabBrowser.prototype._handleSidebarWidthDidChange):
+        (WI.TabBrowser.prototype._handleMultiSidebarSidebarAdded):
+        (WI.TabBrowser.prototype._showDetailsSidebarPanelsForTabContentView):
+        (WI.TabBrowser._sidebarPanelSelected): Deleted.
+        (WI.TabBrowser.prototype._sidebarCollapsedStateDidChange): Deleted.
+        (WI.TabBrowser.prototype._sidebarWidthDidChange): Deleted.
+        * UserInterface/Views/TabContentView.js:
+        (WI.TabContentView.prototype.get allowMultipleDetailSidebars):
+
 2020-10-16  Devin Rousso  <drousso@apple.com>
 
         Web Inspector: REGRESSION(r266669): DOMBreakpoint.js:106:23: CONSOLE ASSERT ERROR domNode should not change once set

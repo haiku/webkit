@@ -1365,8 +1365,8 @@ private:
         }
             
         case AtomicsIsLockFree:
-            if (node->child1()->shouldSpeculateInt32())
-                fixIntOrBooleanEdge(node->child1());
+            if (m_graph.child(node, 0)->shouldSpeculateInt32())
+                fixIntOrBooleanEdge(m_graph.child(node, 0));
             break;
             
         case ArrayPush: {
@@ -1780,6 +1780,17 @@ private:
             break;
         }
 
+        case GetPrivateName:
+        case GetPrivateNameById:
+            if (node->child1()->shouldSpeculateCell())
+                fixEdge<CellUse>(node->child1());
+            else
+                fixEdge<UntypedUse>(node->child1());
+
+            if (!node->hasCacheableIdentifier())
+                fixEdge<SymbolUse>(node->child2());
+            break;
+
         case DeleteByVal: {
             if (node->child1()->shouldSpeculateCell()) {
                 fixEdge<CellUse>(node->child1());
@@ -2103,7 +2114,7 @@ private:
             break;
         }
 
-        case CheckNeutered:
+        case CheckDetached:
         case CheckArray: {
             fixEdge<CellUse>(node->child1());
             break;

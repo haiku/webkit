@@ -32,6 +32,7 @@
 #include "ExceptionOr.h"
 #include "HEVCUtilities.h"
 #include "IDLTypes.h"
+#include "MockRTCRtpTransform.h"
 #include "OrientationNotifier.h"
 #include "PageConsoleClient.h"
 #include "RealtimeMediaSource.h"
@@ -47,6 +48,7 @@
 
 namespace WebCore {
 
+class AbstractRange;
 class AnimationTimeline;
 class AudioContext;
 class AudioTrack;
@@ -80,7 +82,6 @@ class InternalSettings;
 class InternalsSetLike;
 class Location;
 class MallocStatistics;
-class MediaSession;
 class MediaStream;
 class MediaStreamTrack;
 class MemoryInfo;
@@ -123,8 +124,17 @@ class TextTrackCueGeneric;
 class ServiceWorker;
 #endif
 
+#if ENABLE(WEB_RTC)
+class RTCRtpSFrameTransform;
+#endif
+
 #if ENABLE(WEBXR)
 class WebXRTest;
+#endif
+
+#if ENABLE(MEDIA_SESSION)
+class MediaSession;
+struct MediaSessionActionDetails;
 #endif
 
 template<typename IDLType> class DOMPromiseDeferred;
@@ -443,6 +453,10 @@ public:
     unsigned numberOfIntersectionObservers(const Document&) const;
 #endif
 
+#if ENABLE(RESIZE_OBSERVER)
+    unsigned numberOfResizeObservers(const Document&) const;
+#endif
+
     uint64_t documentIdentifier(const Document&) const;
     bool isDocumentAlive(uint64_t documentIdentifier) const;
 
@@ -504,6 +518,7 @@ public:
     void setFullscreenControlsHidden(bool);
 
 #if ENABLE(VIDEO_PRESENTATION_MODE)
+    bool isChangingPresentationMode(HTMLVideoElement&) const;
     void setMockVideoPresentationModeEnabled(bool);
 #endif
 
@@ -581,7 +596,6 @@ public:
 
 #if ENABLE(MEDIA_STREAM)
     void setShouldInterruptAudioOnPageVisibilityChange(bool);
-    void setMediaCaptureRequiresSecureConnection(bool);
     void setCustomPrivateRecorderCreator();
 #endif
 
@@ -595,6 +609,9 @@ public:
     void applyRotationForOutgoingVideoSources(RTCPeerConnection&);
     void setWebRTCH265Support(bool);
     void setWebRTCVP9Support(bool);
+    void setWebRTCVP9VTBSupport(bool);
+    Ref<MockRTCRtpTransform> createMockRTCRtpTransform();
+    uint64_t sframeCounter(const RTCRtpSFrameTransform&);
     void setEnableWebRTCEncryption(bool);
     void setUseDTLS10(bool);
     void setUseGPUProcessForWebRTC(bool);
@@ -1047,6 +1064,22 @@ public:
 
     ExceptionOr<AttachmentThumbnailInfo> attachmentThumbnailInfo(const HTMLAttachmentElement&);
 #endif
+
+#if ENABLE(MEDIA_SESSION)
+    ExceptionOr<double> currentMediaSessionPosition(const MediaSession&);
+    ExceptionOr<void> sendMediaSessionAction(MediaSession&, const MediaSessionActionDetails&);
+#endif
+
+    enum TreeType : uint8_t { Tree, ShadowIncludingTree, ComposedTree };
+    String treeOrder(Node&, Node&, TreeType);
+    String treeOrderBoundaryPoints(Node& containerA, unsigned offsetA, Node& containerB, unsigned offsetB, TreeType);
+    bool rangeContainsNode(const AbstractRange&, Node&, TreeType);
+    bool rangeContainsRange(const AbstractRange&, const AbstractRange&, TreeType);
+    bool rangeContainsBoundaryPoint(const AbstractRange&, Node&, unsigned offset, TreeType);
+    bool rangeIntersectsNode(const AbstractRange&, Node&, TreeType);
+    bool rangeIntersectsRange(const AbstractRange&, const AbstractRange&, TreeType);
+
+    void systemBeep();
 
 private:
     explicit Internals(Document&);

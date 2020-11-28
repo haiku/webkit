@@ -66,7 +66,7 @@ interface TestRunner {
     undefined dumpDOMAsWebArchive();
     undefined dumpPolicyDelegateCallbacks();
     undefined dumpResourceLoadStatistics();
-    undefined dumpAdClickAttribution();
+    undefined dumpPrivateClickMeasurement();
 
     undefined clearDOMCaches();
     undefined clearDOMCache(DOMString origin);
@@ -79,20 +79,11 @@ interface TestRunner {
     undefined setAcceptsEditing(boolean value);
     undefined setCanOpenWindows();
     undefined setCloseRemainingWindowsWhenComplete(boolean value);
-    undefined setXSSAuditorEnabled(boolean value);
-    undefined setAllowUniversalAccessFromFileURLs(boolean value);
-    undefined setAllowFileAccessFromFileURLs(boolean value);
-    undefined setNeedsStorageAccessFromFileURLsQuirk(boolean value);
-    undefined setPluginsEnabled(boolean value);
-    undefined setJavaScriptCanAccessClipboard(boolean value);
-    undefined setPopupBlockingEnabled(boolean value);
-    undefined setAuthorAndUserStylesEnabled(boolean value);
     undefined setCustomPolicyDelegate(boolean enabled, boolean permissive);
     undefined addOriginAccessAllowListEntry(DOMString sourceOrigin, DOMString destinationProtocol, DOMString destinationHost, boolean allowDestinationSubdomains);
     undefined removeOriginAccessAllowListEntry(DOMString sourceOrigin, DOMString destinationProtocol, DOMString destinationHost, boolean allowDestinationSubdomains);
     undefined setUserStyleSheetEnabled(boolean value);
     undefined setUserStyleSheetLocation(DOMString location);
-    undefined setSpatialNavigationEnabled(boolean value);
     undefined setTabKeyCyclesThroughElements(boolean enabled);
     undefined setSerializeHTTPLoads();
     undefined dispatchPendingLoadRequests();
@@ -198,14 +189,14 @@ interface TestRunner {
     undefined setAlwaysAcceptCookies(boolean accept);
     undefined setOnlyAcceptFirstPartyCookies(boolean accept);
 
-    undefined overridePreference(DOMString preference, DOMString value);
-
     // Page Visibility API
     undefined setPageVisibility(DOMString state);
     undefined resetPageVisibility();
 
     // Control full screen behavior.
     undefined setHasCustomFullScreenBehavior(boolean value);
+    undefined setEnterFullscreenForElementCallback(object callback);
+    undefined setExitFullscreenForElementCallback(object callback);
 
     // Web notifications support
     undefined grantWebNotificationPermission(DOMString origin);
@@ -365,10 +356,7 @@ interface TestRunner {
     undefined setShouldDismissJavaScriptAlertsAsynchronously(boolean value);
     undefined abortModal();
 
-    undefined setWebRTCMDNSICECandidatesEnabled(boolean value);
     undefined setCustomUserAgent(DOMString userAgent);
-
-    undefined setWebAPIStatisticsEnabled(boolean value);
 
     undefined terminateNetworkProcess();
     undefined terminateServiceWorkers();
@@ -409,10 +397,13 @@ interface TestRunner {
     undefined cleanUpKeychain(DOMString attrLabel, optional DOMString applicationLabelBase64);
     boolean keyExistsInKeychain(DOMString attrLabel, DOMString applicationLabelBase64);
 
-    // Ad Click Attribution
-    undefined clearAdClickAttribution();
-    undefined clearAdClickAttributionsThroughWebsiteDataRemoval();
-    undefined setAdClickAttributionOverrideTimerForTesting(boolean value);
-    undefined setAdClickAttributionConversionURLForTesting(DOMString url);
-    undefined markAdClickAttributionsAsExpiredForTesting();
+    // Private Click Measurement
+    undefined clearPrivateClickMeasurement();
+    undefined clearPrivateClickMeasurementsThroughWebsiteDataRemoval();
+    undefined setPrivateClickMeasurementOverrideTimerForTesting(boolean value);
+    undefined setPrivateClickMeasurementConversionURLForTesting(DOMString url);
+    undefined markPrivateClickMeasurementsAsExpiredForTesting();
+
+    // SpeechRecognition
+    undefined setIsSpeechRecognitionPermissionGranted(boolean value);
 };

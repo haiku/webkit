@@ -43,6 +43,7 @@
 #include <wtf/RangeSet.h>
 #include <wtf/RetainPtr.h>
 #include <wtf/Threading.h>
+#include <wtf/WeakPtr.h>
 
 typedef const struct OpaqueJSContext* JSContextRef;
 typedef struct OpaqueJSValue* JSObjectRef;
@@ -213,8 +214,6 @@ private:
     void willDetachRenderer() final;
     bool pluginHandlesContentOffsetForAccessibilityHitTest() const final;
     
-    bool isBeingAsynchronouslyInitialized() const final { return false; }
-
     RetainPtr<PDFDocument> pdfDocumentForPrinting() const final { return m_pdfDocument; }
     NSObject *accessibilityObject() const final;
     id accessibilityAssociatedPluginParentForElement(WebCore::Element*) const final;
@@ -231,7 +230,6 @@ private:
 
     bool shouldAllowScripting() final { return false; }
     bool shouldAllowNavigationFromDrags() final { return true; }
-    bool shouldAlwaysAutoStart() const final { return true; }
 
     // ScrollableArea functions.
     bool isPDFPlugin() const final { return true; }
@@ -303,7 +301,7 @@ private:
     PluginView* pluginView();
     const PluginView* pluginView() const;
 
-    WebFrame& m_frame;
+    WeakPtr<WebFrame> m_frame;
 
     bool m_isPostScript { false };
     bool m_pdfDocumentWasMutated { false };

@@ -238,10 +238,9 @@ static void buildMediaEnginesVector()
     ASSERT(mediaEngineVectorLock.isLocked());
 
 #if USE(AVFOUNDATION)
-
     if (DeprecatedGlobalSettings::isAVFoundationEnabled()) {
-
         auto& registerRemoteEngine = registerRemotePlayerCallback();
+
 #if PLATFORM(COCOA)
         if (registerRemoteEngine)
             registerRemoteEngine(addMediaEngine, MediaPlayerEnums::MediaEngineIdentifier::AVFoundation);
@@ -250,7 +249,10 @@ static void buildMediaEnginesVector()
 #endif
 
 #if ENABLE(MEDIA_SOURCE)
-        MediaPlayerPrivateMediaSourceAVFObjC::registerMediaEngine(addMediaEngine);
+        if (registerRemoteEngine)
+            registerRemoteEngine(addMediaEngine, MediaPlayerEnums::MediaEngineIdentifier::AVFoundationMSE);
+        else
+            MediaPlayerPrivateMediaSourceAVFObjC::registerMediaEngine(addMediaEngine);
 #endif
 
 #if ENABLE(MEDIA_STREAM)
@@ -529,6 +531,21 @@ const MediaPlayerFactory* MediaPlayer::nextBestMediaEngine(const MediaPlayerFact
     return bestMediaEngineForSupportParameters(parameters, current);
 }
 
+void MediaPlayer::reloadAndResumePlaybackIfNeeded()
+{
+    auto previousMediaTime = currentTime();
+    bool wasPaused = paused();
+
+    m_currentMediaEngine = nullptr;
+    loadWithNextMediaEngine(nullptr);
+
+    prepareToPlay();
+    if (!wasPaused)
+        play();
+    if (previousMediaTime)
+        seekWhenPossible(previousMediaTime);
+}
+
 void MediaPlayer::loadWithNextMediaEngine(const MediaPlayerFactory* current)
 {
 #if ENABLE(MEDIA_SOURCE) 
@@ -565,6 +582,8 @@ void MediaPlayer::loadWithNextMediaEngine(const MediaPlayerFactory* current)
         m_private = engine->createMediaEnginePlayer(this);
         if (m_private) {
             client().mediaPlayerEngineUpdated();
+            if (m_visible)
+                m_private->setVisible(m_visible);
             m_private->prepareForPlayback(m_privateBrowsing, m_preload, m_preservesPitch, m_shouldPrepareToRender);
         }
     }
@@ -716,6 +735,14 @@ void MediaPlayer::seekWithTolerance(const MediaTime& time, const MediaTime& nega
 void MediaPlayer::seek(const MediaTime& time)
 {
     m_private->seek(time);
+}
+
+void MediaPlayer::seekWhenPossible(const MediaTime& time)
+{
+    if (m_private->readyState() < MediaPlayer::ReadyState::HaveMetadata)
+        m_pendingSeekRequest = time;
+    else
+        seek(time);
 }
 
 bool MediaPlayer::paused() const
@@ -956,20 +983,14 @@ void MediaPlayer::setSize(const IntSize& size)
     m_private->setSize(size);
 }
 
-bool MediaPlayer::visible() const
+void MediaPlayer::setVisible(bool visible)
 {
-    return m_visible;
-}
-
-void MediaPlayer::setVisible(bool b)
-{
-    m_visible = b;
-    m_private->setVisible(b);
+    m_visible = visible;
+    m_private->setVisible(visible);
 }
 
 void MediaPlayer::setVisibleForCanvas(bool visible)
 {
-    m_visible = visible;
     m_private->setVisibleForCanvas(visible);
 }
 
@@ -989,12 +1010,12 @@ void MediaPlayer::paint(GraphicsContext& p, const FloatRect& r)
     m_private->paint(p, r);
 }
 
-bool MediaPlayer::copyVideoTextureToPlatformTexture(GraphicsContextGLOpenGL* context, PlatformGLObject texture, GCGLenum target, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY)
+bool MediaPlayer::copyVideoTextureToPlatformTexture(GraphicsContextGL* context, PlatformGLObject texture, GCGLenum target, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY)
 {
     return m_private->copyVideoTextureToPlatformTexture(context, texture, target, level, internalFormat, format, type, premultiplyAlpha, flipY);
 }
 
-NativeImagePtr MediaPlayer::nativeImageForCurrentTime()
+RefPtr<NativeImage> MediaPlayer::nativeImageForCurrentTime()
 {
     return m_private->nativeImageForCurrentTime();
 }
@@ -1238,6 +1259,8 @@ void MediaPlayer::networkStateChanged()
 void MediaPlayer::readyStateChanged()
 {
     client().mediaPlayerReadyStateChanged();
+    if (m_pendingSeekRequest && m_private->readyState() == MediaPlayer::ReadyState::HaveMetadata)
+        seek(*std::exchange(m_pendingSeekRequest, WTF::nullopt));
 }
 
 void MediaPlayer::volumeChanged(double newVolume)

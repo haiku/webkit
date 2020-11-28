@@ -816,6 +816,15 @@ void FrameView::updateCompositingLayersAfterLayout()
     renderView->compositor().updateCompositingLayers(CompositingUpdateType::AfterLayout);
 }
 
+void FrameView::invalidateScrollbarsForAllScrollableAreas()
+{
+    if (!m_scrollableAreas)
+        return;
+
+    for (auto* scrollableArea : *m_scrollableAreas)
+        scrollableArea->invalidateScrollbars();
+}
+
 GraphicsLayer* FrameView::layerForHorizontalScrollbar() const
 {
     RenderView* renderView = this->renderView();
@@ -910,12 +919,36 @@ void FrameView::updateSnapOffsets()
     if (!frame().document())
         return;
 
-    // FIXME: Should we allow specifying snap points through <html> tags too?
-    HTMLElement* body = frame().document()->bodyOrFrameset();
-    if (!renderView() || !body || !body->renderer())
+    auto& document = *frame().document();
+    auto* documentElement = document.documentElement();
+    RenderBox* bodyRenderer = document.bodyOrFrameset() ? document.bodyOrFrameset()->renderBox() : nullptr;
+    RenderBox* rootRenderer = documentElement ? documentElement->renderBox() : nullptr;
+    auto rendererSyleHasScrollSnap = [](const RenderObject* renderer) {
+        return renderer && renderer->style().scrollSnapType().strictness != ScrollSnapStrictness::None;
+    };
+
+    const RenderStyle* styleToUse = nullptr;
+    if (rendererSyleHasScrollSnap(bodyRenderer)) {
+        //  The specification doesn't allow setting scroll-snap-type on the body, but
+        //  we do this to ensure backwards compatibility with an earlier version of the
+        //  specification: See webkit.org/b/200643.
+        styleToUse = &bodyRenderer->style();
+    } else if (rendererSyleHasScrollSnap(rootRenderer))
+        styleToUse = &rootRenderer->style();
+
+    if (!styleToUse || !documentElement) {
+        clearSnapOffsets();
         return;
-    
-    updateSnapOffsetsForScrollableArea(*this, *body, *renderView(), body->renderer()->style());
+    }
+
+    // updateSnapOffsetsForScrollableArea calculates scroll offsets with all rectangles having their origin at the
+    // padding box rectangle of the scrollable element. Unlike for overflow:scroll, the FrameView viewport includes
+    // the root element margins. This means that we need to offset the viewport rectangle to make it relative to
+    // the padding box of the root element.
+    LayoutRect viewport = LayoutRect(IntPoint(), baseLayoutViewportSize());
+    viewport.move(-rootRenderer->marginLeft(), -rootRenderer->marginTop());
+
+    updateSnapOffsetsForScrollableArea(*this, *rootRenderer, *styleToUse, viewport);
 }
 
 bool FrameView::isScrollSnapInProgress() const
@@ -1271,7 +1304,7 @@ void FrameView::didLayout(WeakPtr<RenderElement> layoutRoot)
         cache->postNotification(layoutRoot.get(), AXObjectCache::AXLayoutComplete);
 #endif
 
-    frame().invalidateContentEventRegionsIfNeeded();
+    frame().invalidateContentEventRegionsIfNeeded(Frame::InvalidateContentEventRegionsReason::Layout);
     document->invalidateRenderingDependentRegions();
 
     updateCanBlitOnScrollRecursively();
@@ -1312,13 +1345,9 @@ void FrameView::addEmbeddedObjectToUpdate(RenderEmbeddedObject& embeddedObject)
     if (!m_embeddedObjectsToUpdate)
         m_embeddedObjectsToUpdate = makeUnique<ListHashSet<RenderEmbeddedObject*>>();
 
-    HTMLFrameOwnerElement& element = embeddedObject.frameOwnerElement();
-    if (is<HTMLObjectElement>(element) || is<HTMLEmbedElement>(element)) {
-        // Tell the DOM element that it needs a widget update.
-        HTMLPlugInImageElement& pluginElement = downcast<HTMLPlugInImageElement>(element);
-        if (!pluginElement.needsCheckForSizeChange())
-            pluginElement.setNeedsWidgetUpdate(true);
-    }
+    auto& element = embeddedObject.frameOwnerElement();
+    if (is<HTMLPlugInImageElement>(element))
+        downcast<HTMLPlugInImageElement>(element).setNeedsWidgetUpdate(true);
 
     m_embeddedObjectsToUpdate->add(&embeddedObject);
 }
@@ -3176,7 +3205,7 @@ void FrameView::scrollToAnchor()
     LayoutRect rect;
     bool insideFixed = false;
     if (anchorNode != frame().document() && anchorNode->renderer())
-        rect = anchorNode->renderer()->absoluteAnchorRect(&insideFixed);
+        rect = anchorNode->renderer()->absoluteAnchorRectWithScrollMargin(&insideFixed);
 
     LOG_WITH_STREAM(Scrolling, stream << " anchor node rect " << rect);
 
@@ -3205,26 +3234,12 @@ void FrameView::updateEmbeddedObject(RenderEmbeddedObject& embeddedObject)
     if (embeddedObject.isPluginUnavailable())
         return;
 
-    HTMLFrameOwnerElement& element = embeddedObject.frameOwnerElement();
-
-    if (embeddedObject.isSnapshottedPlugIn()) {
-        if (is<HTMLObjectElement>(element) || is<HTMLEmbedElement>(element)) {
-            HTMLPlugInImageElement& pluginElement = downcast<HTMLPlugInImageElement>(element);
-            pluginElement.checkSnapshotStatus();
-        }
-        return;
-    }
+    auto& element = embeddedObject.frameOwnerElement();
 
     auto weakRenderer = makeWeakPtr(embeddedObject);
 
-    // FIXME: This could turn into a real virtual dispatch if we defined
-    // updateWidget(PluginCreationOption) on HTMLElement.
     if (is<HTMLPlugInImageElement>(element)) {
-        HTMLPlugInImageElement& pluginElement = downcast<HTMLPlugInImageElement>(element);
-        if (pluginElement.needsCheckForSizeChange()) {
-            pluginElement.checkSnapshotStatus();
-            return;
-        }
+        auto& pluginElement = downcast<HTMLPlugInImageElement>(element);
         if (pluginElement.needsWidgetUpdate())
             pluginElement.updateWidget(CreatePlugins::Yes);
     } else
@@ -3251,7 +3266,7 @@ bool FrameView::updateEmbeddedObjects()
     m_embeddedObjectsToUpdate->add(nullptr);
 
     while (!m_embeddedObjectsToUpdate->isEmpty()) {
-        RenderEmbeddedObject* embeddedObject = m_embeddedObjectsToUpdate->takeFirst();
+        auto embeddedObject = m_embeddedObjectsToUpdate->takeFirst();
         if (!embeddedObject)
             break;
         updateEmbeddedObject(*embeddedObject);
@@ -4228,7 +4243,7 @@ void FrameView::willPaintContents(GraphicsContext& context, const IntRect&, Pain
         m_paintBehavior.add(PaintBehavior::Snapshotting);
     }
 
-    paintingState.isFlatteningPaintOfRootFrame = (m_paintBehavior & PaintBehavior::FlattenCompositingLayers) && !frame().ownerElement();
+    paintingState.isFlatteningPaintOfRootFrame = (m_paintBehavior & PaintBehavior::FlattenCompositingLayers) && !frame().ownerElement() && !context.detectingContentfulPaint();
     if (paintingState.isFlatteningPaintOfRootFrame)
         notifyWidgetsInAllFrames(WillPaintFlattened);
 
@@ -4566,24 +4581,12 @@ void FrameView::checkAndDispatchDidReachVisuallyNonEmptyState()
                 return false;
 
             auto& resources = resourceLoader.allCachedResources();
-            bool shouldWaitForScriptIfEmpty = false;
-#if ENABLE(INTERSECTION_OBSERVER)
-            shouldWaitForScriptIfEmpty = !document.numberOfIntersectionObservers();
-#endif
-            bool isLoadingScript = false;
             for (auto& resource : resources) {
                 if (resource.value->isLoaded())
                     continue;
-                auto type = resource.value->type();
-                if (type == CachedResource::Type::CSSStyleSheet || type == CachedResource::Type::FontResource)
+                if (resource.value->type() == CachedResource::Type::CSSStyleSheet || resource.value->type() == CachedResource::Type::FontResource)
                     return true;
-                if (type == CachedResource::Type::Script)
-                    isLoadingScript = true;
             }
-
-            if (shouldWaitForScriptIfEmpty && !m_visuallyNonEmptyPixelCount && isLoadingScript)
-                return true;
-
             return false;
         };
 

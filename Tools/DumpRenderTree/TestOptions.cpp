@@ -30,6 +30,90 @@
 
 namespace WTR {
 
+const std::vector<std::string>& TestOptions::supportedBoolWebPreferenceFeatures()
+{
+    // FIXME: Remove this once there is a viable mechanism for reseting WebPreferences between tests,
+    // at which point, we will not need to manually reset every supported preference for each test.
+
+    static std::vector<std::string> supported = [] {
+        std::vector<std::string> keys;
+        for (const auto& [key, value] : defaults().boolWebPreferenceFeatures)
+            keys.push_back(key);
+        return keys;
+    }();
+    return supported;
+}
+
+const std::vector<std::string>& TestOptions::supportedUInt32WebPreferenceFeatures()
+{
+    // FIXME: Remove this once there is a viable mechanism for reseting WebPreferences between tests,
+    // at which point, we will not need to manually reset every supported preference for each test.
+
+    static std::vector<std::string> supported = [] {
+        std::vector<std::string> keys;
+        for (const auto& [key, value] : defaults().uint32WebPreferenceFeatures)
+            keys.push_back(key);
+        return keys;
+    }();
+    return supported;
+}
+
+const TestFeatures& TestOptions::defaults()
+{
+    static TestFeatures features;
+    if (features.boolWebPreferenceFeatures.empty()) {
+        features.boolWebPreferenceFeatures = {
+            // These are WebPreference values that must always be set as they may
+            // differ from the default set in the WebPreferences*.yaml configuration.
+            { "AcceleratedDrawingEnabled", false },
+            { "AllowCrossOriginSubresourcesToAskForCredentials", false },
+            { "AllowFileAccessFromFileURLs", true },
+            { "AllowTopNavigationToDataURLs", true },
+            { "AllowUniversalAccessFromFileURLs", true },
+            { "AspectRatioOfImgFromWidthAndHeightEnabled", false },
+            { "AsyncClipboardAPIEnabled", false },
+            { "AttachmentElementEnabled", false },
+            { "CSSLogicalEnabled", false },
+            { "CSSOMViewSmoothScrollingEnabled", false },
+            { "ColorFilterEnabled", false },
+            { "ContactPickerAPIEnabled", false },
+            { "CoreMathMLEnabled", false },
+            { "DOMPasteAllowed", true },
+            { "DeveloperExtrasEnabled", true },
+            { "HiddenPageDOMTimerThrottlingEnabled", false },
+            { "InspectorAdditionsEnabled", false },
+            { "IntersectionObserverEnabled", false },
+            { "JavaScriptCanAccessClipboard", true },
+            { "JavaScriptCanOpenWindowsAutomatically", true },
+            { "JavaScriptEnabled", true },
+            { "KeygenElementEnabled", false },
+            { "LayoutFormattingContextIntegrationEnabled", true },
+            { "LineHeightUnitsEnabled", false },
+            { "LoadsImagesAutomatically", true },
+            { "MainContentUserGestureOverrideEnabled", false },
+            { "MenuItemElementEnabled", false },
+            { "ModernMediaControlsEnabled", true },
+            { "NeedsStorageAccessFromFileURLsQuirk", false },
+            { "PluginsEnabled", true },
+            { "PrivateClickMeasurementEnabled", false },
+            { "RequestIdleCallbackEnabled", false },
+            { "ResizeObserverEnabled", false },
+            { "SelectionAcrossShadowBoundariesEnabled", true },
+            { "ShrinksStandaloneImagesToFit", true },
+            { "SpatialNavigationEnabled", false },
+            { "TabsToLinks", false },
+            { "TelephoneNumberParsingEnabled", false },
+            { "UsesBackForwardCache", false },
+            { "WebGPUEnabled", false },
+            { "XSSAuditorEnabled", false },
+        };
+        features.uint32WebPreferenceFeatures = {
+            { "MinimumFontSize", 0 },
+        };
+    }
+    return features;
+}
+
 const std::unordered_map<std::string, TestHeaderKeyType>& TestOptions::keyTypeMapping()
 {
     static const std::unordered_map<std::string, TestHeaderKeyType> map {
@@ -47,56 +131,27 @@ const std::unordered_map<std::string, TestHeaderKeyType>& TestOptions::keyTypeMa
     return map;
 }
 
-template<typename T> static void setValueIfSetInMap(T& valueToSet, std::string key, const std::unordered_map<std::string, T>& map)
-{
-    auto it = map.find(key);
-    if (it == map.end())
-        return;
-    valueToSet = it->second;
-}
-
-TestOptions::TestOptions(TestFeatures testFeatures)
-{
-    setValueIfSetInMap(allowCrossOriginSubresourcesToAskForCredentials, "AllowCrossOriginSubresourcesToAskForCredentials", testFeatures.boolWebPreferenceFeatures);
-    setValueIfSetInMap(allowTopNavigationToDataURLs, "AllowTopNavigationToDataURLs", testFeatures.boolWebPreferenceFeatures);
-    setValueIfSetInMap(enableAcceleratedDrawing, "AcceleratedDrawingEnabled", testFeatures.boolWebPreferenceFeatures);
-    setValueIfSetInMap(enableAttachmentElement, "AttachmentElementEnabled", testFeatures.boolWebPreferenceFeatures);
-    setValueIfSetInMap(enableBackForwardCache, "UsesBackForwardCache", testFeatures.boolWebPreferenceFeatures);
-    setValueIfSetInMap(enableColorFilter, "ColorFilterEnabled", testFeatures.boolWebPreferenceFeatures);
-    setValueIfSetInMap(enableInspectorAdditions, "InspectorAdditionsEnabled", testFeatures.boolWebPreferenceFeatures);
-    setValueIfSetInMap(enableIntersectionObserver, "IntersectionObserverEnabled", testFeatures.boolWebPreferenceFeatures);
-    setValueIfSetInMap(enableKeygenElement, "KeygenElementEnabled", testFeatures.boolWebPreferenceFeatures);
-    setValueIfSetInMap(enableMenuItemElement, "MenuItemElementEnabled", testFeatures.boolWebPreferenceFeatures);
-    setValueIfSetInMap(enableModernMediaControls, "ModernMediaControlsEnabled", testFeatures.boolWebPreferenceFeatures);
-
-    setValueIfSetInMap(enableDragDestinationActionLoad, "enableDragDestinationActionLoad", testFeatures.boolTestRunnerFeatures);
-    setValueIfSetInMap(dumpJSConsoleLogInStdErr, "dumpJSConsoleLogInStdErr", testFeatures.boolTestRunnerFeatures);
-    setValueIfSetInMap(layerBackedWebView, "layerBackedWebView", testFeatures.boolTestRunnerFeatures);
-    setValueIfSetInMap(useEphemeralSession, "useEphemeralSession", testFeatures.boolTestRunnerFeatures);
-
-    setValueIfSetInMap(additionalSupportedImageTypes, "additionalSupportedImageTypes", testFeatures.stringTestRunnerFeatures);
-    setValueIfSetInMap(jscOptions, "jscOptions", testFeatures.stringTestRunnerFeatures);
-
-    setValueIfSetInMap(enableCSSLogical, "CSSLogicalEnabled", testFeatures.internalDebugFeatures);
-    setValueIfSetInMap(enableLineHeightUnits, "LineHeightUnitsEnabled", testFeatures.internalDebugFeatures);
-    setValueIfSetInMap(enableSelectionAcrossShadowBoundaries, "selectionAcrossShadowBoundariesEnabled", testFeatures.internalDebugFeatures);
-    setValueIfSetInMap(layoutFormattingContextIntegrationEnabled, "LayoutFormattingContextIntegrationEnabled", testFeatures.internalDebugFeatures);
-
-    setValueIfSetInMap(adClickAttributionEnabled, "AdClickAttributionEnabled", testFeatures.experimentalFeatures);
-    setValueIfSetInMap(enableAspectRatioOfImgFromWidthAndHeight, "AspectRatioOfImgFromWidthAndHeightEnabled", testFeatures.experimentalFeatures);
-    setValueIfSetInMap(enableAsyncClipboardAPI, "AsyncClipboardAPIEnabled", testFeatures.experimentalFeatures);
-    setValueIfSetInMap(enableCSSOMViewSmoothScrolling, "CSSOMViewSmoothScrollingEnabled", testFeatures.experimentalFeatures);
-    setValueIfSetInMap(enableContactPickerAPI, "ContactPickerAPIEnabled", testFeatures.experimentalFeatures);
-    setValueIfSetInMap(enableCoreMathML, "CoreMathMLEnabled", testFeatures.experimentalFeatures);
-    setValueIfSetInMap(enableRequestIdleCallback, "RequestIdleCallbackEnabled", testFeatures.experimentalFeatures);
-    setValueIfSetInMap(enableResizeObserver, "ResizeObserverEnabled", testFeatures.experimentalFeatures);
-    setValueIfSetInMap(enableWebGPU, "WebGPUEnabled", testFeatures.experimentalFeatures);
-}
-
 bool TestOptions::webViewIsCompatibleWithOptions(const TestOptions& other) const
 {
-    return other.layerBackedWebView == layerBackedWebView
-        && other.jscOptions == jscOptions;
+    return m_features == other.m_features;
+}
+
+template<typename T> T featureValue(std::string key, T defaultValue, const std::unordered_map<std::string, T>& map)
+{
+    auto it = map.find(key);
+    if (it != map.end())
+        return it->second;
+    return defaultValue;
+}
+
+bool TestOptions::boolTestRunnerFeatureValue(std::string key, bool defaultValue) const
+{
+    return featureValue(key, defaultValue, m_features.boolTestRunnerFeatures);
+}
+
+std::string TestOptions::stringTestRunnerFeatureValue(std::string key, std::string defaultValue) const
+{
+    return featureValue(key, defaultValue, m_features.stringTestRunnerFeatures);
 }
 
 }

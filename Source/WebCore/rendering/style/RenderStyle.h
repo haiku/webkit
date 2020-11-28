@@ -502,8 +502,8 @@ public:
     float opacity() const { return m_rareNonInheritedData->opacity; }
     ControlPart appearance() const { return static_cast<ControlPart>(m_rareNonInheritedData->appearance); }
     AspectRatioType aspectRatioType() const { return static_cast<AspectRatioType>(m_rareNonInheritedData->aspectRatioType); }
-    float aspectRatioDenominator() const { return m_rareNonInheritedData->aspectRatioDenominator; }
-    float aspectRatioNumerator() const { return m_rareNonInheritedData->aspectRatioNumerator; }
+    double aspectRatioWidth() const { return m_rareNonInheritedData->aspectRatioWidth; }
+    double aspectRatioHeight() const { return m_rareNonInheritedData->aspectRatioHeight; }
     BoxAlignment boxAlign() const { return static_cast<BoxAlignment>(m_rareNonInheritedData->deprecatedFlexibleBox->align); }
     BoxDirection boxDirection() const { return static_cast<BoxDirection>(m_inheritedFlags.boxDirection); }
     float boxFlex() const { return m_rareNonInheritedData->deprecatedFlexibleBox->flex; }
@@ -563,8 +563,8 @@ public:
     const GridPosition& gridItemRowEnd() const { return m_rareNonInheritedData->gridItem->gridRowEnd; }
 
     const ShadowData* boxShadow() const { return m_rareNonInheritedData->boxShadow.get(); }
-    void getBoxShadowExtent(LayoutUnit& top, LayoutUnit& right, LayoutUnit& bottom, LayoutUnit& left) const { getShadowExtent(boxShadow(), top, right, bottom, left); }
-    LayoutBoxExtent getBoxShadowInsetExtent() const { return getShadowInsetExtent(boxShadow()); }
+    LayoutBoxExtent boxShadowExtent() const { return shadowExtent(boxShadow()); }
+    LayoutBoxExtent boxShadowInsetExtent() const { return shadowInsetExtent(boxShadow()); }
     void getBoxShadowHorizontalExtent(LayoutUnit& left, LayoutUnit& right) const { getShadowHorizontalExtent(boxShadow(), left, right); }
     void getBoxShadowVerticalExtent(LayoutUnit& top, LayoutUnit& bottom) const { getShadowVerticalExtent(boxShadow(), top, bottom); }
     void getBoxShadowInlineDirectionExtent(LayoutUnit& logicalLeft, LayoutUnit& logicalRight) const { getShadowInlineDirectionExtent(boxShadow(), logicalLeft, logicalRight); }
@@ -719,7 +719,15 @@ public:
     OptionSet<TouchAction> effectiveTouchActions() const { return m_rareInheritedData->effectiveTouchActions; }
     OptionSet<EventListenerRegionType> eventListenerRegionTypes() const { return m_rareInheritedData->eventListenerRegionTypes; }
 
+    const LengthBox& scrollMargin() const;
+    const Length& scrollMarginTop() const;
+    const Length& scrollMarginBottom() const;
+    const Length& scrollMarginLeft() const;
+    const Length& scrollMarginRight() const;
+
 #if ENABLE(CSS_SCROLL_SNAP)
+    bool hasSnapPosition() const;
+
     // Scroll snap port style.
     const StyleScrollSnapPort& scrollSnapPort() const;
     const ScrollSnapType& scrollSnapType() const;
@@ -729,14 +737,7 @@ public:
     const Length& scrollPaddingLeft() const;
     const Length& scrollPaddingRight() const;
 
-    // Scroll snap area style.
-    const StyleScrollSnapArea& scrollSnapArea() const;
     const ScrollSnapAlign& scrollSnapAlign() const;
-    const LengthBox& scrollSnapMargin() const;
-    const Length& scrollSnapMarginTop() const;
-    const Length& scrollSnapMarginBottom() const;
-    const Length& scrollSnapMarginLeft() const;
-    const Length& scrollSnapMarginRight() const;
 #endif
 
 #if ENABLE(TOUCH_EVENTS)
@@ -1008,8 +1009,7 @@ public:
     void setCaptionSide(CaptionSide v) { m_inheritedFlags.captionSide = static_cast<unsigned>(v); }
 
     void setAspectRatioType(AspectRatioType aspectRatioType) { SET_VAR(m_rareNonInheritedData, aspectRatioType, static_cast<unsigned>(aspectRatioType)); }
-    void setAspectRatioDenominator(float v) { SET_VAR(m_rareNonInheritedData, aspectRatioDenominator, v); }
-    void setAspectRatioNumerator(float v) { SET_VAR(m_rareNonInheritedData, aspectRatioNumerator, v); }
+    void setAspectRatio(double width, double height) { SET_VAR(m_rareNonInheritedData, aspectRatioWidth, width); SET_VAR(m_rareNonInheritedData, aspectRatioHeight, height); }
 
     void setListStyleStringValue(const AtomString& value) { SET_VAR(m_rareInheritedData, listStyleStringValue, value); }
     void setListStyleType(ListStyleType v) { m_inheritedFlags.listStyleType = static_cast<unsigned>(v); }
@@ -1024,7 +1024,7 @@ public:
     void setMarginStart(Length&&);
     void setMarginEnd(Length&&);
 
-    void resetPadding() { SET_VAR(m_surroundData, padding, LengthBox(Auto)); }
+    void resetPadding() { SET_VAR(m_surroundData, padding, LengthBox(initialPadding().intValue())); }
     void setPaddingBox(LengthBox&& box) { SET_VAR(m_surroundData, padding, WTFMove(box)); }
     void setPaddingTop(Length&& length) { SET_VAR(m_surroundData, padding.top(), WTFMove(length)); }
     void setPaddingBottom(Length&& length) { SET_VAR(m_surroundData, padding.bottom(), WTFMove(length)); }
@@ -1102,7 +1102,7 @@ public:
     void setBoxReflect(RefPtr<StyleReflection>&&);
     void setBoxSizing(BoxSizing s) { SET_VAR(m_boxData, m_boxSizing, static_cast<unsigned>(s)); }
     void setFlexGrow(float f) { float clampedGrow = std::max<float>(f, 0.f); SET_NESTED_VAR(m_rareNonInheritedData, flexibleBox, flexGrow, clampedGrow); }
-    void setFlexShrink(float f) { SET_NESTED_VAR(m_rareNonInheritedData, flexibleBox, flexShrink, f); }
+    void setFlexShrink(float f) { float clampledShrink = std::max<float>(f, 0.f); SET_NESTED_VAR(m_rareNonInheritedData, flexibleBox, flexShrink, clampledShrink); }
     void setFlexBasis(Length&& length) { SET_NESTED_VAR(m_rareNonInheritedData, flexibleBox, flexBasis, WTFMove(length)); }
     void setOrder(int o) { SET_VAR(m_rareNonInheritedData, order, o); }
     void setAlignContent(const StyleContentAlignmentData& data) { SET_VAR(m_rareNonInheritedData, alignContent, data); }
@@ -1265,6 +1265,11 @@ public:
     void setEffectiveTouchActions(OptionSet<TouchAction> touchActions) { SET_VAR(m_rareInheritedData, effectiveTouchActions, touchActions); }
     void setEventListenerRegionTypes(OptionSet<EventListenerRegionType> eventListenerTypes) { SET_VAR(m_rareInheritedData, eventListenerRegionTypes, eventListenerTypes); }
 
+    void setScrollMarginTop(Length&&);
+    void setScrollMarginBottom(Length&&);
+    void setScrollMarginLeft(Length&&);
+    void setScrollMarginRight(Length&&);
+
 #if ENABLE(CSS_SCROLL_SNAP)
     void setScrollSnapType(const ScrollSnapType&);
     void setScrollPaddingTop(Length&&);
@@ -1273,10 +1278,6 @@ public:
     void setScrollPaddingRight(Length&&);
 
     void setScrollSnapAlign(const ScrollSnapAlign&);
-    void setScrollSnapMarginTop(Length&&);
-    void setScrollSnapMarginBottom(Length&&);
-    void setScrollSnapMarginLeft(Length&&);
-    void setScrollSnapMarginRight(Length&&);
 #endif
 
 #if ENABLE(TOUCH_EVENTS)
@@ -1608,8 +1609,8 @@ public:
     static Resize initialResize() { return Resize::None; }
     static ControlPart initialAppearance() { return NoControlPart; }
     static AspectRatioType initialAspectRatioType() { return AspectRatioType::Auto; }
-    static float initialAspectRatioDenominator() { return 1; }
-    static float initialAspectRatioNumerator() { return 1; }
+    static double initialAspectRatioWidth() { return 1.0; }
+    static double initialAspectRatioHeight() { return 1.0; }
     static Order initialRTLOrdering() { return Order::Logical; }
     static float initialTextStrokeWidth() { return 0; }
     static unsigned short initialColumnCount() { return 1; }
@@ -1674,10 +1675,11 @@ public:
 
     static TouchAction initialTouchActions() { return TouchAction::Auto; }
 
+    static Length initialScrollMargin() { return Length(Fixed); }
+
 #if ENABLE(CSS_SCROLL_SNAP)
     static ScrollSnapType initialScrollSnapType();
     static ScrollSnapAlign initialScrollSnapAlign();
-    static Length initialScrollSnapMargin() { return Length(Fixed); }
     static Length initialScrollPadding() { return Length(Fixed); }
 #endif
 
@@ -1775,9 +1777,7 @@ public:
     void setVisitedLinkCaretColor(const Color& v) { SET_VAR(m_rareInheritedData, visitedLinkCaretColor, v); }
 
     void inheritUnicodeBidiFrom(const RenderStyle* parent) { m_nonInheritedFlags.unicodeBidi = parent->m_nonInheritedFlags.unicodeBidi; }
-    void getShadowExtent(const ShadowData*, LayoutUnit& top, LayoutUnit& right, LayoutUnit& bottom, LayoutUnit& left) const;
-    void getShadowHorizontalExtent(const ShadowData*, LayoutUnit& left, LayoutUnit& right) const;
-    void getShadowVerticalExtent(const ShadowData*, LayoutUnit& top, LayoutUnit& bottom) const;
+
     void getShadowInlineDirectionExtent(const ShadowData*, LayoutUnit& logicalLeft, LayoutUnit& logicalRight) const;
     void getShadowBlockDirectionExtent(const ShadowData*, LayoutUnit& logicalTop, LayoutUnit& logicalBottom) const;
 
@@ -1910,13 +1910,16 @@ private:
 
     void setContent(std::unique_ptr<ContentData>, bool add);
 
-    LayoutBoxExtent getShadowInsetExtent(const ShadowData*) const;
-
     static bool isDisplayReplacedType(DisplayType);
     static bool isDisplayInlineType(DisplayType);
     static bool isDisplayFlexibleBox(DisplayType);
     static bool isDisplayGridBox(DisplayType);
     static bool isDisplayFlexibleOrGridBox(DisplayType);
+
+    static LayoutBoxExtent shadowExtent(const ShadowData*);
+    static LayoutBoxExtent shadowInsetExtent(const ShadowData*);
+    static void getShadowHorizontalExtent(const ShadowData*, LayoutUnit& left, LayoutUnit& right);
+    static void getShadowVerticalExtent(const ShadowData*, LayoutUnit& top, LayoutUnit& bottom);
 
     Color colorResolvingCurrentColor(CSSPropertyID colorProperty, bool visitedLink) const;
 

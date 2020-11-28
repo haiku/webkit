@@ -400,7 +400,7 @@ public:
     virtual String target() const { return String(); }
 
     static AXTextStateChangeIntent defaultFocusTextStateChangeIntent() { return AXTextStateChangeIntent(AXTextStateChangeTypeSelectionMove, AXTextSelection { AXTextSelectionDirectionDiscontiguous, AXTextSelectionGranularityUnknown, true }); }
-    virtual void focus(bool restorePreviousSelection = true, FocusDirection = FocusDirectionNone);
+    virtual void focus(SelectionRestorationMode = SelectionRestorationMode::RestoreOrSelectAll, FocusDirection = FocusDirection::None);
     void revealFocusedElement(SelectionRestorationMode);
     virtual RefPtr<Element> focusAppearanceUpdateTarget();
     virtual void updateFocusAppearance(SelectionRestorationMode, SelectionRevealMode = SelectionRevealMode::Reveal);
@@ -489,11 +489,10 @@ public:
     KeyframeEffectStack* keyframeEffectStack(PseudoId) const;
     KeyframeEffectStack& ensureKeyframeEffectStack(PseudoId);
     bool hasKeyframeEffects(PseudoId) const;
-    OptionSet<AnimationImpact> applyKeyframeEffects(PseudoId, RenderStyle&);
 
     const AnimationCollection* animations(PseudoId) const;
-    bool hasCompletedTransitionsForProperty(PseudoId, CSSPropertyID) const;
-    bool hasRunningTransitionsForProperty(PseudoId, CSSPropertyID) const;
+    bool hasCompletedTransitionForProperty(PseudoId, CSSPropertyID) const;
+    bool hasRunningTransitionForProperty(PseudoId, CSSPropertyID) const;
     bool hasRunningTransitions(PseudoId) const;
     AnimationCollection& ensureAnimations(PseudoId);
 

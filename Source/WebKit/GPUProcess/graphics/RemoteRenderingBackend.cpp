@@ -28,10 +28,15 @@
 
 #if ENABLE(GPU_PROCESS)
 
+#include "DisplayListReaderHandle.h"
 #include "GPUConnectionToWebProcess.h"
 #include "PlatformRemoteImageBuffer.h"
+#include "RemoteMediaPlayerManagerProxy.h"
+#include "RemoteMediaPlayerProxy.h"
 #include "RemoteRenderingBackendMessages.h"
 #include "RemoteRenderingBackendProxyMessages.h"
+#include <wtf/CheckedArithmetic.h>
+#include <wtf/SystemTracing.h>
 
 namespace WebKit {
 using namespace WebCore;
@@ -72,62 +77,268 @@ uint64_t RemoteRenderingBackend::messageSenderDestinationID() const
     return m_renderingBackendIdentifier.toUInt64();
 }
 
-void RemoteRenderingBackend::imageBufferBackendWasCreated(const FloatSize& logicalSize, const IntSize& backendSize, float resolutionScale, ColorSpace colorSpace, ImageBufferBackendHandle handle, RemoteResourceIdentifier remoteResourceIdentifier)
+bool RemoteRenderingBackend::applyMediaItem(DisplayList::ItemHandle item, GraphicsContext& context)
 {
-    send(Messages::RemoteRenderingBackendProxy::ImageBufferBackendWasCreated(logicalSize, backendSize, resolutionScale, colorSpace, WTFMove(handle), remoteResourceIdentifier), m_renderingBackendIdentifier);
+    if (!item.is<DisplayList::PaintFrameForMedia>())
+        return false;
+
+    auto& mediaItem = item.get<DisplayList::PaintFrameForMedia>();
+    auto process = gpuConnectionToWebProcess();
+    if (!process)
+        return false;
+
+    auto playerProxy = process->remoteMediaPlayerManagerProxy().getProxy(mediaItem.identifier());
+    if (!playerProxy)
+        return false;
+
+    auto player = playerProxy->mediaPlayer();
+    if (!player)
+        return false;
+
+    context.paintFrameForMedia(*player, mediaItem.destination());
+    return true;
 }
 
-void RemoteRenderingBackend::flushDisplayListWasCommitted(DisplayListFlushIdentifier flushIdentifier, RemoteResourceIdentifier remoteResourceIdentifier)
+void RemoteRenderingBackend::imageBufferBackendWasCreated(const FloatSize& logicalSize, const IntSize& backendSize, float resolutionScale, ColorSpace colorSpace, PixelFormat pixelFormat, ImageBufferBackendHandle handle, RenderingResourceIdentifier renderingResourceIdentifier)
 {
-    send(Messages::RemoteRenderingBackendProxy::FlushDisplayListWasCommitted(flushIdentifier, remoteResourceIdentifier), m_renderingBackendIdentifier);
+    send(Messages::RemoteRenderingBackendProxy::ImageBufferBackendWasCreated(logicalSize, backendSize, resolutionScale, colorSpace, pixelFormat, WTFMove(handle), renderingResourceIdentifier), m_renderingBackendIdentifier);
 }
 
-void RemoteRenderingBackend::createImageBuffer(const FloatSize& logicalSize, RenderingMode renderingMode, float resolutionScale, ColorSpace colorSpace, WebCore::RemoteResourceIdentifier remoteResourceIdentifier)
+void RemoteRenderingBackend::flushDisplayListWasCommitted(DisplayList::FlushIdentifier flushIdentifier, RenderingResourceIdentifier renderingResourceIdentifier)
 {
-    ASSERT(renderingMode == RenderingMode::RemoteAccelerated || renderingMode == RenderingMode::RemoteUnaccelerated);
+    send(Messages::RemoteRenderingBackendProxy::FlushDisplayListWasCommitted(flushIdentifier, renderingResourceIdentifier), m_renderingBackendIdentifier);
+}
 
-    std::unique_ptr<WebCore::ImageBuffer> image;
+void RemoteRenderingBackend::createImageBuffer(const FloatSize& logicalSize, RenderingMode renderingMode, float resolutionScale, ColorSpace colorSpace, PixelFormat pixelFormat, RenderingResourceIdentifier renderingResourceIdentifier)
+{
+    ASSERT(renderingMode == RenderingMode::Accelerated || renderingMode == RenderingMode::Unaccelerated);
 
-    if (renderingMode == RenderingMode::RemoteAccelerated)
-        image = AcceleratedRemoteImageBuffer::create(logicalSize, resolutionScale, colorSpace, *this, remoteResourceIdentifier);
+    RefPtr<ImageBuffer> imageBuffer;
 
-    if (!image)
-        image = UnacceleratedRemoteImageBuffer::create(logicalSize, resolutionScale, colorSpace, *this, remoteResourceIdentifier);
+    if (renderingMode == RenderingMode::Accelerated)
+        imageBuffer = AcceleratedRemoteImageBuffer::create(logicalSize, resolutionScale, colorSpace, pixelFormat, *this, renderingResourceIdentifier);
 
-    if (image) {
-        m_remoteResourceCache.cacheImageBuffer(remoteResourceIdentifier, WTFMove(image));
+    if (!imageBuffer)
+        imageBuffer = UnacceleratedRemoteImageBuffer::create(logicalSize, resolutionScale, colorSpace, pixelFormat, *this, renderingResourceIdentifier);
+
+    if (!imageBuffer) {
+        ASSERT_NOT_REACHED();
         return;
     }
 
-    ASSERT_NOT_REACHED();
+    m_remoteResourceCache.cacheImageBuffer(makeRef(*imageBuffer));
 }
 
-void RemoteRenderingBackend::flushDisplayList(const WebCore::DisplayList::DisplayList& displayList, RemoteResourceIdentifier remoteResourceIdentifier)
+void RemoteRenderingBackend::applyDisplayListsFromHandle(ImageBuffer& destination, DisplayListReaderHandle& handle, size_t initialOffset)
 {
-    if (auto imageBuffer = m_remoteResourceCache.cachedImageBuffer(remoteResourceIdentifier))
-        imageBuffer->flushDisplayList(displayList);
-}
+    auto handleProtector = makeRef(handle);
 
-void RemoteRenderingBackend::flushDisplayListAndCommit(const WebCore::DisplayList::DisplayList& displayList, DisplayListFlushIdentifier flushIdentifier, RemoteResourceIdentifier remoteResourceIdentifier)
-{
-    if (auto imageBuffer = m_remoteResourceCache.cachedImageBuffer(remoteResourceIdentifier)) {
-        imageBuffer->flushDisplayList(displayList);
-        imageBuffer->flushContext();
-        flushDisplayListWasCommitted(flushIdentifier, remoteResourceIdentifier);
+    size_t offset = initialOffset;
+    size_t sizeToRead = 0;
+
+    do {
+        sizeToRead = handle.unreadBytes();
+    } while (!sizeToRead);
+
+    while (sizeToRead) {
+        auto displayList = handle.displayListForReading(offset, sizeToRead, *this);
+        if (UNLIKELY(!displayList)) {
+            // FIXME: Add a message check to terminate the web process.
+            ASSERT_NOT_REACHED();
+            return;
+        }
+
+        destination.submitDisplayList(*displayList);
+
+        CheckedSize checkedOffset = offset;
+        checkedOffset += sizeToRead;
+        if (UNLIKELY(checkedOffset.hasOverflowed())) {
+            // FIXME: Add a message check to terminate the web process.
+            ASSERT_NOT_REACHED();
+            return;
+        }
+
+        offset = checkedOffset.unsafeGet();
+
+        if (UNLIKELY(offset > handle.sharedMemory().size())) {
+            // FIXME: Add a message check to terminate the web process.
+            ASSERT_NOT_REACHED();
+            return;
+        }
+
+        sizeToRead = handle.advance(sizeToRead);
     }
 }
 
-void RemoteRenderingBackend::getImageData(WebCore::AlphaPremultiplication outputFormat, WebCore::IntRect srcRect, RemoteResourceIdentifier remoteResourceIdentifier, CompletionHandler<void(IPC::ImageDataReference&&)>&& completionHandler)
+void RemoteRenderingBackend::wakeUpAndApplyDisplayList(DisplayList::ItemBufferIdentifier initialIdentifier, uint64_t initialOffset, RenderingResourceIdentifier destinationBufferIdentifier)
+{
+    TraceScope tracingScope(WakeUpAndApplyDisplayListStart, WakeUpAndApplyDisplayListEnd);
+    auto imageBuffer = m_remoteResourceCache.cachedImageBuffer(destinationBufferIdentifier);
+    if (UNLIKELY(!imageBuffer)) {
+        // FIXME: Add a message check to terminate the web process.
+        ASSERT_NOT_REACHED();
+        return;
+    }
+
+    auto initialHandle = m_sharedDisplayListHandles.get(initialIdentifier);
+    if (UNLIKELY(!initialHandle)) {
+        // FIXME: Add a message check to terminate the web process.
+        ASSERT_NOT_REACHED();
+        return;
+    }
+
+    applyDisplayListsFromHandle(*imageBuffer, *initialHandle, initialOffset);
+
+    while (m_nextItemBufferToRead) {
+        auto nextHandle = m_sharedDisplayListHandles.get(m_nextItemBufferToRead);
+        if (!nextHandle) {
+            // If the handle identifier is currently unknown, wait until the GPU process receives an
+            // IPC message with a shared memory handle to the next item buffer.
+            break;
+        }
+        // Otherwise, continue reading the next display list item buffer from the start.
+        m_nextItemBufferToRead = { };
+        applyDisplayListsFromHandle(*imageBuffer, *nextHandle, SharedDisplayListHandle::reservedCapacityAtStart);
+    }
+}
+
+void RemoteRenderingBackend::setNextItemBufferToRead(DisplayList::ItemBufferIdentifier identifier)
+{
+    if (UNLIKELY(m_nextItemBufferToRead)) {
+        // FIXME: Add a message check to terminate the web process.
+        ASSERT_NOT_REACHED();
+        return;
+    }
+    m_nextItemBufferToRead = identifier;
+}
+
+void RemoteRenderingBackend::getImageData(AlphaPremultiplication outputFormat, IntRect srcRect, RenderingResourceIdentifier renderingResourceIdentifier, CompletionHandler<void(IPC::ImageDataReference&&)>&& completionHandler)
 {
     RefPtr<ImageData> imageData;
-    if (auto imageBuffer = m_remoteResourceCache.cachedImageBuffer(remoteResourceIdentifier))
+    if (auto imageBuffer = m_remoteResourceCache.cachedImageBuffer(renderingResourceIdentifier))
         imageData = imageBuffer->getImageData(outputFormat, srcRect);
     completionHandler(IPC::ImageDataReference(WTFMove(imageData)));
 }
 
-void RemoteRenderingBackend::releaseRemoteResource(RemoteResourceIdentifier remoteResourceIdentifier)
+void RemoteRenderingBackend::cacheNativeImage(Ref<NativeImage>&& image)
 {
-    m_remoteResourceCache.releaseRemoteResource(remoteResourceIdentifier);
+    m_remoteResourceCache.cacheNativeImage(WTFMove(image));
+}
+
+void RemoteRenderingBackend::releaseRemoteResource(RenderingResourceIdentifier renderingResourceIdentifier)
+{
+    m_remoteResourceCache.releaseRemoteResource(renderingResourceIdentifier);
+}
+
+void RemoteRenderingBackend::didCreateSharedDisplayListHandle(DisplayList::ItemBufferIdentifier identifier, const SharedMemory::IPCHandle& handle, RenderingResourceIdentifier destinationBufferIdentifier)
+{
+    if (UNLIKELY(m_sharedDisplayListHandles.contains(identifier))) {
+        // FIXME: Add a message check to terminate the web process.
+        ASSERT_NOT_REACHED();
+        return;
+    }
+
+    if (auto sharedMemory = SharedMemory::map(handle.handle, SharedMemory::Protection::ReadWrite))
+        m_sharedDisplayListHandles.set(identifier, DisplayListReaderHandle::create(identifier, sharedMemory.releaseNonNull()));
+
+    if (m_nextItemBufferToRead == identifier) {
+        m_nextItemBufferToRead = { };
+        wakeUpAndApplyDisplayList(identifier, SharedDisplayListHandle::reservedCapacityAtStart, destinationBufferIdentifier);
+    }
+}
+
+Optional<DisplayList::ItemHandle> WARN_UNUSED_RETURN RemoteRenderingBackend::decodeItem(const uint8_t* data, size_t length, DisplayList::ItemType type, uint8_t* handleLocation)
+{
+    switch (type) {
+    case DisplayList::ItemType::ClipOutToPath:
+        return decodeAndCreate<DisplayList::ClipOutToPath>(data, length, handleLocation);
+    case DisplayList::ItemType::ClipPath:
+        return decodeAndCreate<DisplayList::ClipPath>(data, length, handleLocation);
+    case DisplayList::ItemType::ClipToDrawingCommands:
+        return decodeAndCreate<DisplayList::ClipToDrawingCommands>(data, length, handleLocation);
+    case DisplayList::ItemType::DrawFocusRingPath:
+        return decodeAndCreate<DisplayList::DrawFocusRingPath>(data, length, handleLocation);
+    case DisplayList::ItemType::DrawFocusRingRects:
+        return decodeAndCreate<DisplayList::DrawFocusRingRects>(data, length, handleLocation);
+    case DisplayList::ItemType::DrawGlyphs:
+        return decodeAndCreate<DisplayList::DrawGlyphs>(data, length, handleLocation);
+    case DisplayList::ItemType::DrawLinesForText:
+        return decodeAndCreate<DisplayList::DrawLinesForText>(data, length, handleLocation);
+    case DisplayList::ItemType::DrawPath:
+        return decodeAndCreate<DisplayList::DrawPath>(data, length, handleLocation);
+    case DisplayList::ItemType::FillCompositedRect:
+        return decodeAndCreate<DisplayList::FillCompositedRect>(data, length, handleLocation);
+    case DisplayList::ItemType::FillPath:
+        return decodeAndCreate<DisplayList::FillPath>(data, length, handleLocation);
+    case DisplayList::ItemType::FillRectWithColor:
+        return decodeAndCreate<DisplayList::FillRectWithColor>(data, length, handleLocation);
+    case DisplayList::ItemType::FillRectWithGradient:
+        return decodeAndCreate<DisplayList::FillRectWithGradient>(data, length, handleLocation);
+    case DisplayList::ItemType::FillRectWithRoundedHole:
+        return decodeAndCreate<DisplayList::FillRectWithRoundedHole>(data, length, handleLocation);
+    case DisplayList::ItemType::FillRoundedRect:
+        return decodeAndCreate<DisplayList::FillRoundedRect>(data, length, handleLocation);
+    case DisplayList::ItemType::PutImageData:
+        return decodeAndCreate<DisplayList::PutImageData>(data, length, handleLocation);
+    case DisplayList::ItemType::SetLineDash:
+        return decodeAndCreate<DisplayList::SetLineDash>(data, length, handleLocation);
+    case DisplayList::ItemType::SetState:
+        return decodeAndCreate<DisplayList::SetState>(data, length, handleLocation);
+    case DisplayList::ItemType::StrokePath:
+        return decodeAndCreate<DisplayList::StrokePath>(data, length, handleLocation);
+    case DisplayList::ItemType::ApplyDeviceScaleFactor:
+#if USE(CG)
+    case DisplayList::ItemType::ApplyFillPattern:
+    case DisplayList::ItemType::ApplyStrokePattern:
+#endif
+    case DisplayList::ItemType::BeginTransparencyLayer:
+    case DisplayList::ItemType::ClearRect:
+    case DisplayList::ItemType::ClearShadow:
+    case DisplayList::ItemType::Clip:
+    case DisplayList::ItemType::ClipOut:
+    case DisplayList::ItemType::ClipToImageBuffer:
+    case DisplayList::ItemType::ConcatenateCTM:
+    case DisplayList::ItemType::DrawDotsForDocumentMarker:
+    case DisplayList::ItemType::DrawEllipse:
+    case DisplayList::ItemType::DrawImageBuffer:
+    case DisplayList::ItemType::DrawNativeImage:
+    case DisplayList::ItemType::DrawPattern:
+    case DisplayList::ItemType::DrawLine:
+    case DisplayList::ItemType::DrawRect:
+    case DisplayList::ItemType::EndTransparencyLayer:
+    case DisplayList::ItemType::FillEllipse:
+#if ENABLE(INLINE_PATH_DATA)
+    case DisplayList::ItemType::FillInlinePath:
+#endif
+    case DisplayList::ItemType::FillRect:
+    case DisplayList::ItemType::FlushContext:
+    case DisplayList::ItemType::MetaCommandSwitchTo:
+    case DisplayList::ItemType::PaintFrameForMedia:
+    case DisplayList::ItemType::Restore:
+    case DisplayList::ItemType::Rotate:
+    case DisplayList::ItemType::Save:
+    case DisplayList::ItemType::Scale:
+    case DisplayList::ItemType::SetCTM:
+    case DisplayList::ItemType::SetInlineFillColor:
+    case DisplayList::ItemType::SetInlineFillGradient:
+    case DisplayList::ItemType::SetInlineStrokeColor:
+    case DisplayList::ItemType::SetLineCap:
+    case DisplayList::ItemType::SetLineJoin:
+    case DisplayList::ItemType::SetMiterLimit:
+    case DisplayList::ItemType::SetStrokeThickness:
+    case DisplayList::ItemType::StrokeEllipse:
+#if ENABLE(INLINE_PATH_DATA)
+    case DisplayList::ItemType::StrokeInlinePath:
+#endif
+    case DisplayList::ItemType::StrokeRect:
+    case DisplayList::ItemType::StrokeLine:
+    case DisplayList::ItemType::Translate: {
+        ASSERT_NOT_REACHED();
+        break;
+    }
+    }
+    ASSERT_NOT_REACHED();
+    return WTF::nullopt;
 }
 
 } // namespace WebKit

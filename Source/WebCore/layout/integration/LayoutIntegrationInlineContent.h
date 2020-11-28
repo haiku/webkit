@@ -35,6 +35,7 @@
 
 namespace WebCore {
 
+class RenderBlockFlow;
 class RenderObject;
 
 namespace Layout {
@@ -61,7 +62,8 @@ struct InlineContent : public RefCounted<InlineContent> {
     void shrinkToFit();
 
     const LineLayout& lineLayout() const;
-    const RenderObject* rendererForLayoutBox(const Layout::Box&) const;
+    const RenderObject& rendererForLayoutBox(const Layout::Box&) const;
+    const RenderBlockFlow& containingBlock() const;
 
 private:
     InlineContent(const LineLayout&);

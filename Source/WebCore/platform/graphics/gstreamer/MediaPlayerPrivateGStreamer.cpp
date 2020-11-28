@@ -2729,6 +2729,7 @@ void MediaPlayerPrivateGStreamer::updateDownloadBufferingFlag()
 
 void MediaPlayerPrivateGStreamer::createGSTPlayBin(const URL& url, const String& pipelineName)
 {
+    GST_INFO("Creating pipeline for %s player", m_player->isVideoPlayer() ? "video" : "audio");
     const char* playbinName = "playbin";
 
     // MSE doesn't support playbin3. Mediastream requires playbin3. Regular
@@ -2813,7 +2814,9 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin(const URL& url, const String&
 
     g_object_set(m_pipeline.get(), "text-sink", m_textAppSink.get(), nullptr);
 
-    g_object_set(m_pipeline.get(), "video-sink", createVideoSink(), "audio-sink", createAudioSink(), nullptr);
+    g_object_set(m_pipeline.get(), "audio-sink", createAudioSink(), nullptr);
+    if (m_player->isVideoPlayer())
+        g_object_set(m_pipeline.get(), "video-sink", createVideoSink(), nullptr);
 
     configurePlaySink();
 
@@ -2825,6 +2828,9 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin(const URL& url, const String&
         else
             g_object_set(m_pipeline.get(), "audio-filter", scale, nullptr);
     }
+
+    if (!m_player->isVideoPlayer())
+        return;
 
     if (!m_canRenderingBeAccelerated) {
         // If not using accelerated compositing, let GStreamer handle
@@ -3114,7 +3120,7 @@ void MediaPlayerPrivateGStreamer::paint(GraphicsContext& context, const FloatRec
     if (context.paintingDisabled())
         return;
 
-    if (!m_player->visible())
+    if (!m_visible)
         return;
 
     auto sampleLocker = holdLock(m_sampleMutex);
@@ -3176,7 +3182,7 @@ void MediaPlayerPrivateGStreamer::paint(GraphicsContext& context, const FloatRec
 }
 
 #if USE(GSTREAMER_GL)
-bool MediaPlayerPrivateGStreamer::copyVideoTextureToPlatformTexture(GraphicsContextGLOpenGL* context, PlatformGLObject outputTexture, GCGLenum outputTarget, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY)
+bool MediaPlayerPrivateGStreamer::copyVideoTextureToPlatformTexture(GraphicsContextGL* context, PlatformGLObject outputTexture, GCGLenum outputTarget, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY)
 {
     UNUSED_PARAM(context);
 
@@ -3209,7 +3215,7 @@ bool MediaPlayerPrivateGStreamer::copyVideoTextureToPlatformTexture(GraphicsCont
     return m_videoTextureCopier->copyVideoTextureToPlatformTexture(*layerBuffer.get(), size, outputTexture, outputTarget, level, internalFormat, format, type, flipY, m_videoSourceOrientation);
 }
 
-NativeImagePtr MediaPlayerPrivateGStreamer::nativeImageForCurrentTime()
+RefPtr<NativeImage> MediaPlayerPrivateGStreamer::nativeImageForCurrentTime()
 {
     return nullptr;
 }

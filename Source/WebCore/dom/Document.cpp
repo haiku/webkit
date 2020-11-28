@@ -111,7 +111,7 @@
 #include "HTTPHeaderNames.h"
 #include "HTTPParsers.h"
 #include "HashChangeEvent.h"
-#include "HighlightMap.h"
+#include "HighlightRegister.h"
 #include "History.h"
 #include "HitTestResult.h"
 #include "IdleCallbackController.h"
@@ -792,8 +792,8 @@ void Document::commonTeardown()
 
     clearScriptedAnimationController();
     
-    if (m_highlightMap)
-        m_highlightMap->clear();
+    if (m_highlightRegister)
+        m_highlightRegister->clear();
 
     m_pendingScrollEventTargetList = nullptr;
 
@@ -2558,7 +2558,7 @@ void Document::willBeRemovedFromFrame()
 #endif
 
     {
-        NavigationDisabler navigationDisabler(m_frame);
+        NavigationDisabler navigationDisabler(m_frame.get());
         disconnectDescendantFrames();
     }
     RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(!m_frame || !m_frame->tree().childCount());
@@ -2712,7 +2712,7 @@ void Document::resumeActiveDOMObjects(ReasonForSuspension why)
 void Document::stopActiveDOMObjects()
 {
     if (m_documentTaskGroup)
-        m_documentTaskGroup->stopAndDiscardAllTasks();
+        m_documentTaskGroup->markAsReadyToStop();
     ScriptExecutionContext::stopActiveDOMObjects();
     platformSuspendOrStopActiveDOMObjects();
 }
@@ -2767,18 +2767,18 @@ Ref<DocumentParser> Document::createParser()
     return XMLDocumentParser::create(*this, view());
 }
 
-HighlightMap& Document::highlightMap()
+HighlightRegister& Document::highlightRegister()
 {
-    if (!m_highlightMap)
-        m_highlightMap = HighlightMap::create();
-    return *m_highlightMap;
+    if (!m_highlightRegister)
+        m_highlightRegister = HighlightRegister::create();
+    return *m_highlightRegister;
 }
 
 void Document::updateHighlightPositions()
 {
     Vector<WeakPtr<HighlightRangeData>> rangesData;
-    if (m_highlightMap) {
-        for (auto& highlight : m_highlightMap->map()) {
+    if (m_highlightRegister) {
+        for (auto& highlight : m_highlightRegister->map()) {
             for (auto& rangeData : highlight.value->rangesData()) {
                 if (rangeData->startPosition && rangeData->endPosition)
                     continue;
@@ -3466,13 +3466,13 @@ bool Document::canNavigateInternal(Frame& targetFrame)
         return true;
 
     // iii. A sandboxed frame can always navigate its descendants.
-    if (isSandboxed(SandboxNavigation) && targetFrame.tree().isDescendantOf(m_frame))
+    if (isSandboxed(SandboxNavigation) && targetFrame.tree().isDescendantOf(m_frame.get()))
         return true;
 
     // From https://html.spec.whatwg.org/multipage/browsers.html#allowed-to-navigate.
     // 1. If A is not the same browsing context as B, and A is not one of the ancestor browsing contexts of B, and B is not a top-level browsing context, and A's active document's active sandboxing
     // flag set has its sandboxed navigation browsing context flag set, then abort these steps negatively.
-    if (m_frame != &targetFrame && isSandboxed(SandboxNavigation) && targetFrame.tree().parent() && !targetFrame.tree().isDescendantOf(m_frame)) {
+    if (m_frame != &targetFrame && isSandboxed(SandboxNavigation) && targetFrame.tree().parent() && !targetFrame.tree().isDescendantOf(m_frame.get())) {
         printNavigationErrorMessage(targetFrame, url(), "The frame attempting navigation is sandboxed, and is therefore disallowed from navigating its ancestors."_s);
         return false;
     }
@@ -4156,6 +4156,12 @@ void Document::runScrollSteps()
     }
 }
 
+void Document::invalidateScrollbars()
+{
+    if (auto* frameView = view())
+        frameView->invalidateScrollbarsForAllScrollableAreas();
+}
+
 void Document::addAudioProducer(MediaProducer& audioProducer)
 {
     m_audioProducers.add(audioProducer);
@@ -4244,7 +4250,7 @@ void Document::adjustFocusedNodeOnNodeRemoval(Node& node, NodeRemoval nodeRemova
         // FIXME: We should avoid synchronously updating the style inside setFocusedElement.
         // FIXME: Object elements should avoid loading a frame synchronously in a post style recalc callback.
         SubframeLoadingDisabler disabler(is<ContainerNode>(node) ? &downcast<ContainerNode>(node) : nullptr);
-        setFocusedElement(nullptr, FocusDirectionNone, FocusRemovalEventsMode::DoNotDispatch);
+        setFocusedElement(nullptr, FocusDirection::None, FocusRemovalEventsMode::DoNotDispatch);
         // Set the focus navigation starting node to the previous focused element so that
         // we can fallback to the siblings or parent node for the next search.
         // Also we need to call removeFocusNavigationNodeOfSubtree after this function because
@@ -4525,7 +4531,7 @@ Element* Document::focusNavigationStartingNode(FocusDirection direction) const
         Node* nextNode = NodeTraversal::next(*node);
         if (!nextNode)
             nextNode = node;
-        if (direction == FocusDirectionForward)
+        if (direction == FocusDirection::Forward)
             return ElementTraversal::previous(*nextNode);
         if (is<Element>(*nextNode))
             return downcast<Element>(nextNode);
@@ -4534,7 +4540,7 @@ Element* Document::focusNavigationStartingNode(FocusDirection direction) const
 
     if (is<Element>(*node))
         return downcast<Element>(node);
-    if (Element* elementBeforeNextFocusableElement = direction == FocusDirectionForward ? ElementTraversal::previous(*node) : ElementTraversal::next(*node))
+    if (Element* elementBeforeNextFocusableElement = direction == FocusDirection::Forward ? ElementTraversal::previous(*node) : ElementTraversal::next(*node))
         return elementBeforeNextFocusableElement;
     return node->parentOrShadowHostElement();
 }
@@ -5528,18 +5534,20 @@ void Document::registerForCaptionPreferencesChangedCallbacks(HTMLMediaElement& e
     if (page())
         page()->group().captionPreferences().setInterestedInCaptionPreferenceChanges();
 
-    m_captionPreferencesChangedElements.add(&element);
+    m_captionPreferencesChangedElements.add(element);
 }
 
 void Document::unregisterForCaptionPreferencesChangedCallbacks(HTMLMediaElement& element)
 {
-    m_captionPreferencesChangedElements.remove(&element);
+    m_captionPreferencesChangedElements.remove(element);
 }
 
 void Document::captionPreferencesChanged()
 {
-    for (auto* element : m_captionPreferencesChangedElements)
-        element->captionPreferencesChanged();
+    ASSERT(!m_captionPreferencesChangedElements.hasNullReferences());
+    m_captionPreferencesChangedElements.forEach([](HTMLMediaElement& element) {
+        element.captionPreferencesChanged();
+    });
 }
 
 void Document::setMediaElementShowingTextTrack(const HTMLMediaElement& element)
@@ -5698,7 +5706,7 @@ void Document::setTransformSource(std::unique_ptr<TransformSource> source)
 void Document::setDesignMode(InheritedBool value)
 {
     m_designMode = value;
-    for (Frame* frame = m_frame; frame && frame->document(); frame = frame->tree().traverseNext(m_frame))
+    for (auto* frame = m_frame.get(); frame && frame->document(); frame = frame->tree().traverseNext(m_frame.get()))
         frame->document()->scheduleFullStyleRebuild();
 }
 
@@ -5717,11 +5725,6 @@ void Document::setDesignMode(const String& value)
     else
         mode = inherit;
     setDesignMode(mode);
-}
-
-auto Document::getDesignMode() const -> InheritedBool
-{
-    return m_designMode;
 }
 
 bool Document::inDesignMode() const
@@ -6368,7 +6371,7 @@ EventLoopTaskGroup& Document::eventLoop()
     if (UNLIKELY(!m_documentTaskGroup)) {
         m_documentTaskGroup = makeUnique<EventLoopTaskGroup>(windowEventLoop());
         if (activeDOMObjectsAreStopped())
-            m_documentTaskGroup->stopAndDiscardAllTasks();
+            m_documentTaskGroup->markAsReadyToStop();
         else if (activeDOMObjectsAreSuspended())
             m_documentTaskGroup->suspend();
     }
@@ -6643,7 +6646,7 @@ void Document::cancelIdleCallback(int id)
     m_idleCallbackController->removeIdleCallback(id);
 }
 
-void Document::wheelEventHandlersChanged()
+void Document::wheelEventHandlersChanged(Node* node)
 {
     Page* page = this->page();
     if (!page)
@@ -6653,6 +6656,17 @@ void Document::wheelEventHandlersChanged()
         if (ScrollingCoordinator* scrollingCoordinator = page->scrollingCoordinator())
             scrollingCoordinator->frameViewEventTrackingRegionsChanged(*frameView);
     }
+
+#if ENABLE(WHEEL_EVENT_REGIONS)
+    if (is<Element>(node)) {
+        // Style is affected via eventListenerRegionTypes().
+        downcast<Element>(*node).invalidateStyle();
+    }
+
+    m_frame->invalidateContentEventRegionsIfNeeded(Frame::InvalidateContentEventRegionsReason::EventHandlerChange);
+#else
+    UNUSED_PARAM(node);
+#endif
 
     bool haveHandlers = m_wheelEventTargets && !m_wheelEventTargets->isEmpty();
     page->chrome().client().wheelEventHandlersChanged(haveHandlers);
@@ -6664,8 +6678,7 @@ void Document::didAddWheelEventHandler(Node& node)
         m_wheelEventTargets = makeUnique<EventTargetSet>();
 
     m_wheelEventTargets->add(&node);
-
-    wheelEventHandlersChanged();
+    wheelEventHandlersChanged(&node);
 
     if (Frame* frame = this->frame())
         DebugPageOverlays::didChangeEventHandlers(*frame);
@@ -6699,7 +6712,7 @@ void Document::didRemoveWheelEventHandler(Node& node, EventHandlerRemoval remova
     if (!removeHandlerFromSet(*m_wheelEventTargets, node, removal))
         return;
 
-    wheelEventHandlersChanged();
+    wheelEventHandlersChanged(&node);
 
     if (Frame* frame = this->frame())
         DebugPageOverlays::didChangeEventHandlers(*frame);
@@ -7940,12 +7953,6 @@ void Document::mediaStreamCaptureStateChanged()
     });
 }
 
-void Document::setDeviceIDHashSalt(const String& salt)
-{
-    ASSERT(m_idHashSalt.isEmpty() || m_idHashSalt == salt);
-    m_idHashSalt = salt;
-}
-
 #endif
 
 const AtomString& Document::bgColor() const
@@ -8667,6 +8674,11 @@ void Document::canvasDestroyed(CanvasBase& canvasBase)
         auto* canvas = downcast<HTMLCanvasElement>(&canvasBase);
         m_canvasesNeedingDisplayPreparation.remove(canvas);
     }
+}
+
+JSC::VM& Document::vm()
+{
+    return commonVM();
 }
 
 } // namespace WebCore

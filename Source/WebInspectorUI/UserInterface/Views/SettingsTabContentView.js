@@ -212,9 +212,9 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
             ];
             let appearanceEditor = generalSettingsView.addGroupWithCustomSetting(WI.UIString("Appearance:"), WI.SettingEditor.Type.Select, {values: appearanceValues});
             appearanceEditor.value = WI.settings.frontendAppearance.value;
-            appearanceEditor.addEventListener(WI.SettingEditor.Event.ValueDidChange, () => {
-                WI.settings.frontendAppearance.value = appearanceEditor.value;
-            }, WI.settings.frontendAppearance);
+            appearanceEditor.addEventListener(WI.SettingEditor.Event.ValueDidChange, function(event) {
+                WI.settings.frontendAppearance.value = this.value;
+            }, appearanceEditor);
 
             generalSettingsView.addSeparator();
         }
@@ -222,9 +222,9 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
         const indentValues = [WI.UIString("Tabs"), WI.UIString("Spaces")];
         let indentEditor = generalSettingsView.addGroupWithCustomSetting(WI.UIString("Prefer indent using:"), WI.SettingEditor.Type.Select, {values: indentValues});
         indentEditor.value = indentValues[WI.settings.indentWithTabs.value ? 0 : 1];
-        indentEditor.addEventListener(WI.SettingEditor.Event.ValueDidChange, () => {
-            WI.settings.indentWithTabs.value = indentEditor.value === indentValues[0];
-        });
+        indentEditor.addEventListener(WI.SettingEditor.Event.ValueDidChange, function(event) {
+            WI.settings.indentWithTabs.value = this.value === indentValues[0];
+        }, indentEditor);
 
         function addSpacesSetting(title, setting) {
             let editor = generalSettingsView.addSetting(title, setting, WI.UIString("spaces"), {min: 1});
@@ -232,9 +232,9 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
             function updateLabel() {
                 editor.label = setting.value === 1 ? WI.UIString("space") : WI.UIString("spaces");
             }
-            setting.addEventListener(WI.Setting.Event.Changed, (event) => {
+            setting.addEventListener(WI.Setting.Event.Changed, function(event) {
                 updateLabel();
-            });
+            }, editor);
             updateLabel();
         }
         addSpacesSetting(WI.UIString("Tab width:"), WI.settings.tabSize);
@@ -260,8 +260,12 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
 
         let zoomEditor = generalSettingsView.addGroupWithCustomSetting(WI.UIString("Zoom:"), WI.SettingEditor.Type.Select, {values: zoomValues});
         zoomEditor.value = WI.getZoomFactor();
-        zoomEditor.addEventListener(WI.SettingEditor.Event.ValueDidChange, () => { WI.setZoomFactor(zoomEditor.value); });
-        WI.settings.zoomFactor.addEventListener(WI.Setting.Event.Changed, () => { zoomEditor.value = WI.getZoomFactor().maxDecimals(2); });
+        zoomEditor.addEventListener(WI.SettingEditor.Event.ValueDidChange, function(event) {
+            WI.setZoomFactor(this.value);
+        }, zoomEditor);
+        WI.settings.zoomFactor.addEventListener(WI.Setting.Event.Changed, function(event) {
+            this.value = WI.getZoomFactor().maxDecimals(2);
+        }, zoomEditor);
 
         this._createReferenceLink(generalSettingsView);
 
@@ -359,10 +363,10 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
 
                 let logEditor = consoleSettingsView.addGroupWithCustomSetting(label, WI.SettingEditor.Type.Select, {values: logLevels});
                 logEditor.value = channel.level;
-                logEditor.addEventListener(WI.SettingEditor.Event.ValueDidChange, () => {
+                logEditor.addEventListener(WI.SettingEditor.Event.ValueDidChange, function(event) {
                     for (let target of WI.targets)
-                        target.ConsoleAgent.setLoggingChannelLevel(channel.source, logEditor.value);
-                });
+                        target.ConsoleAgent.setLoggingChannelLevel(channel.source, this.value);
+                }, logEditor);
             }
         }
 
@@ -390,10 +394,13 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
         if (hasCSSDomain) {
             let stylesGroup = experimentalSettingsView.addGroup(WI.UIString("Styles:"));
             stylesGroup.addSetting(WI.settings.experimentalEnableStylesJumpToEffective, WI.UIString("Show jump to effective property button"));
-            stylesGroup.addSetting(WI.settings.experimentalEnableStyelsJumpToVariableDeclaration, WI.UIString("Show jump to variable declaration button"));
+            stylesGroup.addSetting(WI.settings.experimentalEnableStylesJumpToVariableDeclaration, WI.UIString("Show jump to variable declaration button"));
 
             experimentalSettingsView.addSeparator();
         }
+
+        experimentalSettingsView.addSetting(WI.UIString("Elements Tab:", "Elements Tab: @ Experimental Settings", "Category label for experimental settings pertaining to the Elements tab"), WI.settings.experimentalEnableIndependentStylesPanel, WI.UIString("Show independent Styles sidebar"));
+        experimentalSettingsView.addSeparator();
 
         let reloadInspectorButton = document.createElement("button");
         reloadInspectorButton.textContent = WI.UIString("Reload Web Inspector");
@@ -406,17 +413,19 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
 
         function listenForChange(setting) {
             initialValues.set(setting, setting.value);
-            setting.addEventListener(WI.Setting.Event.Changed, () => {
-                reloadInspectorContainerElement.classList.toggle("hidden", Array.from(initialValues).every(([setting, initialValue]) => setting.value === initialValue));
-            });
+            setting.addEventListener(WI.Setting.Event.Changed, function(event) {
+                this.classList.toggle("hidden", Array.from(initialValues).every(([setting, initialValue]) => setting.value === initialValue));
+            }, reloadInspectorContainerElement);
         }
 
         listenForChange(WI.settings.experimentalEnablePreviewFeatures);
 
         if (hasCSSDomain) {
             listenForChange(WI.settings.experimentalEnableStylesJumpToEffective);
-            listenForChange(WI.settings.experimentalEnableStyelsJumpToVariableDeclaration);
+            listenForChange(WI.settings.experimentalEnableStylesJumpToVariableDeclaration);
         }
+
+        listenForChange(WI.settings.experimentalEnableIndependentStylesPanel);
 
         this._createReferenceLink(experimentalSettingsView);
 
@@ -460,9 +469,9 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
         let protocolMessagesGroup = this._debugSettingsView.addGroup(WI.unlocalizedString("Protocol Logging:"));
 
         let protocolAutoLogMessagesEditor = protocolMessagesGroup.addSetting(WI.settings.protocolAutoLogMessages, WI.unlocalizedString("Messages"));
-        WI.settings.protocolAutoLogMessages.addEventListener(WI.Setting.Event.Changed, () => {
-            protocolAutoLogMessagesEditor.value = InspectorBackend.dumpInspectorProtocolMessages;
-        });
+        WI.settings.protocolAutoLogMessages.addEventListener(WI.Setting.Event.Changed, function(event) {
+            this.value = InspectorBackend.dumpInspectorProtocolMessages;
+        }, protocolAutoLogMessagesEditor);
 
         protocolMessagesGroup.addSetting(WI.settings.protocolAutoLogTimeStats, WI.unlocalizedString("Time Stats"));
         protocolMessagesGroup.addSetting(WI.settings.protocolLogAsText, WI.unlocalizedString("Log as Text"));
@@ -498,7 +507,9 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
 
         let layoutDirectionEditor = this._debugSettingsView.addGroupWithCustomSetting(WI.unlocalizedString("Layout Direction:"), WI.SettingEditor.Type.Select, {values: layoutDirectionValues});
         layoutDirectionEditor.value = WI.settings.debugLayoutDirection.value;
-        layoutDirectionEditor.addEventListener(WI.SettingEditor.Event.ValueDidChange, () => { WI.setLayoutDirection(layoutDirectionEditor.value); });
+        layoutDirectionEditor.addEventListener(WI.SettingEditor.Event.ValueDidChange, function(event) {
+            WI.setLayoutDirection(this.value);
+        }, layoutDirectionEditor);
 
         this._debugSettingsView.addSeparator();
 

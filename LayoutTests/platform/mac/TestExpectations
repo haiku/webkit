@@ -15,6 +15,7 @@ editing/pasteboard/mac [ Pass ]
 fast/dom/Range/mac [ Pass ]
 fast/scrolling/latching [ Pass ]
 media/mac [ Pass ]
+system-preview/model [ Pass ]
 
 fast/forms/search/search-padding-cancel-results-buttons.html [ Pass ]
 fast/forms/search/search-results-hidden-crash.html [ Pass ]
@@ -43,6 +44,8 @@ webkit.org/b/181964 fast/text/mac/select-character-before-zero-width-joiner.html
 
 pointerevents/mouse [ Pass ]
 imported/w3c/web-platform-tests/pointerevents [ Pass ]
+
+imported/w3c/web-platform-tests/speech-api [ Pass ]
 
 #//////////////////////////////////////////////////////////////////////////////////////////
 # End platform-specific directories.
@@ -238,16 +241,16 @@ compositing/rtl/rtl-iframe-relative.html [ Skip ]
 fast/css/draggable-region-parser.html
 
 # Skip because this platform does not support a paging mouse wheel event
-fast/events/platform-wheelevent-paging-x-in-non-scrolling-div.html
-fast/events/platform-wheelevent-paging-x-in-non-scrolling-page.html
-fast/events/platform-wheelevent-paging-x-in-scrolling-div.html
-fast/events/platform-wheelevent-paging-x-in-scrolling-page.html
-fast/events/platform-wheelevent-paging-xy-in-scrolling-div.html
-fast/events/platform-wheelevent-paging-xy-in-scrolling-page.html
-fast/events/platform-wheelevent-paging-y-in-non-scrolling-div.html
-fast/events/platform-wheelevent-paging-y-in-non-scrolling-page.html
-fast/events/platform-wheelevent-paging-y-in-scrolling-div.html
-fast/events/platform-wheelevent-paging-y-in-scrolling-page.html
+fast/events/wheel/platform-wheelevent-paging-x-in-non-scrolling-div.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-x-in-non-scrolling-page.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-x-in-scrolling-div.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-x-in-scrolling-page.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-xy-in-scrolling-div.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-xy-in-scrolling-page.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-y-in-non-scrolling-div.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-y-in-non-scrolling-page.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-y-in-scrolling-div.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-y-in-scrolling-page.html [ Skip ]
 
 # Pointer Lock can only check some of the API at the moment.
 pointer-lock/bug90391-move-then-window-open-crash.html
@@ -652,7 +655,9 @@ fast/dom/rtl-scroll-to-leftmost-and-resize.html [ Failure ]
 
 webkit.org/b/187408 [ Debug ] imported/w3c/web-platform-tests/WebCryptoAPI/generateKey/successes_RSA-PSS.https.any.worker.html [ Slow ]
 
-webkit.org/b/135015 plugins/quicktime-plugin-replacement.html [ Pass Failure ]
+# This tests an iOS-only feature and the test sometimes asserts in debug macOS builds, so
+# don't run the test on macOS.
+plugins/quicktime-plugin-replacement.html [ Skip ]
 
 webkit.org/b/131477 fast/repaint/obscured-background-no-repaint.html [ Pass Failure ]
 
@@ -1456,8 +1461,6 @@ webkit.org/b/183490 media/modern-media-controls/media-controller/media-controlle
 webkit.org/b/183490 media/modern-media-controls/media-controller/media-controller-fullscreen-change.html [ Failure ]
 webkit.org/b/183490 media/modern-media-controls/media-controller/media-controller-inline-to-fullscreen-to-inline.html [ Failure ]
 webkit.org/b/183490 media/modern-media-controls/start-support/start-support-fullscreen.html [ Failure ]
-webkit.org/b/183490 media/video-playsinline.html [ Failure ]
-webkit.org/b/183490 media/video-webkit-playsinline.html [ Failure ]
 
 webkit.org/b/183764 fast/css/apple-system-control-colors.html [ Pass ]
 
@@ -1877,6 +1880,7 @@ webkit.org/b/214155 imported/w3c/web-platform-tests/html/cross-origin-embedder-p
 
 # These test requires system platform support.
 [ Catalina Mojave ] media/media-source/media-source-webm.html [ Skip ]
+[ Catalina Mojave ] media/media-source/media-source-webm-init-inside-segment.html [ Skip ]
 [ Catalina Mojave ] platform/mac/media/mediacapabilities/vp9-decodingInfo-sw.html [ Skip ]
 [ Catalina Mojave ] platform/mac/media/media-source/is-type-supported-vp9-codec-check.html [ Skip ]
 
@@ -1896,7 +1900,7 @@ webkit.org/b/215110 [ Release ] imported/w3c/web-platform-tests/css/css-animatio
 
 webkit.org/b/215177 [ Release ] editing/selection/navigation-clears-editor-state.html [ Pass Failure ]
 
-webkit.org/b/215247 webgpu/whlsl/dont-crash-parsing-enum.html [ Pass Failure ]
+webkit.org/b/215247 webgpu/whlsl/dont-crash-parsing-enum.html [ Pass ImageOnlyFailure ]
 
 webkit.org/b/215271 [ Debug ] storage/indexeddb/modern/new-database-after-user-delete.html [ Pass Failure ]
 
@@ -2162,10 +2166,6 @@ webkit.org/b/215814 [ Debug ] inspector/console/queryInstances.html [ Pass Failu
 
 webkit.org/b/215817 [ Release ] webgl/2.0.0/conformance2/textures/canvas_sub_rectangle/tex-2d-rgb32f-rgb-float.html [ Pass Failure ]
 
-# <rdar://problem/66346141> [ BigSur+ ] fast/forms/hidpi-textfield-background-bleeding.html is failing
-# <rdar://66295552> [ BigSur+ ] fast/forms/hidpi-textfield-background-bleeding.html
-[ BigSur+ ] fast/forms/hidpi-textfield-background-bleeding.html [ ImageOnlyFailure ]
-
 # <rdar://64947666> [ BigSur+ ] fast/images/image-controls-basic.html 
 [ BigSur+ ] fast/images/image-controls-basic.html [ Failure ]
 
@@ -2196,16 +2196,11 @@ webkit.org/b/186045 imported/w3c/web-platform-tests/html/rendering/replaced-elem
 # rdar://68736735 (REGRESSION: [ BigSur < 20A2374 ] fast/images/animated-gif-loop-count.html is a constant image failure)
 [ BigSur+ ] fast/images/animated-gif-loop-count.html [ ImageOnlyFailure ]
 
-webkit.org/b/216481 webanimations/accelerated-animation-easing-update-after-pause.html [ Pass ImageOnlyFailure ]
-
 webkit.org/b/216492 imported/w3c/web-platform-tests/selection/extend-20.html [ Slow ]
 webkit.org/b/216492 imported/w3c/web-platform-tests/selection/extend-00.html [ Slow ]
 
 # This test requires API only availble on BigSur and later
 [ BigSur+ ] http/tests/media/hls/hls-hdr-switch.html [ Pass ]
-
-# <rdar://68947198> [ macOS iOS ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-connections.html
-[ BigSur+ ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-connections.html [ Pass Failure ]
 
 # rdar://69347249
 [ arm64 ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-biquad-connection.html [ Failure ]
@@ -2236,22 +2231,33 @@ webkit.org/b/217414 [ Release ] imported/w3c/web-platform-tests/user-timing/meas
 
 webkit.org/b/217461 [ Mojave+ ] imported/w3c/web-platform-tests/css/css-masking/clip-path/svg-clipPath.svg [ Skip ]
 
-webkit.org/b/217542 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/processing-after-resume.https.html [ Pass Failure ]
-
-webkit.org/b/217543 webaudio/OfflineAudioContext/onstatechange.html [ Pass Failure ]
-
 webkit.org/b/209073 [ Debug ] inspector/injected-script/avoid-getter-invocation.html [ Pass Timeout ]
 
 webkit.org/b/217641 [ Debug ] imported/w3c/web-platform-tests/xhr/event-timeout.any.worker.html [ Pass Failure ]
 
-webkit.org/b/217620 inspector/audit/basic-async.htm [ Pass Timeout ]
+webkit.org/b/217620 inspector/audit/basic-async.html [ Pass Timeout ]
 
+webkit.org/b/217931 imported/w3c/web-platform-tests/html/semantics/scripting-1/the-script-element/moving-between-documents/before-prepare-createHTMLDocument-success-empty-src-module.html [ Pass Failure ]
 
-# These are failing on Mojave due to an error in the way CA animations are applied.
-# https://bugs.webkit.org/show_bug.cgi?id=217842
-[ Mojave ] transitions/interrupted-transition-hardware.html [ Pass Failure ]
-[ Mojave ] webanimations/accelerated-transform-related-animation-property-order.html [ Pass Failure ]
-[ Mojave ] webanimations/accelerated-translate-animation-additional-animation-added-in-flight.html [ Pass Failure ]
-[ Mojave ] webanimations/accelerated-translate-animation-underlying-transform-changed-in-flight.html [ Pass Failure ]
-[ Mojave ] webanimations/accelerated-translate-animation-with-transform.html [ Pass Failure ]
-[ Mojave ] webanimations/accelerated-translate-animation.html [ Pass Failure ]
+imported/w3c/web-platform-tests/speech-api/SpeechSynthesis-speak-twice.html [ Skip ]
+imported/w3c/web-platform-tests/speech-api/SpeechSynthesis-speak-with-activation-succeeds.html [ Skip ]
+imported/w3c/web-platform-tests/speech-api/SpeechSynthesis-speak-without-activation-fails.tentative.html [ Skip ]
+
+webkit.org/b/217669 http/wpt/service-workers/service-worker-spinning-message.https.html [ Pass Failure ]
+
+webkit.org/b/217994 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-output-channel-count.https.html [ Pass Failure ]
+
+# rdar://70546330 REGRESSION (r267531): [ Big Sur iOS 14 ] imported/w3c/web-platform-tests/mathml/relations/css-styling/padding-border-margin/border-002.html is a constant failure
+[ BigSur+ ] imported/w3c/web-platform-tests/mathml/relations/css-styling/padding-border-margin/border-002.html [ Failure ]
+
+# rdar://70550210 REGRESSION (r267531): [ Big Sur iOS 14 ] imported/w3c/web-platform-tests/mathml/relations/html5-tree/dynamic-childlist-001.htm is a constant failure
+[ BigSur+ ] imported/w3c/web-platform-tests/mathml/relations/html5-tree/dynamic-childlist-001.html [ Failure ]
+
+# rdar://70556068 REGRESSION: [ Big Sur ] fast/text/international/complex-character-based-fallback.html is a constant failure
+[ BigSur+ ] fast/text/international/complex-character-based-fallback.html [ Pass Failure ]
+
+# Mojave doesn't support COLR fonts.
+webkit.org/b/218346 [ Mojave ] fast/text/canvas-color-fonts [ Skip ]
+
+# rdar://rdar://71039166
+[ Mojave ] http/tests/canvas/color-fonts [ Skip ]

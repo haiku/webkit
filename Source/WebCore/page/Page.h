@@ -37,6 +37,7 @@
 #include "RegistrableDomain.h"
 #include "ScrollTypes.h"
 #include "ShouldRelaxThirdPartyCookieBlocking.h"
+#include "SpeechRecognitionConnection.h"
 #include "Supplementable.h"
 #include "Timer.h"
 #include "UserInterfaceLayoutDirection.h"
@@ -121,7 +122,6 @@ class PaymentCoordinator;
 class PerformanceLogging;
 class PerformanceLoggingClient;
 class PerformanceMonitor;
-class PlugInClient;
 class PluginData;
 class PluginInfoProvider;
 class PluginViewBase;
@@ -139,6 +139,7 @@ class SocketProvider;
 class SpeechSynthesisClient;
 class StorageNamespace;
 class StorageNamespaceProvider;
+class SpeechRecognitionProvider;
 class UserContentProvider;
 class UserContentURLPattern;
 class UserInputBridge;
@@ -255,7 +256,6 @@ public:
     bool canStartMedia() const { return m_canStartMedia; }
 
     EditorClient& editorClient() { return m_editorClient.get(); }
-    PlugInClient* plugInClient() const { return m_plugInClient.get(); }
 
     Frame& mainFrame() { return m_mainFrame.get(); }
     const Frame& mainFrame() const { return m_mainFrame.get(); }
@@ -774,6 +774,8 @@ public:
     SpeechSynthesisClient* speechSynthesisClient() const { return m_speechSynthesisClient.get(); }
 #endif
 
+    WEBCORE_EXPORT SpeechRecognitionConnection& speechRecognitionConnection();
+
     bool isOnlyNonUtilityPage() const;
     bool isUtilityPage() const { return m_isUtilityPage; }
 
@@ -896,7 +898,6 @@ private:
     RefPtr<PluginData> m_pluginData;
 
     UniqueRef<EditorClient> m_editorClient;
-    std::unique_ptr<PlugInClient> m_plugInClient;
     std::unique_ptr<ValidationMessageClient> m_validationMessageClient;
     std::unique_ptr<DiagnosticLoggingClient> m_diagnosticLoggingClient;
     std::unique_ptr<PerformanceLoggingClient> m_performanceLoggingClient;
@@ -908,6 +909,8 @@ private:
 #if ENABLE(SPEECH_SYNTHESIS)
     std::unique_ptr<SpeechSynthesisClient> m_speechSynthesisClient;
 #endif
+
+    UniqueRef<SpeechRecognitionProvider> m_speechRecognitionProvider;
 
     UniqueRef<MediaRecorderProvider> m_mediaRecorderProvider;
     UniqueRef<LibWebRTCProvider> m_libWebRTCProvider;

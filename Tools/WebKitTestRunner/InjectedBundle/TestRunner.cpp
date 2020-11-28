@@ -184,12 +184,6 @@ static bool postSynchronousPageMessageReturningUInt64(const char* name, JSString
     return postSynchronousPageMessageReturningUInt64(name, toWK(string));
 }
 
-static void overridePreference(const char* name, bool value)
-{
-    auto& bundle = InjectedBundle::singleton();
-    WKBundleOverrideBoolPreferenceForTestRunner(bundle.bundle(), bundle.pageGroup(), toWK(name).get(), value);
-}
-
 bool TestRunner::shouldDumpPixels() const
 {
     return postSynchronousMessageReturningBoolean("GetDumpPixels");
@@ -445,69 +439,9 @@ void TestRunner::setCanOpenWindows()
     postSynchronousMessage("SetCanOpenWindows", true);
 }
 
-void TestRunner::setXSSAuditorEnabled(bool enabled)
-{
-    WTR::overridePreference("WebKitXSSAuditorEnabled", enabled);
-}
-
-void TestRunner::setMediaDevicesEnabled(bool enabled)
-{
-    WTR::overridePreference("WebKitMediaDevicesEnabled", enabled);
-}
-
-void TestRunner::setWebRTCMDNSICECandidatesEnabled(bool enabled)
-{
-    WTR::overridePreference("WebKitWebRTCMDNSICECandidatesEnabled", enabled);
-}
-
 void TestRunner::setCustomUserAgent(JSStringRef userAgent)
 {
     postSynchronousMessage("SetCustomUserAgent", toWK(userAgent));
-}
-
-void TestRunner::setWebAPIStatisticsEnabled(bool enabled)
-{
-    WTR::overridePreference("WebKitWebAPIStatisticsEnabled", enabled);
-}
-
-void TestRunner::setModernMediaControlsEnabled(bool enabled)
-{
-    WTR::overridePreference("WebKitModernMediaControlsEnabled", enabled);
-}
-
-void TestRunner::setWebGL2Enabled(bool enabled)
-{
-    WTR::overridePreference("WebKitWebGL2Enabled", enabled);
-}
-
-void TestRunner::setWritableStreamAPIEnabled(bool enabled)
-{
-    WTR::overridePreference("WebKitWritableStreamAPIEnabled", enabled);
-}
-
-void TestRunner::setTransformStreamAPIEnabled(bool enabled)
-{
-    WTR::overridePreference("WebKitTransformStreamAPIEnabled", enabled);
-}
-
-void TestRunner::setReadableByteStreamAPIEnabled(bool enabled)
-{
-    WTR::overridePreference("WebKitReadableByteStreamAPIEnabled", enabled);
-}
-
-void TestRunner::setEncryptedMediaAPIEnabled(bool enabled)
-{
-    WTR::overridePreference("WebKitEncryptedMediaAPIEnabled", enabled);
-}
-
-void TestRunner::setPictureInPictureAPIEnabled(bool enabled)
-{
-    WTR::overridePreference("WebKitPictureInPictureAPIEnabled", enabled);
-}
-
-void TestRunner::setGenericCueAPIEnabled(bool enabled)
-{
-    WTR::overridePreference("WebKitGenericCueAPIEnabled", enabled);
 }
 
 void TestRunner::setAllowsAnySSLCertificate(bool enabled)
@@ -524,47 +458,6 @@ void TestRunner::setShouldSwapToEphemeralSessionOnNextNavigation(bool shouldSwap
 void TestRunner::setShouldSwapToDefaultSessionOnNextNavigation(bool shouldSwap)
 {
     postSynchronousPageMessage("SetShouldSwapToDefaultSessionOnNextNavigation", shouldSwap);
-}
-
-void TestRunner::setAllowUniversalAccessFromFileURLs(bool enabled)
-{
-    auto& injectedBundle = InjectedBundle::singleton();
-    WKBundleSetAllowUniversalAccessFromFileURLs(injectedBundle.bundle(), injectedBundle.pageGroup(), enabled);
-}
-
-void TestRunner::setAllowFileAccessFromFileURLs(bool enabled)
-{
-    auto& injectedBundle = InjectedBundle::singleton();
-    WKBundleSetAllowFileAccessFromFileURLs(injectedBundle.bundle(), injectedBundle.pageGroup(), enabled);
-}
-
-void TestRunner::setNeedsStorageAccessFromFileURLsQuirk(bool needsQuirk)
-{
-    auto& injectedBundle = InjectedBundle::singleton();
-    WKBundleSetAllowStorageAccessFromFileURLS(injectedBundle.bundle(), injectedBundle.pageGroup(), needsQuirk);
-}
-    
-void TestRunner::setPluginsEnabled(bool enabled)
-{
-    WTR::overridePreference("WebKitPluginsEnabled", enabled);
-}
-
-void TestRunner::setJavaScriptCanAccessClipboard(bool enabled)
-{
-    auto& injectedBundle = InjectedBundle::singleton();
-    WKBundleSetJavaScriptCanAccessClipboard(injectedBundle.bundle(), injectedBundle.pageGroup(), enabled);
-}
-
-void TestRunner::setPopupBlockingEnabled(bool enabled)
-{
-    auto& injectedBundle = InjectedBundle::singleton();
-    WKBundleSetPopupBlockingEnabled(injectedBundle.bundle(), injectedBundle.pageGroup(), enabled);
-}
-
-void TestRunner::setAuthorAndUserStylesEnabled(bool enabled)
-{
-    auto& injectedBundle = InjectedBundle::singleton();
-    WKBundleSetAuthorAndUserStylesEnabled(injectedBundle.bundle(), injectedBundle.pageGroup(), enabled);
 }
 
 void TestRunner::addOriginAccessAllowListEntry(JSStringRef sourceOrigin, JSStringRef destinationProtocol, JSStringRef destinationHost, bool allowDestinationSubdomains)
@@ -698,7 +591,7 @@ void TestRunner::clearDidReceiveServerRedirectForProvisionalNavigation()
 
 void TestRunner::setPageVisibility(JSStringRef state)
 {
-    InjectedBundle::singleton().setHidden(JSStringIsEqualToUTF8CString(state, "hidden") || JSStringIsEqualToUTF8CString(state, "prerender"));
+    InjectedBundle::singleton().setHidden(JSStringIsEqualToUTF8CString(state, "hidden"));
 }
 
 void TestRunner::resetPageVisibility()
@@ -751,6 +644,8 @@ enum {
     TextFieldDidEndEditingCallbackID,
     CustomMenuActionCallbackID,
     DidSetAppBoundDomainsCallbackID,
+    EnterFullscreenForElementCallbackID,
+    ExitFullscreenForElementCallbackID,
     FirstUIScriptCallbackID = 100
 };
 
@@ -846,21 +741,6 @@ void TestRunner::callSetBackingScaleFactorCallback()
     callTestRunnerCallback(SetBackingScaleFactorCallbackID);
 }
 
-static inline bool toBool(JSStringRef value)
-{
-    return JSStringIsEqualToUTF8CString(value, "true") || JSStringIsEqualToUTF8CString(value, "1");
-}
-
-void TestRunner::overridePreference(JSStringRef preference, JSStringRef value)
-{
-    auto& injectedBundle = InjectedBundle::singleton();
-    // Should use `<!-- webkit-test-runner [ enableBackForwardCache=true ] -->` instead.
-    RELEASE_ASSERT(!JSStringIsEqualToUTF8CString(preference, "WebKitUsesBackForwardCachePreferenceKey"));
-
-    // FIXME: handle non-boolean preferences.
-    WKBundleOverrideBoolPreferenceForTestRunner(injectedBundle.bundle(), injectedBundle.pageGroup(), toWK(preference).get(), toBool(value));
-}
-
 void TestRunner::setAlwaysAcceptCookies(bool accept)
 {
     postSynchronousMessage("SetAlwaysAcceptCookies", accept);
@@ -869,6 +749,26 @@ void TestRunner::setAlwaysAcceptCookies(bool accept)
 void TestRunner::setOnlyAcceptFirstPartyCookies(bool accept)
 {
     postSynchronousMessage("SetOnlyAcceptFirstPartyCookies", accept);
+}
+
+void TestRunner::setEnterFullscreenForElementCallback(JSValueRef callback)
+{
+    cacheTestRunnerCallback(EnterFullscreenForElementCallbackID, callback);
+}
+
+void TestRunner::callEnterFullscreenForElementCallback()
+{
+    callTestRunnerCallback(EnterFullscreenForElementCallbackID);
+}
+
+void TestRunner::setExitFullscreenForElementCallback(JSValueRef callback)
+{
+    cacheTestRunnerCallback(ExitFullscreenForElementCallbackID, callback);
+}
+
+void TestRunner::callExitFullscreenForElementCallback()
+{
+    callTestRunnerCallback(ExitFullscreenForElementCallbackID);
 }
 
 double TestRunner::preciseTime()
@@ -897,12 +797,6 @@ void TestRunner::setUserStyleSheetLocation(JSStringRef location)
 
     if (m_userStyleSheetEnabled)
         setUserStyleSheetEnabled(true);
-}
-
-void TestRunner::setSpatialNavigationEnabled(bool enabled)
-{
-    auto& injectedBundle = InjectedBundle::singleton();
-    WKBundleSetSpatialNavigationEnabled(injectedBundle.bundle(), injectedBundle.pageGroup(), enabled);
 }
 
 void TestRunner::setTabKeyCyclesThroughElements(bool enabled)
@@ -2101,40 +1995,35 @@ void TestRunner::abortModal()
     postSynchronousMessage("AbortModal");
 }
 
-void TestRunner::dumpAdClickAttribution()
+void TestRunner::dumpPrivateClickMeasurement()
 {
-    postSynchronousPageMessage("DumpAdClickAttribution");
+    postSynchronousPageMessage("DumpPrivateClickMeasurement");
 }
 
-void TestRunner::clearAdClickAttribution()
+void TestRunner::clearPrivateClickMeasurement()
 {
-    postSynchronousPageMessage("ClearAdClickAttribution");
+    postSynchronousPageMessage("ClearPrivateClickMeasurement");
 }
 
-void TestRunner::clearAdClickAttributionsThroughWebsiteDataRemoval()
+void TestRunner::clearPrivateClickMeasurementsThroughWebsiteDataRemoval()
 {
-    postSynchronousMessage("ClearAdClickAttributionsThroughWebsiteDataRemoval");
+    postSynchronousMessage("ClearPrivateClickMeasurementsThroughWebsiteDataRemoval");
 }
 
-void TestRunner::setAdClickAttributionOverrideTimerForTesting(bool value)
+void TestRunner::setPrivateClickMeasurementOverrideTimerForTesting(bool value)
 {
-    postSynchronousPageMessage("SetAdClickAttributionOverrideTimerForTesting", value);
+    postSynchronousPageMessage("SetPrivateClickMeasurementOverrideTimerForTesting", value);
 }
 
-void TestRunner::setAdClickAttributionConversionURLForTesting(JSStringRef urlString)
+void TestRunner::setPrivateClickMeasurementConversionURLForTesting(JSStringRef urlString)
 {
-    postSynchronousPageMessage("SetAdClickAttributionConversionURLForTesting",
+    postSynchronousPageMessage("SetPrivateClickMeasurementConversionURLForTesting",
         adoptWK(WKURLCreateWithUTF8CString(toWTFString(urlString).utf8().data())));
 }
 
-void TestRunner::markAdClickAttributionsAsExpiredForTesting()
+void TestRunner::markPrivateClickMeasurementsAsExpiredForTesting()
 {
-    postSynchronousPageMessage("MarkAdClickAttributionsAsExpiredForTesting");
-}
-
-void TestRunner::setOffscreenCanvasEnabled(bool enabled)
-{
-    WTR::overridePreference("OffscreenCanvasEnabled", enabled);
+    postSynchronousPageMessage("MarkPrivateClickMeasurementsAsExpiredForTesting");
 }
 
 bool TestRunner::hasAppBoundSession()
@@ -2178,6 +2067,11 @@ void TestRunner::setAppBoundDomains(JSValueRef originArray, JSValueRef completio
 void TestRunner::didSetAppBoundDomainsCallback()
 {
     callTestRunnerCallback(DidSetAppBoundDomainsCallbackID);
+}
+
+void TestRunner::setIsSpeechRecognitionPermissionGranted(bool granted)
+{
+    postSynchronousPageMessage("setIsSpeechRecognitionPermissionGranted", granted);
 }
 
 ALLOW_DEPRECATED_DECLARATIONS_END

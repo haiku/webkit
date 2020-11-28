@@ -380,18 +380,11 @@
     (ipc-posix-name-regex #"^CFPBS:")) ; <rdar://problem/13757475>
 (allow system-fsctl (fsctl-command (_IO "h" 47)))
 
-;; Graphics
-(system-graphics)
-
 ;; Networking
 (allow network-outbound
-       ;; Local mDNSResponder for DNS, arbitrary outbound TCP
-       ;; Note: This is needed for some media playback features. <rdar://problem/38191574>
-       ;; Remove this permission when <rdar://problem/38240572> is fixed.
-       (literal "/private/var/run/mDNSResponder")
        ;; ObjC map_images needs to send logging data to syslog. <rdar://problem/39778918>
        (literal "/private/var/run/syslog")
-       (remote tcp))
+)
 
 ;; CFNetwork
 (allow file-read-data (path "/private/var/db/nsurlstoraged/dafsaData.bin"))
@@ -438,3 +431,12 @@
 
 ;; Data Detectors
 (allow file-read* (subpath "/private/var/db/datadetectors/sys"))
+
+;; Allow accesses to HID
+(allow iokit-open
+    (iokit-user-client-class "IOHIDLibUserClient"))
+
+;; Allow accesses to LocalAuthentication and RemoteService
+(allow mach-lookup
+    (global-name "com.apple.CoreAuthentication.agent.libxpc")
+    (global-name "com.apple.remoted"))

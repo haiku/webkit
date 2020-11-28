@@ -80,7 +80,12 @@ ScrollAnimator::~ScrollAnimator()
 #endif
 }
 
-bool ScrollAnimator::scroll(ScrollbarOrientation orientation, ScrollGranularity, float step, float multiplier)
+bool ScrollAnimator::scroll(ScrollbarOrientation orientation, ScrollGranularity granularity, float step, float multiplier)
+{
+    return scrollWithoutAnimation(orientation, granularity, step, multiplier);
+}
+
+bool ScrollAnimator::scrollWithoutAnimation(ScrollbarOrientation orientation, ScrollGranularity, float step, float multiplier)
 {
     FloatPoint currentPosition = this->currentPosition();
     FloatSize delta;
@@ -141,12 +146,12 @@ bool ScrollAnimator::handleWheelEvent(const PlatformWheelEvent& e)
         return false;
 #endif
 #if PLATFORM(COCOA)
-    // Events in the PlatformWheelEventPhaseMayBegin phase have no deltas, and therefore never passes through the scroll handling logic below.
+    // Events in the PlatformWheelEventPhase::MayBegin phase have no deltas, and therefore never passes through the scroll handling logic below.
     // This causes us to return with an 'unhandled' return state, even though this event was successfully processed.
     //
-    // We receive at least one PlatformWheelEventPhaseMayBegin when starting main-thread scrolling (see FrameView::wheelEvent), which can
+    // We receive at least one PlatformWheelEventPhase::MayBegin when starting main-thread scrolling (see FrameView::wheelEvent), which can
     // fool the scrolling thread into attempting to handle the scroll, unless we treat the event as handled here.
-    if (e.phase() == PlatformWheelEventPhaseMayBegin)
+    if (e.phase() == PlatformWheelEventPhase::MayBegin)
         return true;
 #endif
 
@@ -176,7 +181,10 @@ bool ScrollAnimator::handleWheelEvent(const PlatformWheelEvent& e)
                 if (negative)
                     deltaY = -deltaY;
             }
-            scroll(VerticalScrollbar, granularity, verticalScrollbar->pixelStep(), -deltaY);
+            if (e.hasPreciseScrollingDeltas())
+                scrollWithoutAnimation(VerticalScrollbar, granularity, verticalScrollbar->pixelStep(), -deltaY);
+            else
+                scroll(VerticalScrollbar, granularity, verticalScrollbar->pixelStep(), -deltaY);
         }
 
         if (deltaX) {
@@ -186,7 +194,10 @@ bool ScrollAnimator::handleWheelEvent(const PlatformWheelEvent& e)
                 if (negative)
                     deltaX = -deltaX;
             }
-            scroll(HorizontalScrollbar, granularity, horizontalScrollbar->pixelStep(), -deltaX);
+            if (e.hasPreciseScrollingDeltas())
+                scrollWithoutAnimation(HorizontalScrollbar, granularity, horizontalScrollbar->pixelStep(), -deltaX);
+            else
+                scroll(HorizontalScrollbar, granularity, horizontalScrollbar->pixelStep(), -deltaX);
         }
     }
     return handled;

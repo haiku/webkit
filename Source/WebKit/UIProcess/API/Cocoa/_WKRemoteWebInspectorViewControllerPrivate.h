@@ -30,6 +30,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @class _WKInspectorDebuggableInfo;
+@protocol _WKDiagnosticLoggingDelegate;
 
 @interface _WKRemoteWebInspectorViewController (WKPrivate)
 

@@ -49,11 +49,24 @@ public:
     LineIteratorModernPath& operator=(const LineIteratorModernPath&) = default;
     LineIteratorModernPath& operator=(LineIteratorModernPath&&) = default;
 
-    LayoutUnit top() const { return LayoutUnit::fromFloatRound(line().rect().y()); }
-    LayoutUnit bottom() const { return LayoutUnit::fromFloatRound(line().rect().maxY()); }
+    LayoutUnit top() const { return LayoutUnit::fromFloatRound(line().enclosingContentRect().y()); }
+    LayoutUnit bottom() const { return LayoutUnit::fromFloatRound(line().enclosingContentRect().maxY()); }
+    LayoutUnit lineBoxTop() const { return LayoutUnit::fromFloatRound(line().rect().y()); }
+    LayoutUnit lineBoxBottom() const { return LayoutUnit::fromFloatRound(line().rect().maxY()); }
+
+    // FIXME: What should these really be?
     LayoutUnit selectionTop() const { return top(); }
     LayoutUnit selectionTopForHitTesting() const { return top(); }
     LayoutUnit selectionBottom() const { return bottom(); }
+
+    float logicalLeft() const { return line().rect().x(); }
+    float logicalRight() const { return logicalLeft() + line().lineBoxWidth(); }
+    float y() const { return lineBoxTop(); }
+    float logicalHeight() const { return line().rect().height(); }
+    bool isHorizontal() const { return true; }
+
+    const RenderBlockFlow& containingBlock() const { return m_inlineContent->containingBlock(); }
+    const RootInlineBox* legacyRootInlineBox() const { return nullptr; }
 
     void traverseNext()
     {
@@ -99,7 +112,7 @@ public:
         auto startIndex = line().firstRunIndex();
         auto endIndex = startIndex + line().runCount();
         for (auto runIndex = startIndex; runIndex < endIndex; ++runIndex) {
-            auto& renderer = *m_inlineContent->rendererForLayoutBox(m_inlineContent->runs[runIndex].layoutBox());
+            auto& renderer = m_inlineContent->rendererForLayoutBox(m_inlineContent->runs[runIndex].layoutBox());
             if (renderer.node())
                 return { *m_inlineContent, runIndex };
         }
@@ -111,7 +124,7 @@ public:
         auto startIndex = line().firstRunIndex();
         auto endIndex = startIndex + line().runCount();
         for (auto runIndex = endIndex; runIndex-- > startIndex;) {
-            auto& renderer = *m_inlineContent->rendererForLayoutBox(m_inlineContent->runs[runIndex].layoutBox());
+            auto& renderer = m_inlineContent->rendererForLayoutBox(m_inlineContent->runs[runIndex].layoutBox());
             if (renderer.node())
                 return { *m_inlineContent, runIndex };
         }

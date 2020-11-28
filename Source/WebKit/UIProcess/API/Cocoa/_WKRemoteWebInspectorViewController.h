@@ -24,10 +24,12 @@
  */
 
 #import <WebKit/WKFoundation.h>
+#import <WebKit/_WKInspectorExtensionHost.h>
 
 #if !TARGET_OS_IPHONE
 
 @class WKWebView;
+@class _WKInspectorConfiguration;
 
 @protocol _WKRemoteWebInspectorViewControllerDelegate;
 
@@ -43,13 +45,15 @@ typedef NS_ENUM(NSInteger, WKRemoteWebInspectorDebuggableType) {
 } WK_API_AVAILABLE(macos(10.12.3), ios(10.3));
 
 WK_CLASS_AVAILABLE(macos(10.12.3), ios(10.3))
-@interface _WKRemoteWebInspectorViewController : NSObject
+@interface _WKRemoteWebInspectorViewController : NSObject <_WKInspectorExtensionHost>
 
 @property (nonatomic, assign) id <_WKRemoteWebInspectorViewControllerDelegate> delegate;
 
 @property (nonatomic, readonly, retain) NSWindow *window;
 @property (nonatomic, readonly, retain) WKWebView *webView;
+@property (nonatomic, readonly, copy) _WKInspectorConfiguration *configuration;
 
+- (instancetype)initWithConfiguration:(_WKInspectorConfiguration *)configuration;
 - (void)loadForDebuggableType:(WKRemoteWebInspectorDebuggableType)debuggableType backendCommandsURL:(NSURL *)backendCommandsURL;
 - (void)close;
 - (void)show;

@@ -62,7 +62,6 @@
 #define WebKitPluginsEnabledPreferenceKey @"WebKitPluginsEnabled"
 #define WebKitDatabasesEnabledPreferenceKey @"WebKitDatabasesEnabledPreferenceKey"
 #define WebKitLocalStorageEnabledPreferenceKey @"WebKitLocalStorageEnabledPreferenceKey"
-#define WebKitExperimentalNotificationsEnabledPreferenceKey @"WebKitExperimentalNotificationsEnabledPreferenceKey"
 #define WebKitAllowAnimatedImagesPreferenceKey @"WebKitAllowAnimatedImagesPreferenceKey"
 #define WebKitAllowAnimatedImageLoopingPreferenceKey @"WebKitAllowAnimatedImageLoopingPreferenceKey"
 #define WebKitDisplayImagesKey @"WebKitDisplayImagesKey"
@@ -109,7 +108,7 @@
 #define WebKitShowDebugBordersPreferenceKey @"WebKitShowDebugBorders"
 #define WebKitSubpixelAntialiasedLayerTextEnabledPreferenceKey @"WebKitSubpixelAntialiasedLayerTextEnabled"
 #define WebKitSimpleLineLayoutEnabledPreferenceKey @"WebKitSimpleLineLayoutEnabled"
-#define WebKitSimpleLineLayoutDebugBordersEnabledPreferenceKey @"WebKitSimpleLineLayoutDebugBordersEnabled"
+#define WebKitLegacyLineLayoutVisualCoverageEnabledPreferenceKey @"WebKitLegacyLineLayoutVisualCoverageEnabled"
 #define WebKitContentChangeObserverEnabledPreferenceKey @"WebKitContentChangeObserverEnabled"
 #define WebKitShowRepaintCounterPreferenceKey @"WebKitShowRepaintCounter"
 #define WebKitWebAudioEnabledPreferenceKey @"WebKitWebAudioEnabled"
@@ -273,10 +272,9 @@
 #define WebKitServerTimingEnabledPreferenceKey @"WebKitServerTimingEnabled"
 #define WebKitCSSCustomPropertiesAndValuesEnabledPreferenceKey @"WebKitCSSCustomPropertiesAndValuesEnabled"
 #define WebKitResizeObserverEnabledPreferenceKey @"WebKitResizeObserverEnabled"
-#define WebKitAdClickAttributionEnabledPreferenceKey @"WebKitAdClickAttributionEnabled"
+#define WebKitPrivateClickMeasurementEnabledPreferenceKey @"WebKitPrivateClickMeasurementEnabled"
 #define WebKitFetchAPIKeepAliveEnabledPreferenceKey @"WebKitFetchAPIKeepAliveEnabled"
 #define WebKitGenericCueAPIEnabledKey @"WebKitGenericCueAPIEnabled"
-#define WebKitUseGPUProcessForMediaEnabledKey @"WebKitUseGPUProcessForMediaEnabled"
 #define WebKitAspectRatioOfImgFromWidthAndHeightEnabledPreferenceKey @"WebKitAspectRatioOfImgFromWidthAndHeightEnabled"
 #define WebKitReferrerPolicyAttributeEnabledPreferenceKey @"WebKitReferrerPolicyAttributeEnabled"
 #define WebKitCoreMathMLEnabledPreferenceKey @"WebKitCoreMathMLEnabled"
@@ -289,6 +287,7 @@
 #define WebKitMediaRecorderEnabledPreferenceKey @"WebKitMediaRecorderEnabled"
 #define WebKitCSSIndividualTransformPropertiesEnabledPreferenceKey @"WebKitCSSIndividualTransformPropertiesEnabled"
 #define WebKitContactPickerAPIEnabledPreferenceKey @"WebKitContactPickerAPIEnabled"
+#define WebKitSpeechRecognitionEnabledPreferenceKey @"WebKitSpeechRecognitionEnabled"
 
 // The preference keys below this point are deprecated and have no effect. They should
 // be removed when it is considered safe to do so.
@@ -299,3 +298,4 @@
 #define WebKitIsSecureContextAttributeEnabledPreferenceKey @"WebKitIsSecureContextAttributeEnabled"
 #define WebKitCSSShadowPartsEnabledPreferenceKey @"WebKitCSSShadowPartsEnabled"
 #define WebKitSubpixelCSSOMElementMetricsEnabledPreferenceKey @"WebKitSubpixelCSSOMElementMetricsEnabled"
+#define WebKitExperimentalNotificationsEnabledPreferenceKey @"WebKitExperimentalNotificationsEnabledPreferenceKey"

@@ -37,21 +37,10 @@ AccessibilityObjectModelEnabled:
     WebKit:
       default: false
 
-AdClickAttributionDebugModeEnabled:
+AspectRatioEnabled:
   type: bool
-  humanReadableName: "Ad Click Attribution Debug Mode"
-  humanReadableDescription: "Enable Ad Click Attribution Debug Mode"
-  webcoreBinding: RuntimeEnabledFeatures
-  defaultValue:
-    WebKitLegacy:
-      default: false
-    WebKit:
-      default: false
-
-AdClickAttributionEnabled:
-  type: bool
-  humanReadableName: "Ad Click Attribution"
-  humanReadableDescription: "Enable Ad Click Attribution for Cross-Site Link Navigations"
+  humanReadableName: "CSS Aspect Ratio"
+  humanReadableDescription: "Enable aspect-ratio CSS property"
   defaultValue:
     WebKitLegacy:
       default: false
@@ -562,6 +551,33 @@ MediaRecorderEnabled:
     WebCore:
       default: false
 
+MediaSessionEnabled:
+  type: bool
+  humanReadableName: "Media Session API"
+  humanReadableDescription: "Media Session API"
+  condition: ENABLE(MEDIA_SESSION)
+  defaultValue:
+    WebKitLegacy:
+      default: false
+    WebKit:
+      default: false
+    WebCore:
+      default: false
+
+ModelElementEnabled:
+  type: bool
+  humanReadableName: "HTML <model> element"
+  humanReadableDescription: "HTML <model> element"
+  condition: ENABLE(MODEL_ELEMENT)
+  defaultValue:
+    WebKitLegacy:
+      default: false
+    WebKit:
+      "ENABLE(EXPERIMENTAL_FEATURES)" : true
+      default: false
+    WebCore:
+      default: false
+
 ModernUnprefixedWebAudioEnabled:
   type: bool
   humanReadableName: "Modern WebAudio API"
@@ -599,12 +615,49 @@ PaintTimingEnabled:
     WebKit:
       default: true
 
+PassiveWheelListenersAsDefaultOnDocument:
+  type: bool
+  humanReadableName: "Wheel Event listeners on the root made passive"
+  humanReadableDescription: "Force wheel event listeners registered on the window, document or body to be passive"
+  defaultValue:
+    WebKitLegacy:
+      "PLATFORM(MAC)": WebKit::defaultPassiveWheelListenersAsDefaultOnDocument()
+      default: true
+    WebKit:
+      "PLATFORM(MAC)": WebKit::defaultPassiveWheelListenersAsDefaultOnDocument()
+      default: true
+    WebCore:
+      default: true
+
 # FIXME: Is this implemented for WebKitLegacy? If not, this should be excluded from WebKitLegacy entirely.
 PerElementSpeakerSelectionEnabled:
   type: bool
   humanReadableName: "Allow per media element speaker device selection"
   humanReadableDescription: "Allow per media element speaker device selection"
   condition: ENABLE(MEDIA_STREAM)
+  defaultValue:
+    WebKitLegacy:
+      default: false
+    WebKit:
+      default: false
+    WebCore:
+      default: false
+
+PrivateClickMeasurementDebugModeEnabled:
+  type: bool
+  humanReadableName: "Private Click Measurement Debug Mode"
+  humanReadableDescription: "Enable Private Click Measurement Debug Mode"
+  webcoreBinding: RuntimeEnabledFeatures
+  defaultValue:
+    WebKitLegacy:
+      default: false
+    WebKit:
+      default: false
+
+PrivateClickMeasurementEnabled:
+  type: bool
+  humanReadableName: "Private Click Measurement"
+  humanReadableDescription: "Enable Private Click Measurement for Cross-Site Link Navigations"
   defaultValue:
     WebKitLegacy:
       default: false
@@ -727,6 +780,18 @@ ShouldDeferAsynchronousScriptsUntilAfterDocumentLoadOrFirstPaint:
       default: true
     WebCore:
       default: true
+
+SpeechRecognitionEnabled:
+  type: bool
+  humanReadableName: "SpeechRecognition API"
+  humanReadableDescription: "Enable SpeechRecognition of WebSpeech API"
+  defaultValue:
+    WebKitLegacy:
+      default: false
+    WebKit:
+      default: false
+    WebCore:
+      default: false
 
 # FIXME: This is enabled when ENABLE(EXPERIMENTAL_FEATURES) is true in WebKit2. Perhaps we should consider using that for WebKitLegacy as well.
 SpringTimingFunctionEnabled:
@@ -875,6 +940,7 @@ WebAuthenticationModernEnabled:
   humanReadableName: "Web Authentication Modern"
   humanReadableDescription: "Enable Modern Web Authentication support"
   condition: ENABLE(WEB_AUTHN)
+  webcoreBinding: RuntimeEnabledFeatures
   defaultValue:
     WebKitLegacy:
       default: false
@@ -944,6 +1010,19 @@ WebRTCH265CodecEnabled:
     WebKitLegacy:
       default: false
     WebKit:
+      default: false
+
+WebRTCInsertableStreamsEnabled:
+  type: bool
+  condition: ENABLE(WEB_RTC)
+  humanReadableName: "WebRTC Insertable Streams API"
+  humanReadableDescription: "Enable WebRTC Insertable Streams API"
+  defaultValue:
+    WebKitLegacy:
+      default: false
+    WebKit:
+      default: false
+    WebCore:
       default: false
 
 # FIXME: This is not relevent for WebKitLegacy, so should be excluded from WebKitLegacy entirely.

@@ -2051,6 +2051,16 @@
          "fsamuel"
       ]
    },
+   "Federico Bucchi" : {
+      "emails" : [
+         "fbucchi@apple.com",
+         "b.federico@gmail.com"
+      ],
+      "nicks" : [
+         "fbucchi",
+         "federicobucchi"
+      ]
+   },
    "Feng Qian" : {
       "emails" : [
          "feng@chromium.org"
@@ -3482,9 +3492,11 @@
       "emails" : [
          "kkinnunen@apple.com"
       ],
+      "expertise" : "WebGL",
       "nicks" : [
          "kimmok"
-      ]
+      ],
+      "status" : "committer"
    },
    "Kinuko Yasuda" : {
       "emails" : [
@@ -3893,7 +3905,8 @@
       "expertise" : "The WebKitGTK Port, Cairo graphics backend, soup HTTP backend",
       "nicks" : [
          "mrobinson"
-      ]
+      ],
+      "status" : "committer"
    },
    "Mary Wu" : {
       "emails" : [
@@ -4459,7 +4472,8 @@
       "expertise" : "Web Inspector",
       "nicks" : [
          "pangle"
-      ]
+      ],
+      "status" : "committer"
    },
    "Patrick Gansterer" : {
       "emails" : [
@@ -4792,12 +4806,12 @@
    },
    "Rob Buis" : {
       "emails" : [
+         "rbuis@igalia.com",
          "rwlbuis@gmail.com",
          "rwlbuis@webkit.org",
          "rob.buis@samsung.com",
          "rbuis@blackberry.com",
-         "rbuis@rim.com",
-         "rbuis@igalia.com"
+         "rbuis@rim.com"
       ],
       "expertise" : "KDE contributor, The QtWebKit Port, SVG (Scalable Vector Graphics)",
       "nicks" : [
@@ -5896,7 +5910,6 @@
       "nicks" : [
          "yusukesuzuki"
       ],
-      "slackId" : "UTWC5TTSP",
       "status" : "reviewer"
    },
    "Yuta Kitamura" : {

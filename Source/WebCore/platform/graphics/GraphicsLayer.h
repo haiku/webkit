@@ -465,9 +465,9 @@ public:
     virtual void setContentsRectClipsDescendants(bool b) { m_contentsRectClipsDescendants = b; }
 
     // Set a rounded rect that is used to clip this layer and its descendants (implies setting masksToBounds).
-    // Returns false if the platform can't support this rounded clip, and we should fall back to painting a mask.
+    // Consult supportsRoundedClip() to know whether non-zero radii are supported.
     FloatRoundedRect maskToBoundsRect() const { return m_masksToBoundsRect; };
-    virtual bool setMasksToBoundsRect(const FloatRoundedRect& roundedRect) { m_masksToBoundsRect = roundedRect; return false; }
+    virtual void setMasksToBoundsRect(const FloatRoundedRect&);
 
     Path shapeLayerPath() const;
     virtual void setShapeLayerPath(const Path&);
@@ -485,7 +485,7 @@ public:
     virtual bool addAnimation(const KeyframeValueList&, const FloatSize& /*boxSize*/, const Animation*, const String& /*animationName*/, double /*timeOffset*/)  { return false; }
     virtual void pauseAnimation(const String& /*animationName*/, double /*timeOffset*/) { }
     virtual void removeAnimation(const String& /*animationName*/) { }
-
+    virtual void transformRelatedPropertyDidChange() { }
     WEBCORE_EXPORT virtual void suspendAnimations(MonotonicTime);
     WEBCORE_EXPORT virtual void resumeAnimations();
 
@@ -607,6 +607,7 @@ public:
     void resetTrackedRepaints();
     void addRepaintRect(const FloatRect&);
 
+    static bool supportsRoundedClip();
     static bool supportsBackgroundColorContent();
     static bool supportsLayerType(Type);
     static bool supportsContentsTiling();

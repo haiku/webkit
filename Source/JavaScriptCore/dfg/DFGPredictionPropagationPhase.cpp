@@ -875,6 +875,8 @@ private:
         case TryGetById:
         case GetByValWithThis:
         case GetByOffset:
+        case GetPrivateName:
+        case GetPrivateNameById:
         case MultiGetByOffset:
         case GetDirectPname:
         case Call:
@@ -1422,7 +1424,7 @@ private:
         case Phantom:
         case Check:
         case CheckArray:
-        case CheckNeutered:
+        case CheckDetached:
         case CheckVarargs:
         case PutGlobalVariable:
         case CheckTraps:

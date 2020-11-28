@@ -174,6 +174,8 @@ struct WebPageCreationParameters {
 #if PLATFORM(COCOA)
     bool smartInsertDeleteEnabled;
     Vector<String> additionalSupportedImageTypes;
+    SandboxExtension::HandleArray mediaExtensionHandles; // FIXME(207716): Remove when GPU process is complete.
+    SandboxExtension::HandleArray gpuIOKitExtensionHandles;
 #endif
 #if HAVE(APP_ACCENT_COLORS)
     WebCore::Color accentColor;
@@ -184,8 +186,6 @@ struct WebPageCreationParameters {
 #if PLATFORM(WIN)
     uint64_t nativeWindowHandle;
 #endif
-    bool appleMailPaginationQuirkEnabled;
-    bool appleMailLinesClampEnabled;
     bool shouldScaleViewToFitDocument;
 
     WebCore::UserInterfaceLayoutDirection userInterfaceLayoutDirection;
@@ -227,6 +227,8 @@ struct WebPageCreationParameters {
     bool shouldCaptureVideoInGPUProcess { false };
     bool shouldCaptureDisplayInUIProcess { false };
     bool shouldRenderCanvasInGPUProcess { false };
+    bool shouldRenderDOMInGPUProcess { false };
+    bool shouldPlayMediaInGPUProcess { false };
     bool shouldEnableVP9Decoder { false };
     bool shouldEnableVP9SWDecoder { false };
 #if ENABLE(APP_BOUND_DOMAINS)

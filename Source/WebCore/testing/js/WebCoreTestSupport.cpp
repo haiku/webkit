@@ -27,6 +27,7 @@
 #include "config.h"
 #include "WebCoreTestSupport.h"
 
+#include "DeprecatedGlobalSettings.h"
 #include "Frame.h"
 #include "InternalSettings.h"
 #include "Internals.h"
@@ -143,7 +144,7 @@ void initializeLogChannelsIfNecessary()
 
 void setAllowsAnySSLCertificate(bool allowAnySSLCertificate)
 {
-    InternalSettings::setAllowsAnySSLCertificate(allowAnySSLCertificate);
+    DeprecatedGlobalSettings::setAllowsAnySSLCertificate(allowAnySSLCertificate);
 }
 
 void setLinkedOnOrAfterEverythingForTesting()
@@ -222,11 +223,11 @@ void setupNewlyCreatedServiceWorker(uint64_t serviceWorkerIdentifier)
         if (!script)
             return;
 
-        auto& state = *globalScope.execState();
-        auto& vm = state.vm();
+        auto& globalObject = *globalScope.globalObject();
+        auto& vm = globalObject.vm();
         JSLockHolder locker(vm);
-        auto* contextWrapper = script->workerGlobalScopeWrapper();
-        contextWrapper->putDirect(vm, Identifier::fromString(vm, Internals::internalsId), toJS(&state, contextWrapper, ServiceWorkerInternals::create(identifier)));
+        auto* contextWrapper = script->globalScopeWrapper();
+        contextWrapper->putDirect(vm, Identifier::fromString(vm, Internals::internalsId), toJS(&globalObject, contextWrapper, ServiceWorkerInternals::create(identifier)));
     });
 #else
     UNUSED_PARAM(serviceWorkerIdentifier);

@@ -51,6 +51,7 @@ public:
 
     bool handleWheelEvent(const PlatformWheelEvent&);
     
+    void willDoProgrammaticScroll(const FloatPoint&);
     void currentScrollPositionChanged();
 
 #if ENABLE(CSS_SCROLL_SNAP)
@@ -78,6 +79,7 @@ private:
     bool allowsVerticalStretching(const PlatformWheelEvent&) const final;
     IntSize stretchAmount() const final;
     bool pinnedInDirection(const FloatSize&) const final;
+    RectEdges<bool> edgePinnedState() const final;
     bool canScrollHorizontally() const final;
     bool canScrollVertically() const final;
     bool shouldRubberBandInDirection(ScrollDirection) const final;
@@ -86,6 +88,8 @@ private:
     void didStopRubberbandSnapAnimation() final;
     void rubberBandingStateChanged(bool) final;
     void adjustScrollPositionToBoundsIfNecessary() final;
+
+    bool scrollPositionIsNotRubberbandingEdge(const FloatPoint&) const;
 
 #if ENABLE(CSS_SCROLL_SNAP)
     FloatPoint scrollOffset() const override;

@@ -1,3 +1,107 @@
+2020-10-30  Dewei Zhu  <dewei_zhu@apple.com>
+
+        Performance dashboard should avoid building same configuration under one analysis task.
+        https://bugs.webkit.org/show_bug.cgi?id=218413
+
+        Reviewed by Ryosuke Niwa.
+
+        Add logic in syncing script to reuse already built roots from same build request under current analysis task.
+        If there is another same build request scheduled/running, will defer scheduling current build request.
+
+        * public/admin/platforms.php: Fixed newer version of PHP warns on accessing invalid key in an array.
+        * public/admin/tests.php: Added a null check against $selected_parent.
+        * public/api/build-requests.php: Extended this API to allow reusing roots from existing build request.
+        * public/v3/models/build-request.js:
+        (BuildRequest.prototype.async findBuildRequestWithSameRoots): Find build type build request with same commit set
+        which can/will be reused under current analysis task.
+        * public/v3/models/commit-set.js:
+        (CommitSet.prototype.equalsIgnoringRoot): Added a helper function which checks commit set equality ignoring the root.
+        (CommitSet.prototype.equals): Use '_equalsOptionallyIgnoringRoot' as underlying implementation.
+        (CommitSet.prototype._equalsOptionallyIgnoringRoot): Implementation for both equals and equalsIngnoringRoot.
+        * server-tests/api-build-requests-tests.js: Added unit tests.
+        * server-tests/resources/mock-data.js: Added new mock data for new unit tests.
+        (MockData.addMockConfiguration):
+        (MockData.addMockData):
+        (MockData.set addMockBuildRequestsWithRoots):
+        (MockData.set addTwoMockTestGroupWithOwnedCommits):
+        (MockData.mockTestSyncConfigWithPatchAcceptingBuilder):
+        * server-tests/tools-buildbot-triggerable-tests.js: Added unit tests.
+        * tools/js/buildbot-triggerable.js:
+        (BuildbotTriggerable.prototype.async syncOnce):
+        (BuildbotTriggerable.prototype.async _scheduleRequest): A helper function to reuse the roots if there are built
+        roots available for same build type build request. If there is another build scheduled for same build request,
+        will defer scheduling the build request.
+        * unit-tests/build-request-tests.js: Add unit tests.
+
+2020-10-27  Dewei Zhu  <dewei_zhu@apple.com>
+
+        Refactor 'platforms' table to contain group information.
+        https://bugs.webkit.org/show_bug.cgi?id=193132
+
+        Reviewed by Ryosuke Niwa.
+
+        Group 'platforms' so that bisecting can use commit sets from other platforms which are in the same platform group.
+        This will help to enhance the bisecting capability to higher granularity.
+        Added admin page to manage platform groups.
+        Updated platform admin page to allow update platform group.
+        SQL query to update existing database:
+        '''
+        BEGIN;
+        CREATE TABLE platform_groups (
+            platformgroup_id serial PRIMARY KEY,
+            platformgroup_name varchar(64) NOT NULL,
+            CONSTRAINT platform_group_name_must_be_unique UNIQUE (platformgroup_name));
+
+        ALTER TABLE platforms ADD COLUMN platform_group integer REFERENCES platform_groups DEFAULT NULL;
+        END;
+        '''
+
+        * init-database.sql: Added 'platform_group' column to 'platforms' table.
+        Added 'platform_groups' table.
+        * migrate-database.sql: Updated migration script accordingly.
+        * public/admin/platform-groups.php: Added a page to manage platform groups.
+        * public/admin/platforms.php: Added support to update platform group in admin page.
+        * public/include/admin-header.php: Added link to page that maneges platform groups.
+        * public/include/manifest-generator.php: Added 'platformGroup' in manifest.
+        * public/v3/index.html: Included 'platform-groups.js'.
+        * public/v3/models/analysis-task.js:
+        (AnalysisTask.prototype.async.commitSetsFromTestGroupsAndMeasurementSet):
+        Included measurement commit sets from other platforms in the same platform group.
+        (AnalysisTask.prototype._commitSetsInSamePlatformGroup):
+        Helper function to find measurement commit set for other platforms in same platform group.
+        * public/v3/models/manifest.js: Added step to build 'PlatformGroup' instances.
+        * public/v3/models/platform-group.js: Added 'PlatformGroup' to represent entries in 'platform_groups' table.
+        (PlatformGroup):
+        (PlatformGroup.prototype.addPlatform):
+        (PlatformGroup.prototype.platforms):
+        * public/v3/models/platform.js: Added itself to 'PlatformGroup' in constructor if it belongs
+        to a group.
+        (Platform.prototype.group): Return the platform group of current platform.
+        * public/v3/models/time-series.js: Added helper function to show view between a given time range.
+        (TimeSeries.prototype.viewBetweenTime):
+        * server-tests/api-manifest-tests.js: Updated unit test to also test platform group initialization.
+        * tools/js/database.js: Added prefix for 'platform_groups'.
+        * tools/js/v3-models.js: Added import for platform group.
+
+2020-10-26  Dewei Zhu  <dewei_zhu@apple.com>
+
+        Fix and update performance dashboard tests
+        https://bugs.webkit.org/show_bug.cgi?id=218222
+
+        Reviewed by Ryosuke Niwa.
+
+        * public/api/upload-root.php: Add a null check against empty array
+        when accessing invalid key which will show warning since php 7.4.
+        Per https://wiki.php.net/rfc/notice-for-non-valid-array-container.
+        * server-tests/tools-sync-buildbot-integration-tests.js:
+        Fixed a unit test that assumes build request IDs under one test group is
+        one after another. This assumption is wrong when 'StartServers' under
+        'mpm_prefork_module' is set more than one in apache config.
+        Fixed antoher incorrect unit test.
+        * unit-tests/analysis-results-notifier-tests.js:
+        Fixed unit tests which incorrectly used 'assert.throws' per
+        https://nodejs.org/docs/latest-v7.x/api/assert.html#assert_assert_throws_block_error_message.
+
 2020-03-04  Zhifei Fang  <zhifei_fang@apple.com>
 
         Test-freshness page table heaer misplaced

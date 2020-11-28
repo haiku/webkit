@@ -51,6 +51,11 @@
 #include <crt_externs.h>
 #endif
 
+#if ENABLE(JIT_CAGE)
+#include <WebKitAdditions/JITCageAdditions.h>
+#include <machine/cpu_capabilities.h>
+#endif
+
 namespace JSC {
 
 template<typename T>
@@ -393,6 +398,7 @@ static void disableAllJITOptions()
     Options::useOMGJIT() = false;
     Options::useDOMJIT() = false;
     Options::useRegExpJIT() = false;
+    Options::useJITCage() = false;
 }
 
 void Options::recomputeDependentOptions()
@@ -1114,5 +1120,11 @@ bool OptionReader::Option::operator==(const Option& other) const
     }
     return false;
 }
+
+#if ENABLE(JIT_CAGE) && defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 150000
+bool canUseJITCage() { return JSC_JIT_CAGE_VERSION(); }
+#else
+bool canUseJITCage() { return false; }
+#endif
 
 } // namespace JSC

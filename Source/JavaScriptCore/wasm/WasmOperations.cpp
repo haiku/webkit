@@ -268,11 +268,6 @@ JSC_DEFINE_JIT_OPERATION(operationWasmTriggerOSREntryNow, void, (Probe::Context&
     dataLogLnIf(Options::verboseOSR(), "Consider OMGForOSREntryPlan for [", functionIndex, "] loopIndex#", loopIndex, " with executeCounter = ", tierUp, " ", RawPointer(callee.replacement()));
 
     if (!Options::useWebAssemblyOSR()) {
-        if (!wasmFunctionSizeCanBeOMGCompiled(instance->module().moduleInformation().functions[functionIndex].data.size())) {
-            tierUp.deferIndefinitely();
-            return returnWithoutOSREntry();
-        }
-
         if (shouldTriggerOMGCompile(tierUp, callee.replacement(), functionIndex))
             triggerOMGReplacementCompile(tierUp, callee.replacement(), instance, codeBlock, functionIndex);
 
@@ -339,9 +334,6 @@ JSC_DEFINE_JIT_OPERATION(operationWasmTriggerOSREntryNow, void, (Probe::Context&
         return returnWithoutOSREntry();
 
     if (!triggeredSlowPathToStartCompilation) {
-        if (!wasmFunctionSizeCanBeOMGCompiled(instance->module().moduleInformation().functions[functionIndex].data.size()))
-            return returnWithoutOSREntry();
-
         triggerOMGReplacementCompile(tierUp, callee.replacement(), instance, codeBlock, functionIndex);
 
         if (!callee.replacement())
@@ -547,7 +539,7 @@ JSC_DEFINE_JIT_OPERATION(operationIterateResults, void, (CallFrame* callFrame, I
                     return;
                 }
                 FALLTHROUGH;
-            case Anyref:
+            case Externref:
                 unboxedValue = bitwise_cast<uint64_t>(value);
                 RELEASE_ASSERT(Options::useWebAssemblyReferences());
                 break;
@@ -667,7 +659,7 @@ static bool setWasmTableElement(Instance* instance, unsigned tableIndex, int32_t
         return false;
 
     JSValue value = JSValue::decode(encValue);
-    if (instance->table(tableIndex)->type() == Wasm::TableElementType::Anyref)
+    if (instance->table(tableIndex)->type() == Wasm::TableElementType::Externref)
         instance->table(tableIndex)->set(index, value);
     else if (instance->table(tableIndex)->type() == Wasm::TableElementType::Funcref) {
         WebAssemblyFunction* wasmFunction;

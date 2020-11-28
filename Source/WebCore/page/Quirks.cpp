@@ -42,6 +42,8 @@
 #include "JSEventListener.h"
 #include "LayoutUnit.h"
 #include "NamedNodeMap.h"
+#include "NetworkStorageSession.h"
+#include "PlatformMouseEvent.h"
 #include "ResourceLoadObserver.h"
 #include "RuntimeEnabledFeatures.h"
 #include "SVGPathElement.h"
@@ -374,8 +376,6 @@ bool Quirks::shouldDispatchSimulatedMouseEvents() const
         if (host == "soundcloud.com")
             return true;
         if (host == "naver.com")
-            return true;
-        if (host == "nhl.com" || (host.endsWith(".nhl.com") && !host.startsWith("account.")))
             return true;
         if (host == "nba.com" || host.endsWith(".nba.com"))
             return true;
@@ -803,15 +803,33 @@ bool Quirks::shouldBypassAsyncScriptDeferring() const
 
 bool Quirks::shouldMakeEventListenerPassive(const EventTarget& eventTarget, const AtomString& eventType, const EventListener& eventListener)
 {
-    if (eventNames().isTouchScrollBlockingEventType(eventType)) {
-        if (is<DOMWindow>(eventTarget)) {
-            auto& window = downcast<DOMWindow>(eventTarget);
-            if (auto* document = window.document())
-                return document->settings().passiveTouchListenersAsDefaultOnDocument();
-        } else if (is<Node>(eventTarget)) {
+    auto eventTargetIsRoot = [](const EventTarget& eventTarget) {
+        if (is<DOMWindow>(eventTarget))
+            return true;
+
+        if (is<Node>(eventTarget)) {
             auto& node = downcast<Node>(eventTarget);
-            if (is<Document>(node) || node.document().documentElement() == &node || node.document().body() == &node)
-                return node.document().settings().passiveTouchListenersAsDefaultOnDocument();
+            return is<Document>(node) || node.document().documentElement() == &node || node.document().body() == &node;
+        }
+        return false;
+    };
+
+    auto documentFromEventTarget = [](const EventTarget& eventTarget) -> Document* {
+        return downcast<Document>(eventTarget.scriptExecutionContext());
+    };
+
+    if (eventNames().isTouchScrollBlockingEventType(eventType)) {
+        if (eventTargetIsRoot(eventTarget)) {
+            if (auto* document = documentFromEventTarget(eventTarget))
+                return document->settings().passiveTouchListenersAsDefaultOnDocument();
+        }
+        return false;
+    }
+
+    if (eventNames().isWheelEventType(eventType)) {
+        if (eventTargetIsRoot(eventTarget)) {
+            if (auto* document = documentFromEventTarget(eventTarget))
+                return document->settings().passiveWheelListenersAsDefaultOnDocument();
         }
         return false;
     }
@@ -943,9 +961,26 @@ static bool isKinjaLoginAvatarElement(const Element& element)
 
     return false;
 }
+
+static bool isMicrosoftLoginElement(const Element& element)
+{
+    if (!element.hasClass())
+        return false;
+
+    auto& classNames = element.classNames();
+    return classNames.contains("glyph_signIn_circle") || classNames.contains("mectrl_headertext") || classNames.contains("mectrl_header") || classNames.contains("ext-button primary") || classNames.contains("ext-primary");
+}
+
+static bool isMicrosoftDomain(const RegistrableDomain& domain)
+{
+    static NeverDestroyed<RegistrableDomain> microsoftDotCom = RegistrableDomain::uncheckedCreateFromRegistrableDomainString("microsoft.com"_s);
+    static NeverDestroyed<RegistrableDomain> liveDotCom = RegistrableDomain::uncheckedCreateFromRegistrableDomainString("live.com"_s);
+
+    return domain == microsoftDotCom || domain == liveDotCom;
+}
 #endif
 
-Quirks::StorageAccessResult Quirks::triggerOptionalStorageAccessQuirk(const Element& element, const AtomString& eventType) const
+Quirks::StorageAccessResult Quirks::triggerOptionalStorageAccessQuirk(Element& element, const PlatformMouseEvent& platformEvent, const AtomString& eventType, int detail, Element* relatedTarget) const
 {
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     if (!needsQuirks())
@@ -1015,10 +1050,32 @@ Quirks::StorageAccessResult Quirks::triggerOptionalStorageAccessQuirk(const Elem
                 return Quirks::StorageAccessResult::ShouldCancelEvent;
             }
         }
+
+        // Microsoft Teams login case.
+        // FIXME(218779): Remove this quirk once microsoft.com completes their login flow redesign.
+        if (isMicrosoftDomain(domain) && isMicrosoftLoginElement(element)) {
+            auto firstPartyDomain = NetworkStorageSession::mapToTopDomain(RegistrableDomain::uncheckedCreateFromHost(m_document->topDocument().securityOrigin().host()));
+            if (auto loginDomain = NetworkStorageSession::loginDomainForFirstParty(firstPartyDomain)) {
+                if (!ResourceLoadObserver::shared().hasCrossPageStorageAccess(*loginDomain, firstPartyDomain)) {
+                    DocumentStorageAccess::requestStorageAccessForNonDocumentQuirk(*m_document, WTFMove(*loginDomain), [firstPartyDomain, loginDomain, &element, platformEvent, eventType, detail, relatedTarget](StorageAccessWasGranted storageAccessGranted) mutable {
+                        if (storageAccessGranted == StorageAccessWasGranted::Yes) {
+                            ResourceLoadObserver::shared().setDomainsWithCrossPageStorageAccess({{ firstPartyDomain, *loginDomain }}, [&element, platformEvent, eventType, detail, relatedTarget] {
+                                element.dispatchMouseEvent(platformEvent, eventType, detail, relatedTarget);
+                            });
+                        }
+                    });
+                    return Quirks::StorageAccessResult::ShouldCancelEvent;
+                }
+            }
+            return Quirks::StorageAccessResult::ShouldNotCancelEvent;
+        }
     }
 #else
     UNUSED_PARAM(element);
+    UNUSED_PARAM(platformEvent);
     UNUSED_PARAM(eventType);
+    UNUSED_PARAM(detail);
+    UNUSED_PARAM(relatedTarget);
 #endif
     return Quirks::StorageAccessResult::ShouldNotCancelEvent;
 }
@@ -1056,6 +1113,8 @@ bool Quirks::needsAkamaiMediaPlayerQuirk(const HTMLVideoElement& element) const
 
     static NeverDestroyed<const AtomString> akamaiHTML5(MAKE_STATIC_STRING_IMPL("akamai-html5"));
     static NeverDestroyed<const AtomString> akamaiMediaElement(MAKE_STATIC_STRING_IMPL("akamai-media-element"));
+    static NeverDestroyed<const AtomString> ampHTML5(MAKE_STATIC_STRING_IMPL("amp-html5"));
+    static NeverDestroyed<const AtomString> ampMediaElement(MAKE_STATIC_STRING_IMPL("amp-media-element"));
 
     if (!needsQuirks())
         return false;
@@ -1064,7 +1123,7 @@ bool Quirks::needsAkamaiMediaPlayerQuirk(const HTMLVideoElement& element) const
         return false;
 
     auto& classNames = element.classNames();
-    return classNames.contains(akamaiHTML5) && classNames.contains(akamaiMediaElement);
+    return (classNames.contains(akamaiHTML5) && classNames.contains(akamaiMediaElement)) || (classNames.contains(ampHTML5) && classNames.contains(ampMediaElement));
 #else
     UNUSED_PARAM(element);
     return false;

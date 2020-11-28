@@ -96,6 +96,7 @@ private:
         JSC::JSObject* object = JSC::asObject(value);
     
         ReturnType result;
+        HashMap<KeyType, size_t> resultMap;
     
         // 4. Let keys be ? O.[[OwnPropertyKeys]]().
         JSC::PropertyNameArray keys(vm, JSC::PropertyNameMode::Strings, JSC::PrivateSymbolMode::Exclude);
@@ -127,12 +128,23 @@ private:
                 auto typedValue = Converter<V>::convert(lexicalGlobalObject, subValue, args...);
                 RETURN_IF_EXCEPTION(scope, { });
                 
-                // 4. If typedKey is already a key in result, set its value to typedValue.
-                // Note: This can happen when O is a proxy object.
-                // FIXME: Handle this case.
+                // 4. Set result[typedKey] to typedValue.
+                // Note: It's possible that typedKey is already in result if K is USVString and key contains unpaired surrogates.
+                if constexpr (std::is_same_v<K, IDLUSVString>) {
+                    if (!typedKey.is8Bit()) {
+                        auto iterator = resultMap.find(typedKey);
+                        if (iterator != resultMap.end()) {
+                            ASSERT(result[iterator->value].key == typedKey);
+                            result[iterator->value].value = WTFMove(typedValue);
+                            continue;
+                        }
+                        resultMap.add(typedKey, result.size());
+                    }
+                } else
+                    UNUSED_VARIABLE(resultMap);
                 
                 // 5. Otherwise, append to result a mapping (typedKey, typedValue).
-                result.append({ typedKey, typedValue });
+                result.append({ WTFMove(typedKey), WTFMove(typedValue) });
             }
         }
 

@@ -73,7 +73,7 @@
 #import "WKWebViewConfigurationPrivate.h"
 #import "WKWebViewIOS.h"
 #import "WKWebViewPrivate.h"
-#import "WKWebViewPrivateForTestingIOS.h"
+#import "WKWebViewPrivateForTesting.h"
 #import "WebAutocorrectionContext.h"
 #import "WebAutocorrectionData.h"
 #import "WebDataListSuggestionsDropdownIOS.h"
@@ -167,11 +167,11 @@
 static NSString * const webkitShowLinkPreviewsPreferenceKey = @"WebKitShowLinkPreviews";
 #endif
 
-#if HAVE(UI_CURSOR_INTERACTION)
-static NSString * const cursorRegionIdentifier = @"WKCursorRegion";
-static NSString * const editableCursorRegionIdentifier = @"WKEditableCursorRegion";
+#if HAVE(UI_POINTER_INTERACTION)
+static NSString * const pointerRegionIdentifier = @"WKPointerRegion";
+static NSString * const editablePointerRegionIdentifier = @"WKEditablePointerRegion";
 
-@interface WKContentView (WKUICursorInteractionDelegate) <_UICursorInteractionDelegate>
+@interface WKContentView (WKUIPointerInteractionDelegate) <UIPointerInteractionDelegate_ForWebKitOnly>
 @end
 #endif
 
@@ -184,6 +184,8 @@ static NSString * const editableCursorRegionIdentifier = @"WKEditableCursorRegio
 @interface WKContentView (WatchSupport) <WKFocusedFormControlViewDelegate, WKSelectMenuListViewControllerDelegate, WKTextInputListViewControllerDelegate>
 @end
 #endif
+
+static void *WKContentViewKVOTransformContext = &WKContentViewKVOTransformContext;
 
 namespace WebKit {
 using namespace WebCore;
@@ -734,7 +736,7 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     _keyboardScrollingAnimator = adoptNS([[WKKeyboardScrollViewAnimator alloc] initWithScrollView:self.webView.scrollView]);
     [_keyboardScrollingAnimator setDelegate:self];
 
-    [self.layer addObserver:self forKeyPath:@"transform" options:NSKeyValueObservingOptionInitial context:nil];
+    [self.layer addObserver:self forKeyPath:@"transform" options:NSKeyValueObservingOptionInitial context:WKContentViewKVOTransformContext];
 
     _touchActionLeftSwipeGestureRecognizer = adoptNS([[UISwipeGestureRecognizer alloc] initWithTarget:nil action:nil]);
     [_touchActionLeftSwipeGestureRecognizer setDirection:UISwipeGestureRecognizerDirectionLeft];
@@ -827,8 +829,8 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     [self setUpDragAndDropInteractions];
 #endif
 
-#if HAVE(UI_CURSOR_INTERACTION)
-    [self setUpCursorInteraction];
+#if HAVE(UI_POINTER_INTERACTION)
+    [self setUpPointerInteraction];
 #endif
 
 #if HAVE(PENCILKIT_TEXT_INPUT)
@@ -927,7 +929,7 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     _treatAsContentEditableUntilNextEditorStateUpdate = NO;
 
     if (_interactionViewsContainerView) {
-        [self.layer removeObserver:self forKeyPath:@"transform"];
+        [self.layer removeObserver:self forKeyPath:@"transform" context:WKContentViewKVOTransformContext];
         [_interactionViewsContainerView removeFromSuperview];
         _interactionViewsContainerView = nil;
     }
@@ -994,9 +996,9 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     [self teardownDragAndDropInteractions];
 #endif
 
-#if HAVE(UI_CURSOR_INTERACTION)
-    [self removeInteraction:_cursorInteraction.get()];
-    _cursorInteraction = nil;
+#if HAVE(UI_POINTER_INTERACTION)
+    [self removeInteraction:_pointerInteraction.get()];
+    _pointerInteraction = nil;
 #endif
 
 #if HAVE(PENCILKIT_TEXT_INPUT)
@@ -1173,6 +1175,11 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
+    if (context != WKContentViewKVOTransformContext) {
+        [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+        return;
+    }
+
     ASSERT([keyPath isEqualToString:@"transform"]);
     ASSERT(object == self.layer);
 
@@ -3006,7 +3013,9 @@ static bool elementTypeRequiresAccessoryView(WebKit::InputType type)
     static NSMutableArray *plainTextTypes = nil;
     if (!plainTextTypes) {
         plainTextTypes = [[NSMutableArray alloc] init];
+ALLOW_DEPRECATED_DECLARATIONS_BEGIN
         [plainTextTypes addObject:(id)kUTTypeURL];
+ALLOW_DEPRECATED_DECLARATIONS_END
         [plainTextTypes addObjectsFromArray:UIPasteboardTypeListString];
 
         richTypes = [[NSMutableArray alloc] init];
@@ -5940,6 +5949,10 @@ static RetainPtr<NSObject <WKFormPeripheral>> createInputPeripheralWithView(WebK
         }
     }();
 
+    // Do not present input peripherals if a validation message is being displayed.
+    if (information.isFocusingWithValidationMessage && !_isFocusingElementWithKeyboard)
+        shouldShowInputView = NO;
+
     if (blurPreviousNode) {
         // Defer view updates until the end of this function to avoid a noticeable flash when switching focus
         // between elements that require the keyboard.
@@ -6072,6 +6085,7 @@ static RetainPtr<NSObject <WKFormPeripheral>> createInputPeripheralWithView(WebK
     _focusedElementInformation.shouldAvoidResizingWhenInputViewBoundsChange = false;
     _focusedElementInformation.shouldAvoidScrollingWhenFocusedContentIsVisible = false;
     _focusedElementInformation.shouldUseLegacySelectPopoverDismissalBehaviorInDataActivation = false;
+    _focusedElementInformation.isFocusingWithValidationMessage = false;
     _inputPeripheral = nil;
     _focusRequiresStrongPasswordAssistance = NO;
     _additionalContextForStrongPasswordAssistance = nil;
@@ -6843,6 +6857,36 @@ static BOOL allPasteboardItemOriginsMatchOrigin(UIPasteboard *pasteboard, const 
 
 #endif
 
+- (void)_showContactPicker:(const WebCore::ContactsRequestData&)requestData completionHandler:(WTF::CompletionHandler<void(Optional<Vector<WebCore::ContactInfo>>&&)>&&)completionHandler
+{
+#if HAVE(CONTACTSUI)
+    _contactPicker = adoptNS([[WKContactPicker alloc] initWithView:self.webView]);
+    [_contactPicker setDelegate:self];
+    [_contactPicker presentWithRequestData:requestData completionHandler:WTFMove(completionHandler)];
+#else
+    completionHandler(WTF::nullopt);
+#endif
+}
+
+#if HAVE(CONTACTSUI)
+- (void)contactPickerDidPresent:(WKContactPicker *)contactPicker
+{
+    ASSERT(_contactPicker == contactPicker);
+
+    [_webView _didPresentContactPicker];
+}
+
+- (void)contactPickerDidDismiss:(WKContactPicker *)contactPicker
+{
+    ASSERT(_contactPicker == contactPicker);
+
+    [_contactPicker setDelegate:nil];
+    _contactPicker = nil;
+
+    [_webView _didDismissContactPicker];
+}
+#endif
+
 - (NSString *)inputLabelText
 {
     if (!_focusedElementInformation.label.isEmpty())
@@ -7504,7 +7548,7 @@ static NSArray<NSItemProvider *> *extractItemProvidersFromDropSession(id <UIDrop
     if (!_dropAnimationCount)
         return;
 
-    auto unselectedContentImageForEditDrag = adoptNS([[UIImage alloc] initWithCGImage:unselectedSnapshotImage.get() scale:_page->deviceScaleFactor() orientation:UIImageOrientationUp]);
+    auto unselectedContentImageForEditDrag = adoptNS([[UIImage alloc] initWithCGImage:unselectedSnapshotImage->platformImage().get() scale:_page->deviceScaleFactor() orientation:UIImageOrientationUp]);
     _unselectedContentSnapshot = adoptNS([[UIImageView alloc] initWithImage:unselectedContentImageForEditDrag.get()]);
     [_unselectedContentSnapshot setFrame:data->contentImageWithoutSelectionRectInRootViewCoordinates];
 
@@ -7727,11 +7771,11 @@ static RetainPtr<UIImage> uiImageForImage(WebCore::Image* image)
     if (!image)
         return nil;
 
-    auto cgImage = image->nativeImage();
-    if (!cgImage)
+    auto nativeImage = image->nativeImage();
+    if (!nativeImage)
         return nil;
 
-    return adoptNS([[UIImage alloc] initWithCGImage:cgImage.get()]);
+    return adoptNS([[UIImage alloc] initWithCGImage:nativeImage->platformImage().get()]);
 }
 
 // FIXME: This should be merged with createTargetedDragPreview in DragDropInteractionState.
@@ -7992,7 +8036,7 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
             return;
         }
 
-        auto unselectedContentImageForEditDrag = adoptNS([[UIImage alloc] initWithCGImage:unselectedSnapshotImage.get() scale:protectedSelf->_page->deviceScaleFactor() orientation:UIImageOrientationUp]);
+        auto unselectedContentImageForEditDrag = adoptNS([[UIImage alloc] initWithCGImage:unselectedSnapshotImage->platformImage().get() scale:protectedSelf->_page->deviceScaleFactor() orientation:UIImageOrientationUp]);
         auto snapshotView = adoptNS([[UIImageView alloc] initWithImage:unselectedContentImageForEditDrag.get()]);
         [snapshotView setFrame:data->contentImageWithoutSelectionRectInRootViewCoordinates];
         [protectedSelf addSubview:snapshotView.get()];
@@ -8657,52 +8701,52 @@ static BOOL applicationIsKnownToIgnoreMouseEvents(const char* &warningVersion)
 
 #endif // HAVE(UIKIT_WITH_MOUSE_SUPPORT)
 
-#if HAVE(UI_CURSOR_INTERACTION)
+#if HAVE(UI_POINTER_INTERACTION)
 
-- (void)setUpCursorInteraction
+- (void)setUpPointerInteraction
 {
-    _cursorInteraction = adoptNS([[_UICursorInteraction alloc] initWithDelegate:self]);
-    [_cursorInteraction _setPausesCursorUpdatesWhilePanning:NO];
+    _pointerInteraction = adoptNS([[UIPointerInteraction alloc] initWithDelegate:self]);
+    [_pointerInteraction _setPausesPointerUpdatesWhilePanning:NO];
 
-    [self addInteraction:_cursorInteraction.get()];
+    [self addInteraction:_pointerInteraction.get()];
 }
 
-- (void)_cursorInteraction:(_UICursorInteraction *)interaction regionForLocation:(CGPoint)location defaultRegion:(_UICursorRegion *)defaultRegion completion:(void(^)(_UICursorRegion *region))completion
+- (void)_pointerInteraction:(UIPointerInteraction *)interaction regionForRequest:(UIPointerRegionRequest *)request defaultRegion:(UIPointerRegion *)defaultRegion completion:(void(^)(UIPointerRegion *region))completion
 {
     WebKit::InteractionInformationRequest interactionInformationRequest;
-    interactionInformationRequest.point = WebCore::roundedIntPoint(location);
+    interactionInformationRequest.point = WebCore::roundedIntPoint(request.location);
     interactionInformationRequest.includeCaretContext = true;
     interactionInformationRequest.includeHasDoubleClickHandler = false;
 
     BOOL didSynchronouslyReplyWithApproximation = false;
     if (![self _currentPositionInformationIsValidForRequest:interactionInformationRequest] && self.webView._editable && !_positionInformation.shouldNotUseIBeamInEditableContent) {
         didSynchronouslyReplyWithApproximation = true;
-        completion([_UICursorRegion regionWithIdentifier:editableCursorRegionIdentifier rect:self.bounds]);
+        completion([UIPointerRegion regionWithRect:self.bounds identifier:editablePointerRegionIdentifier]);
     }
 
     // If we already have an outstanding interaction information request, defer this one until
     // we hear back, so that requests don't pile up if the Web Content process is slow.
-    if (_hasOutstandingCursorInteractionRequest) {
-        _deferredCursorInteractionRequest = std::make_pair(interactionInformationRequest, makeBlockPtr(completion));
+    if (_hasOutstandingPointerInteractionRequest) {
+        _deferredPointerInteractionRequest = std::make_pair(interactionInformationRequest, makeBlockPtr(completion));
         return;
     }
 
-    _hasOutstandingCursorInteractionRequest = YES;
+    _hasOutstandingPointerInteractionRequest = YES;
 
-    __block BlockPtr<void(WebKit::InteractionInformationAtPosition, void(^)(_UICursorRegion *))> replyHandler;
-    replyHandler = ^(WebKit::InteractionInformationAtPosition interactionInformation, void(^completion)(_UICursorRegion *region)) {
-        if (!_deferredCursorInteractionRequest)
-            _hasOutstandingCursorInteractionRequest = NO;
+    __block BlockPtr<void(WebKit::InteractionInformationAtPosition, void(^)(UIPointerRegion *))> replyHandler;
+    replyHandler = ^(WebKit::InteractionInformationAtPosition interactionInformation, void(^completion)(UIPointerRegion *region)) {
+        if (!_deferredPointerInteractionRequest)
+            _hasOutstandingPointerInteractionRequest = NO;
 
         if (didSynchronouslyReplyWithApproximation) {
             [interaction invalidate];
             return;
         }
 
-        completion([self cursorRegionForPositionInformation:interactionInformation point:location]);
+        completion([self pointerRegionForPositionInformation:interactionInformation point:request.location]);
 
-        if (_deferredCursorInteractionRequest) {
-            auto deferredRequest = std::exchange(_deferredCursorInteractionRequest, WTF::nullopt);
+        if (_deferredPointerInteractionRequest) {
+            auto deferredRequest = std::exchange(_deferredPointerInteractionRequest, WTF::nullopt);
             [self doAfterPositionInformationUpdate:^(WebKit::InteractionInformationAtPosition interactionInformation) {
                 replyHandler(interactionInformation, deferredRequest->second.get());
             } forRequest:deferredRequest->first];
@@ -8715,7 +8759,7 @@ static BOOL applicationIsKnownToIgnoreMouseEvents(const char* &warningVersion)
     } forRequest:interactionInformationRequest];
 }
 
-- (_UICursorRegion *)cursorRegionForPositionInformation:(WebKit::InteractionInformationAtPosition&)interactionInformation point:(CGPoint)location
+- (UIPointerRegion *)pointerRegionForPositionInformation:(WebKit::InteractionInformationAtPosition&)interactionInformation point:(CGPoint)location
 {
     WebCore::FloatRect expandedLineRect = enclosingIntRect(interactionInformation.lineCaretExtent);
 
@@ -8726,26 +8770,26 @@ static BOOL applicationIsKnownToIgnoreMouseEvents(const char* &warningVersion)
     if (interactionInformation.cursor) {
         WebCore::Cursor::Type cursorType = interactionInformation.cursor->type();
         if (cursorType == WebCore::Cursor::Hand)
-            return [_UICursorRegion regionWithIdentifier:cursorRegionIdentifier rect:interactionInformation.bounds];
+            return [UIPointerRegion regionWithRect:interactionInformation.bounds identifier:pointerRegionIdentifier];
 
         if (cursorType == WebCore::Cursor::IBeam && expandedLineRect.contains(location))
-            return [_UICursorRegion regionWithIdentifier:cursorRegionIdentifier rect:expandedLineRect];
+            return [UIPointerRegion regionWithRect:expandedLineRect identifier:pointerRegionIdentifier];
     }
 
     if (self.webView._editable) {
         if (expandedLineRect.contains(location))
-            return [_UICursorRegion regionWithIdentifier:cursorRegionIdentifier rect:expandedLineRect];
-        return [_UICursorRegion regionWithIdentifier:editableCursorRegionIdentifier rect:self.bounds];
+            return [UIPointerRegion regionWithRect:expandedLineRect identifier:pointerRegionIdentifier];
+        return [UIPointerRegion regionWithRect:self.bounds identifier:editablePointerRegionIdentifier];
     }
 
     return nil;
 }
 
-- (_UICursorStyle *)cursorInteraction:(_UICursorInteraction *)interaction styleForRegion:(_UICursorRegion *)region modifiers:(UIKeyModifierFlags)modifiers
+- (UIPointerStyle *)pointerInteraction:(UIPointerInteraction *)interaction styleForRegion:(UIPointerRegion *)region
 {
     double scaleFactor = self._contentZoomScale;
 
-    _UICursorStyle *(^iBeamCursor)(void) = ^{
+    UIPointerStyle *(^iBeamCursor)(void) = ^{
         float beamLength = _positionInformation.caretHeight * scaleFactor;
         UIAxis iBeamConstraintAxes = UIAxisVertical;
 
@@ -8754,10 +8798,10 @@ static BOOL applicationIsKnownToIgnoreMouseEvents(const char* &warningVersion)
             iBeamConstraintAxes = UIAxisNeither;
 
         // If the region is the size of the view, we should not apply any magnetism.
-        if ([region.identifier isEqual:editableCursorRegionIdentifier])
+        if ([region.identifier isEqual:editablePointerRegionIdentifier])
             iBeamConstraintAxes = UIAxisNeither;
 
-        return [_UICursorStyle styleWithCursor:[_UICursor beamWithPreferredLength:beamLength axis:UIAxisVertical] constrainedAxes:iBeamConstraintAxes];
+        return [UIPointerStyle styleWithShape:[UIPointerShape beamWithPreferredLength:beamLength axis:UIAxisVertical] constrainedAxes:iBeamConstraintAxes];
     };
 
     if (self.webView._editable) {
@@ -8766,11 +8810,11 @@ static BOOL applicationIsKnownToIgnoreMouseEvents(const char* &warningVersion)
         return iBeamCursor();
     }
 
-    if (_positionInformation.cursor && [region.identifier isEqual:cursorRegionIdentifier]) {
+    if (_positionInformation.cursor && [region.identifier isEqual:pointerRegionIdentifier]) {
         WebCore::Cursor::Type cursorType = _positionInformation.cursor->type();
 
         if (cursorType == WebCore::Cursor::Hand)
-            return [_UICursorStyle styleWithCursor:[_UICursor linkCursor] constrainedAxes:UIAxisNeither];
+            return [UIPointerStyle _systemPointerStyle];
 
         if (cursorType == WebCore::Cursor::IBeam && _positionInformation.lineCaretExtent.contains(_positionInformation.request.point))
             return iBeamCursor();
@@ -8780,7 +8824,7 @@ static BOOL applicationIsKnownToIgnoreMouseEvents(const char* &warningVersion)
     return nil;
 }
 
-#endif // HAVE(UI_CURSOR_INTERACTION)
+#endif // HAVE(UI_POINTER_INTERACTION)
 
 #if HAVE(PENCILKIT_TEXT_INPUT)
 
@@ -9087,6 +9131,13 @@ static RetainPtr<NSItemProvider> createItemProvider(const WebKit::WebPageProxy& 
     }
     
     return nil;
+}
+
+- (void)_dismissContactPickerWithContacts:(NSArray *)contacts
+{
+#if HAVE(CONTACTSUI)
+    [_contactPicker dismissWithContacts:contacts];
+#endif
 }
 
 @end
@@ -10036,7 +10087,12 @@ static UIMenu *menuFromLegacyPreviewOrDefaultActions(UIViewController *previewVi
 {
     if (!_positionInformation.linkIndicator.contentImage)
         return nullptr;
-    return [[[UIImage alloc] initWithCGImage:_positionInformation.linkIndicator.contentImage->nativeImage().get()] autorelease];
+
+    auto nativeImage = _positionInformation.linkIndicator.contentImage->nativeImage();
+    if (!nativeImage)
+        return nullptr;
+
+    return [[[UIImage alloc] initWithCGImage:nativeImage->platformImage().get()] autorelease];
 }
 
 - (NSArray *)_presentationRectsForPreviewItemController:(UIPreviewItemController *)controller

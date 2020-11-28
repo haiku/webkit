@@ -1635,8 +1635,8 @@ ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(HTMLVideoElement& vide
     checkOrigin(&video);
 
 #if USE(CG)
-    if (NativeImagePtr image = video.nativeImageForCurrentTime()) {
-        c->drawNativeImage(image, FloatSize(video.videoWidth(), video.videoHeight()), dstRect, srcRect);
+    if (auto image = video.nativeImageForCurrentTime()) {
+        c->drawNativeImage(*image, FloatSize(video.videoWidth(), video.videoHeight()), dstRect, srcRect);
         if (rectContainsCanvas(dstRect))
             didDrawEntireCanvas();
         else
@@ -1759,7 +1759,7 @@ template<class T> IntRect CanvasRenderingContext2DBase::calculateCompositingBuff
     return bufferRect;
 }
 
-std::unique_ptr<ImageBuffer> CanvasRenderingContext2DBase::createCompositingBuffer(const IntRect& bufferRect)
+RefPtr<ImageBuffer> CanvasRenderingContext2DBase::createCompositingBuffer(const IntRect& bufferRect)
 {
     return ImageBuffer::create(bufferRect.size(), isAccelerated() ? RenderingMode::Accelerated : RenderingMode::Unaccelerated);
 }
@@ -1945,8 +1945,8 @@ ExceptionOr<RefPtr<CanvasPattern>> CanvasRenderingContext2DBase::createPattern(H
         return RefPtr<CanvasPattern> { CanvasPattern::create(BitmapImage::create(WTFMove(nativeImage)), repeatX, repeatY, originClean) };
 #endif
 
-    auto shouldAccelerate = !drawingContext() || drawingContext()->isAcceleratedContext() ? ShouldAccelerate::Yes : ShouldAccelerate::No;
-    auto imageBuffer = videoElement.createBufferForPainting(size(videoElement), shouldAccelerate);
+    auto renderingMode = !drawingContext() || drawingContext()->isAcceleratedContext() ? RenderingMode::Accelerated : RenderingMode::Unaccelerated;
+    auto imageBuffer = videoElement.createBufferForPainting(size(videoElement), renderingMode);
     if (!imageBuffer)
         return nullptr;
 
@@ -2021,7 +2021,7 @@ void CanvasRenderingContext2DBase::paintRenderingResultsToCanvas()
     ASSERT(m_usesDisplayListDrawing);
 
     auto& displayList = m_recordingContext->displayList();
-    if (displayList.itemCount()) {
+    if (!displayList.isEmpty()) {
         DisplayList::Replayer replayer(*canvasBase().drawingContext(), displayList);
         replayer.replay({ FloatPoint::zero(), canvasBase().size() });
         displayList.clear();
@@ -2037,6 +2037,21 @@ GraphicsContext* CanvasRenderingContext2DBase::drawingContext() const
     }
 
     return canvasBase().drawingContext();
+}
+
+void CanvasRenderingContext2DBase::prepareForDisplay()
+{
+    if (auto buffer = canvasBase().buffer())
+        buffer->flushDrawingContextAndCommit();
+}
+
+bool CanvasRenderingContext2DBase::needsPreparationForDisplay() const
+{
+    auto buffer = canvasBase().buffer();
+    if (buffer && buffer->prefersPreparationForDisplay())
+        return true;
+
+    return false;
 }
 
 static RefPtr<ImageData> createEmptyImageData(const IntSize& size)
@@ -2130,7 +2145,7 @@ void CanvasRenderingContext2DBase::putImageData(ImageData& data, float dx, float
     if (!buffer)
         return;
 
-    if (!data.data() || data.data()->isNeutered())
+    if (!data.data() || data.data()->isDetached())
         return;
 
     if (dirtyWidth < 0) {

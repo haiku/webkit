@@ -61,6 +61,7 @@ namespace JSC {
     macro(Array) \
     macro(ArrayBuffer) \
     macro(RegExp) \
+    macro(min) \
     macro(trunc) \
     macro(create) \
     macro(defineProperty) \
@@ -116,7 +117,9 @@ namespace JSC {
     macro(newTargetLocal) \
     macro(derivedConstructor) \
     macro(isTypedArrayView) \
-    macro(isNeutered) \
+    macro(isSharedTypedArrayView) \
+    macro(isDetached) \
+    macro(typedArrayDefaultComparator) \
     macro(isBoundFunction) \
     macro(hasInstanceBoundFunction) \
     macro(instanceOf) \

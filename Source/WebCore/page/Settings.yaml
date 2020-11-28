@@ -22,419 +22,604 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGE.
 
-acceleratedCompositedAnimationsEnabled:
-  initial: true
-  onChange: setNeedsRecalcStyleInAllFrames
+AcceleratedCompositedAnimationsEnabled:
+  type: bool
+  webcoreOnChange: setNeedsRecalcStyleInAllFrames
+  defaultValue:
+    WebCore:
+      default: true
 
-acceleratedCompositingForFixedPositionEnabled:
-  initial: defaultAcceleratedCompositingForFixedPositionEnabled
+AcceleratedFiltersEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-acceleratedFiltersEnabled:
-  initial: false
+AnimatedImageDebugCanvasDrawingEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-allowContentSecurityPolicySourceStarToMatchAnyProtocol:
-  initial: false
+AudioPlaybackRequiresUserGesture:
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(IOS_FAMILY): true
+      default: false
 
-allowDisplayOfInsecureContent:
-  initial: false
+AutoscrollForDragAndDropEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-allowRunningOfInsecureContent:
-  initial: false
+BackForwardCacheExpirationInterval:
+  type: double
+  refinedType: Seconds
+  defaultValue:
+    WebCore:
+      default: 30_min
 
-animatedImageDebugCanvasDrawingEnabled:
-  initial: false
+BackgroundShouldExtendBeyondPage:
+  type: bool
+  webcoreOnChange: backgroundShouldExtendBeyondPageChanged
+  defaultValue:
+    WebCore:
+      default: false
 
-appleMailPaginationQuirkEnabled:
-  initial: false
+ClientCoordinatesRelativeToLayoutViewport:
+  type: bool
+  webcoreOnChange: setNeedsRecalcStyleInAllFrames
+  defaultValue:
+    WebCore:
+      default: false
 
-audioPlaybackRequiresUserGesture:
-  initial: defaultAudioPlaybackRequiresUserGesture
+ClipboardAccessPolicy:
+  type: uint32_t
+  refinedType: ClipboardAccessPolicy
+  defaultValue:
+    WebCore:
+      default: ClipboardAccessPolicy::RequiresUserGesture
 
-autoscrollForDragAndDropEnabled:
-  initial: false
+CrossOriginCheckInGetMatchedCSSRulesDisabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-backForwardCacheExpirationInterval:
-  type: Seconds
-  initial: 30_min
+DataDetectorTypes:
+  type: uint32_t
+  refinedType: DataDetectorTypes
+  condition: ENABLE(DATA_DETECTION)
+  defaultValue:
+    WebCore:
+      default:
 
-backgroundShouldExtendBeyondPage:
-  initial: false
-  onChange: backgroundShouldExtendBeyondPageChanged
-
-clientCoordinatesRelativeToLayoutViewport:
-  initial: false
-  onChange: setNeedsRecalcStyleInAllFrames
-
-clipboardAccessPolicy:
-  type: ClipboardAccessPolicy
-  initial: ClipboardAccessPolicy::RequiresUserGesture
-
-# Some ports (e.g. iOS) might choose to display attachments inline, regardless of whether the response includes the
-# HTTP header "Content-Disposition: attachment". This setting enables a sandbox around these attachments. The sandbox
-# enforces all frame sandbox flags (see enum SandboxFlag in SecurityContext.h), and also disables <meta http-equiv>
-# processing and subframe loading.
-contentDispositionAttachmentSandboxEnabled:
-  initial: false
-
-crossOriginCheckInGetMatchedCSSRulesDisabled:
-  initial: false
-
-dataDetectorTypes:
-  type: DataDetectorTypes
-  initial:
-  conditional: ENABLE(DATA_DETECTION)
-
-# Some apps could have a default video poster if it is not set.
-defaultVideoPosterURL:
+DefaultVideoPosterURL:
+  comment: >-
+    Some apps could have a default video poster if it is not set.
   type: String
+  defaultValue:
+    WebCore:
+      default:
 
-disableScreenSizeOverride:
-  initial: false
+DisableScreenSizeOverride:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-# FIXME: This should really be disabled by default as it makes platforms that don't support the feature download files
-# they can't use by. Leaving enabled for now to not change existing behavior.
-downloadableBinaryFontsEnabled:
-  initial: defaultDownloadableBinaryFontsEnabled()
+DownloadableBinaryFontsEnabled:
+  comment: >-
+    FIXME: This should really be disabled by default as it makes platforms that don't support the
+    feature download files they can't use by. Leaving enabled for now to not change existing behavior.
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(WATCHOS): false
+      default: true
 
-editableLinkBehavior:
-  type: EditableLinkBehavior
-  initial: EditableLinkDefaultBehavior
+EditableLinkBehavior:
+  type: uint32_t
+  refinedType: EditableLinkBehavior
+  defaultValue:
+    WebCore:
+      default: EditableLinkDefaultBehavior
 
-editingBehaviorType:
-  type: EditingBehaviorType
-  initial: editingBehaviorTypeForPlatform()
+EditingBehaviorType:
+  type: uint32_t
+  refinedType: EditingBehaviorType
+  defaultValue:
+    WebCore:
+      PLATFORM(IOS_FAMILY): EditingIOSBehavior
+      OS(DARWIN): EditingMacBehavior
+      OS(WINDOWS): EditingWindowsBehavior
+      OS(UNIX): EditingUnixBehavior
+      default: EditingMacBehavior
 
-enforceCSSMIMETypeInNoQuirksMode:
-  initial: true
+FixedBackgroundsPaintRelativeToDocument:
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(IOS_FAMILY): true
+      default: false
 
-experimentalNotificationsEnabled:
-  initial: false
+FixedElementsLayoutRelativeToFrame:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-fixedBackgroundsPaintRelativeToDocument:
-  initial: defaultFixedBackgroundsPaintRelativeToDocument
+FontFallbackPrefersPictographs:
+  type: bool
+  webcoreOnChange: setNeedsRecalcStyleInAllFrames
+  defaultValue:
+    WebCore:
+      default: false
 
-fixedElementsLayoutRelativeToFrame:
-  initial: false
+FontLoadTimingOverride:
+  type: uint32_t
+  refinedType: FontLoadTimingOverride
+  defaultValue:
+    WebCore:
+      default: FontLoadTimingOverride::None
 
-fontFallbackPrefersPictographs:
-  initial: false
-  onChange: setNeedsRecalcStyleInAllFrames
+FontRenderingMode:
+  type: uint32_t
+  refinedType: FontRenderingMode
+  defaultValue:
+    WebCore:
+      default: FontRenderingMode::Normal
 
-fontLoadTimingOverride:
-  type: FontLoadTimingOverride
-  initial: FontLoadTimingOverride::None
+ForceCompositingMode:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-fontRenderingMode:
-  type: FontRenderingMode
-  initial: FontRenderingMode::Normal
+ForcePendingWebGLPolicy:
+  type: bool
+  webcoreGetter: isForcePendingWebGLPolicy
+  defaultValue:
+    WebCore:
+      default: false
 
-forceCompositingMode:
-  initial: false
+ForcedColorsAreInvertedAccessibilityValue:
+  type: uint32_t
+  refinedType: ForcedAccessibilityValue
+  defaultValue:
+    WebCore:
+      default: ForcedAccessibilityValue::System
 
-forcePendingWebGLPolicy:
-  initial: false
-  getter: isForcePendingWebGLPolicy
+ForcedDisplayIsMonochromeAccessibilityValue:
+  type: uint32_t
+  refinedType: ForcedAccessibilityValue
+  defaultValue:
+    WebCore:
+      default: ForcedAccessibilityValue::System
 
-forceWebGLUsesLowPower:
-  initial: false
+ForcedPrefersReducedMotionAccessibilityValue:
+  type: uint32_t
+  refinedType: ForcedAccessibilityValue
+  defaultValue:
+    WebCore:
+      default: ForcedAccessibilityValue::System
 
-forcedColorsAreInvertedAccessibilityValue:
-  type: ForcedAccessibilityValue
-  initial: defaultForcedColorsAreInvertedAccessibilityValue
+ForcedSupportsHighDynamicRangeValue:
+  type: uint32_t
+  refinedType: ForcedAccessibilityValue
+  webcoreOnChange: setNeedsRecalcStyleInAllFrames
+  defaultValue:
+    WebCore:
+      default: ForcedAccessibilityValue::System
 
-forcedDisplayIsMonochromeAccessibilityValue:
-  type: ForcedAccessibilityValue
-  initial: defaultForcedDisplayIsMonochromeAccessibilityValue
+FrameFlattening:
+  type: uint32_t
+  refinedType: FrameFlattening
+  webcoreOnChange: setNeedsRelayoutAllFrames
+  defaultValue:
+    WebCore:
+      default: FrameFlattening::Disabled
 
-forcedPrefersReducedMotionAccessibilityValue:
-  type: ForcedAccessibilityValue
-  initial: defaultForcedPrefersReducedMotionAccessibilityValue
+GeolocationFloorLevelEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: true
 
-forcedSupportsHighDynamicRangeValue:
-  type: ForcedAccessibilityValue
-  initial: defaultForcedSupportsHighDynamicRangeValue
-  onChange: setNeedsRecalcStyleInAllFrames
+IdempotentModeAutosizingOnlyHonorsPercentages:
+  type: bool
+  condition: ENABLE(TEXT_AUTOSIZING)
+  defaultValue:
+    WebCore:
+      default: false
 
-frameFlattening:
-  type: FrameFlattening
-  initial: FrameFlattening::Disabled
-  onChange: setNeedsRelayoutAllFrames
+ImageSubsamplingEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(IOS_FAMILY): true
+      default: false
 
-geolocationFloorLevelEnabled:
-  initial: true
-
-idempotentModeAutosizingOnlyHonorsPercentages:
-  initial: false
-  conditional: ENABLE(TEXT_AUTOSIZING)
-
-imageSubsamplingEnabled:
-  initial: defaultImageSubsamplingEnabled
-
-imagesEnabled:
-  initial: true
-  getter: areImagesEnabled
-  onChange: imagesEnabledChanged
+ImagesEnabled:
+  type: bool
+  webcoreGetter: areImagesEnabled
+  webcoreOnChange: imagesEnabledChanged
   inspectorOverride: true
+  defaultValue:
+    WebCore:
+      default: true
 
-isAccessibilityIsolatedTreeEnabled:
-  initial: false
+IsAccessibilityIsolatedTreeEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-isPerActivityStateCPUUsageMeasurementEnabled:
-  initial: defaultPerActivityStateCPUUsageMeasurementEnabled
+IsPerActivityStateCPUUsageMeasurementEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(MAC): true
+      default: false
 
-isPostBackgroundingCPUUsageMeasurementEnabled:
-  initial: defaultPostBackgroundingCPUUsageMeasurementEnabled
+IsPostBackgroundingCPUUsageMeasurementEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(MAC): true
+      default: false
 
-isPostBackgroundingMemoryUsageMeasurementEnabled:
-  initial: defaultPostBackgroundingMemoryUsageMeasurementEnabled
+IsPostBackgroundingMemoryUsageMeasurementEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(MAC): true
+      default: false
 
-isPostLoadCPUUsageMeasurementEnabled:
-  initial: defaultPostLoadCPUUsageMeasurementEnabled
+IsPostLoadCPUUsageMeasurementEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(COCOA): true
+      default: false
 
-isPostLoadMemoryUsageMeasurementEnabled:
-  initial: defaultPostLoadMemoryUsageMeasurementEnabled
+IsPostLoadMemoryUsageMeasurementEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(COCOA): true
+      default: false
 
-javaScriptRuntimeFlags:
-  type: JSC::RuntimeFlags
+JavaScriptRuntimeFlags:
+  type: uint32_t
+  refinedType: JSC::RuntimeFlags
+  defaultValue:
+    WebCore:
+      default:
 
-langAttributeAwareFormControlUIEnabled:
-  initial: false
+LangAttributeAwareFormControlUIEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-# FIMXE: This does not appear to ever be set to true. Remove once verified.
-legacyBeforeLoadEventEnabled:
-  initial: false
+LegacyBeforeLoadEventEnabled:
+  comment: >-
+    FIMXE: This does not appear to ever be set to true. Remove once verified.
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-loadDeferringEnabled:
-  initial: true
-
-localStorageDatabasePath:
+LocalStorageDatabasePath:
   type: String
+  defaultValue:
+    WebCore:
+      default:
 
-maximumAccelerated2dCanvasSize:
+MaximumAccelerated2dCanvasSize:
   type: uint32_t
-  initial: 5120*2880
+  defaultValue:
+    WebCore:
+      default: 5120*2880
 
-maximumHTMLParserDOMTreeDepth:
+MaximumHTMLParserDOMTreeDepth:
   type: uint32_t
-  initial: defaultMaximumHTMLParserDOMTreeDepth
+  defaultValue:
+    WebCore:
+      default: defaultMaximumHTMLParserDOMTreeDepth
 
-maximumPlugInSnapshotAttempts:
+MaximumSourceBufferSize:
+  comment: >-
+    Allow SourceBuffers to store up to 304MB each, enough for approximately five minutes
+    of 1080p video and stereo audio.
   type: uint32_t
-  initial: 20
+  condition: ENABLE(MEDIA_SOURCE)
+  defaultValue:
+    WebCore:
+      default: 318767104
 
-# Allow SourceBuffers to store up to 304MB each, enough for approximately five minutes
-# of 1080p video and stereo audio.
-maximumSourceBufferSize:
-  type: uint32_t
-  initial: 318767104
-  conditional: ENABLE(MEDIA_SOURCE)
-
-mediaDeviceIdentifierStorageDirectory:
+MediaDeviceIdentifierStorageDirectory:
   type: String
-  conditional: ENABLE(MEDIA_STREAM)
+  condition: ENABLE(MEDIA_STREAM)
+  defaultValue:
+    WebCore:
+      default:
 
-mediaKeysStorageDirectory:
+MediaKeysStorageDirectory:
   type: String
+  defaultValue:
+    WebCore:
+      default:
 
-mediaTypeOverride:
+MediaTypeOverride:
   type: String
-  initial: '"screen"'
-  onChange: mediaTypeOverrideChanged
+  webcoreOnChange: mediaTypeOverrideChanged
+  defaultValue:
+    WebCore:
+      default: '"screen"'
 
-# Number of pixels below which 2D canvas is rendered in software
-# even if hardware acceleration is enabled.
-# Hardware acceleration is useful for large canvases where it can avoid the
-# pixel bandwidth between the CPU and GPU. But GPU acceleration comes at
-# a price - extra back-buffer and texture copy. Small canvases are also
-# widely used for stylized fonts. Anti-aliasing text in hardware at that
-# scale is generally slower. So below a certain size it is better to
-# draw canvas in software.
-minimumAccelerated2dCanvasSize:
+MinimumAccelerated2dCanvasSize:
+  comment: >-
+    Number of pixels below which 2D canvas is rendered in software
+    even if hardware acceleration is enabled.
+    Hardware acceleration is useful for large canvases where it can avoid the
+    pixel bandwidth between the CPU and GPU. But GPU acceleration comes at
+    a price - extra back-buffer and texture copy. Small canvases are also
+    widely used for stylized fonts. Anti-aliasing text in hardware at that
+    scale is generally slower. So below a certain size it is better to
+    draw canvas in software.
   type: uint32_t
-  initial: 257*256
+  defaultValue:
+    WebCore:
+      default: 257*256
 
-# FIXME: This quirk is needed because of Radar 4674537 and 5211271. We need to phase it out once Adobe
-# can fix the bug from their end.
-needsAdobeFrameReloadingQuirk:
-  initial: false
-  getter: needsAcrobatFrameReloadingQuirk
+NeedsDeferKeyDownAndKeyPressTimersUntilNextEditingCommandQuirk:
+  comment: >-
+    This is an iOS-specific quirk. Unlike Mac, keyboard operations are asynchronous and hence a DOM update as
+    a result of text insertion or deletion does not occur within the same event loop iteration as a dispatched
+    DOM keydown event. Some sites, notably Google Sheets, schedule timers on keypress and expect on a DOM update
+    to have occurred on expiration. When enabled, this quirk puts all such scheduled timers in a holding tank
+    until the keyboard performs the insertion or deletion. This gives Google Sheets the illusion that the DOM
+    update happened within the same event loop iteration that the keypress event was dispatched in.
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-# This is an iOS-specific quirk. Unlike Mac, keyboard operations are asynchronous and hence a DOM update as
-# a result of text insertion or deletion does not occur within the same event loop iteration as a dispatched
-# DOM keydown event. Some sites, notably Google Sheets, schedule timers on keypress and expect on a DOM update
-# to have occurred on expiration. When enabled, this quirk puts all such scheduled timers in a holding tank
-# until the keyboard performs the insertion or deletion. This gives Google Sheets the illusion that the DOM
-# update happened within the same event loop iteration that the keypress event was dispatched in.
-needsDeferKeyDownAndKeyPressTimersUntilNextEditingCommandQuirk:
-  initial: false
-
-needsFrameNameFallbackToIdQuirk:
-  initial: false
-
-# Some apps needs isLoadingInAPISense to account for active subresource loaders.
-needsIsLoadingInAPISenseQuirk:
-  initial: false
-
-# This is a quirk we are pro-actively applying to old applications. It changes keyboard event dispatching,
-# making keyIdentifier available on keypress events, making charCode available on keydown/keyup events,
-# and getting keypress dispatched in more cases.
-needsKeyboardEventDisambiguationQuirks:
-  initial: false
-
-parserScriptingFlagPolicy:
-  type: ParserScriptingFlagPolicy
-  initial: ParserScriptingFlagPolicy::OnlyIfScriptIsEnabled
-
-paymentRequestEnabled:
-  conditional: ENABLE(PAYMENT_REQUEST)
-  initial: false
-
-pdfImageCachingPolicy:
-  type: PDFImageCachingPolicy
-  initial: PDFImageCachingDefault
-
-preferMIMETypeForImages:
-  initial: false
-
-preventKeyboardDOMEventDispatch:
-  initial: false
-
-quickTimePluginReplacementEnabled:
-  initial: defaultQuickTimePluginReplacementEnabled
-
-repaintOutsideLayoutEnabled:
-  initial: false
-
-rubberBandingForSubScrollableRegionsEnabled:
-  initial: true
-  conditional: ENABLE(RUBBER_BANDING)
-
-scrollingCoordinatorEnabled:
-  initial: false
-
-scrollingPerformanceLoggingEnabled:
-  initial: false
-  onChange: scrollingPerformanceLoggingEnabledChanged
-
-scrollingTreeIncludesFrames:
-  initial: defaultScrollingTreeIncludesFrames
-
-# Allow clients concerned with memory consumption to set a quota on session storage
-# since the memory used won't be released until the Page is destroyed.
-sessionStorageQuota:
+ParserScriptingFlagPolicy:
   type: uint32_t
-  initial: StorageMap::noQuota
+  refinedType: ParserScriptingFlagPolicy
+  defaultValue:
+    WebCore:
+      default: ParserScriptingFlagPolicy::OnlyIfScriptIsEnabled
 
-shouldConvertInvalidURLsToBlank:
-  initial: true
+PaymentRequestEnabled:
+  type: bool
+  condition: ENABLE(PAYMENT_REQUEST)
+  defaultValue:
+    WebCore:
+      default: false
 
-shouldDispatchSyntheticMouseEventsWhenModifyingSelection:
-  initial: false
-
-shouldDispatchSyntheticMouseOutAfterSyntheticClick:
-  initial: false
-
-shouldIgnoreFontLoadCompletions:
-  initial: false
-
-shouldInjectUserScriptsInInitialEmptyDocument:
-  initial: false
-
-shrinksStandaloneImagesToFit:
-  initial: true
-
-storageAccessAPIPerPageScopeEnabled:
-  initial: true
-
-storageBlockingPolicy:
-  type: SecurityOrigin::StorageBlockingPolicy
-  initial: SecurityOrigin::AllowAllStorage
-  onChange: storageBlockingPolicyChanged
-
-systemLayoutDirection:
-  type: TextDirection
-  initial: TextDirection::LTR
-
-textAutosizingWindowSizeOverride:
-  type: IntSize
-  onChange: setNeedsRecalcStyleInAllFrames
-  conditional: ENABLE(TEXT_AUTOSIZING)
-
-textDirectionSubmenuInclusionBehavior:
-  type: TextDirectionSubmenuInclusionBehavior
-  initial: TextDirectionSubmenuAutomaticallyIncluded
-
-timeWithoutMouseMovementBeforeHidingControls:
-  type: Seconds
-  initial: 3_s
-
-touchEventEmulationEnabled:
-  initial: false
-  getter: isTouchEventEmulationEnabled
-  conditional: ENABLE(TOUCH_EVENTS)
-
-treatIPAddressAsDomain:
-  initial: false
-
-treatsAnyTextCSSLinkAsStylesheet:
-  initial: false
-
-unhandledPromiseRejectionToConsoleEnabled:
-  initial: true
-
-unifiedTextCheckerEnabled:
-  initial: defaultUnifiedTextCheckerEnabled
-
-useAnonymousModeWhenFetchingMaskImages:
-  initial: true
-
-useImageDocumentForSubframePDF:
-  initial: false
-
-useLegacyBackgroundSizeShorthandBehavior:
-  initial: false
-
-usePreHTML5ParserQuirks:
-  initial: false
-
-userInterfaceDirectionPolicy:
-  type: UserInterfaceDirectionPolicy
-  initial: UserInterfaceDirectionPolicy::Content
-
-userStyleSheetLocation:
-  type: URL
-  onChange: userStyleSheetLocationChanged
-
-# Sets the magnification value for validation message timer.  If the
-# magnification value is N, a validation message disappears automatically after
-# <message length> * N / 1000 seconds.  If N is equal to or less than 0, a
-# validation message doesn't disappears automaticaly.
-validationMessageTimerMagnification:
+PDFImageCachingPolicy:
   type: uint32_t
-  initial: 50
+  refinedType: PDFImageCachingPolicy
+  defaultValue:
+    WebCore:
+      default: PDFImageCachingDefault
 
-videoPlaybackRequiresUserGesture:
-  initial: defaultVideoPlaybackRequiresUserGesture
+PreferMIMETypeForImages:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-visualViewportEnabled:
-  initial: true
-  onChange: setNeedsRecalcStyleInAllFrames
+PreventKeyboardDOMEventDispatch:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-webGLErrorsToConsoleEnabled:
-  initial: true
+QuickTimePluginReplacementEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(IOS_FAMILY): true
+      default: false
 
-webRTCEncryptionEnabled:
-  initial: true
+RepaintOutsideLayoutEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
+
+ScrollingCoordinatorEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
+
+ScrollingTreeIncludesFrames:
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(IOS_FAMILY): true
+      default: false
+
+SessionStorageQuota:
+  comment: >-
+    Allow clients concerned with memory consumption to set a quota on session storage
+    since the memory used won't be released until the Page is destroyed.
+  type: uint32_t
+  defaultValue:
+    WebCore:
+      default: StorageMap::noQuota
+
+ShouldDispatchSyntheticMouseEventsWhenModifyingSelection:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
+
+ShouldDispatchSyntheticMouseOutAfterSyntheticClick:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
+
+ShouldIgnoreFontLoadCompletions:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
+
+ShouldInjectUserScriptsInInitialEmptyDocument:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
+
+StorageAccessAPIPerPageScopeEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: true
+
+StorageBlockingPolicy:
+  type: uint32_t
+  refinedType: SecurityOrigin::StorageBlockingPolicy
+  webcoreOnChange: storageBlockingPolicyChanged
+  defaultValue:
+    WebCore:
+      default: SecurityOrigin::AllowAllStorage
+
+SystemLayoutDirection:
+  type: uint32_t
+  refinedType: TextDirection
+  defaultValue:
+    WebCore:
+      default: TextDirection::LTR
+
+TextAutosizingWindowSizeOverrideHeight:
+  type: uint32_t
+  webcoreOnChange: setNeedsRecalcStyleInAllFrames
+  condition: ENABLE(TEXT_AUTOSIZING)
+  defaultValue:
+    WebCore:
+      default: 0
+
+TextAutosizingWindowSizeOverrideWidth:
+  type: uint32_t
+  webcoreOnChange: setNeedsRecalcStyleInAllFrames
+  condition: ENABLE(TEXT_AUTOSIZING)
+  defaultValue:
+    WebCore:
+      default: 0
+
+TextDirectionSubmenuInclusionBehavior:
+  type: uint32_t
+  refinedType: TextDirectionSubmenuInclusionBehavior
+  defaultValue:
+    WebCore:
+      default: TextDirectionSubmenuAutomaticallyIncluded
+
+TimeWithoutMouseMovementBeforeHidingControls:
+  type: double
+  refinedType: Seconds
+  defaultValue:
+    WebCore:
+      default: 3_s
+
+TouchEventEmulationEnabled:
+  type: bool
+  webcoreGetter: isTouchEventEmulationEnabled
+  condition: ENABLE(TOUCH_EVENTS)
+  defaultValue:
+    WebCore:
+      default: false
+
+TreatIPAddressAsDomain:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
+
+UnhandledPromiseRejectionToConsoleEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: true
+
+UnifiedTextCheckerEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      USE(UNIFIED_TEXT_CHECKING): true
+      default: false
+
+UseAnonymousModeWhenFetchingMaskImages:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: true
+
+UserInterfaceDirectionPolicy:
+  type: uint32_t
+  refinedType: UserInterfaceDirectionPolicy
+  defaultValue:
+    WebCore:
+      default: UserInterfaceDirectionPolicy::Content
+
+UserStyleSheetLocation:
+  type: String
+  refinedType: URL
+  webcoreOnChange: userStyleSheetLocationChanged
+  defaultValue:
+    WebCore:
+      default:
+
+ValidationMessageTimerMagnification:
+  comment: >-
+    Sets the magnification value for validation message timer. If the
+    magnification value is N, a validation message disappears automatically after
+    message length * N / 1000 seconds.  If N is equal to or less than 0, a
+    validation message doesn't disappears automaticaly.
+  type: uint32_t
+  defaultValue:
+    WebCore:
+      default: 50
+
+VideoPlaybackRequiresUserGesture:
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(IOS_FAMILY): true
+      default: false
+
+WebGLErrorsToConsoleEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: true
+
+WebRTCEncryptionEnabled:
+  type: bool
   inspectorOverride: true
+  defaultValue:
+    WebCore:
+      default: true
 
-webkitImageReadyEventEnabled:
-  initial: false
+WebkitImageReadyEventEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      default: false
 
-# When enabled, window.blur() does not change focus, and
-# window.focus() only changes focus when invoked from the context that
-# created the window.
-windowFocusRestricted:
-  initial: true
-
-youTubeFlashPluginReplacementEnabled:
-  initial: defaultYouTubeFlashPluginReplacementEnabled
+YouTubeFlashPluginReplacementEnabled:
+  type: bool
+  defaultValue:
+    WebCore:
+      PLATFORM(COCOA): true
+      default: false

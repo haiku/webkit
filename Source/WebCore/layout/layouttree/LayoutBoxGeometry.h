@@ -41,20 +41,11 @@ public:
     BoxGeometry() = default;
     ~BoxGeometry();
 
-    LayoutUnit logicalTop() const;
-    LayoutUnit logicalLeft() const;
-    LayoutUnit logicalBottom() const { return logicalTop() + logicalHeight(); }
-    LayoutUnit logicalRight() const { return logicalLeft() + logicalWidth(); }
-
-    LayoutPoint logicalTopLeft() const;
-    LayoutPoint logicalBottomRight() const { return { logicalRight(), logicalBottom() }; }
-
-    LayoutSize logicalSize() const { return { logicalWidth(), logicalHeight() }; }
-    LayoutUnit logicalWidth() const { return borderLeft() + paddingBoxWidth() + borderRight(); }
-    LayoutUnit logicalHeight() const { return borderTop() + paddingBoxHeight() + borderBottom(); }
-    bool isEmpty() const { return logicalSize().isEmpty(); }
-    Rect logicalRect() const { return { logicalTop(), logicalLeft(), logicalWidth(), logicalHeight() }; }
-    Rect logicalRectWithMargin() const { return { logicalTop() - marginBefore(), logicalLeft() - marginStart(), marginStart() + logicalWidth() + marginEnd(), marginBefore() + logicalHeight() + marginAfter() }; }
+    static LayoutUnit borderBoxTop(const BoxGeometry& box) { return box.logicalTop(); }
+    static LayoutUnit borderBoxLeft(const BoxGeometry& box) { return box.logicalLeft(); }
+    static LayoutPoint borderBoxTopLeft(const BoxGeometry& box) { return box.logicalTopLeft(); }
+    static Rect borderBoxRect(const BoxGeometry& box) { return { box.logicalTop(), box.logicalLeft(), box.borderBoxWidth(), box.borderBoxHeight() }; }
+    static Rect marginBoxRect(const BoxGeometry& box) { return { box.logicalTop() - box.marginBefore(), box.logicalLeft() - box.marginStart(), box.marginBoxWidth(), box.marginBoxHeight() }; }
 
     struct VerticalMargin {
         LayoutUnit before;
@@ -100,13 +91,16 @@ public:
     LayoutUnit paddingBoxHeight() const { return paddingTop().valueOr(0) + contentBoxHeight() + paddingBottom().valueOr(0); }
     LayoutUnit paddingBoxWidth() const { return paddingLeft().valueOr(0) + contentBoxWidth() + paddingRight().valueOr(0); }
 
-    LayoutUnit borderBoxHeight() const { return borderTop() + paddingBoxHeight() + borderBottom(); }
-    LayoutUnit borderBoxWidth() const { return borderLeft() + paddingBoxWidth() + borderRight(); }
+    LayoutUnit borderBoxHeight() const { return borderTop() + paddingBoxHeight() + horizontalScrollbarHeight() + borderBottom(); }
+    LayoutUnit borderBoxWidth() const { return borderLeft() + paddingBoxWidth() + verticalScrollbarWidth() + borderRight(); }
     LayoutUnit marginBoxHeight() const { return marginBefore() + borderBoxHeight() + marginAfter(); }
     LayoutUnit marginBoxWidth() const { return marginStart() + borderBoxWidth() + marginEnd(); }
 
     LayoutUnit verticalMarginBorderAndPadding() const { return marginBefore() + verticalBorder() + verticalPadding().valueOr(0) + marginAfter(); }
     LayoutUnit horizontalMarginBorderAndPadding() const { return marginStart() + horizontalBorder() + horizontalPadding().valueOr(0) + marginEnd(); }
+
+    LayoutUnit verticalScrollbarWidth() const { return m_verticalScrollbarWidth; }
+    LayoutUnit horizontalScrollbarHeight() const { return m_horizontalScrollbarHeight; }
 
     Rect marginBox() const;
     Rect borderBox() const;
@@ -136,7 +130,14 @@ public:
     void setVerticalPadding(Layout::VerticalEdges);
     void setPadding(Optional<Layout::Edges>);
 
+    void setVerticalScrollbarWidth(LayoutUnit width) { m_verticalScrollbarWidth = width; }
+    void setHorizontalScrollbarHeight(LayoutUnit height) { m_horizontalScrollbarHeight = height; }
+
 private:
+    LayoutUnit logicalTop() const;
+    LayoutUnit logicalLeft() const;
+    LayoutPoint logicalTopLeft() const;
+
 #if ASSERT_ENABLED
     void invalidateMargin();
     void invalidateBorder() { m_hasValidBorder = false; }
@@ -164,6 +165,9 @@ private:
 
     Layout::Edges m_border;
     Optional<Layout::Edges> m_padding;
+
+    LayoutUnit m_verticalScrollbarWidth;
+    LayoutUnit m_horizontalScrollbarHeight;
 
 #if ASSERT_ENABLED
     bool m_hasValidTop { false };

@@ -689,6 +689,9 @@
     "imported/w3c/web-platform-tests/css/cssom-view/scroll-behavior-subframe-window.html": [
         "slow"
     ],
+    "imported/w3c/web-platform-tests/css/cssom/idlharness.html": [
+        "slow"
+    ],
     "imported/w3c/web-platform-tests/dom/events/Event-dispatch-on-disabled-elements.html": [
         "slow"
     ],
@@ -1542,6 +1545,9 @@
         "slow"
     ],
     "imported/w3c/web-platform-tests/html/browsers/windows/auxiliary-browsing-contexts/opener-setter.html": [
+        "slow"
+    ],
+    "imported/w3c/web-platform-tests/html/browsers/windows/clear-window-name.https.html": [
         "slow"
     ],
     "imported/w3c/web-platform-tests/html/browsers/windows/noreferrer-window-name.html": [

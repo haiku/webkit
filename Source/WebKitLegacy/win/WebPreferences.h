@@ -307,6 +307,12 @@ public:
     virtual HRESULT STDMETHODCALLTYPE setModernUnprefixedWebAudioEnabled(BOOL);
     virtual HRESULT STDMETHODCALLTYPE contactPickerAPIEnabled(_Out_ BOOL*);
     virtual HRESULT STDMETHODCALLTYPE setContactPickerAPIEnabled(BOOL);
+    virtual HRESULT STDMETHODCALLTYPE setBoolPreferenceForTesting(_In_ BSTR key, _In_ BOOL);
+    virtual HRESULT STDMETHODCALLTYPE setUInt32PreferenceForTesting(_In_ BSTR key, _In_ unsigned);
+    virtual HRESULT STDMETHODCALLTYPE setDoublePreferenceForTesting(_In_ BSTR key, _In_ double);
+    virtual HRESULT STDMETHODCALLTYPE setStringPreferenceForTesting(_In_ BSTR key, _In_ BSTR);
+    virtual HRESULT STDMETHODCALLTYPE speechRecognitionEnabled(_Out_ BOOL*);
+    virtual HRESULT STDMETHODCALLTYPE setSpeechRecognitionEnabled(BOOL);
 
     // WebPreferences
 

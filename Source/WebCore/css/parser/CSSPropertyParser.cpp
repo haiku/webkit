@@ -30,7 +30,6 @@
 #include "config.h"
 #include "CSSPropertyParser.h"
 
-#include "CSSAspectRatioValue.h"
 #include "CSSBasicShapes.h"
 #include "CSSBorderImage.h"
 #include "CSSBorderImageSliceValue.h"
@@ -3194,14 +3193,14 @@ static RefPtr<CSSPrimitiveValue> consumeBackgroundSize(CSSPropertyID property, C
     // tests assume that. Other browser engines don't allow it though.
     RefPtr<CSSPrimitiveValue> horizontal = consumeIdent<CSSValueAuto>(range);
     if (!horizontal)
-        horizontal = consumeLengthOrPercent(range, cssParserMode, ValueRangeAll, UnitlessQuirk::Allow);
+        horizontal = consumeLengthOrPercent(range, cssParserMode, ValueRangeNonNegative, UnitlessQuirk::Allow);
 
     RefPtr<CSSPrimitiveValue> vertical;
     if (!range.atEnd()) {
         if (range.peek().id() == CSSValueAuto) // `auto' is the default
             range.consumeIncludingWhitespace();
         else
-            vertical = consumeLengthOrPercent(range, cssParserMode, ValueRangeAll, UnitlessQuirk::Allow);
+            vertical = consumeLengthOrPercent(range, cssParserMode, ValueRangeNonNegative, UnitlessQuirk::Allow);
     } else if (!vertical && property == CSSPropertyWebkitBackgroundSize) {
         // Legacy syntax: "-webkit-background-size: 10px" is equivalent to "background-size: 10px 10px".
         vertical = horizontal;
@@ -3915,20 +3914,39 @@ static RefPtr<CSSValue> consumeAlt(CSSParserTokenRange& range, const CSSParserCo
     return consumeAttr(consumeFunction(range), context);
 }
 
-static RefPtr<CSSValue> consumeWebkitAspectRatio(CSSParserTokenRange& range)
+static RefPtr<CSSValue> consumeAspectRatio(CSSParserTokenRange& range)
 {
+    RefPtr<CSSPrimitiveValue> autoValue;
     if (range.peek().type() == IdentToken)
-        return consumeIdent<CSSValueAuto, CSSValueFromDimensions, CSSValueFromIntrinsic>(range);
-    
-    RefPtr<CSSPrimitiveValue> leftValue = consumeNumber(range, ValueRangeNonNegative);
-    if (!leftValue || leftValue->isZero().valueOr(false) || range.atEnd() || !consumeSlashIncludingWhitespace(range))
+        autoValue = consumeIdent<CSSValueAuto>(range);
+
+    if (range.atEnd())
+        return RefPtr<CSSValue>(WTFMove(autoValue));
+
+    auto leftValue = consumeNumber(range, ValueRangeNonNegative);
+    if (!leftValue)
         return nullptr;
 
-    RefPtr<CSSPrimitiveValue> rightValue = consumeNumber(range, ValueRangeNonNegative);
-    if (!rightValue || rightValue->isZero().valueOr(false))
-        return nullptr;
+    bool slashSeen = consumeSlashIncludingWhitespace(range);
 
-    return CSSAspectRatioValue::create(leftValue->floatValue(), rightValue->floatValue());
+    auto rightValue = consumeNumber(range, ValueRangeNonNegative);
+    if (rightValue && !slashSeen)
+        return nullptr;
+    if (!slashSeen && !rightValue) // A missing right-hand is treated as 1.
+        rightValue = CSSValuePool::singleton().createValue(1, CSSUnitType::CSS_NUMBER);
+    if (!autoValue)
+        autoValue = consumeIdent<CSSValueAuto>(range);
+
+    auto ratioList = CSSValueList::createSlashSeparated();
+    ratioList->append(leftValue.releaseNonNull());
+    if (rightValue)
+        ratioList->append(rightValue.releaseNonNull());
+    if (!autoValue)
+        return RefPtr<CSSValue>(WTFMove(ratioList));
+    auto list = CSSValueList::createSpaceSeparated();
+    list->append(CSSValuePool::singleton().createIdentifierValue(CSSValueAuto));
+    list->append(ratioList);
+    return RefPtr<CSSValue>(WTFMove(list));
 }
 
 static RefPtr<CSSValue> consumeTextEmphasisPosition(CSSParserTokenRange& range)
@@ -4141,12 +4159,12 @@ RefPtr<CSSValue> CSSPropertyParser::parseSingleValue(CSSPropertyID property, CSS
     case CSSPropertyPaddingBlockStart:
     case CSSPropertyPaddingBlockEnd:
         return consumeLengthOrPercent(m_range, m_context.mode, ValueRangeNonNegative, UnitlessQuirk::Forbid);
-#if ENABLE(CSS_SCROLL_SNAP)
-    case CSSPropertyScrollSnapMarginBottom:
-    case CSSPropertyScrollSnapMarginLeft:
-    case CSSPropertyScrollSnapMarginRight:
-    case CSSPropertyScrollSnapMarginTop:
+    case CSSPropertyScrollMarginBottom:
+    case CSSPropertyScrollMarginLeft:
+    case CSSPropertyScrollMarginRight:
+    case CSSPropertyScrollMarginTop:
         return consumeLength(m_range, m_context.mode, ValueRangeAll);
+#if ENABLE(CSS_SCROLL_SNAP)
     case CSSPropertyScrollPaddingBottom:
     case CSSPropertyScrollPaddingLeft:
     case CSSPropertyScrollPaddingRight:
@@ -4486,8 +4504,10 @@ RefPtr<CSSValue> CSSPropertyParser::parseSingleValue(CSSPropertyID property, CSS
         return consumeWebkitMarqueeSpeed(m_range, m_context.mode);
     case CSSPropertyAlt:
         return consumeAlt(m_range, m_context);
-    case CSSPropertyWebkitAspectRatio:
-        return consumeWebkitAspectRatio(m_range);
+    case CSSPropertyAspectRatio:
+        if (!m_context.aspectRatioEnabled)
+            return nullptr;
+        return consumeAspectRatio(m_range);
     case CSSPropertyWebkitTextEmphasisPosition:
         return consumeTextEmphasisPosition(m_range);
 #if ENABLE(DARK_MODE_CSS)
@@ -5824,9 +5844,9 @@ bool CSSPropertyParser::parseShorthand(CSSPropertyID property, bool important)
         return consume2ValueShorthand(paddingBlockShorthand(), important);
     case CSSPropertyPaddingInline:
         return consume2ValueShorthand(paddingInlineShorthand(), important);
+    case CSSPropertyScrollMargin:
+        return consume4ValueShorthand(scrollMarginShorthand(), important);
 #if ENABLE(CSS_SCROLL_SNAP)
-    case CSSPropertyScrollSnapMargin:
-        return consume4ValueShorthand(scrollSnapMarginShorthand(), important);
     case CSSPropertyScrollPadding:
         return consume4ValueShorthand(scrollPaddingShorthand(), important);
 #endif

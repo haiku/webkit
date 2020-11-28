@@ -414,6 +414,7 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tagName, Document& docum
     , m_haveSetUpCaptionContainer(false)
     , m_isScrubbingRemotely(false)
     , m_waitingToEnterFullscreen(false)
+    , m_showPoster(true)
     , m_tracksAreReady(true)
     , m_haveVisibleTextTrack(false)
     , m_processingPreferenceChange(false)
@@ -1081,7 +1082,6 @@ void HTMLMediaElement::prepareForLoad()
     m_haveFiredLoadedData = false;
     m_completelyLoaded = false;
     m_havePreparedToPlay = false;
-    m_displayMode = Unknown;
     m_currentSrc = URL();
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
@@ -1185,7 +1185,7 @@ void HTMLMediaElement::selectMediaResource()
     m_networkState = NETWORK_NO_SOURCE;
 
     // 2. Set the element’s show poster flag to true.
-    setDisplayMode(Poster);
+    setShowPosterFlag(true);
 
     // 3. Set the media element’s delaying-the-load-event flag to true (this delays the load event).
     setShouldDelayLoadEvent(true);
@@ -1431,9 +1431,6 @@ void HTMLMediaElement::loadResource(const URL& initialURL, ContentType& contentT
     bool privateMode = document().page() && document().page()->usesEphemeralSession();
     m_player->setPrivateBrowsingMode(privateMode);
 
-    // Reset display mode to force a recalculation of what to show because we are resetting the player.
-    setDisplayMode(Unknown);
-
     if (!autoplay() && !m_havePreparedToPlay)
         m_player->setPreload(m_mediaSession->effectivePreloadForElement());
     m_player->setPreservesPitch(m_webkitPreservesPitch);
@@ -1487,11 +1484,7 @@ void HTMLMediaElement::loadResource(const URL& initialURL, ContentType& contentT
     if (!loadAttempted && !m_player->load(url, contentType, keySystem))
         mediaLoadingFailed(MediaPlayer::NetworkState::FormatError);
 
-    // If there is no poster to display, allow the media engine to render video frames as soon as
-    // they are available.
-    updateDisplayState();
-
-    updateRenderer();
+    mediaPlayerRenderingModeChanged();
 }
 
 struct HTMLMediaElement::CueData {
@@ -1980,10 +1973,14 @@ void HTMLMediaElement::waitForSourceChange()
     // 6.17 - Waiting: Set the element's networkState attribute to the NETWORK_NO_SOURCE value
     m_networkState = NETWORK_NO_SOURCE;
 
-    // 6.18 - Set the element's delaying-the-load-event flag to false. This stops delaying the load event.
+    // 6.18 - Set the element's show poster flag to true.
+    setShowPosterFlag(true);
+
+    // 6.19 -  Queue a media element task given the media element given the element to set the
+    // element's delaying-the-load-event flag to false. This stops delaying the load event.
+    // FIXME: this should be done in a task queue
     setShouldDelayLoadEvent(false);
 
-    updateDisplayState();
     updateRenderer();
 }
 
@@ -2012,6 +2009,9 @@ void HTMLMediaElement::noneSupported()
     // 6.3 - Set the element's networkState attribute to the NETWORK_NO_SOURCE value.
     m_networkState = NETWORK_NO_SOURCE;
 
+    // 6.4 - Set the element's show poster flag to true.
+    setShowPosterFlag(true);
+
     // 7 - Queue a task to fire a simple event named error at the media element.
     scheduleEvent(eventNames().errorEvent);
 
@@ -2027,7 +2027,6 @@ void HTMLMediaElement::noneSupported()
     // 9 - Abort these steps. Until the load() method is invoked or the src attribute is changed,
     // the element won't attempt to load another resource.
 
-    updateDisplayState();
     updateRenderer();
 }
 
@@ -2140,8 +2139,6 @@ void HTMLMediaElement::mediaLoadingFailed(MediaPlayer::NetworkState error)
         mediaLoadingFailedFatally(error);
     else if ((error == MediaPlayer::NetworkState::FormatError || error == MediaPlayer::NetworkState::NetworkError) && m_loadState == LoadingFromSrcAttr)
         noneSupported();
-
-    updateDisplayState();
 
     ERROR_LOG(LOGIDENTIFIER, "error = ", static_cast<int>(error));
 
@@ -2343,25 +2340,20 @@ void HTMLMediaElement::setReadyState(MediaPlayer::ReadyState state)
         m_mediaSession->clientCharacteristicsChanged();
     }
 
-    bool shouldUpdateDisplayState = false;
-
     if (m_readyState >= HAVE_CURRENT_DATA && oldState < HAVE_CURRENT_DATA) {
         if (!m_haveFiredLoadedData) {
             m_haveFiredLoadedData = true;
             scheduleEvent(eventNames().loadeddataEvent);
-            // FIXME: It's not clear that it's correct to skip these two operations just
+            // FIXME: It's not clear that it's correct to skip these this operation just
             // because m_haveFiredLoadedData is already true. At one time we were skipping
             // the call to setShouldDelayLoadEvent, which was definitely incorrect.
-            shouldUpdateDisplayState = true;
             applyMediaFragmentURI();
         }
         setShouldDelayLoadEvent(false);
     }
 
-    if (m_readyState == HAVE_FUTURE_DATA && oldState <= HAVE_CURRENT_DATA && tracksAreReady) {
+    if (m_readyState == HAVE_FUTURE_DATA && oldState <= HAVE_CURRENT_DATA && tracksAreReady)
         scheduleEvent(eventNames().canplayEvent);
-        shouldUpdateDisplayState = true;
-    }
 
     if (m_readyState == HAVE_ENOUGH_DATA && oldState < HAVE_ENOUGH_DATA && tracksAreReady) {
         if (oldState <= HAVE_CURRENT_DATA)
@@ -2372,6 +2364,7 @@ void HTMLMediaElement::setReadyState(MediaPlayer::ReadyState state)
         auto success = canTransitionFromAutoplayToPlay();
         if (success) {
             m_paused = false;
+            setShowPosterFlag(false);
             invalidateCachedTime();
             setAutoplayEventPlaybackState(AutoplayEventPlaybackState::StartedWithoutUserGesture);
             m_playbackStartedTime = currentMediaTime().toDouble();
@@ -2380,8 +2373,6 @@ void HTMLMediaElement::setReadyState(MediaPlayer::ReadyState state)
             ALWAYS_LOG(LOGIDENTIFIER, "Autoplay blocked, user gesture required");
             setAutoplayEventPlaybackState(AutoplayEventPlaybackState::PreventedAutoplay);
         }
-
-        shouldUpdateDisplayState = true;
     }
 
     // If we transition to the Future Data state and we're about to begin playing, ensure playback is actually permitted first,
@@ -2394,9 +2385,6 @@ void HTMLMediaElement::setReadyState(MediaPlayer::ReadyState state)
         pauseInternal();
         setAutoplayEventPlaybackState(AutoplayEventPlaybackState::PreventedAutoplay);
     }
-
-    if (shouldUpdateDisplayState)
-        updateDisplayState();
 
     updatePlayState();
     updateMediaController();
@@ -2862,7 +2850,7 @@ void HTMLMediaElement::seekWithTolerance(const MediaTime& inTime, const MediaTim
     MediaTime time = inTime;
 
     // 1 - Set the media element's show poster flag to false.
-    setDisplayMode(Video);
+    setShowPosterFlag(false);
 
     // 2 - If the media element's readyState is HAVE_NOTHING, abort these steps.
     if (m_readyState == HAVE_NOTHING || !m_player)
@@ -2961,7 +2949,7 @@ void HTMLMediaElement::seekTask()
     // Don't skip calling the media engine if 1) we are in poster mode (because a seek should always cancel
     // poster display), or 2) if there is a pending fast seek, or 3) if this seek is not an exact seek
     SeekType thisSeekType = (negativeTolerance == MediaTime::zeroTime() && positiveTolerance == MediaTime::zeroTime()) ? Precise : Fast;
-    if (!noSeekRequired && time == now && thisSeekType == Precise && m_pendingSeekType != Fast && displayMode() != Poster)
+    if (!noSeekRequired && time == now && thisSeekType == Precise && m_pendingSeekType != Fast && !showPosterFlag())
         noSeekRequired = true;
 
 #if ENABLE(MEDIA_SOURCE)
@@ -3442,6 +3430,7 @@ void HTMLMediaElement::playInternal()
 
     if (m_paused) {
         m_paused = false;
+        setShowPosterFlag(false);
         invalidateCachedTime();
 
         // This avoids the first timeUpdated event after playback starts, when currentTime is still
@@ -4876,7 +4865,6 @@ void HTMLMediaElement::mediaPlayerResourceNotSupported()
 void HTMLMediaElement::mediaPlayerRepaint()
 {
     beginProcessingMediaPlayerCallback();
-    updateDisplayState();
     if (auto* renderer = this->renderer())
         renderer->repaint();
     endProcessingMediaPlayerCallback();
@@ -5009,18 +4997,6 @@ void HTMLMediaElement::mediaPlayerEngineUpdated()
     scheduleMediaEngineWasUpdated();
 }
 
-void HTMLMediaElement::mediaPlayerFirstVideoFrameAvailable()
-{
-    ALWAYS_LOG(LOGIDENTIFIER, "current display mode = ", (int)displayMode());
-
-    beginProcessingMediaPlayerCallback();
-    if (displayMode() == PosterWaitingForVideo) {
-        setDisplayMode(Video);
-        mediaPlayerRenderingModeChanged();
-    }
-    endProcessingMediaPlayerCallback();
-}
-
 void HTMLMediaElement::mediaPlayerCharacteristicChanged()
 {
     ALWAYS_LOG(LOGIDENTIFIER);
@@ -5030,10 +5006,8 @@ void HTMLMediaElement::mediaPlayerCharacteristicChanged()
     if (captionDisplayMode() == CaptionUserPreferences::Automatic && m_subtitleTrackLanguage != m_player->languageOfPrimaryAudioTrack())
         markCaptionAndSubtitleTracksAsUnconfigured(AfterDelay);
 
-    if (potentiallyPlaying() && displayMode() == PosterWaitingForVideo) {
-        setDisplayMode(Video);
+    if (potentiallyPlaying())
         mediaPlayerRenderingModeChanged();
-    }
 
     updateRenderer();
 
@@ -5265,7 +5239,6 @@ void HTMLMediaElement::updatePlayState()
     if (shouldBePlaying) {
         schedulePlaybackControlsManagerUpdate();
 
-        setDisplayMode(Video);
         invalidateCachedTime();
 
         if (playerPaused) {
@@ -5398,11 +5371,11 @@ void HTMLMediaElement::userCancelledLoad()
 #endif
 
     // 4 - If the media element's readyState attribute has a value equal to HAVE_NOTHING, set the
-    // element's networkState attribute to the NETWORK_EMPTY value and queue a task to fire a
-    // simple event named emptied at the element. Otherwise, set the element's networkState
-    // attribute to the NETWORK_IDLE value.
+    // element's networkState attribute to the NETWORK_EMPTY value, set the element's show poster
+    // flag to true, and fire an event named emptied at the element.
     if (m_readyState == HAVE_NOTHING) {
         m_networkState = NETWORK_EMPTY;
+        setShowPosterFlag(true);
         scheduleEvent(eventNames().emptiedEvent);
     }
     else
@@ -5740,10 +5713,8 @@ void HTMLMediaElement::dispatchEvent(Event& event)
     // We need to fire the end fullscreen event to notify the page
     // to change the position/size back *before* exiting fullscreen.
     // Otherwise, the exit fullscreen animation will be incorrect.
-    if (!m_videoFullscreenStandby && !m_waitingToEnterFullscreen && event.type() == eventNames().webkitendfullscreenEvent) {
-        setFullscreenMode(VideoFullscreenModeNone);
+    if (!m_videoFullscreenStandby && m_videoFullscreenMode == VideoFullscreenModeNone && event.type() == eventNames().webkitendfullscreenEvent)
         document().page()->chrome().client().exitVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this));
-    }
 }
 
 bool HTMLMediaElement::addEventListener(const AtomString& eventType, Ref<EventListener>&& listener, const AddEventListenerOptions& options)
@@ -5872,15 +5843,12 @@ double HTMLMediaElement::maxFastForwardRate() const
 
 bool HTMLMediaElement::isFullscreen() const
 {
-    if (m_videoFullscreenMode != VideoFullscreenModeNone)
-        return true;
-
 #if ENABLE(FULLSCREEN_API)
     if (document().fullscreenManager().isFullscreen() && document().fullscreenManager().currentFullscreenElement() == this)
         return true;
 #endif
 
-    return false;
+    return m_videoFullscreenMode != VideoFullscreenModeNone;
 }
 
 bool HTMLMediaElement::isStandardFullscreen() const
@@ -5912,6 +5880,8 @@ void HTMLMediaElement::enterFullscreen(VideoFullscreenMode mode)
     if (m_waitingToEnterFullscreen)
         return;
 
+    m_changingVideoFullscreenMode = true;
+
 #if ENABLE(FULLSCREEN_API) && ENABLE(VIDEO_USES_ELEMENT_FULLSCREEN)
     if (document().settings().fullScreenEnabled() && mode == VideoFullscreenModeStandard) {
         m_temporarilyAllowingInlinePlaybackAfterFullscreen = false;
@@ -5924,6 +5894,7 @@ void HTMLMediaElement::enterFullscreen(VideoFullscreenMode mode)
     m_fullscreenTaskQueue.enqueueTask([this, mode] {
         if (document().hidden()) {
             ALWAYS_LOG(LOGIDENTIFIER, " returning because document is hidden");
+            m_changingVideoFullscreenMode = false;
             return;
         }
 
@@ -5933,7 +5904,9 @@ void HTMLMediaElement::enterFullscreen(VideoFullscreenMode mode)
                 ALWAYS_LOG(LOGIDENTIFIER, "Entering fullscreen mode ", mode, ", m_videoFullscreenStandby = ", m_videoFullscreenStandby);
 
                 m_temporarilyAllowingInlinePlaybackAfterFullscreen = false;
-                m_waitingToEnterFullscreen = true;
+                if (mode == VideoFullscreenModeStandard)
+                    m_waitingToEnterFullscreen = true;
+
                 auto oldMode = m_videoFullscreenMode;
                 setFullscreenMode(mode);
                 configureMediaControls();
@@ -5946,8 +5919,12 @@ void HTMLMediaElement::enterFullscreen(VideoFullscreenMode mode)
                     scheduleEvent(eventNames().webkitbeginfullscreenEvent);
                 else if (oldMode == VideoFullscreenModeStandard)
                     scheduleEvent(eventNames().webkitendfullscreenEvent);
+
+                return;
             }
         }
+
+        m_changingVideoFullscreenMode = false;
     });
 }
 
@@ -5964,8 +5941,10 @@ void HTMLMediaElement::exitFullscreen()
 
 #if ENABLE(FULLSCREEN_API)
     if (document().settings().fullScreenEnabled() && document().fullscreenManager().currentFullscreenElement() == this) {
-        if (document().fullscreenManager().isFullscreen())
+        if (document().fullscreenManager().isFullscreen()) {
+            m_changingVideoFullscreenMode = true;
             document().fullscreenManager().cancelFullscreen();
+        }
 
         if (m_videoFullscreenMode == VideoFullscreenModeStandard)
             return;
@@ -5997,18 +5976,23 @@ void HTMLMediaElement::exitFullscreen()
     } else if (document().page()->chrome().client().supportsVideoFullscreen(oldVideoFullscreenMode)) {
         if (m_videoFullscreenStandby) {
             setFullscreenMode(VideoFullscreenModeNone);
+            m_changingVideoFullscreenMode = true;
             document().page()->chrome().client().enterVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this), m_videoFullscreenMode, m_videoFullscreenStandby);
             return;
         }
 
+        m_changingVideoFullscreenMode = true;
+
         if (oldVideoFullscreenMode == VideoFullscreenModeStandard) {
+            setFullscreenMode(VideoFullscreenModeNone);
             // The exit fullscreen request will be sent in dispatchEvent().
             scheduleEvent(eventNames().webkitendfullscreenEvent);
             return;
         }
 
         setFullscreenMode(VideoFullscreenModeNone);
-        document().page()->chrome().client().exitVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this));
+        if (auto* page = document().page())
+            page->chrome().client().exitVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this));
     }
 }
 
@@ -6047,7 +6031,9 @@ WEBCORE_EXPORT void HTMLMediaElement::setVideoFullscreenStandby(bool value)
     if (m_videoFullscreenStandby)
         document().page()->chrome().client().enterVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this), VideoFullscreenModeNone, m_videoFullscreenStandby);
     else
-        document().page()->chrome().client().exitVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this));
+        document().page()->chrome().client().exitVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this), [this, protectedThis = makeRef(*this)](auto success) mutable {
+            m_videoFullscreenStandby = !success;
+        });
 }
 
 void HTMLMediaElement::willBecomeFullscreenElement()
@@ -6071,6 +6057,7 @@ void HTMLMediaElement::didBecomeFullscreenElement()
 {
     ALWAYS_LOG(LOGIDENTIFIER, ", fullscreen mode = ", fullscreenMode());
     m_waitingToEnterFullscreen = false;
+    m_changingVideoFullscreenMode = false;
     scheduleUpdatePlayState();
 }
 
@@ -6078,6 +6065,11 @@ void HTMLMediaElement::willStopBeingFullscreenElement()
 {
     if (fullscreenMode() == VideoFullscreenModeStandard)
         setFullscreenMode(VideoFullscreenModeNone);
+}
+
+void HTMLMediaElement::didStopBeingFullscreenElement()
+{
+    m_changingVideoFullscreenMode = false;
 }
 
 PlatformLayer* HTMLMediaElement::platformLayer() const
@@ -7922,6 +7914,17 @@ void HTMLMediaElement::enqueueTaskForDispatcher(Function<void()>&& function)
 SecurityOriginData HTMLMediaElement::documentSecurityOrigin() const
 {
     return document().securityOrigin().data();
+}
+
+void HTMLMediaElement::setShowPosterFlag(bool flag)
+{
+    if (m_showPoster == flag)
+        return;
+
+    ALWAYS_LOG(LOGIDENTIFIER, flag);
+
+    m_showPoster = flag;
+    invalidateStyleAndLayerComposition();
 }
 
 }

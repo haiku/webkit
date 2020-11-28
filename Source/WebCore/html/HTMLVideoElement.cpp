@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007, 2008, 2009, 2010 Apple Inc. All rights reserved.
+ * Copyright (C) 2007-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -103,7 +103,6 @@ void HTMLVideoElement::didAttachRenderers()
 {
     HTMLMediaElement::didAttachRenderers();
 
-    updateDisplayState();
     if (shouldDisplayPosterImage()) {
         if (!m_imageLoader)
             m_imageLoader = makeUnique<HTMLImageLoader>(*this);
@@ -133,20 +132,15 @@ bool HTMLVideoElement::isPresentationAttribute(const QualifiedName& name) const
 void HTMLVideoElement::parseAttribute(const QualifiedName& name, const AtomString& value)
 {
     if (name == posterAttr) {
-        if (hasAvailableVideoFrame())
-            return;
-
-        // Force a poster recalc by setting m_displayMode to Unknown directly before calling updateDisplayState.
-        HTMLMediaElement::setDisplayMode(Unknown);
-        updateDisplayState();
-
         if (shouldDisplayPosterImage()) {
             if (!m_imageLoader)
                 m_imageLoader = makeUnique<HTMLImageLoader>(*this);
             m_imageLoader->updateFromElementIgnoringPreviousError();
         } else {
-            if (auto* renderer = this->renderer())
+            if (auto* renderer = this->renderer()) {
                 renderer->imageResource().setCachedImage(nullptr);
+                renderer->updateFromElement();
+            }
         }
     }
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
@@ -258,44 +252,42 @@ const AtomString& HTMLVideoElement::imageSourceURL() const
     return m_defaultPosterURL;
 }
 
-void HTMLVideoElement::setDisplayMode(DisplayMode mode)
+bool HTMLVideoElement::shouldDisplayPosterImage() const
 {
-    DisplayMode oldMode = displayMode();
-    URL poster = posterImageURL();
+    if (!showPosterFlag())
+        return false;
 
-    if (!poster.isEmpty()) {
-        // We have a poster path, but only show it until the user triggers display by playing or seeking and the
-        // media engine has something to display.
-        if (mode == Video) {
-            if (oldMode != Video && player())
-                player()->prepareForRendering();
-            if (!hasAvailableVideoFrame())
-                mode = PosterWaitingForVideo;
-        }
-    } else if (oldMode != Video && player())
-        player()->prepareForRendering();
+    if (posterImageURL().isEmpty())
+        return false;
 
-    HTMLMediaElement::setDisplayMode(mode);
+    auto* renderer = this->renderer();
+    if (renderer && renderer->failedToLoadPosterImage())
+        return false;
 
-    if (auto* renderer = this->renderer()) {
-        if (displayMode() != oldMode)
-            renderer->updateFromElement();
-    }
+    return true;
 }
 
-void HTMLVideoElement::updateDisplayState()
+void HTMLVideoElement::mediaPlayerFirstVideoFrameAvailable()
 {
-    if (posterImageURL().isEmpty() || hasAvailableVideoFrame())
-        setDisplayMode(Video);
-    else if (displayMode() < Poster)
-        setDisplayMode(Poster);
+    INFO_LOG(LOGIDENTIFIER, "m_showPoster = ", showPosterFlag());
+
+    if (showPosterFlag())
+        return;
+
+    invalidateStyleAndLayerComposition();
+
+    if (auto player = this->player())
+        player->prepareForRendering();
+
+    if (auto* renderer = this->renderer())
+        renderer->updateFromElement();
 }
 
-std::unique_ptr<ImageBuffer> HTMLVideoElement::createBufferForPainting(const FloatSize& size, ShouldAccelerate shouldAccelerate) const
+RefPtr<ImageBuffer> HTMLVideoElement::createBufferForPainting(const FloatSize& size, RenderingMode renderingMode) const
 {
     auto* hostWindow = document().view() && document().view()->root() ? document().view()->root()->hostWindow() : nullptr;
     auto shouldUseDisplayList = document().settings().displayListDrawingEnabled() ? ShouldUseDisplayList::Yes : ShouldUseDisplayList::No;
-    return ImageBuffer::create(size, shouldAccelerate, shouldUseDisplayList, RenderingPurpose::MediaPainting, 1, ColorSpace::SRGB, hostWindow);
+    return ImageBuffer::create(size, renderingMode, shouldUseDisplayList, RenderingPurpose::MediaPainting, 1, ColorSpace::SRGB, PixelFormat::BGRA8, hostWindow);
 }
 
 void HTMLVideoElement::paintCurrentFrameInContext(GraphicsContext& context, const FloatRect& destRect)
@@ -308,7 +300,7 @@ void HTMLVideoElement::paintCurrentFrameInContext(GraphicsContext& context, cons
     context.paintFrameForMedia(*player, destRect);
 }
 
-bool HTMLVideoElement::copyVideoTextureToPlatformTexture(GraphicsContextGLOpenGL* context, PlatformGLObject texture, GCGLenum target, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY)
+bool HTMLVideoElement::copyVideoTextureToPlatformTexture(GraphicsContextGL* context, PlatformGLObject texture, GCGLenum target, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY)
 {
     if (!player())
         return false;
@@ -323,7 +315,7 @@ bool HTMLVideoElement::hasAvailableVideoFrame() const
     return player()->hasVideo() && player()->hasAvailableVideoFrame();
 }
 
-NativeImagePtr HTMLVideoElement::nativeImageForCurrentTime()
+RefPtr<NativeImage> HTMLVideoElement::nativeImageForCurrentTime()
 {
     if (!player())
         return nullptr;
@@ -361,11 +353,9 @@ bool HTMLVideoElement::webkitSupportsFullscreen()
 bool HTMLVideoElement::webkitDisplayingFullscreen()
 {
     if (document().quirks().needsAkamaiMediaPlayerQuirk(*this))
-        return isFullscreen() || m_isChangingVideoFullscreenMode;
+        return isFullscreen() || isChangingVideoFullscreenMode();
 
-    // This function starts to return true after the video element has entered
-    // fullscreen/picture-in-picture until it has exited fullscreen/picture-in-picture
-    return (isFullscreen() && !waitingToEnterFullscreen()) || (!isFullscreen() && m_isChangingVideoFullscreenMode);
+    return isFullscreen();
 }
 
 void HTMLVideoElement::ancestorWillEnterFullscreen()
@@ -477,12 +467,13 @@ HTMLVideoElement::VideoPresentationMode HTMLVideoElement::toPresentationMode(HTM
 void HTMLVideoElement::webkitSetPresentationMode(VideoPresentationMode mode)
 {
     INFO_LOG(LOGIDENTIFIER, ", mode = ",  mode);
-    setPresentationMode(mode);
+    if (!isChangingVideoFullscreenMode())
+        setPresentationMode(mode);
 }
 
 void HTMLVideoElement::setPresentationMode(VideoPresentationMode mode)
 {
-    if (m_isChangingVideoFullscreenMode || toPresentationMode(fullscreenMode()) == mode)
+    if (toPresentationMode(fullscreenMode()) == mode)
         return;
 
     auto videoFullscreenMode = toFullscreenMode(mode);
@@ -491,9 +482,8 @@ void HTMLVideoElement::setPresentationMode(VideoPresentationMode mode)
     if (videoFullscreenMode == VideoFullscreenModeNone) {
         if (isFullscreen()) {
             if (toPresentationMode(fullscreenMode()) == VideoPresentationMode::PictureInPicture)
-                m_isExitingPictureInPicture = true;
+                m_exitingPictureInPicture = true;
 
-            m_isChangingVideoFullscreenMode = true;
             exitFullscreen();
         }
 
@@ -504,11 +494,10 @@ void HTMLVideoElement::setPresentationMode(VideoPresentationMode mode)
         return;
 
     if (videoFullscreenMode == VideoFullscreenModePictureInPicture)
-        m_isEnteringPictureInPicture = true;
+        m_enteringPictureInPicture = true;
     else if (fullscreenMode() == VideoFullscreenModePictureInPicture)
-        m_isExitingPictureInPicture = true;
+        m_exitingPictureInPicture = true;
 
-    m_isChangingVideoFullscreenMode = true;
     enterFullscreen(videoFullscreenMode);
 }
 
@@ -519,20 +508,25 @@ auto HTMLVideoElement::webkitPresentationMode() const -> VideoPresentationMode
 
 void HTMLVideoElement::didEnterFullscreenOrPictureInPicture(const FloatSize& size)
 {
-    m_isChangingVideoFullscreenMode = false;
-    if (m_isEnteringPictureInPicture || m_isExitingPictureInPicture) {
+    if (m_enteringPictureInPicture) {
+        m_enteringPictureInPicture = false;
+        setChangingVideoFullscreenMode(false);
+
 #if ENABLE(PICTURE_IN_PICTURE_API)
-        if (m_pictureInPictureObserver) {
-            if (m_isEnteringPictureInPicture)
-                m_pictureInPictureObserver->didEnterPictureInPicture(flooredIntSize(size));
-            else
-                m_pictureInPictureObserver->didExitPictureInPicture();
-        }
+        if (m_pictureInPictureObserver)
+            m_pictureInPictureObserver->didEnterPictureInPicture(flooredIntSize(size));
 #else
         UNUSED_PARAM(size);
 #endif
-        m_isEnteringPictureInPicture = false;
-        m_isExitingPictureInPicture = false;
+        return;
+    }
+
+    if (m_exitingPictureInPicture) {
+        m_exitingPictureInPicture = false;
+#if ENABLE(PICTURE_IN_PICTURE_API)
+        if (m_pictureInPictureObserver)
+            m_pictureInPictureObserver->didExitPictureInPicture();
+#endif
     }
 
     HTMLMediaElement::didBecomeFullscreenElement();
@@ -540,23 +534,24 @@ void HTMLVideoElement::didEnterFullscreenOrPictureInPicture(const FloatSize& siz
 
 void HTMLVideoElement::didExitFullscreenOrPictureInPicture()
 {
-    m_isChangingVideoFullscreenMode = false;
-    if (m_isExitingPictureInPicture) {
-        m_isExitingPictureInPicture = false;
+    if (m_exitingPictureInPicture) {
+        m_exitingPictureInPicture = false;
+        setChangingVideoFullscreenMode(false);
+
 #if ENABLE(PICTURE_IN_PICTURE_API)
         if (m_pictureInPictureObserver)
             m_pictureInPictureObserver->didExitPictureInPicture();
 #endif
+        return;
     }
+
+    HTMLMediaElement::didStopBeingFullscreenElement();
 }
 
-#if ENABLE(FULLSCREEN_API) && ENABLE(VIDEO_USES_ELEMENT_FULLSCREEN)
-void HTMLVideoElement::didBecomeFullscreenElement()
+bool HTMLVideoElement::isChangingPresentationMode() const
 {
-    m_isChangingVideoFullscreenMode = false;
-    HTMLMediaElement::didBecomeFullscreenElement();
+    return isChangingVideoFullscreenMode();
 }
-#endif
 
 void HTMLVideoElement::setVideoFullscreenFrame(const FloatRect& frame)
 {
@@ -566,7 +561,7 @@ void HTMLVideoElement::setVideoFullscreenFrame(const FloatRect& frame)
         return;
 
 #if ENABLE(PICTURE_IN_PICTURE_API)
-    if (!m_isEnteringPictureInPicture && !m_isExitingPictureInPicture && m_pictureInPictureObserver)
+    if (!m_enteringPictureInPicture && !m_exitingPictureInPicture && m_pictureInPictureObserver)
         m_pictureInPictureObserver->pictureInPictureWindowResized(IntSize(frame.size()));
 #endif
 }

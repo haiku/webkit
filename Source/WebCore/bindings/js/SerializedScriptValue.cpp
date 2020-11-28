@@ -1185,7 +1185,7 @@ private:
                 return true;
             }
             if (auto* arrayBuffer = toPossiblySharedArrayBuffer(vm, obj)) {
-                if (arrayBuffer->isNeutered()) {
+                if (arrayBuffer->isDetached()) {
                     code = SerializationReturnCode::ValidationError;
                     return true;
                 }
@@ -2988,7 +2988,7 @@ private:
             return JSValue();
         }
 
-        auto buffer = ImageBuffer::create(FloatSize(logicalSize), RenderingMode::Unaccelerated, resolutionScale);
+        auto buffer = ImageBitmap::createImageBuffer(*scriptExecutionContextFromExecState(m_lexicalGlobalObject), logicalSize, RenderingMode::Unaccelerated, resolutionScale);
         if (!buffer) {
             fail();
             return JSValue();
@@ -3859,7 +3859,7 @@ ExceptionOr<Ref<SerializedScriptValue>> SerializedScriptValue::create(JSGlobalOb
 #endif
     for (auto& transferable : transferList) {
         if (auto arrayBuffer = toPossiblySharedArrayBuffer(vm, transferable.get())) {
-            if (arrayBuffer->isNeutered())
+            if (arrayBuffer->isDetached())
                 return Exception { DataCloneError };
             if (arrayBuffer->isLocked()) {
                 auto scope = DECLARE_THROW_SCOPE(vm);

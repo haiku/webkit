@@ -84,8 +84,8 @@ WebKitAudioContext::WebKitAudioContext(Document& document)
 }
 
 // Constructor for offline (non-realtime) rendering.
-WebKitAudioContext::WebKitAudioContext(Document& document, Ref<AudioBuffer>&& renderTarget)
-    : AudioContext(document, renderTarget->numberOfChannels(), WTFMove(renderTarget))
+WebKitAudioContext::WebKitAudioContext(Document& document, float sampleRate, Ref<AudioBuffer>&& renderTarget)
+    : AudioContext(document, renderTarget->numberOfChannels(), sampleRate, WTFMove(renderTarget))
 {
 }
 
@@ -145,15 +145,7 @@ ExceptionOr<Ref<WebKitOscillatorNode>> WebKitAudioContext::createWebKitOscillato
 
     lazyInitialize();
 
-    auto node = WebKitOscillatorNode::create(*this);
-    if (node.hasException())
-        return node.releaseException();
-
-    // Because this is an AudioScheduledSourceNode, the context keeps a reference until it has finished playing.
-    // When this happens, AudioScheduledSourceNode::finish() calls BaseAudioContext::notifyNodeFinishedProcessing().
-    auto nodeValue = node.releaseReturnValue();
-    refNode(nodeValue);
-    return nodeValue;
+    return WebKitOscillatorNode::create(*this);
 }
 
 ExceptionOr<Ref<PeriodicWave>> WebKitAudioContext::createPeriodicWave(Float32Array& real, Float32Array& imaginary)
@@ -180,13 +172,7 @@ ExceptionOr<Ref<WebKitAudioBufferSourceNode>> WebKitAudioContext::createWebKitBu
 
     lazyInitialize();
 
-    auto node = WebKitAudioBufferSourceNode::create(*this);
-
-    // Because this is an AudioScheduledSourceNode, the context keeps a reference until it has finished playing.
-    // When this happens, AudioScheduledSourceNode::finish() calls BaseAudioContext::notifyNodeFinishedProcessing().
-    refNode(node);
-
-    return node;
+    return WebKitAudioBufferSourceNode::create(*this);
 }
 
 ExceptionOr<Ref<WebKitDynamicsCompressorNode>> WebKitAudioContext::createWebKitDynamicsCompressor()

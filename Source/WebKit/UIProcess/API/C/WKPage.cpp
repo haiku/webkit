@@ -63,6 +63,7 @@
 #include "PageClient.h"
 #include "PluginInformation.h"
 #include "PrintInfo.h"
+#include "SpeechRecognitionPermissionRequest.h"
 #include "WKAPICast.h"
 #include "WKPagePolicyClientInternal.h"
 #include "WKPageRenderingProgressEventsInternal.h"
@@ -115,7 +116,7 @@ template<> struct ClientTraits<WKPagePolicyClientBase> {
 };
 
 template<> struct ClientTraits<WKPageUIClientBase> {
-    typedef std::tuple<WKPageUIClientV0, WKPageUIClientV1, WKPageUIClientV2, WKPageUIClientV3, WKPageUIClientV4, WKPageUIClientV5, WKPageUIClientV6, WKPageUIClientV7, WKPageUIClientV8, WKPageUIClientV9, WKPageUIClientV10, WKPageUIClientV11, WKPageUIClientV12, WKPageUIClientV13, WKPageUIClientV14> Versions;
+    typedef std::tuple<WKPageUIClientV0, WKPageUIClientV1, WKPageUIClientV2, WKPageUIClientV3, WKPageUIClientV4, WKPageUIClientV5, WKPageUIClientV6, WKPageUIClientV7, WKPageUIClientV8, WKPageUIClientV9, WKPageUIClientV10, WKPageUIClientV11, WKPageUIClientV12, WKPageUIClientV13, WKPageUIClientV14, WKPageUIClientV15> Versions;
 };
 
 #if ENABLE(CONTEXT_MENUS)
@@ -2110,6 +2111,13 @@ void WKPageSetPageUIClient(WKPageRef pageRef, const WKPageUIClientBase* wkClient
             completionHandler(WebKit::WebAuthenticationPanelResult::Presented);
         }
 #endif
+        void decidePolicyForSpeechRecognitionPermissionRequest(WebPageProxy& page, API::SecurityOrigin& origin, CompletionHandler<void(bool)>&& completionHandler) final
+        {
+            if (!m_client.decidePolicyForSpeechRecognitionPermissionRequest)
+                return;
+
+            m_client.decidePolicyForSpeechRecognitionPermissionRequest(toAPI(&page), toAPI(&origin), toAPI(SpeechRecognitionPermissionCallback::create(WTFMove(completionHandler)).ptr()));
+        }
     };
 
     toImpl(pageRef)->setUIClient(makeUnique<UIClient>(wkClient));
@@ -2298,24 +2306,6 @@ void WKPageSetPageNavigationClient(WKPageRef pageRef, const WKPageNavigationClie
             if (!apiNotifications.isEmpty())
                 m_client.contentRuleListNotification(toAPI(&page), toURLRef(url.string().impl()), toAPI(API::Array::create(WTFMove(apiListIdentifiers)).ptr()), toAPI(API::Array::create(WTFMove(apiNotifications)).ptr()), m_client.base.clientInfo);
         }
-#if ENABLE(NETSCAPE_PLUGIN_API)
-        void decidePolicyForPluginLoad(WebPageProxy& page, PluginModuleLoadPolicy currentPluginLoadPolicy, API::Dictionary& pluginInformation, CompletionHandler<void(PluginModuleLoadPolicy, const String&)>&& completionHandler) override
-        {
-            WKStringRef unavailabilityDescriptionOut = 0;
-            PluginModuleLoadPolicy loadPolicy = currentPluginLoadPolicy;
-            
-            if (m_client.decidePolicyForPluginLoad)
-                loadPolicy = toPluginModuleLoadPolicy(m_client.decidePolicyForPluginLoad(toAPI(&page), toWKPluginLoadPolicy(currentPluginLoadPolicy), toAPI(&pluginInformation), &unavailabilityDescriptionOut, m_client.base.clientInfo));
-            
-            String unavailabilityDescription;
-            if (unavailabilityDescriptionOut) {
-                RefPtr<API::String> webUnavailabilityDescription = adoptRef(toImpl(unavailabilityDescriptionOut));
-                unavailabilityDescription = webUnavailabilityDescription->string();
-            }
-            
-            completionHandler(loadPolicy, unavailabilityDescription);
-        }
-#endif
     };
 
     WebPageProxy* webPageProxy = toImpl(pageRef);
@@ -2819,7 +2809,7 @@ bool WKPageIsPlayingAudio(WKPageRef page)
 
 WKMediaState WKPageGetMediaState(WKPageRef page)
 {
-    WebCore::MediaProducer::MediaStateFlags coreState = toImpl(page)->reportedMediaCaptureState();
+    WebCore::MediaProducer::MediaStateFlags coreState = toImpl(page)->reportedMediaState();
     WKMediaState state = kWKMediaIsNotPlaying;
 
     if (coreState & WebCore::MediaProducer::IsPlayingAudio)
@@ -2880,37 +2870,37 @@ void WKPageGetApplicationManifest_b(WKPageRef page, WKPageGetApplicationManifest
 }
 #endif
 
-void WKPageDumpAdClickAttribution(WKPageRef page, WKPageDumpAdClickAttributionFunction callback, void* callbackContext)
+void WKPageDumpPrivateClickMeasurement(WKPageRef page, WKPageDumpPrivateClickMeasurementFunction callback, void* callbackContext)
 {
-    toImpl(page)->dumpAdClickAttribution([callbackContext, callback] (const String& adClickAttribution) {
-        callback(WebKit::toAPI(adClickAttribution.impl()), callbackContext);
+    toImpl(page)->dumpPrivateClickMeasurement([callbackContext, callback] (const String& privateClickMeasurement) {
+        callback(WebKit::toAPI(privateClickMeasurement.impl()), callbackContext);
     });
 }
 
-void WKPageClearAdClickAttribution(WKPageRef page, WKPageClearAdClickAttributionFunction callback, void* callbackContext)
+void WKPageClearPrivateClickMeasurement(WKPageRef page, WKPageClearPrivateClickMeasurementFunction callback, void* callbackContext)
 {
-    toImpl(page)->clearAdClickAttribution([callbackContext, callback] () {
+    toImpl(page)->clearPrivateClickMeasurement([callbackContext, callback] () {
         callback(callbackContext);
     });
 }
 
-void WKPageSetAdClickAttributionOverrideTimerForTesting(WKPageRef page, bool value, WKPageSetAdClickAttributionOverrideTimerForTestingFunction callback, void* callbackContext)
+void WKPageSetPrivateClickMeasurementOverrideTimerForTesting(WKPageRef page, bool value, WKPageSetPrivateClickMeasurementOverrideTimerForTestingFunction callback, void* callbackContext)
 {
-    toImpl(page)->setAdClickAttributionOverrideTimerForTesting(value, [callbackContext, callback] () {
+    toImpl(page)->setPrivateClickMeasurementOverrideTimerForTesting(value, [callbackContext, callback] () {
         callback(callbackContext);
     });
 }
 
-void WKPageSetAdClickAttributionConversionURLForTesting(WKPageRef page, WKURLRef URLRef, WKPageSetAdClickAttributionConversionURLForTestingFunction callback, void* callbackContext)
+void WKPageSetPrivateClickMeasurementConversionURLForTesting(WKPageRef page, WKURLRef URLRef, WKPageSetPrivateClickMeasurementConversionURLForTestingFunction callback, void* callbackContext)
 {
-    toImpl(page)->setAdClickAttributionConversionURLForTesting(URL(URL(), toWTFString(URLRef)), [callbackContext, callback] () {
+    toImpl(page)->setPrivateClickMeasurementConversionURLForTesting(URL(URL(), toWTFString(URLRef)), [callbackContext, callback] () {
         callback(callbackContext);
     });
 }
 
-void WKPageMarkAdClickAttributionsAsExpiredForTesting(WKPageRef page, WKPageMarkAdClickAttributionsAsExpiredForTestingFunction callback, void* callbackContext)
+void WKPageMarkPrivateClickMeasurementsAsExpiredForTesting(WKPageRef page, WKPageMarkPrivateClickMeasurementsAsExpiredForTestingFunction callback, void* callbackContext)
 {
-    toImpl(page)->markAdClickAttributionsAsExpiredForTesting([callbackContext, callback] () {
+    toImpl(page)->markPrivateClickMeasurementsAsExpiredForTesting([callbackContext, callback] () {
         callback(callbackContext);
     });
 }

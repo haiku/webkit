@@ -19,7 +19,6 @@
 #endif
 #import "RTCCodecSpecificInfoH264.h"
 #import "RTCH264ProfileLevelId.h"
-#import "api/peerconnection/RTCRtpFragmentationHeader+Private.h"
 #import "api/peerconnection/RTCVideoCodecInfo+Private.h"
 #import "base/RTCCodecSpecificInfo.h"
 #import "base/RTCI420Buffer.h"
@@ -348,6 +347,7 @@ NSUInteger GetMaxSampleRate(const webrtc::H264::ProfileLevelId &profile_level_id
   std::vector<uint8_t> _frameScaleBuffer;
   bool _disableEncoding;
   bool _isKeyFrameRequired;
+  bool _isH264LowLatencyEncoderEnabled;
 }
 
 // .5 is set as a mininum to prevent overcompensating for large temporary
@@ -375,8 +375,14 @@ NSUInteger GetMaxSampleRate(const webrtc::H264::ProfileLevelId &profile_level_id
     RTC_CHECK([codecInfo.name isEqualToString:kRTCVideoCodecH264Name]);
   }
   _isKeyFrameRequired = false;
+  _isH264LowLatencyEncoderEnabled = true;
 
   return self;
+}
+
+- (void)setH264LowLatencyEncoderEnabled:(bool)enabled
+{
+    _isH264LowLatencyEncoderEnabled = enabled;
 }
 
 - (void)dealloc {
@@ -696,7 +702,7 @@ NSUInteger GetMaxSampleRate(const webrtc::H264::ProfileLevelId &profile_level_id
 #endif
   }
 #elif HAVE_VTB_REQUIREDLOWLATENCY
-  if (webrtc::isH264LowLatencyEncoderEnabled() && _useVCP)
+  if (_isH264LowLatencyEncoderEnabled && _useVCP)
     CFDictionarySetValue(encoderSpecs, kVTVideoEncoderSpecification_RequiredLowLatency, kCFBooleanTrue);
 #endif
 
@@ -990,15 +996,8 @@ NSUInteger GetMaxSampleRate(const webrtc::H264::ProfileLevelId &profile_level_id
   }
 
   __block std::unique_ptr<rtc::Buffer> buffer = std::make_unique<rtc::Buffer>();
-  RTCRtpFragmentationHeader *header;
-  {
-    std::unique_ptr<webrtc::RTPFragmentationHeader> header_cpp;
-    bool result =
-        H264CMSampleBufferToAnnexBBuffer(sampleBuffer, isKeyframe, buffer.get(), &header_cpp);
-    header = [[RTCRtpFragmentationHeader alloc] initWithNativeFragmentationHeader:header_cpp.get()];
-    if (!result) {
-      return;
-    }
+  if (!webrtc::H264CMSampleBufferToAnnexBBuffer(sampleBuffer, isKeyframe, buffer.get())) {
+    return;
   }
 
   RTCEncodedImage *frame = [[RTCEncodedImage alloc] init];
@@ -1024,7 +1023,7 @@ NSUInteger GetMaxSampleRate(const webrtc::H264::ProfileLevelId &profile_level_id
   _h264BitstreamParser.GetLastSliceQp(&qp);
   frame.qp = @(qp);
 
-  BOOL res = _callback(frame, codecSpecificInfo, header);
+  BOOL res = _callback(frame, codecSpecificInfo, nullptr);
   if (!res) {
     RTC_LOG(LS_ERROR) << "Encode callback failed";
     if (isKeyFrameRequired)

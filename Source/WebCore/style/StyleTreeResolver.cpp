@@ -54,6 +54,7 @@
 #include "StyleScope.h"
 #include "Text.h"
 #include "WebAnimationTypes.h"
+#include "WebAnimationUtilities.h"
 
 namespace WebCore {
 
@@ -224,9 +225,8 @@ ElementUpdates TreeResolver::resolveElement(Element& element)
         m_documentElementStyle = RenderStyle::clonePtr(*update.style);
         scope().resolver.setOverrideDocumentElementStyle(m_documentElementStyle.get());
 
-        if (update.change != Change::None && existingStyle && existingStyle->computedFontPixelSize() != update.style->computedFontPixelSize()) {
+        if (!existingStyle || existingStyle->computedFontPixelSize() != update.style->computedFontPixelSize()) {
             // "rem" units are relative to the document element's font size so we need to recompute everything.
-            // In practice this is rare.
             scope().resolver.invalidateMatchedDeclarationsCache();
             descendantsToResolve = DescendantsToResolve::All;
         }
@@ -245,8 +245,11 @@ ElementUpdates TreeResolver::resolveElement(Element& element)
         }
     }
 
-    auto beforeUpdate = resolvePseudoStyle(element, update, PseudoId::Before);
-    auto afterUpdate = resolvePseudoStyle(element, update, PseudoId::After);
+    PseudoIdToElementUpdateMap pseudoUpdates;
+    for (PseudoId pseudoId = PseudoId::FirstPublicPseudoId; pseudoId < PseudoId::FirstInternalPseudoId; pseudoId = static_cast<PseudoId>(static_cast<unsigned>(pseudoId) + 1)) {
+        if (auto elementUpdate = resolvePseudoStyle(element, update, pseudoId))
+            pseudoUpdates.set(pseudoId, WTFMove(*elementUpdate));
+    }
 
 #if ENABLE(TOUCH_ACTION_REGIONS)
     // FIXME: Track this exactly.
@@ -258,11 +261,13 @@ ElementUpdates TreeResolver::resolveElement(Element& element)
         m_document.setMayHaveEditableElements();
 #endif
 
-    return { WTFMove(update), descendantsToResolve, WTFMove(beforeUpdate), WTFMove(afterUpdate) };
+    return { WTFMove(update), descendantsToResolve, WTFMove(pseudoUpdates) };
 }
 
-ElementUpdate TreeResolver::resolvePseudoStyle(Element& element, const ElementUpdate& elementUpdate, PseudoId pseudoId)
+Optional<ElementUpdate> TreeResolver::resolvePseudoStyle(Element& element, const ElementUpdate& elementUpdate, PseudoId pseudoId)
 {
+    if (pseudoId == PseudoId::Marker && elementUpdate.style->display() != DisplayType::ListItem)
+        return { };
     if (elementUpdate.style->display() == DisplayType::None)
         return { };
     if (!elementUpdate.style->hasPseudoStyle(pseudoId))
@@ -272,8 +277,7 @@ ElementUpdate TreeResolver::resolvePseudoStyle(Element& element, const ElementUp
     if (!pseudoStyle)
         return { };
 
-    auto* pseudoElement = pseudoId == PseudoId::Before ? element.beforePseudoElement() : element.afterPseudoElement();
-    bool hasAnimations = pseudoElement && pseudoElement->isTargetedByKeyframeEffectRequiringPseudoElement();
+    bool hasAnimations = pseudoStyle->hasAnimationsOrTransitions() || element.hasKeyframeEffects(pseudoId);
     if (!pseudoElementRendererIsNeeded(pseudoStyle.get()) && !hasAnimations)
         return { };
 
@@ -349,11 +353,12 @@ ElementUpdate TreeResolver::createAnimatedElementUpdate(std::unique_ptr<RenderSt
     // Now we can update all Web animations, which will include CSS Animations as well
     // as animations created via the JS API.
     if (styleable.hasKeyframeEffects()) {
+        auto previousLastStyleChangeEventStyle = styleable.lastStyleChangeEventStyle() ? RenderStyle::clonePtr(*styleable.lastStyleChangeEventStyle()) : RenderStyle::createPtr();
         // Record the style prior to applying animations for this style change event.
         styleable.setLastStyleChangeEventStyle(RenderStyle::clonePtr(*newStyle));
         // Apply all keyframe effects to the new style.
         auto animatedStyle = RenderStyle::clonePtr(*newStyle);
-        animationImpact = styleable.applyKeyframeEffects(*animatedStyle);
+        animationImpact = styleable.applyKeyframeEffects(*animatedStyle, *previousLastStyleChangeEventStyle);
         newStyle = WTFMove(animatedStyle);
     } else
         styleable.setLastStyleChangeEventStyle(nullptr);

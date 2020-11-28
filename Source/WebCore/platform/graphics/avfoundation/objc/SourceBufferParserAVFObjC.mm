@@ -194,15 +194,7 @@ MediaPlayerEnums::SupportsType SourceBufferParserAVFObjC::isContentTypeSupported
         extendedType = makeString(type.containerType(), "; codecs=\"", outputCodecs, "\"");
     }
 
-    auto& streamDataParserCache = AVStreamDataParserMIMETypeCache::singleton();
-    if (streamDataParserCache.isAvailable())
-        return streamDataParserCache.canDecodeType(extendedType);
-
-    auto& assetCache = AVAssetMIMETypeCache::singleton();
-    if (assetCache.isAvailable())
-        return assetCache.canDecodeType(extendedType);
-
-    return MediaPlayerEnums::SupportsType::IsNotSupported;
+    return AVStreamDataParserMIMETypeCache::singleton().canDecodeType(extendedType);
 }
 
 SourceBufferParserAVFObjC::SourceBufferParserAVFObjC()
@@ -255,6 +247,14 @@ void SourceBufferParserAVFObjC::invalidate()
     m_delegate = nullptr;
     m_parser = nullptr;
 }
+
+#if !RELEASE_LOG_DISABLED
+void SourceBufferParserAVFObjC::setLogger(const Logger& logger, const void* logIdentifier)
+{
+    m_logger = makeRefPtr(logger);
+    m_logIdentifier = logIdentifier;
+}
+#endif
 
 void SourceBufferParserAVFObjC::didParseStreamDataAsAsset(AVAsset* asset)
 {

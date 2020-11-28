@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "api/video_codecs/video_decoder.h"
+#include "WebKitUtilities.h"
 #include "api/video_codecs/video_decoder_factory.h"
 
 typedef struct __CVBuffer* CVPixelBufferRef;
@@ -33,49 +33,27 @@ typedef struct __CVBuffer* CVPixelBufferRef;
 namespace webrtc {
 
 struct SdpVideoFormat;
+class VideoDecoderFactory;
 
 using WebKitVideoDecoder = void*;
 using VideoDecoderCreateCallback = WebKitVideoDecoder(*)(const SdpVideoFormat& format);
 using VideoDecoderReleaseCallback = int32_t(*)(WebKitVideoDecoder);
-using VideoDecoderDecodeCallback = int32_t(*)(WebKitVideoDecoder, uint32_t timeStamp, const uint8_t*, size_t length);
+using VideoDecoderDecodeCallback = int32_t(*)(WebKitVideoDecoder, uint32_t timeStamp, const uint8_t*, size_t length, uint16_t width, uint16_t height);
 using VideoDecoderRegisterDecodeCompleteCallback = int32_t(*)(WebKitVideoDecoder, void* decodedImageCallback);
 
 void setVideoDecoderCallbacks(VideoDecoderCreateCallback, VideoDecoderReleaseCallback, VideoDecoderDecodeCallback, VideoDecoderRegisterDecodeCompleteCallback);
 
-class RemoteVideoDecoderFactory final : public VideoDecoderFactory {
-public:
-    explicit RemoteVideoDecoderFactory(std::unique_ptr<VideoDecoderFactory>&&);
-    ~RemoteVideoDecoderFactory() = default;
+std::unique_ptr<webrtc::VideoDecoderFactory> createWebKitDecoderFactory(WebKitH265, WebKitVP9, WebKitVP9VTB);
+void videoDecoderTaskComplete(void* callback, uint32_t timeStamp, CVPixelBufferRef, uint32_t timeStampRTP);
 
-private:
-    std::vector<SdpVideoFormat> GetSupportedFormats() const final;
-    std::unique_ptr<VideoDecoder> CreateVideoDecoder(const SdpVideoFormat& format) final;
-
-    std::unique_ptr<VideoDecoderFactory> m_internalFactory;
-};
-
-class RemoteVideoDecoder final : public webrtc::VideoDecoder {
-public:
-    explicit RemoteVideoDecoder(WebKitVideoDecoder);
-    ~RemoteVideoDecoder() = default;
-
-    static void decodeComplete(void* callback, uint32_t timeStamp, CVPixelBufferRef, uint32_t timeStampRTP);
-
-private:
-    int32_t InitDecode(const VideoCodec*, int32_t number_of_cores) final;
-    int32_t Decode(const EncodedImage&, bool missing_frames, int64_t render_time_ms) final;
-    int32_t RegisterDecodeCompleteCallback(DecodedImageCallback*) final;
-    int32_t Release() final;
-    const char* ImplementationName() const final { return "RemoteVideoToolBox"; }
-
-    WebKitVideoDecoder m_internalDecoder;
-};
 
 using LocalDecoder = void*;
 using LocalDecoderCallback = void (^)(CVPixelBufferRef, uint32_t timeStamp, uint32_t timeStampNs);
 void* createLocalH264Decoder(LocalDecoderCallback);
 void* createLocalH265Decoder(LocalDecoderCallback);
+void* createLocalVP9Decoder(LocalDecoderCallback);
 void releaseLocalDecoder(LocalDecoder);
 int32_t decodeFrame(LocalDecoder, uint32_t timeStamp, const uint8_t*, size_t);
+void setDecoderFrameSize(LocalDecoder, uint16_t width, uint16_t height);
 
 }

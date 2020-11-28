@@ -429,7 +429,8 @@ inline void Node::NodeRareDataDeleter::operator()(NodeRareData* rareData) const
 void Node::clearRareData()
 {
     ASSERT(hasRareData());
-    ASSERT(rareData()->transientMutationObserverRegistry().isEmpty());
+    ASSERT(!transientMutationObserverRegistry() || transientMutationObserverRegistry()->isEmpty());
+
     m_rareDataWithBitfields.setPointer(nullptr);
 }
 
@@ -1636,7 +1637,7 @@ bool connectedInSameTreeScope(const Node* a, const Node* b)
     return a && b && a->isConnected() == b->isConnected() && &a->treeScope() == &b->treeScope();
 }
 
-// FIXME: Refactor this so it calls documentOrder, except for any exotic inefficient things that are needed only here.
+// FIXME: Refactor so this calls treeOrder, with additional code for any exotic inefficient things that are needed only here.
 unsigned short Node::compareDocumentPosition(Node& otherNode)
 {
     if (&otherNode == this)
@@ -2039,15 +2040,19 @@ void Node::moveNodeToNewDocument(Document& oldDocument, Document& newDocument)
     oldDocument.decrementReferencingNodeCount();
 
     if (hasRareData()) {
-        auto* rareData = this->rareData();
-        if (auto* nodeLists = rareData->nodeLists())
+        if (auto* nodeLists = rareData()->nodeLists())
             nodeLists->adoptDocument(oldDocument, newDocument);
-        if (auto* registry = rareData->mutationObserverRegistryIfExists()) {
+        if (auto* registry = mutationObserverRegistry()) {
             for (auto& registration : *registry)
                 newDocument.addMutationObserverTypes(registration->mutationTypes());
         }
-        for (auto& registration : rareData->transientMutationObserverRegistry())
-            newDocument.addMutationObserverTypes(registration->mutationTypes());
+        if (auto* transientRegistry = transientMutationObserverRegistry()) {
+            for (auto& registration : *transientRegistry)
+                newDocument.addMutationObserverTypes(registration->mutationTypes());
+        }
+    } else {
+        ASSERT(!mutationObserverRegistry());
+        ASSERT(!transientMutationObserverRegistry());
     }
 
     oldDocument.moveNodeIteratorsToNewDocument(*this, newDocument);
@@ -2247,9 +2252,32 @@ void Node::clearEventTargetData()
     eventTargetDataMap().remove(this);
 }
 
-template<typename Registry> static inline void collectMatchingObserversForMutation(HashMap<Ref<MutationObserver>, MutationRecordDeliveryOptions>& observers, Registry& registry, Node& target, MutationObserver::MutationType type, const QualifiedName* attributeName)
+Vector<std::unique_ptr<MutationObserverRegistration>>* Node::mutationObserverRegistry()
 {
-    for (auto& registration : registry) {
+    if (!hasRareData())
+        return nullptr;
+    auto* data = rareData()->mutationObserverData();
+    if (!data)
+        return nullptr;
+    return &data->registry;
+}
+
+HashSet<MutationObserverRegistration*>* Node::transientMutationObserverRegistry()
+{
+    if (!hasRareData())
+        return nullptr;
+    auto* data = rareData()->mutationObserverData();
+    if (!data)
+        return nullptr;
+    return &data->transientRegistry;
+}
+
+template<typename Registry> static inline void collectMatchingObserversForMutation(HashMap<Ref<MutationObserver>, MutationRecordDeliveryOptions>& observers, Registry* registry, Node& target, MutationObserver::MutationType type, const QualifiedName* attributeName)
+{
+    if (!registry)
+        return;
+
+    for (auto& registration : *registry) {
         if (registration->shouldReceiveMutationFrom(target, type, attributeName)) {
             auto deliveryOptions = registration->deliveryOptions();
             auto result = observers.add(registration->observer(), deliveryOptions);
@@ -2263,53 +2291,61 @@ HashMap<Ref<MutationObserver>, MutationRecordDeliveryOptions> Node::registeredMu
 {
     HashMap<Ref<MutationObserver>, MutationRecordDeliveryOptions> result;
     ASSERT((type == MutationObserver::Attributes && attributeName) || !attributeName);
-    for (auto node = makeRefPtr(this); node; node = node->parentNode()) {
-        if (!node->hasRareData())
-            continue;
-        auto* rareData = node->rareData();
-        if (auto* registry = rareData->mutationObserverRegistryIfExists())
-            collectMatchingObserversForMutation(result, *registry, *this, type, attributeName);
-        collectMatchingObserversForMutation(result, rareData->transientMutationObserverRegistry(), *this, type, attributeName);
+    collectMatchingObserversForMutation(result, mutationObserverRegistry(), *this, type, attributeName);
+    collectMatchingObserversForMutation(result, transientMutationObserverRegistry(), *this, type, attributeName);
+    for (Node* node = parentNode(); node; node = node->parentNode()) {
+        collectMatchingObserversForMutation(result, node->mutationObserverRegistry(), *this, type, attributeName);
+        collectMatchingObserversForMutation(result, node->transientMutationObserverRegistry(), *this, type, attributeName);
     }
     return result;
 }
 
 void Node::registerMutationObserver(MutationObserver& observer, MutationObserverOptions options, const HashSet<AtomString>& attributeFilter)
 {
-    auto& registry = ensureRareData().mutationObserverRegistry();
-    auto index = registry.findMatching([&observer](auto& registration) { return &registration->observer() == &observer; });
-    if (index != notFound) {
-        auto registration = registry[index].copyRef();
-        registration->resetObservation(options, attributeFilter);
-        document().addMutationObserverTypes(registration->mutationTypes());
-        return;
+    MutationObserverRegistration* registration = nullptr;
+    auto& registry = ensureRareData().ensureMutationObserverData().registry;
+
+    for (auto& candidateRegistration : registry) {
+        if (&candidateRegistration->observer() == &observer) {
+            registration = candidateRegistration.get();
+            registration->resetObservation(options, attributeFilter);
+        }
     }
-    auto newRegistration = MutationObserverRegistration::create(observer, *this, options, attributeFilter);
-    document().addMutationObserverTypes(newRegistration->mutationTypes());
-    registry.append(WTFMove(newRegistration));
+
+    if (!registration) {
+        registry.append(makeUnique<MutationObserverRegistration>(observer, *this, options, attributeFilter));
+        registration = registry.last().get();
+    }
+
+    document().addMutationObserverTypes(registration->mutationTypes());
 }
 
 void Node::unregisterMutationObserver(MutationObserverRegistration& registration)
 {
-    ASSERT(hasRareData());
-    auto* registry = rareData()->mutationObserverRegistryIfExists();
+    auto* registry = mutationObserverRegistry();
     ASSERT(registry);
-    auto removed = registry->removeFirstMatching([&registration] (auto& current) {
-        return current.ptr() == &registration;
+    if (!registry)
+        return;
+
+    registry->removeFirstMatching([&registration] (auto& current) {
+        return current.get() == &registration;
     });
-    RELEASE_ASSERT(removed);
 }
 
 void Node::registerTransientMutationObserver(MutationObserverRegistration& registration)
 {
-    ensureRareData().transientMutationObserverRegistry().add(registration);
+    ensureRareData().ensureMutationObserverData().transientRegistry.add(&registration);
 }
 
 void Node::unregisterTransientMutationObserver(MutationObserverRegistration& registration)
 {
-    ASSERT(hasRareData());
-    bool removed = rareData()->transientMutationObserverRegistry().remove(&registration);
-    RELEASE_ASSERT(removed);
+    auto* transientRegistry = transientMutationObserverRegistry();
+    ASSERT(transientRegistry);
+    if (!transientRegistry)
+        return;
+
+    ASSERT(transientRegistry->contains(&registration));
+    transientRegistry->remove(&registration);
 }
 
 void Node::notifyMutationObserversNodeWillDetach()
@@ -2318,15 +2354,14 @@ void Node::notifyMutationObserversNodeWillDetach()
         return;
 
     for (Node* node = parentNode(); node; node = node->parentNode()) {
-        if (!node->hasRareData())
-            continue;
-        auto* rareData = node->rareData();
-        if (auto* registry = rareData->mutationObserverRegistryIfExists()) {
+        if (auto* registry = node->mutationObserverRegistry()) {
             for (auto& registration : *registry)
                 registration->observedSubtreeNodeWillDetach(*this);
         }
-        for (auto& registration : rareData->transientMutationObserverRegistry())
-            registration->observedSubtreeNodeWillDetach(*this);
+        if (auto* transientRegistry = node->transientMutationObserverRegistry()) {
+            for (auto* registration : *transientRegistry)
+                registration->observedSubtreeNodeWillDetach(*this);
+        }
     }
 }
 
@@ -2336,7 +2371,7 @@ void Node::handleLocalEvents(Event& event, EventInvokePhase phase)
         return;
 
     // FIXME: Should we deliver wheel events to disabled form controls or not?
-    if (is<Element>(*this) && downcast<Element>(*this).isDisabledFormControl() && event.isMouseEvent() && !event.isWheelEvent())
+    if (is<Element>(*this) && downcast<Element>(*this).isDisabledFormControl() && event.isTrusted() && event.isMouseEvent() && !event.isWheelEvent())
         return;
 
     fireEventListeners(event, phase);
@@ -2587,11 +2622,26 @@ void* Node::opaqueRootSlow() const
     return const_cast<void*>(static_cast<const void*>(node));
 }
 
-static size_t depthInComposedTree(const Node& node)
+template<> ContainerNode* parent<Tree>(const Node& node)
+{
+    return node.parentNode();
+}
+
+template<> ContainerNode* parent<ShadowIncludingTree>(const Node& node)
+{
+    return node.parentOrShadowHostNode();
+}
+
+template<> ContainerNode* parent<ComposedTree>(const Node& node)
+{
+    return node.parentInComposedTree();
+}
+
+template<TreeType treeType> size_t depth(const Node& node)
 {
     size_t depth = 0;
     auto ancestor = &node;
-    while ((ancestor = ancestor->parentInComposedTree()))
+    while ((ancestor = parent<treeType>(*ancestor)))
         ++depth;
     return depth;
 }
@@ -2602,8 +2652,7 @@ struct AncestorAndChildren {
     const Node* distinctAncestorB;
 };
 
-// FIXME: This function's name is not explicit about the fact that it's the common inclusive ancestor in the composed tree.
-static AncestorAndChildren commonInclusiveAncestorAndChildren(const Node& a, const Node& b)
+template<TreeType treeType> AncestorAndChildren commonInclusiveAncestorAndChildren(const Node& a, const Node& b)
 {
     // This check isn't needed for correctness, but it is cheap and likely to be
     // common enough to be worth optimizing so we don't have to walk to the root.
@@ -2612,32 +2661,34 @@ static AncestorAndChildren commonInclusiveAncestorAndChildren(const Node& a, con
     // FIXME: Could optimize cases where nodes are both in the same shadow tree.
     // FIXME: Could optimize cases where nodes are in different documents to quickly return false.
     // FIXME: Could optimize cases where one node is connected and the other is not to quickly return false.
-    auto [depthA, depthB] = std::make_tuple(depthInComposedTree(a), depthInComposedTree(b));
+    auto [depthA, depthB] = std::make_tuple(depth<treeType>(a), depth<treeType>(b));
     auto [x, y, difference] = depthA >= depthB
         ? std::make_tuple(&a, &b, depthA - depthB)
         : std::make_tuple(&b, &a, depthB - depthA);
     decltype(x) distinctAncestorA = nullptr;
     for (decltype(difference) i = 0; i < difference; ++i) {
         distinctAncestorA = x;
-        x = x->parentInComposedTree();
+        x = parent<treeType>(*x);
     }
     decltype(y) distinctAncestorB = nullptr;
     while (x != y) {
         distinctAncestorA = x;
         distinctAncestorB = y;
-        x = x->parentInComposedTree();
-        y = y->parentInComposedTree();
+        x = parent<treeType>(*x);
+        y = parent<treeType>(*y);
     }
     if (depthA < depthB)
         std::swap(distinctAncestorA, distinctAncestorB);
     return { x, distinctAncestorA, distinctAncestorB };
 }
 
-// FIXME: This function's name is not explicit about the fact that it's the common inclusive ancestor in the composed tree.
-RefPtr<Node> commonInclusiveAncestor(Node& a, Node& b)
+template<TreeType treeType> Node* commonInclusiveAncestor(const Node& a, const Node& b)
 {
-    return const_cast<Node*>(commonInclusiveAncestorAndChildren(a, b).commonAncestor);
+    return const_cast<Node*>(commonInclusiveAncestorAndChildren<treeType>(a, b).commonAncestor);
 }
+
+template Node* commonInclusiveAncestor<Tree>(const Node&, const Node&);
+template Node* commonInclusiveAncestor<ComposedTree>(const Node&, const Node&);
 
 static bool isSiblingSubsequent(const Node& siblingA, const Node& siblingB)
 {
@@ -2651,11 +2702,11 @@ static bool isSiblingSubsequent(const Node& siblingA, const Node& siblingB)
     return false;
 }
 
-PartialOrdering documentOrder(const Node& a, const Node& b)
+template<TreeType treeType> PartialOrdering treeOrder(const Node& a, const Node& b)
 {
     if (&a == &b)
         return PartialOrdering::equivalent;
-    auto result = commonInclusiveAncestorAndChildren(a, b);
+    auto result = commonInclusiveAncestorAndChildren<treeType>(a, b);
     if (!result.commonAncestor)
         return PartialOrdering::unordered;
     if (!result.distinctAncestorA)
@@ -2673,6 +2724,24 @@ PartialOrdering documentOrder(const Node& a, const Node& b)
         return PartialOrdering::unordered;
     }
     return isSiblingSubsequent(*result.distinctAncestorA, *result.distinctAncestorB) ? PartialOrdering::less : PartialOrdering::greater;
+}
+
+template PartialOrdering treeOrder<Tree>(const Node&, const Node&);
+template PartialOrdering treeOrder<ShadowIncludingTree>(const Node&, const Node&);
+template PartialOrdering treeOrder<ComposedTree>(const Node&, const Node&);
+
+PartialOrdering treeOrderForTesting(TreeType type, const Node& a, const Node& b)
+{
+    switch (type) {
+    case Tree:
+        return treeOrder<Tree>(a, b);
+    case ShadowIncludingTree:
+        return treeOrder<ShadowIncludingTree>(a, b);
+    case ComposedTree:
+        return treeOrder<ComposedTree>(a, b);
+    }
+    ASSERT_NOT_REACHED();
+    return PartialOrdering::unordered;
 }
 
 TextStream& operator<<(TextStream& ts, const Node& node)

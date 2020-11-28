@@ -76,18 +76,18 @@ ExceptionOr<void> AudioWorkletGlobalScope::registerProcessor(String&& name, Ref<
         return Exception { TypeError, "Class definitition passed to registerProcessor() is not a constructor"_s };
 
     auto prototype = jsConstructor->getPrototype(vm, globalObject);
-    RETURN_IF_EXCEPTION(scope, Exception { TypeError });
+    RETURN_IF_EXCEPTION(scope, Exception { ExistingExceptionError });
 
     if (!prototype.isObject())
         return Exception { TypeError, "Class definitition passed to registerProcessor() has invalid prototype"_s };
 
     auto parameterDescriptorsValue = jsConstructor->get(globalObject, JSC::Identifier::fromString(vm, "parameterDescriptors"));
-    RETURN_IF_EXCEPTION(scope, Exception { TypeError });
+    RETURN_IF_EXCEPTION(scope, Exception { ExistingExceptionError });
 
     Vector<AudioParamDescriptor> parameterDescriptors;
     if (!parameterDescriptorsValue.isUndefined()) {
         parameterDescriptors = convert<IDLSequence<IDLDictionary<AudioParamDescriptor>>>(*globalObject, parameterDescriptorsValue);
-        RETURN_IF_EXCEPTION(scope, Exception { TypeError });
+        RETURN_IF_EXCEPTION(scope, Exception { ExistingExceptionError });
         UNUSED_PARAM(parameterDescriptors);
         HashSet<String> paramNames;
         for (auto& descriptor : parameterDescriptors) {
@@ -143,27 +143,11 @@ RefPtr<AudioWorkletProcessor> AudioWorkletGlobalScope::createProcessor(const Str
     return &jsProcessor.wrapped();
 }
 
-void AudioWorkletGlobalScope::prepareForTermination()
+void AudioWorkletGlobalScope::prepareForDestruction()
 {
-    if (auto* defaultTaskGroup = this->defaultTaskGroup())
-        defaultTaskGroup->stopAndDiscardAllTasks();
-    stopActiveDOMObjects();
-
     m_processorConstructorMap.clear();
 
-    // Event listeners would keep DOMWrapperWorld objects alive for too long. Also, they have references to JS objects,
-    // which become dangling once Heap is destroyed.
-    removeAllEventListeners();
-
-    // MicrotaskQueue and RejectedPromiseTracker reference Heap.
-    if (auto* eventLoop = this->existingEventLoop())
-        eventLoop->clearMicrotaskQueue();
-    removeRejectedPromiseTracker();
-}
-
-void AudioWorkletGlobalScope::postTask(Task&& task)
-{
-    thread().runLoop().postTask(WTFMove(task));
+    WorkletGlobalScope::prepareForDestruction();
 }
 
 std::unique_ptr<AudioWorkletProcessorConstructionData> AudioWorkletGlobalScope::takePendingProcessorConstructionData()

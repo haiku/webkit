@@ -1,3 +1,98 @@
+2020-11-04  David Kilzer  <ddkilzer@apple.com>
+
+        WebKit should remove unused debug variant support
+        <https://webkit.org/b/218315>
+        <rdar://problem/70785369>
+
+        Reviewed by Darin Adler.
+
+        Remove support for building the debug variant since it is
+        currently unused. We now set default values for the
+        DEAD_CODE_STRIPPING, DEBUG_DEFINES, GCC_OPTIMIZATION_LEVEL and
+        STRIP_INSTALLED_PRODUCT variables.
+
+        Also move these values out of the Xcode project into
+        Base.xcconfig files using the [config=Debug] specifier so that
+        these overrides are next to the definitions.
+
+        Additional changes in behavior are noted below.
+
+        * Configurations/ANGLE-dynamic.xcconfig:
+        - Move DEBUG_DEFINES to Base.xcconfig.
+        - Set up DEAD_CODE_STRIPPING and STRIP_INSTALLED_PRODUCT the
+          same as for other WebKit projects. Previously dead code and
+          symbols were never stipped in Release or Production builds.
+
+        * Configurations/ANGLE-static.xcconfig:
+        - Move DEBUG_DEFINES to Base.xcconfig.
+
+        * Configurations/Base.xcconfig:
+        - Set up DEBUG_DEFINES and GCC_OPTIMIZATION_LEVEL the same as
+          other WebKit projects. Previously Debug builds were built with
+          -Os instead of -O0.
+
+2020-11-03  David Kilzer  <ddkilzer@apple.com>
+
+        Stop building ANGLE source files twice
+        <https://webkit.org/b/218469>
+
+        Reviewed by Dean Jackson.
+
+        * ANGLE.xcodeproj/project.pbxproj:
+        (ANGLE (dynamic)):
+        - Replace sources with empty.cpp. Xcode requires a single source
+          file to be compiled to create a dylib, even if the static
+          library contains all necessary symbols.
+        - Add dependency on "ANGLE (static)" target.
+        * Configurations/ANGLE-dynamic.xcconfig:
+        (ANGLE_OTHER_LDFLAGS):
+        - Add $(ANGLE_STATIC_LIB_OTHER_LDFLAGS).
+        (ANGLE_STATIC_LIB_OTHER_LDFLAGS): Add.
+        - Special linker command-line switch to load all symbols from
+          libANGLE.a when linking libANGLE-shared.dylib.
+        * src/empty.cpp: Add.
+        - See above why this is needed by Xcode.
+
+2020-10-12  Dean Jackson  <dino@apple.com>
+
+        Add schemes for ANGLE to Xcode project
+        https://bugs.webkit.org/show_bug.cgi?id=217546
+        rdar://69062082
+
+        Reviewed by Alex Christensen.
+
+        * ANGLE.xcodeproj/xcshareddata/xcschemes/ANGLE (dynamic).xcscheme: Added.
+        * ANGLE.xcodeproj/xcshareddata/xcschemes/ANGLE (static).xcscheme: Added.
+        * ANGLE.xcodeproj/xcshareddata/xcschemes/ANGLE.xcscheme: Added.
+
+2020-10-28  Tim Horton  <timothy_horton@apple.com>
+
+        macCatalyst WebGL on Apple Silicon devices is using a software renderer
+        https://bugs.webkit.org/show_bug.cgi?id=218303
+        <rdar://problem/70587571>
+
+        Reviewed by Geoffrey Garen.
+
+        * src/gpu_info_util/SystemInfo.h:
+        * src/gpu_info_util/SystemInfo_apple.mm:
+        (angle::GetSystemInfo):
+        We can just use the macOS version of GetSystemInfo in macCatalyst.
+
+        * src/gpu_info_util/SystemInfo_macos.mm:
+        (angle::GetSystemInfo_mac):
+        * src/libANGLE/Display.cpp:
+        * src/libANGLE/formatutils.cpp:
+        (gl::BuildInternalFormatInfoMap):
+        * src/libANGLE/renderer/gl/renderergl_utils.cpp:
+        (rx::nativegl_gl::GenerateCaps):
+        It turns out we must use EAGL in macCatalyst on Apple Silicon in all cases,
+        not just in-process in iOS apps (the problem is not just about coexistence
+        of the two GLs, but actually about our ability to load the accelerated
+        renderer /at all/ in macCatalyst processes).
+
+        I left the runtime switching in place, because there is a future in which
+        we /can/ use CGL in non-iOS-app processes, but that future is not now.
+
 2020-10-13  Keith Rollin  <krollin@apple.com>
 
         Remove leftover MACOSX_DEPLOYMENT_TARGET_macosx support

@@ -50,20 +50,19 @@ using namespace JSC;
 
 // Functions
 
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_has);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_entries);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_keys);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_values);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_forEach);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_add);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_clear);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_delete);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_has);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_entries);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_keys);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_values);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_forEach);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_add);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_clear);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikePrototypeFunction_delete);
 
 // Attributes
 
-JSC_DECLARE_CUSTOM_GETTER(jsTestSetLikeConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestSetLikeConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsTestSetLike_size);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestSetLikeConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestSetLike_size);
 
 class JSTestSetLikePrototype final : public JSC::JSNonFinalObject {
 public:
@@ -118,7 +117,7 @@ template<> const ClassInfo JSTestSetLikeDOMConstructor::s_info = { "TestSetLike"
 
 static const HashTableValue JSTestSetLikePrototypeTableValues[] =
 {
-    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestSetLikeConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestSetLikeConstructor) } },
+    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestSetLikeConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
     { "size", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum | JSC::PropertyAttribute::ReadOnly | JSC::PropertyAttribute::CustomAccessor), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestSetLike_size), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
     { "has", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum | JSC::PropertyAttribute::Function), NoIntrinsic, { (intptr_t)static_cast<RawNativeFunction>(jsTestSetLikePrototypeFunction_has), (intptr_t) (1) } },
     { "entries", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum | JSC::PropertyAttribute::Function), NoIntrinsic, { (intptr_t)static_cast<RawNativeFunction>(jsTestSetLikePrototypeFunction_entries), (intptr_t) (0) } },
@@ -195,19 +194,6 @@ JSC_DEFINE_CUSTOM_GETTER(jsTestSetLikeConstructor, (JSGlobalObject* lexicalGloba
     if (UNLIKELY(!prototype))
         return throwVMTypeError(lexicalGlobalObject, throwScope);
     return JSValue::encode(JSTestSetLike::getConstructor(JSC::getVM(lexicalGlobalObject), prototype->globalObject()));
-}
-
-JSC_DEFINE_CUSTOM_SETTER(setJSTestSetLikeConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
-{
-    VM& vm = JSC::getVM(lexicalGlobalObject);
-    auto throwScope = DECLARE_THROW_SCOPE(vm);
-    auto* prototype = jsDynamicCast<JSTestSetLikePrototype*>(vm, JSValue::decode(thisValue));
-    if (UNLIKELY(!prototype)) {
-        throwVMTypeError(lexicalGlobalObject, throwScope);
-        return false;
-    }
-    // Shadowing a built-in constructor
-    return prototype->putDirect(vm, vm.propertyNames->constructor, JSValue::decode(encodedValue));
 }
 
 static inline JSValue jsTestSetLike_sizeGetter(JSGlobalObject& lexicalGlobalObject, JSTestSetLike& thisObject)

@@ -34,6 +34,8 @@ http/tests/gzip-content-encoding [ Pass ]
 
 imported/w3c/web-platform-tests/dom/events/document-level-touchmove-event-listener-passive-by-default.html [ Pass ]
 
+imported/w3c/web-platform-tests/speech-api/ [ Pass ]
+
 #//////////////////////////////////////////////////////////////////////////////////////////
 # End platform-specific directories.
 #//////////////////////////////////////////////////////////////////////////////////////////
@@ -82,27 +84,7 @@ fast/history/page-cache-running-audiocontext.html
 fast/history/page-cache-suspended-audiocontext.html
 
 # No wheel events on iOS
-fast/events/continuous-platform-wheelevent-in-scrolling-div.html [ Skip ]
-fast/events/platform-wheelevent-in-scrolling-div.html [ Skip ]
-fast/events/platform-wheelevent-paging-x-in-non-scrolling-div.html [ Skip ]
-fast/events/platform-wheelevent-paging-x-in-non-scrolling-page.html [ Skip ]
-fast/events/platform-wheelevent-paging-x-in-scrolling-div.html [ Skip ]
-fast/events/platform-wheelevent-paging-x-in-scrolling-page.html [ Skip ]
-fast/events/platform-wheelevent-paging-xy-in-scrolling-div.html [ Skip ]
-fast/events/platform-wheelevent-paging-xy-in-scrolling-page.html [ Skip ]
-fast/events/platform-wheelevent-paging-y-in-non-scrolling-div.html [ Skip ]
-fast/events/platform-wheelevent-paging-y-in-non-scrolling-page.html [ Skip ]
-fast/events/platform-wheelevent-paging-y-in-scrolling-div.html [ Skip ]
-fast/events/platform-wheelevent-paging-y-in-scrolling-page.html [ Skip ]
-fast/events/wheel-event-destroys-frame.html [ Skip ]
-fast/events/wheel-event-destroys-overflow.html [ Skip ]
-fast/events/wheel-event-outside-body.html [ Skip ]
-fast/events/wheelevent-basic.html [ Skip ]
-fast/events/wheelevent-direction-inverted-from-device.html [ Skip ]
-fast/events/wheelevent-in-horizontal-scrollbar-in-rtl.html [ Skip ]
-fast/events/wheelevent-in-text-node.html [ Skip ]
-fast/events/wheelevent-in-vertical-scrollbar-in-rtl.html [ Skip ]
-fast/events/wheelevent-mousewheel-interaction.html [ Skip ]
+fast/events/wheel [ Skip ]
 fast/scrolling/iframe-scrollable-after-back.html [ Skip ]
 fast/scrolling/overflow-scrollable-after-back.html [ Skip ]
 fast/scrolling/programmatic-scroll-to-zero-zero.html [ Skip ]
@@ -2336,7 +2318,7 @@ fast/css/pseudo-visited-background-color-on-input.html [ ImageOnlyFailure ]
 fast/forms/select-size.html [ ImageOnlyFailure ]
 fast/inline/inline-with-outline-offset.html [ ImageOnlyFailure ]
 fast/inline/outline-corners-with-offset.html [ ImageOnlyFailure ]
-fast/overflow/overflow-hidden-scroll-into-view.html [ Pass ImageOnlyFailure ]
+fast/overflow/scrollIntoView-overflow-hidden.html [ Pass ImageOnlyFailure ]
 fast/sub-pixel/table-with-subpixel-cell-size.html [ ImageOnlyFailure ]
 svg/text/tspan-multiple-outline.svg [ ImageOnlyFailure ]
 fast/animation/height-auto-transition-computed-value.html [ ImageOnlyFailure ]
@@ -3493,11 +3475,18 @@ imported/w3c/web-platform-tests/xhr/access-control-basic-post-success-no-content
 
 webkit.org/b/215515 imported/w3c/web-platform-tests/user-timing/measure_navigation_timing.html [ Pass Failure ]
 
-# <rdar://68947198> [ macOS iOS ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-connections.html
-imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-connections.html [ Pass Failure ]
-
 #<rdar://68952824> [ macOS iOS wk2 ] media/media-continues-playing-after-replace-source.html is a flaky failure
 media/media-continues-playing-after-replace-source.html [ Pass Failure ]
 
+imported/w3c/web-platform-tests/speech-api/SpeechSynthesis-speak-twice.html [ Skip ]
+imported/w3c/web-platform-tests/speech-api/SpeechSynthesis-speak-with-activation-succeeds.html [ Skip ]
+imported/w3c/web-platform-tests/speech-api/SpeechSynthesis-speak-without-activation-fails.tentative.html [ Skip ]
+
 # This test fails in iOS due to subpixel differences for the marker position
 imported/w3c/web-platform-tests/css/css-lists/list-style-type-string-002.html [ ImageOnlyFailure ]
+
+# These tests are for iOS port. Should be pass.
+fast/shadow-dom/ios/ [ Pass ]
+
+# https://bugs.webkit.org/show_bug.cgi?id=217156
+fast/forms/defaultValue-clobbering.html [ Failure ]

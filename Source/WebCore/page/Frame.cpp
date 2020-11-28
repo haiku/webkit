@@ -148,12 +148,12 @@ static inline float parentTextZoomFactor(Frame* frame)
 
 Frame::Frame(Page& page, HTMLFrameOwnerElement* ownerElement, UniqueRef<FrameLoaderClient>&& frameLoaderClient)
     : m_mainFrame(ownerElement ? page.mainFrame() : *this)
-    , m_page(&page)
+    , m_page(makeWeakPtr(page))
     , m_settings(&page.settings())
     , m_treeNode(*this, parentFromOwnerElement(ownerElement))
     , m_loader(makeUniqueRef<FrameLoader>(*this, WTFMove(frameLoaderClient)))
     , m_navigationScheduler(makeUniqueRef<NavigationScheduler>(*this))
-    , m_ownerElement(ownerElement)
+    , m_ownerElement(makeWeakPtr(ownerElement))
     , m_script(makeUniqueRef<ScriptController>(*this))
     , m_pageZoomFactor(parentPageZoomFactor(this))
     , m_textZoomFactor(parentTextZoomFactor(this))
@@ -163,7 +163,7 @@ Frame::Frame(Page& page, HTMLFrameOwnerElement* ownerElement, UniqueRef<FrameLoa
 
     if (ownerElement) {
         m_mainFrame.selfOnlyRef();
-        ownerElement->setContentFrame(this);
+        ownerElement->setContentFrame(*this);
     }
 
 #ifndef NDEBUG
@@ -207,14 +207,24 @@ Frame::~Frame()
         m_mainFrame.selfOnlyDeref();
 }
 
-void Frame::addDestructionObserver(FrameDestructionObserver* observer)
+Page* Frame::page() const
 {
-    m_destructionObservers.add(observer);
+    return m_page.get();
 }
 
-void Frame::removeDestructionObserver(FrameDestructionObserver* observer)
+HTMLFrameOwnerElement* Frame::ownerElement() const
 {
-    m_destructionObservers.remove(observer);
+    return m_ownerElement.get();
+}
+
+void Frame::addDestructionObserver(FrameDestructionObserver& observer)
+{
+    m_destructionObservers.add(&observer);
+}
+
+void Frame::removeDestructionObserver(FrameDestructionObserver& observer)
+{
+    m_destructionObservers.remove(&observer);
 }
 
 void Frame::setView(RefPtr<FrameView>&& view)
@@ -300,26 +310,33 @@ void Frame::setDocument(RefPtr<Document>&& newDocument)
     m_documentIsBeingReplaced = false;
 }
 
-void Frame::invalidateContentEventRegionsIfNeeded()
+void Frame::invalidateContentEventRegionsIfNeeded(InvalidateContentEventRegionsReason reason)
 {
     if (!m_page || !m_doc || !m_doc->renderView())
         return;
-    bool hasWheelEventHandlers = false;
-    bool hasTouchActionElements = false;
-    bool hasEditableElements = false;
+
+    bool needsUpdateForWheelEventHandlers = false;
+    bool needsUpdateForTouchActionElements = false;
+    bool needsUpdateForEditableElements = false;
 #if ENABLE(WHEEL_EVENT_REGIONS)
-    hasWheelEventHandlers = m_doc->hasWheelEventHandlers();
+    needsUpdateForWheelEventHandlers = m_doc->hasWheelEventHandlers() || reason == InvalidateContentEventRegionsReason::EventHandlerChange;
+#else
+    UNUSED_PARAM(reason);
 #endif
 #if ENABLE(TOUCH_ACTION_REGIONS)
-    hasTouchActionElements = m_doc->mayHaveElementsWithNonAutoTouchAction();
+    // Document::mayHaveElementsWithNonAutoTouchAction never changes from true to false currently.
+    needsUpdateForTouchActionElements = m_doc->mayHaveElementsWithNonAutoTouchAction();
 #endif
 #if ENABLE(EDITABLE_REGION)
-    hasEditableElements = m_doc->mayHaveEditableElements() && m_page->shouldBuildEditableRegion();
+    // Document::mayHaveEditableElements never changes from true to false currently.
+    needsUpdateForEditableElements = m_doc->mayHaveEditableElements() && m_page->shouldBuildEditableRegion();
 #endif
-    if (!hasTouchActionElements && !hasEditableElements && !hasWheelEventHandlers)
+    if (!needsUpdateForTouchActionElements && !needsUpdateForEditableElements && !needsUpdateForWheelEventHandlers)
         return;
+
     if (!m_doc->renderView()->compositor().viewNeedsToInvalidateEventRegionOfEnclosingCompositingLayerForRepaint())
         return;
+
     if (m_ownerElement)
         m_ownerElement->document().invalidateEventRegionsForFrame(*m_ownerElement);
 }
@@ -711,7 +728,7 @@ RenderView* Frame::contentRenderer() const
 
 RenderWidget* Frame::ownerRenderer() const
 {
-    auto* ownerElement = m_ownerElement;
+    auto* ownerElement = m_ownerElement.get();
     if (!ownerElement)
         return nullptr;
     auto* object = ownerElement->renderer();
@@ -1065,6 +1082,23 @@ bool Frame::mayPrewarmLocalStorage() const
 {
     ASSERT(isMainFrame());
     return m_localStoragePrewarmingCount < maxlocalStoragePrewarmingCount;
+}
+
+FloatSize Frame::screenSize() const
+{
+    if (!m_overrideScreenSize.isEmpty())
+        return m_overrideScreenSize;
+    return screenRect(view()).size();
+}
+
+void Frame::setOverrideScreenSize(FloatSize&& screenSize)
+{
+    if (m_overrideScreenSize == screenSize)
+        return;
+
+    m_overrideScreenSize = WTFMove(screenSize);
+    if (auto* document = this->document())
+        document->updateViewportArguments();
 }
 
 void Frame::selfOnlyRef()

@@ -113,7 +113,7 @@ private:
     void fillChildrenVectorForProperty(AXPropertyName, AccessibilityChildrenVector&) const;
     void setMathscripts(AXPropertyName, AXCoreObject&);
     void insertMathPairs(Vector<std::pair<AXID, AXID>>&, AccessibilityMathMultiscriptPairs&);
-    template<typename U> void performFunctionOnMainThread(U&&);
+    template<typename U> void performFunctionOnMainThread(U&&) const;
 
     // Attribute retrieval overrides.
     bool isHeading() const override { return boolAttributeValue(AXPropertyName::IsHeading); }
@@ -386,19 +386,19 @@ private:
     unsigned selectionStart() const override { return 0; }
     unsigned selectionEnd() const override { return 0; }
     String selectedText() const override { return String(); }
-    VisiblePositionRange visiblePositionRange() const override { return VisiblePositionRange(); }
-    VisiblePositionRange visiblePositionRangeForLine(unsigned) const override { return VisiblePositionRange(); }
+    VisiblePositionRange visiblePositionRange() const override;
+    VisiblePositionRange visiblePositionRangeForLine(unsigned) const override;
     Optional<SimpleRange> elementRange() const override;
-    VisiblePositionRange visiblePositionRangeForUnorderedPositions(const VisiblePosition&, const VisiblePosition&) const override { return VisiblePositionRange(); }
-    VisiblePositionRange positionOfLeftWord(const VisiblePosition&) const override { return VisiblePositionRange(); }
-    VisiblePositionRange positionOfRightWord(const VisiblePosition&) const override { return VisiblePositionRange(); }
-    VisiblePositionRange leftLineVisiblePositionRange(const VisiblePosition&) const override { return VisiblePositionRange(); }
-    VisiblePositionRange rightLineVisiblePositionRange(const VisiblePosition&) const override { return VisiblePositionRange(); }
-    VisiblePositionRange sentenceForPosition(const VisiblePosition&) const override { return VisiblePositionRange(); }
-    VisiblePositionRange paragraphForPosition(const VisiblePosition&) const override { return VisiblePositionRange(); }
-    VisiblePositionRange styleRangeForPosition(const VisiblePosition&) const override { return VisiblePositionRange(); }
-    VisiblePositionRange visiblePositionRangeForRange(const PlainTextRange&) const override { return VisiblePositionRange(); }
-    VisiblePositionRange lineRangeForPosition(const VisiblePosition&) const override { return VisiblePositionRange(); }
+    VisiblePositionRange visiblePositionRangeForUnorderedPositions(const VisiblePosition&, const VisiblePosition&) const override;
+    VisiblePositionRange positionOfLeftWord(const VisiblePosition&) const override;
+    VisiblePositionRange positionOfRightWord(const VisiblePosition&) const override;
+    VisiblePositionRange leftLineVisiblePositionRange(const VisiblePosition&) const override;
+    VisiblePositionRange rightLineVisiblePositionRange(const VisiblePosition&) const override;
+    VisiblePositionRange sentenceForPosition(const VisiblePosition&) const override;
+    VisiblePositionRange paragraphForPosition(const VisiblePosition&) const override;
+    VisiblePositionRange styleRangeForPosition(const VisiblePosition&) const override;
+    VisiblePositionRange visiblePositionRangeForRange(const PlainTextRange&) const override;
+    VisiblePositionRange lineRangeForPosition(const VisiblePosition&) const override;
     Optional<SimpleRange> rangeForPlainTextRange(const PlainTextRange&) const override { return WTF::nullopt; }
     String stringForRange(const SimpleRange&) const override;
     IntRect boundsForVisiblePositionRange(const VisiblePositionRange&) const override { return IntRect(); }
@@ -455,9 +455,9 @@ private:
     void increment() override;
     void decrement() override;
     bool performDismissAction() override;
-    void scrollToMakeVisible() const override { }
-    void scrollToMakeVisibleWithSubFocus(const IntRect&) const override { }
-    void scrollToGlobalPoint(const IntPoint&) const override { }
+    void scrollToMakeVisible() const override;
+    void scrollToMakeVisibleWithSubFocus(const IntRect&) const override;
+    void scrollToGlobalPoint(const IntPoint&) const override;
     bool replaceTextInRange(const String&, const PlainTextRange&) override;
     bool insertText(const String&) override;
     void makeRangeVisible(const PlainTextRange&) override { }
@@ -503,7 +503,7 @@ private:
     bool isPressed() const override;
     bool isUnvisited() const override { return boolAttributeValue(AXPropertyName::IsUnvisited); }
     bool isLinked() const override;
-    bool isVisible() const override;
+    bool isVisible() const override { return boolAttributeValue(AXPropertyName::IsVisible); }
     bool isCollapsed() const override;
     bool isSelectedOptionActive() const override;
     bool hasBoldFont() const override { return boolAttributeValue(AXPropertyName::HasBoldFont); }

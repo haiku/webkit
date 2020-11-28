@@ -54,25 +54,23 @@ using namespace JSC;
 
 // Functions
 
-JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_testWorkerPromise);
-JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_calculateSecretResult);
-JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_getSecretBoolean);
+static JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_testWorkerPromise);
+static JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_calculateSecretResult);
+static JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_getSecretBoolean);
 #if ENABLE(TEST_FEATURE)
-JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_testFeatureGetSecretBoolean);
+static JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_testFeatureGetSecretBoolean);
 #endif
-JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_toJSON);
-JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_SymbolIterator);
-JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_entries);
-JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_keys);
-JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_values);
-JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_forEach);
+static JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_toJSON);
+static JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_entries);
+static JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_keys);
+static JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_values);
+static JSC_DECLARE_HOST_FUNCTION(jsTestNodePrototypeFunction_forEach);
 
 // Attributes
 
-JSC_DECLARE_CUSTOM_GETTER(jsTestNodeConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestNodeConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsTestNode_name);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestNode_name);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestNodeConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestNode_name);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestNode_name);
 
 class JSTestNodePrototype final : public JSC::JSNonFinalObject {
 public:
@@ -143,7 +141,7 @@ template<> const ClassInfo JSTestNodeDOMConstructor::s_info = { "TestNode", &Bas
 
 static const HashTableValue JSTestNodePrototypeTableValues[] =
 {
-    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestNodeConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestNodeConstructor) } },
+    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestNodeConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
     { "name", static_cast<unsigned>(JSC::PropertyAttribute::CustomAccessor | JSC::PropertyAttribute::DOMAttribute), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestNode_name), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestNode_name) } },
     { "testWorkerPromise", static_cast<unsigned>(JSC::PropertyAttribute::Function), NoIntrinsic, { (intptr_t)static_cast<RawNativeFunction>(jsTestNodePrototypeFunction_testWorkerPromise), (intptr_t) (0) } },
     { "calculateSecretResult", static_cast<unsigned>(JSC::PropertyAttribute::Function), NoIntrinsic, { (intptr_t)static_cast<RawNativeFunction>(jsTestNodePrototypeFunction_calculateSecretResult), (intptr_t) (0) } },
@@ -273,19 +271,6 @@ JSC_DEFINE_CUSTOM_GETTER(jsTestNodeConstructor, (JSGlobalObject* lexicalGlobalOb
     if (UNLIKELY(!prototype))
         return throwVMTypeError(lexicalGlobalObject, throwScope);
     return JSValue::encode(JSTestNode::getConstructor(JSC::getVM(lexicalGlobalObject), prototype->globalObject()));
-}
-
-JSC_DEFINE_CUSTOM_SETTER(setJSTestNodeConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
-{
-    VM& vm = JSC::getVM(lexicalGlobalObject);
-    auto throwScope = DECLARE_THROW_SCOPE(vm);
-    auto* prototype = jsDynamicCast<JSTestNodePrototype*>(vm, JSValue::decode(thisValue));
-    if (UNLIKELY(!prototype)) {
-        throwVMTypeError(lexicalGlobalObject, throwScope);
-        return false;
-    }
-    // Shadowing a built-in constructor
-    return prototype->putDirect(vm, vm.propertyNames->constructor, JSValue::decode(encodedValue));
 }
 
 static inline JSValue jsTestNode_nameGetter(JSGlobalObject& lexicalGlobalObject, JSTestNode& thisObject)

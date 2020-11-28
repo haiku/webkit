@@ -378,7 +378,7 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
     case ArrayPush:
         return node->arrayMode().alreadyChecked(graph, node, state.forNode(graph.varArgChild(node, 1)));
 
-    case CheckNeutered:
+    case CheckDetached:
     case GetTypedArrayByteOffset:
         return !(state.forNode(node->child1()).m_type & ~(SpecTypedArrayView));
             
@@ -529,6 +529,8 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
     case PutSetterByVal:
     case PutPrivateName:
     case PutPrivateNameById:
+    case GetPrivateName:
+    case GetPrivateNameById:
     case DefineDataProperty:
     case DefineAccessorProperty:
     case Arrayify:

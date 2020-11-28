@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007, 2008, 2009, 2010 Apple Inc. All rights reserved.
+ * Copyright (C) 2007-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,7 +38,7 @@ class ImageBuffer;
 class RenderVideo;
 class PictureInPictureObserver;
 
-enum class ShouldAccelerate : bool;
+enum class RenderingMode : bool;
 
 class HTMLVideoElement final : public HTMLMediaElement, public Supplementable<HTMLVideoElement> {
     WTF_MAKE_ISO_ALLOCATED(HTMLVideoElement);
@@ -70,18 +70,18 @@ public:
     void webkitRequestFullscreen() override;
 #endif
 
-    std::unique_ptr<ImageBuffer> createBufferForPainting(const FloatSize&, ShouldAccelerate) const;
+    RefPtr<ImageBuffer> createBufferForPainting(const FloatSize&, RenderingMode) const;
 
     // Used by canvas to gain raw pixel access
     void paintCurrentFrameInContext(GraphicsContext&, const FloatRect&);
 
-    NativeImagePtr nativeImageForCurrentTime();
+    RefPtr<NativeImage> nativeImageForCurrentTime();
 
     // Used by WebGL to do GPU-GPU textures copy if possible.
     // See more details at MediaPlayer::copyVideoTextureToPlatformTexture() defined in Source/WebCore/platform/graphics/MediaPlayer.h.
-    bool copyVideoTextureToPlatformTexture(GraphicsContextGLOpenGL*, PlatformGLObject texture, GCGLenum target, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY);
+    bool copyVideoTextureToPlatformTexture(GraphicsContextGL*, PlatformGLObject texture, GCGLenum target, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY);
 
-    bool shouldDisplayPosterImage() const { return displayMode() == Poster || displayMode() == PosterWaitingForVideo; }
+    WEBCORE_EXPORT bool shouldDisplayPosterImage() const;
 
     URL posterImageURL() const;
     RenderPtr<RenderElement> createElementRenderer(RenderStyle&&, const RenderTreePosition&) final;
@@ -96,10 +96,7 @@ public:
     WEBCORE_EXPORT void setPresentationMode(VideoPresentationMode);
     WEBCORE_EXPORT void didEnterFullscreenOrPictureInPicture(const FloatSize&);
     WEBCORE_EXPORT void didExitFullscreenOrPictureInPicture();
-
-#if ENABLE(FULLSCREEN_API) && ENABLE(VIDEO_USES_ELEMENT_FULLSCREEN)
-    WEBCORE_EXPORT void didBecomeFullscreenElement() final;
-#endif
+    WEBCORE_EXPORT bool isChangingPresentationMode() const;
 
     void setVideoFullscreenFrame(const FloatRect&) final;
 
@@ -130,10 +127,10 @@ private:
     bool isURLAttribute(const Attribute&) const final;
     const AtomString& imageSourceURL() const final;
 
-    bool hasAvailableVideoFrame() const;
-    void updateDisplayState() final;
     void didMoveToNewDocument(Document& oldDocument, Document& newDocument) final;
-    void setDisplayMode(DisplayMode) final;
+
+    bool hasAvailableVideoFrame() const;
+    void mediaPlayerFirstVideoFrameAvailable() final;
 
     PlatformMediaSession::MediaType presentationType() const final { return PlatformMediaSession::MediaType::Video; }
 
@@ -143,11 +140,10 @@ private:
 
     unsigned m_lastReportedVideoWidth { 0 };
     unsigned m_lastReportedVideoHeight { 0 };
-    bool m_isChangingVideoFullscreenMode { false };
 
 #if ENABLE(VIDEO_PRESENTATION_MODE)
-    bool m_isEnteringPictureInPicture { false };
-    bool m_isExitingPictureInPicture { false };
+    bool m_enteringPictureInPicture { false };
+    bool m_exitingPictureInPicture { false };
 #endif
 
 #if ENABLE(PICTURE_IN_PICTURE_API)

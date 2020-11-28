@@ -69,13 +69,15 @@ private:
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) final;
     void createH264Decoder(RTCDecoderIdentifier);
     void createH265Decoder(RTCDecoderIdentifier);
+    void createVP9Decoder(RTCDecoderIdentifier);
     void releaseDecoder(RTCDecoderIdentifier);
     void decodeFrame(RTCDecoderIdentifier, uint32_t timeStamp, const IPC::DataReference&);
+    void setFrameSize(RTCDecoderIdentifier, uint16_t width, uint16_t height);
 
-    void createEncoder(RTCEncoderIdentifier, const String&, const Vector<std::pair<String, String>>&);
+    void createEncoder(RTCEncoderIdentifier, const String&, const Vector<std::pair<String, String>>&, bool useLowLatency);
     void releaseEncoder(RTCEncoderIdentifier);
     void initializeEncoder(RTCEncoderIdentifier, uint16_t width, uint16_t height, unsigned startBitrate, unsigned maxBitrate, unsigned minBitrate, uint32_t maxFramerate);
-    void encodeFrame(RTCEncoderIdentifier, WebCore::RemoteVideoSample&&, bool shouldEncodeAsKeyFrame);
+    void encodeFrame(RTCEncoderIdentifier, WebCore::RemoteVideoSample&&, uint32_t timeStamp, bool shouldEncodeAsKeyFrame);
     void setEncodeRates(RTCEncoderIdentifier, uint32_t bitRate, uint32_t frameRate);
 
     CFDictionaryRef ioSurfacePixelBufferCreationOptions(IOSurfaceRef);

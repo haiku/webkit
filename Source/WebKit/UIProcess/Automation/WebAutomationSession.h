@@ -125,6 +125,7 @@ public:
     void inspectorFrontendLoaded(const WebPageProxy&);
     void keyboardEventsFlushedForPage(const WebPageProxy&);
     void mouseEventsFlushedForPage(const WebPageProxy&);
+    void wheelEventsFlushedForPage(const WebPageProxy&);
     void willClosePage(const WebPageProxy&);
     void handleRunOpenPanel(const WebPageProxy&, const WebFrameProxy&, const API::OpenPanelParameters&, WebOpenPanelResultListenerProxy&);
     void willShowJavaScriptDialog(WebPageProxy&);
@@ -153,6 +154,9 @@ public:
 #endif
 #if ENABLE(WEBDRIVER_KEYBOARD_INTERACTIONS)
     void simulateKeyboardInteraction(WebPageProxy&, KeyboardInteraction, WTF::Variant<VirtualKey, CharKey>&&, AutomationCompletionHandler&&);
+#endif
+#if ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
+    void simulateWheelInteraction(WebPageProxy&, const WebCore::IntPoint& locationInView, const WebCore::IntSize& delta, AutomationCompletionHandler&&);
 #endif
     void viewportInViewCenterPointOfElement(WebPageProxy&, Optional<WebCore::FrameIdentifier>, const Inspector::Protocol::Automation::NodeHandle&, Function<void(Optional<WebCore::IntPoint>, Optional<AutomationCommandError>)>&&);
 
@@ -208,7 +212,6 @@ public:
     bool isSimulatingUserInteraction() const;
 #if ENABLE(WEBDRIVER_ACTIONS_API)
     SimulatedInputDispatcher& inputDispatcherForPage(WebPageProxy&);
-    SimulatedInputSource* inputSourceForType(SimulatedInputSourceType) const;
 #endif
 
 #if PLATFORM(MAC)
@@ -263,6 +266,9 @@ private:
     // Simulates key presses to produce the codepoints in a string. One or more code points are delivered atomically at grapheme cluster boundaries.
     void platformSimulateKeySequence(WebPageProxy&, const String&);
 #endif // ENABLE(WEBDRIVER_KEYBOARD_INTERACTIONS)
+#if ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
+    void platformSimulateWheelInteraction(WebPageProxy&, const WebCore::IntPoint& locationInViewport, const WebCore::IntSize& delta);
+#endif // ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
 
     // Get base64-encoded PNG data from a bitmap.
     static Optional<String> platformGetBase64EncodedPNGData(const ShareableBitmap::Handle&);
@@ -306,6 +312,9 @@ private:
 #if ENABLE(WEBDRIVER_MOUSE_INTERACTIONS)
     HashMap<WebPageProxyIdentifier, Function<void(Optional<AutomationCommandError>)>> m_pendingMouseEventsFlushedCallbacksPerPage;
 #endif
+#if ENABLE(WEBDRIVER_WHEEL_INTERACTIONS)
+    HashMap<WebPageProxyIdentifier, Function<void(Optional<AutomationCommandError>)>> m_pendingWheelEventsFlushedCallbacksPerPage;
+#endif
 
     uint64_t m_nextEvaluateJavaScriptCallbackID { 1 };
     HashMap<uint64_t, RefPtr<Inspector::AutomationBackendDispatcherHandler::EvaluateJavaScriptFunctionCallback>> m_evaluateJavaScriptFunctionCallbacks;
@@ -327,7 +336,7 @@ private:
 #if ENABLE(WEBDRIVER_ACTIONS_API)
     // SimulatedInputDispatcher APIs take a set of input sources. We also intern these
     // so that previous input source state is used as initial state for later commands.
-    HashSet<Ref<SimulatedInputSource>> m_inputSources;
+    HashMap<String, Ref<SimulatedInputSource>> m_inputSources;
     HashMap<WebPageProxyIdentifier, Ref<SimulatedInputDispatcher>> m_inputDispatchersByPage;
 #endif
 #if ENABLE(WEBDRIVER_KEYBOARD_INTERACTIONS)

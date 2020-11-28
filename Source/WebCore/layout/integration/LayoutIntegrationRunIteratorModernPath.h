@@ -34,11 +34,6 @@ namespace WebCore {
 
 namespace LayoutIntegration {
 
-inline FloatRect verticallyRoundedRect(const FloatRect& rect)
-{
-    return { FloatPoint(rect.x(), roundf(rect.y())), rect.size() };
-}
-
 class RunIteratorModernPath {
 public:
     RunIteratorModernPath(const InlineContent& inlineContent)
@@ -54,23 +49,24 @@ public:
 
     bool isText() const { return !!run().textContent(); }
 
-    FloatRect rect() const { return verticallyRoundedRect(run().rect()); }
+    FloatRect rect() const { return run().rect(); }
 
     bool isHorizontal() const { return true; }
     bool dirOverride() const { return false; }
     bool isLineBreak() const { return run().isLineBreak(); }
 
-    unsigned minimumCaretOffset() const { return isText() ? localStartOffset() : 0; }
-    unsigned maximumCaretOffset() const { return isText() ? localEndOffset() : 1; }
+    unsigned minimumCaretOffset() const { return isText() ? start() : 0; }
+    unsigned maximumCaretOffset() const { return isText() ? end() : 1; }
 
     unsigned char bidiLevel() const { return 0; }
 
-    bool hasHyphen() const { return run().textContent()->needsHyphen(); }
-    StringView text() const { return run().textContent()->content(); }
-    unsigned localStartOffset() const { return run().textContent()->start(); }
-    unsigned localEndOffset() const { return run().textContent()->end(); }
+    bool hasHyphen() const { return run().textContent()->hasHyphen(); }
+    StringView text() const { return run().textContent()->originalContent(); }
+    unsigned start() const { return run().textContent()->start(); }
+    unsigned end() const { return run().textContent()->end(); }
     unsigned length() const { return run().textContent()->length(); }
 
+    // FIXME: Make a shared generic version of this.
     inline unsigned offsetForPosition(float x) const
     {
         if (isLineBreak())
@@ -82,42 +78,60 @@ public:
         if (localX < 0)
             return 0;
 
-        auto& style = run().style();
-
-        auto createTextRun = [&] {
-            auto expansion = run().expansion();
-            auto xPos = rect.x() - (line().rect().x() + line().horizontalAlignmentOffset());
-            TextRun textRun { text(), xPos, expansion.horizontalExpansion, expansion.behavior };
-            textRun.setTabSize(!style.collapseWhiteSpace(), style.tabSize());
-            return textRun;
-        };
-
         bool includePartialGlyphs = true;
-        return run().style().fontCascade().offsetForPosition(createTextRun(), localX, includePartialGlyphs);
+        return run().style().fontCascade().offsetForPosition(createTextRun(HyphenMode::Ignore), localX, includePartialGlyphs);
     }
 
-    bool isLastTextRunOnLine() const
+    // FIXME: Make a shared generic version of this.
+    float positionForOffset(unsigned offset) const
     {
-        if (isLastTextRun())
-            return true;
+        ASSERT(offset >= start());
+        ASSERT(offset <= end());
 
-        auto& next = runs()[m_runIndex + 1];
-        return run().lineIndex() != next.lineIndex();
+        if (isLineBreak())
+            return rect().x();
+
+        auto endOffset = clampedOffset(offset);
+
+        LayoutRect selectionRect = LayoutRect(rect().x(), 0, 0, 0);
+        TextRun textRun = createTextRun(HyphenMode::Ignore);
+        run().style().fontCascade().adjustSelectionRectForText(textRun, selectionRect, 0, endOffset);
+        return snapRectToDevicePixelsWithWritingDirection(selectionRect, renderer().document().deviceScaleFactor(), textRun.ltr()).maxX();
     }
 
-    bool isLastTextRun() const
+    bool isSelectable(unsigned start, unsigned end) const
     {
-        ASSERT(!atEnd());
-        ASSERT(run().textContent());
+        return clampedOffset(start) < clampedOffset(end);
+    }
 
-        if (m_runIndex + 1 == runs().size())
-            return true;
-        return &run().layoutBox() != &runs()[m_runIndex + 1].layoutBox();
-    };
+    LayoutRect selectionRect(unsigned rangeStart, unsigned rangeEnd) const
+    {
+        unsigned clampedStart = clampedOffset(rangeStart);
+        unsigned clampedEnd = clampedOffset(rangeEnd);
+
+        if (clampedStart >= clampedEnd && !(rangeStart == rangeEnd && rangeStart >= start() && rangeStart <= end()))
+            return { };
+
+        auto logicalLeft = LayoutUnit(isHorizontal() ? rect().x() : rect().y());
+        auto logicalRight = LayoutUnit(isHorizontal() ? rect().maxX() : rect().maxY());
+        auto logicalWidth = logicalRight - logicalLeft;
+
+        // FIXME: These should share implementation with the line iterator.
+        auto selectionTop = LayoutUnit::fromFloatRound(line().enclosingContentRect().y());
+        auto selectionHeight = LayoutUnit::fromFloatRound(line().enclosingContentRect().height());
+
+        LayoutRect selectionRect { logicalLeft, selectionTop, logicalWidth, selectionHeight };
+
+        TextRun textRun = createTextRun(HyphenMode::Include);
+        if (clampedStart || clampedEnd != textRun.length())
+            run().style().fontCascade().adjustSelectionRectForText(textRun, selectionRect, clampedStart, clampedEnd);
+
+        return snappedSelectionRect(selectionRect, logicalRight, selectionTop, selectionHeight, isHorizontal());
+    }
 
     const RenderObject& renderer() const
     {
-        return *m_inlineContent->rendererForLayoutBox(run().layoutBox());
+        return m_inlineContent->rendererForLayoutBox(run().layoutBox());
     }
 
     void traverseNextTextRun()
@@ -175,12 +189,41 @@ public:
 
     InlineBox* legacyInlineBox() const
     {
-        ASSERT_NOT_REACHED();
         return nullptr;
     }
 
 private:
     friend class RunIterator;
+
+    unsigned clampedOffset(unsigned offset) const
+    {
+        auto clampedOffset = std::max(start(), std::min(offset, end())) - start();
+        // We treat the last codepoint in this run and the hyphen as a single unit.
+        if (hasHyphen() && clampedOffset == length())
+            clampedOffset += run().style().hyphenString().length();
+
+        return clampedOffset;
+    }
+
+    enum class HyphenMode { Include, Ignore };
+    TextRun createTextRun(HyphenMode hyphenMode) const
+    {
+        auto& style = run().style();
+        auto expansion = run().expansion();
+        auto rect = this->rect();
+        auto xPos = rect.x() - (line().rect().x() + line().horizontalAlignmentOffset());
+
+        auto textForRun = [&] {
+            if (hyphenMode == HyphenMode::Ignore || !hasHyphen())
+                return text().toStringWithoutCopying();
+
+            return makeString(text(), style.hyphenString());
+        }();
+
+        TextRun textRun { textForRun, xPos, expansion.horizontalExpansion, expansion.behavior };
+        textRun.setTabSize(!style.collapseWhiteSpace(), style.tabSize());
+        return textRun;
+    };
 
     const InlineContent::Runs& runs() const { return m_inlineContent->runs; }
     const Run& run() const { return runs()[m_runIndex]; }

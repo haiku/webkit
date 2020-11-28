@@ -39,6 +39,7 @@
 #include "ScriptWrappable.h"
 #include <wtf/Forward.h>
 #include <wtf/RefCounted.h>
+#include <wtf/ThreadSafeRefCounted.h>
 #include <wtf/WeakPtr.h>
 #include <wtf/text/WTFString.h>
 #if ENABLE(WEBGL)
@@ -75,9 +76,9 @@ class DetachedOffscreenCanvas {
     friend class OffscreenCanvas;
 
 public:
-    DetachedOffscreenCanvas(std::unique_ptr<ImageBuffer>&&, const IntSize&, bool originClean);
+    DetachedOffscreenCanvas(RefPtr<ImageBuffer>&&, const IntSize&, bool originClean);
 
-    std::unique_ptr<ImageBuffer> takeImageBuffer();
+    RefPtr<ImageBuffer> takeImageBuffer();
     const IntSize& size() const { return m_size; }
     bool originClean() const { return m_originClean; }
     size_t memoryCost() const
@@ -90,7 +91,7 @@ public:
     WeakPtr<HTMLCanvasElement> takePlaceholderCanvas();
 
 private:
-    std::unique_ptr<ImageBuffer> m_buffer;
+    RefPtr<ImageBuffer> m_buffer;
     IntSize m_size;
     bool m_originClean;
     WeakPtr<HTMLCanvasElement> m_placeholderCanvas;
@@ -169,7 +170,7 @@ private:
 #endif
 
     void createImageBuffer() const final;
-    std::unique_ptr<ImageBuffer> takeImageBuffer() const;
+    RefPtr<ImageBuffer> takeImageBuffer() const;
 
     void reset();
 
@@ -187,11 +188,21 @@ private:
     mutable RefPtr<Image> m_copiedImage;
 
     bool m_hasScheduledCommit { false };
-    WeakPtr<HTMLCanvasElement> m_placeholderCanvas;
-    RefPtr<ImageBufferPipe::Source> m_bufferPipeSource;
 
-    mutable Lock m_commitLock;
-    std::unique_ptr<ImageBuffer> m_pendingCommitBuffer;
+    class PlaceholderData : public ThreadSafeRefCounted<PlaceholderData> {
+    public:
+        static Ref<PlaceholderData> create()
+        {
+            return adoptRef(*new PlaceholderData);
+        }
+
+        WeakPtr<HTMLCanvasElement> canvas;
+        RefPtr<ImageBufferPipe::Source> bufferPipeSource;
+        RefPtr<ImageBuffer> pendingCommitBuffer;
+        mutable Lock bufferLock;
+    };
+
+    RefPtr<PlaceholderData> m_placeholderData;
 };
 
 }

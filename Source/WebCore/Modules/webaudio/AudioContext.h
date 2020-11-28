@@ -71,7 +71,7 @@ public:
     void suspendRendering(DOMPromiseDeferred<void>&&);
     void resumeRendering(DOMPromiseDeferred<void>&&);
 
-    void nodeWillBeginPlayback() final;
+    void sourceNodeWillBeginPlayback(AudioNode&) final;
     void lazyInitialize() final;
 
     void startRendering();
@@ -89,7 +89,7 @@ public:
 
 protected:
     explicit AudioContext(Document&, const AudioContextOptions& = { });
-    AudioContext(Document&, unsigned numberOfChannels, RefPtr<AudioBuffer>&& renderTarget);
+    AudioContext(Document&, unsigned numberOfChannels, float sampleRate, RefPtr<AudioBuffer>&& renderTarget);
 
     bool willBeginPlayback();
 

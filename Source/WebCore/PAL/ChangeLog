@@ -1,3 +1,112 @@
+2020-11-11  Eric Carlson  <eric.carlson@apple.com>
+
+        USB microphone not recognized iOS Safari
+        https://bugs.webkit.org/show_bug.cgi?id=211192
+        <rdar://problem/62607313>
+
+        Reviewed by Youenn Fablet.
+
+        * pal/spi/cocoa/AVFoundationSPI.h: Declare +[AVAudioSession initAuxiliarySession].
+
+2020-11-10  Jer Noble  <jer.noble@apple.com>
+
+        Unreviewed internal macOS build-fix.
+
+        * pal/avfoundation/OutputDevice.mm:
+        (PAL::OutputDevice::supportsSpatialAudio const):
+
+2020-11-10  Jer Noble  <jer.noble@apple.com>
+
+        Add support for AudioConfiguration.spatialRendering
+        https://bugs.webkit.org/show_bug.cgi?id=218727
+        <rdar://problem/71213348>
+
+        Reviewed by Eric Carlson.
+
+        * PAL.xcodeproj/project.pbxproj:
+        * pal/avfoundation/OutputContext.h: Copied from Source/WebCore/platform/mediacapabilities/AudioConfiguration.h.
+        (PAL::OutputContext::platformContext const):
+        * pal/avfoundation/OutputContext.mm: Added.
+        (PAL::OutputContext::OutputContext):
+        (PAL::OutputContext::sharedAudioPresentationOutputContext):
+        (PAL::OutputContext::supportsMultipleOutputDevices):
+        (PAL::OutputContext::deviceName):
+        (PAL::OutputContext::outputDevices const):
+        * pal/avfoundation/OutputDevice.h: Copied from Source/WebCore/platform/mediacapabilities/AudioConfiguration.h.
+        (PAL::OutputDevice::platformDevice const):
+        * pal/avfoundation/OutputDevice.mm: Copied from Source/WebCore/platform/mediacapabilities/AudioConfiguration.h.
+        (PAL::OutputDevice::OutputDevice):
+        (PAL::OutputDevice::name const):
+        (PAL::OutputDevice::deviceFeatures const):
+        (PAL::OutputDevice::supportsSpatialAudio const):
+        * pal/spi/cocoa/AVFoundationSPI.h:
+
+2020-11-04  David Kilzer  <ddkilzer@apple.com>
+
+        WebKit should remove unused debug variant support
+        <https://webkit.org/b/218315>
+        <rdar://problem/70785369>
+
+        Reviewed by Darin Adler.
+
+        Remove support for building the debug variant since it is
+        currently unused. We now set default values for the
+        DEAD_CODE_STRIPPING, DEBUG_DEFINES, GCC_OPTIMIZATION_LEVEL and
+        STRIP_INSTALLED_PRODUCT variables.
+
+        Also move these values out of the Xcode project into
+        Base.xcconfig files using the [config=Debug] specifier so that
+        these overrides are next to the definitions.
+
+        * Configurations/Base.xcconfig:
+        * PAL.xcodeproj/project.pbxproj:
+
+2020-11-02  David Kilzer  <ddkilzer@apple.com>
+
+        Sort Xcode project file
+
+        * PAL.xcodeproj/project.pbxproj:
+
+2020-11-01  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: Provide build workaround while isSystemVoice is not in all SDKs
+        https://bugs.webkit.org/show_bug.cgi?id=218414
+
+        Reviewed by Tim Horton.
+
+        * pal/spi/cocoa/AXSpeechManagerSPI.h:
+
+2020-10-30  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        Fix internal watchOS and tvOS builds after r269211
+        https://bugs.webkit.org/show_bug.cgi?id=217506
+
+        Unreviewed build fix.
+
+        * pal/spi/cg/CoreGraphicsSPI.h:
+
+2020-10-29  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] [GPU Process] Perform image decoding of color fonts in the Web Process
+        https://bugs.webkit.org/show_bug.cgi?id=217506
+
+        Reviewed by Simon Fraser.
+
+        Add some new entry points, and do some various cleanup.
+
+        * pal/spi/cg/CoreGraphicsSPI.h:
+
+2020-10-30  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: Incorrect list of voices being displayed on iOS
+        https://bugs.webkit.org/show_bug.cgi?id=218293
+
+        Reviewed by Per Arne Vollan.
+
+        * PAL.xcodeproj/project.pbxproj:
+        * pal/PlatformMac.cmake:
+        * pal/spi/cocoa/AXSpeechManagerSPI.h: Added.
+
 2020-10-13  Keith Rollin  <krollin@apple.com>
 
         Remove leftover MACOSX_DEPLOYMENT_TARGET_macosx support

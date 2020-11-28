@@ -23,6 +23,8 @@
 #include "Chrome.h"
 
 #include "ChromeClient.h"
+#include "ContactInfo.h"
+#include "ContactsRequestData.h"
 #include "DOMWindow.h"
 #include "Document.h"
 #include "DocumentType.h"
@@ -472,6 +474,11 @@ void Chrome::showShareSheet(ShareDataWithParsedURL& shareData, CompletionHandler
     m_client.showShareSheet(shareData, WTFMove(callback));
 }
 
+void Chrome::showContactPicker(const ContactsRequestData& requestData, CompletionHandler<void(Optional<Vector<ContactInfo>>&&)>&& callback)
+{
+    m_client.showContactPicker(requestData, WTFMove(callback));
+}
+
 void Chrome::loadIconForFiles(const Vector<String>& filenames, FileIconLoader& loader)
 {
     m_client.loadIconForFiles(filenames, loader);
@@ -516,14 +523,9 @@ void Chrome::setCursorHiddenUntilMouseMoves(bool hiddenUntilMouseMoves)
     m_client.setCursorHiddenUntilMouseMoves(hiddenUntilMouseMoves);
 }
 
-std::unique_ptr<ImageBuffer> Chrome::createImageBuffer(const FloatSize& size, ShouldAccelerate shouldAccelerate, ShouldUseDisplayList shouldUseDisplayList, RenderingPurpose purpose, float resolutionScale, ColorSpace colorSpace) const
+RefPtr<ImageBuffer> Chrome::createImageBuffer(const FloatSize& size, RenderingMode renderingMode, RenderingPurpose purpose, float resolutionScale, ColorSpace colorSpace, PixelFormat pixelFormat) const
 {
-    return m_client.createImageBuffer(size, shouldAccelerate, shouldUseDisplayList, purpose, resolutionScale, colorSpace);
-}
-
-std::unique_ptr<ImageBuffer> Chrome::createImageBuffer(const FloatSize& size, RenderingMode renderingMode, float resolutionScale, ColorSpace colorSpace) const
-{
-    return m_client.createImageBuffer(size, renderingMode, resolutionScale, colorSpace);
+    return m_client.createImageBuffer(size, renderingMode, purpose, resolutionScale, colorSpace, pixelFormat);
 }
 
 PlatformDisplayID Chrome::displayID() const

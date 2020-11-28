@@ -47,13 +47,14 @@ public:
     WEBCORE_EXPORT virtual ~MockAudioDestinationCocoa();
 
 private:
-    void start(Function<void(Function<void()>&&)>&&) final;
-    void stop() final;
+    void start(Function<void(Function<void()>&&)>&&, CompletionHandler<void(bool)>&&) final;
+    void stop(CompletionHandler<void(bool)>&&) final;
 
     void tick();
 
     Ref<WorkQueue> m_workQueue;
     RunLoop::Timer<MockAudioDestinationCocoa> m_timer;
+    Function<void(Function<void()>&&)> m_dispatchToRenderThread;
     uint32_t m_numberOfFramesToProcess { 384 };
 };
 

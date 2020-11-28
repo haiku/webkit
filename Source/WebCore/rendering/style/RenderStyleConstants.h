@@ -518,9 +518,8 @@ enum class ObjectFit : uint8_t {
 
 enum class AspectRatioType : uint8_t {
     Auto,
-    FromIntrinsic,
-    FromDimensions,
-    Specified
+    Ratio,
+    AutoAndRatio
 };
 
 enum class WordBreak : uint8_t {

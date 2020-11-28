@@ -45,29 +45,6 @@ public:
 
     virtual ~ScrollingStateFrameScrollingNode();
 
-    enum ChangedProperty {
-        FrameScaleFactor = NumScrollingStateNodeBits,
-        EventTrackingRegion,
-        RootContentsLayer,
-        ScrolledContentsLayer,
-        CounterScrollingLayer,
-        InsetClipLayer,
-        ContentShadowLayer,
-        HeaderHeight,
-        FooterHeight,
-        HeaderLayer,
-        FooterLayer,
-        BehaviorForFixedElements,
-        TopContentInset,
-        FixedElementsLayoutRelativeToFrame,
-        VisualViewportIsSmallerThanLayoutViewport,
-        AsyncFrameOrOverflowScrollingEnabled,
-        LayoutViewport,
-        MinLayoutViewportOrigin,
-        MaxLayoutViewportOrigin,
-        OverrideVisualViewportSize,
-    };
-
     float frameScaleFactor() const { return m_frameScaleFactor; }
     WEBCORE_EXPORT void setFrameScaleFactor(float);
 
@@ -140,7 +117,7 @@ private:
     ScrollingStateFrameScrollingNode(ScrollingStateTree&, ScrollingNodeType, ScrollingNodeID);
     ScrollingStateFrameScrollingNode(const ScrollingStateFrameScrollingNode&, ScrollingStateTree&);
 
-    void setPropertyChangedBitsAfterReattach() override;
+    OptionSet<ScrollingStateNode::Property> applicableProperties() const final;
 
     LayerRepresentation m_rootContentsLayer;
     LayerRepresentation m_counterScrollingLayer;

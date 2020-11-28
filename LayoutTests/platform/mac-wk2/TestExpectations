@@ -59,8 +59,16 @@ webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpayment
 webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpaymentrequest/removing-allowpaymentrequest.https.sub.html [ Skip ]
 webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpaymentrequest/setting-allowpaymentrequest-timing.https.sub.html [ Skip ]
 webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpaymentrequest/setting-allowpaymentrequest.https.sub.html [ Skip ]
+webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpayment/allowpaymentrequest-attribute-cross-origin-bc-containers.https.html [ Skip ]
+webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpayment/no-attribute-cross-origin-bc-containers.https.html [ Skip ]
+webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpayment/removing-allowpaymentrequest.https.sub.html [ Skip ]
+webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpayment/setting-allowpaymentrequest.https.sub.html [ Skip ]
 imported/w3c/web-platform-tests/payment-request/payment-request-hasenrolledinstrument-method.tentative.https.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/payment-request/payment-request-canmakepayment-method.https.html [ DumpJSConsoleLogInStdErr ]
+imported/w3c/web-platform-tests/payment-request/show-method-optional-promise-rejects.https.html [ DumpJSConsoleLogInStdErr ]
+
+# This test is failing due to lack of user activation.
+imported/w3c/web-platform-tests/payment-request/payment-is-showing.https.html [ Skip ]
 
 # skip in favor of tests in http/tests/paymentrequest
 imported/w3c/web-platform-tests/payment-request/payment-request-abort-method.https.html [ WontFix ]
@@ -113,9 +121,12 @@ fast/forms/file/entries-api/image-no-transcode-open-panel.html [ Pass ]
 
 # WebKitTestRunner needs a more complete implementation of eventSender
 # <https://bugs.webkit.org/show_bug.cgi?id=42194>
+editing/mac/pasteboard/dataTransfer-set-data-file-url.html
+editing/mac/pasteboard/drag-selections-to-contenteditable.html
 editing/pasteboard/4947130.html
 editing/pasteboard/cleanup-on-move.html
 editing/pasteboard/copy-standalone-image-crash.html
+editing/pasteboard/drag-drop-paragraph-crasher.html
 editing/pasteboard/emacs-cntl-y-001.html
 editing/pasteboard/emacs-ctrl-k-y-001.html
 editing/pasteboard/files-during-page-drags.html
@@ -133,28 +144,27 @@ editing/selection/doubleclick-whitespace.html
 editing/selection/drag-to-contenteditable-iframe.html
 editing/selection/mixed-editability-10.html
 editing/selection/select-out-of-editable.html
-editing/spelling/spellcheck-paste.html
-editing/spelling/spellcheck-paste-disabled.html
 editing/spelling/spellcheck-paste-continuous-disabled.html
+editing/spelling/spellcheck-paste-disabled.html
+editing/spelling/spellcheck-paste.html
 fast/dom/vertical-scrollbar-in-rtl.html
 fast/events/5056619.html
 fast/events/autoscroll-in-textfield.html
 fast/events/bogus-dropEffect-effectAllowed.html
 fast/events/content-changed-during-drop.html
-fast/events/continuous-platform-wheelevent-in-scrolling-div.html
-fast/events/crash-on-mutate-during-drop.html
 fast/events/context-onmousedown-event.html
+fast/events/crash-on-mutate-during-drop.html
 fast/events/drag-and-drop-dataTransfer-types-nocrash.html
 fast/events/drag-and-drop-fire-drag-dragover.html
-fast/events/drag-and-drop.html
-fast/events/drag-and-drop-link.html
-fast/events/drag-and-drop-link-fast-multiple-times-does-not-crash.html
 fast/events/drag-and-drop-link-containing-block.html
+fast/events/drag-and-drop-link-fast-multiple-times-does-not-crash.html
+fast/events/drag-and-drop-link.html
+fast/events/drag-and-drop.html
 fast/events/drag-image-with-border-image.html
 fast/events/drag-in-frames.html
 fast/events/drag-parent-node.html
-fast/events/draggable-div-nodata.html
 fast/events/draggable-div-customdata.html
+fast/events/draggable-div-nodata.html
 fast/events/dropzone-001.html
 fast/events/dropzone-002.html
 fast/events/dropzone-003.html
@@ -166,9 +176,10 @@ fast/events/node-event-anchor-lock.html
 fast/events/ondragenter.html
 fast/events/right-click-focus.html
 fast/events/standalone-image-drag-to-editable.html
-fast/events/wheelevent-in-horizontal-scrollbar-in-rtl.html
-fast/events/wheelevent-in-vertical-scrollbar-in-rtl.html
-fast/events/wheelevent-direction-inverted-from-device.html
+fast/events/wheel/continuous-platform-wheelevent-in-scrolling-div.html
+fast/events/wheel/wheelevent-direction-inverted-from-device.html
+fast/events/wheel/wheelevent-in-horizontal-scrollbar-in-rtl.html
+fast/events/wheel/wheelevent-in-vertical-scrollbar-in-rtl.html
 fast/forms/drag-into-textarea.html
 fast/forms/drag-out-of-textarea.html
 fast/forms/listbox-typeahead-cyrillic.html
@@ -182,9 +193,7 @@ http/tests/local/drag-over-remote-content.html
 http/tests/misc/bubble-drag-events.html
 http/tests/security/drag-drop-same-unique-origin.html
 http/tests/security/drag-over-remote-content-iframe.html
-editing/mac/pasteboard/dataTransfer-set-data-file-url.html
-editing/mac/pasteboard/drag-selections-to-contenteditable.html
-editing/pasteboard/drag-drop-paragraph-crasher.html
+
 
 # [WK2] [Mac] Spellcheck tests don't seem to work
 webkit.org/b/105616 editing/spelling/context-menu-suggestions-multiword-selection.html
@@ -390,17 +399,6 @@ webkit.org/b/132766 fast/hidpi/filters-hue-rotate.html [ ImageOnlyFailure ]
 webkit.org/b/132766 fast/hidpi/filters-invert.html [ ImageOnlyFailure ]
 webkit.org/b/132766 fast/hidpi/filters-multiple.html [ ImageOnlyFailure ]
 webkit.org/b/132766 fast/hidpi/filters-reference.html [ ImageOnlyFailure ]
-
-# Plug-in snapshotting tests do not make much sense:
-# - snapshotting is only supported for Flash, but we can't use Flash because it isn't installed everywhere;
-# - so most of the tests use QuickTime, which doesn't support snapshotting, and is 32-bit only, thus failing to load in engineering builds.
-plugins/snapshotting [ Pass Failure ]
-# These two tests use Flash, so they trigger a release assertion.
-plugins/snapshotting/autoplay-similar-to-dominant-after-delay.html [ Skip ]
-plugins/snapshotting/print-snapshotted-plugin.html [ Skip ]
-
-webkit.org/b/133227 plugins/snapshotting/set-plugin-size-to-tiny.html [ Failure ]
-webkit.org/b/133227 plugins/snapshotting/quicktime-plugin-snapshotted.html [ Pass Failure ]
 
 fast/dom/frame-loading-via-document-write.html [ Timeout ]
 
@@ -770,38 +768,6 @@ webkit.org/b/184937 transitions/opacity-transition-zindex.html [ Skip ]
 
 webkit.org/b/186362 [ Release ] http/tests/resourceLoadStatistics/prevalent-resource-with-user-interaction.html [ Skip ]
 
-# skip manual payment-request tests
-imported/w3c/web-platform-tests/payment-request/PaymentRequestUpdateEvent/updateWith-call-immediate-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentRequestUpdateEvent/updateWith-duplicate-shipping-options-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentRequestUpdateEvent/updateWith-incremental-update-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentRequestUpdateEvent/updateWith-method-abort-update-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentRequestUpdateEvent/updateWith-state-checks-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentValidationErrors/retry-shows-error-member-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentValidationErrors/retry-shows-payer-member-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentValidationErrors/retry-shows-shippingAddress-member-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/algorithms-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/change-shipping-option-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/change-shipping-option-select-last-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/complete-method-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/methodName-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/onpayerdetailchange-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/payerEmail-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/payerName-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/payerPhone-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/rejects_if_not_active-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/requestId-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/retry-method-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/shippingAddress-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/shippingOption-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentAddress/attributes-and-toJSON-method-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/shipping-address-changed-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/show-method-optional-promise-rejects-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/show-method-optional-promise-resolves-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/show-method-postmessage-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/updateWith-method-pmi-handling-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/user-abort-algorithm-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/user-accepts-payment-request-algo-manual.https.html [ Skip ]
-
 # Manual tests.
 imported/w3c/web-platform-tests/web-share/share-cancel-manual.https.html [ Skip ]
 imported/w3c/web-platform-tests/web-share/share-extra-argument-manual.https.html [ Skip ]
@@ -1104,9 +1070,6 @@ webkit.org/b/68278 http/tests/history/back-with-fragment-change.php [ Pass Failu
 # <rdar://problem/37330377> ASan tests exiting early due to timeouts
 [ Release ] imported/w3c/web-platform-tests/WebCryptoAPI/derive_bits_keys [ Skip ]
 
-# <rdar://problem/60063002> REGRESSION: (r257758) http/tests/adClickAttribution/conversion-disabled-in-ephemeral-session.html is crashing
-http/tests/adClickAttribution/conversion-disabled-in-ephemeral-session.html [ Pass Crash ]
-
 # <rdar://problem/60105927> [ Mac wk2 Release ] webgpu/whlsl/make-array-reference.html is flaky failing
 [ Release ] webgpu/whlsl/make-array-reference.html [ Pass Failure ]
 
@@ -1155,8 +1118,8 @@ webrtc/simulcast-h264.html [ Pass Timeout ]
 # <rdar://problem/63275213> REGRESSION: http/tests/IndexedDB/storage-limit-1.https.html is a flaky failure
 [ BigSur+ Release ] http/tests/IndexedDB/storage-limit-1.https.html [ Pass Failure ]
 
-# <rdar://problem/63357481> http/tests/adClickAttribution/send-attribution-conversion-request.html is a super flaky failure
-[ BigSur+ Debug ] http/tests/adClickAttribution/send-attribution-conversion-request.html [ Pass Failure ]
+# <rdar://problem/63357481> http/tests/privateClickMeasurement/send-attribution-conversion-request.html is a super flaky failure
+[ BigSur+ Debug ] http/tests/privateClickMeasurement/send-attribution-conversion-request.html [ Pass Failure ]
 
 # <rdar://problem/63554249> [20A279] DQ bots are seeing http/tests/cache/disk-cache/disk-cache-validation-back-navigation-policy.html and http/tests/cache/disk-cache/disk-cache-validation-no-body.html are timing out
 webkit.org/b/179796 http/tests/cache/disk-cache/disk-cache-validation-back-navigation-policy.html [ Pass Failure Timeout ]
@@ -1218,24 +1181,6 @@ webkit.org/b/179796 http/tests/cache/disk-cache/disk-cache-validation-back-navig
 [ arm64 ] fast/replaced/no-focus-ring-embed.html [ Skip ]
 [ arm64 ] fast/replaced/no-focus-ring-object.html [ Skip ]
 
-# LFC painting is work in progress
-webkit.org/b/216471 fast/layoutformattingcontext/block-only/replaced-intrinsic-width-simple.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/empty-table-with-specified-height-quirk-simple.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/empty-table-with-specified-height-standards-simple.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/float-in-inline-context-simple.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/floats-shrinking-line-simple.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/subframe-with-display-none-html.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/table-cell-vertical-alignment-simple.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/table-simple-border-collapse-with-padding.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/table-simple-border-collapse3.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/table-simple-collapsed-row-border.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/table-simple-collapsed-row-border2.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/table-simple-collapsed-tbody-border.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/table-simple-multiple-sections.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/table-simple-row-border.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/table-simple-rowspan-with-spacing.html [ ImageOnlyFailure ]
-webkit.org/b/216471 fast/layoutformattingcontext/table-simple-thead-border-ignore.html [ ImageOnlyFailure ]
-
 # rdar://66703773 (REGRESSION (20A2316-20A2348b): http/tests/security/contentSecurityPolicy/plugin-blocked-in-about-blank-window.html is a constant failure)
 [ arm64 ] http/tests/security/contentSecurityPolicy/plugin-blocked-in-about-blank-window.html [ Skip ]
 
@@ -1273,6 +1218,7 @@ webkit.org/b/215611 [ Debug ] fast/scrolling/mac/scrollbars/overflow-overlay-scr
 
 # rdar://65269589 ([ macOS and iOS ] media/vp9.html is failing consistently.)
 [ BigSur+ ] media/vp9.html [ Pass ]
+[ BigSur+ ] webrtc/vp9-vtb.html [ Pass ]
 
 webkit.org/b/215700 [ Debug ] fast/scrolling/mac/scrollbars/overlay-scrollbar-hovered.html [ Pass Failure Timeout ]
 
@@ -1283,8 +1229,6 @@ webkit.org/b/215808 [ Debug ] media/controls/forced-tracks-only.html [ Pass Time
 webkit.org/b/215809 [ Debug ] media/W3C/video/events/event_order_canplay_canplaythrough.html [ Pass Timeout ]
 
 webkit.org/b/215875 [ Debug ] fast/layoutformattingcontext/line-heigt-when-text-is-inside-inline-container.html [ Skip ]
-
-webkit.org/b/216059 fast/scrolling/latching/latched-scroll-remove-iframe.html [ Pass Failure ]
 
 webkit.org/b/216159 imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-restartIce.https.html [ Pass Failure ]
 
@@ -1320,8 +1264,19 @@ webkit.org/b/217262 [ Catalina ] imported/w3c/web-platform-tests/mediacapture-re
 
 webkit.org/b/217525 [ Debug ] imported/w3c/web-platform-tests/mediacapture-record/idlharness.window.html [ Pass Crash ]
 
-webkit.org/b/217540 compositing/animation/repaint-after-clearing-shared-backing.html [ Pass ImageOnlyFailure ]
-
 webkit.org/b/217686 inspector/page/overrideSetting-ITPDebugModeEnabled.html [ Pass Failure ]
 
 webkit.org/b/217857 [ Debug ] imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-stop.html [ Skip ]
+
+webkit.org/b/217938 [ Mojave+ ] http/wpt/service-workers/fetchEvent.https.html [ Pass Failure ]
+webkit.org/b/217938 [ Mojave+ ] http/wpt/service-workers/header-filtering.https.html [ Pass Failure ]
+webkit.org/b/217938 [ Mojave+ ] http/wpt/service-workers/mac/throttleable.https.html [ Pass Failure ]
+webkit.org/b/217938 [ Mojave+ ] http/wpt/service-workers/online.https.html [ Pass Failure ]
+
+webkit.org/b/218341 inspector/dom-debugger/attribute-modified-style.html [ Pass Timeout ]
+
+# These tests fail because of missing painting features in LFC (they still pass the layout ASSERT test).
+# webkit.org/b/216471
+[ Mojave ] fast/layoutformattingcontext/table-with-margin-content-simple.html [ ImageOnlyFailure ]
+
+webkit.org/b/218875 webrtc/captureCanvas-webrtc-software-h264-baseline.html [ Pass Failure ]

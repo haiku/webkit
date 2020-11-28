@@ -23,6 +23,7 @@
 import os
 import unittest
 
+from datetime import datetime
 from webkitcorepy import LoggerCapture
 from webkitcorepy.mocks import Time as MockTime
 from webkitscmpy import local, mocks
@@ -62,7 +63,7 @@ class TestGit(unittest.TestCase):
             )
 
     def test_tags(self):
-        with mocks.local.Git(self.path, tags=('tag-1', 'tag-2')):
+        with mocks.local.Git(self.path):
             self.assertEqual(
                 local.Git(self.path).tags,
                 ['tag-1', 'tag-2'],
@@ -97,7 +98,7 @@ class TestGit(unittest.TestCase):
                     'Schedule': 'normal',
                     'Last Changed Author': 'jbedard@apple.com',
                     'Last Changed Rev': '6',
-                    'Last Changed Date': '2020-10-02 11:56:40',
+                    'Last Changed Date': datetime.fromtimestamp(1601665000).strftime('%Y-%m-%d %H:%M:%S'),
                 }, local.Git(self.path).info(),
             )
 
@@ -195,7 +196,7 @@ class TestGit(unittest.TestCase):
 
     def test_branches_priority(self):
         for mock in [mocks.local.Git(self.path), mocks.local.Git(self.path, git_svn=True)]:
-            with mocks.local.Git(self.path):
+            with mock:
                 self.assertEqual(
                     'main',
                     local.Git(self.path).prioritize_branches(['main', 'branch-a', 'dev/12345', 'safari-610-branch', 'safari-610.1-branch'])
@@ -215,3 +216,25 @@ class TestGit(unittest.TestCase):
                     'branch-a',
                     local.Git(self.path).prioritize_branches(['branch-a', 'dev/12345'])
                 )
+
+    def test_tag(self):
+        for mock in [mocks.local.Git(self.path), mocks.local.Git(self.path, git_svn=True)]:
+            with mock:
+                self.assertEqual(
+                    '621652add7fc416099bd2063366cc38ff61afe36',
+                    local.Git(self.path).commit(tag='tag-1').hash,
+                )
+
+    def test_checkout(self):
+        for mock in [mocks.local.Git(self.path), mocks.local.Git(self.path, git_svn=True)]:
+            with mock:
+                repository = local.Git(self.path)
+                self.assertEqual('bae5d1e90999d4f916a8a15810ccfa43f37a2fd6', repository.commit().hash)
+                self.assertEqual('3cd32e352410565bb543821fbf856a6d3caad1c4', repository.checkout('3cd32e3524').hash)
+                self.assertEqual('3cd32e352410565bb543821fbf856a6d3caad1c4', repository.commit().hash)
+
+                self.assertEqual('1abe25b443e985f93b90d830e4a7e3731336af4d', repository.checkout('3@main').hash)
+                self.assertEqual('1abe25b443e985f93b90d830e4a7e3731336af4d', repository.commit().hash)
+
+                self.assertEqual('621652add7fc416099bd2063366cc38ff61afe36', repository.checkout('tag-1').hash)
+                self.assertEqual('621652add7fc416099bd2063366cc38ff61afe36', repository.commit().hash)

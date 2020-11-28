@@ -197,7 +197,9 @@ static NSArray *keyCommandsPlaceholderHackForEvernote(id self, SEL _cmd)
     self.layer.hitTestsAsOpaque = YES;
 
 #if PLATFORM(MACCATALYST)
+    ALLOW_DEPRECATED_DECLARATIONS_BEGIN
     [self _setFocusRingType:UIFocusRingTypeNone];
+    ALLOW_DEPRECATED_DECLARATIONS_END
 #endif
 
 #if HAVE(VISIBILITY_PROPAGATION_VIEW)
@@ -236,10 +238,11 @@ static NSArray *keyCommandsPlaceholderHackForEvernote(id self, SEL _cmd)
 
 - (void)_setupVisibilityPropagationViewForGPUProcess
 {
-    if (!WebKit::GPUProcessProxy::singletonIfCreated())
+    auto* gpuProcess = _page->process().processPool().gpuProcess();
+    if (!gpuProcess)
         return;
-    auto processIdentifier = WebKit::GPUProcessProxy::singleton().processIdentifier();
-    auto contextID = WebKit::GPUProcessProxy::singleton().contextIDForVisibilityPropagation();
+    auto processIdentifier = gpuProcess->processIdentifier();
+    auto contextID = gpuProcess->contextIDForVisibilityPropagation();
     if (!processIdentifier || !contextID)
         return;
 

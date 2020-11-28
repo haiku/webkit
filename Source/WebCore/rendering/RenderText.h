@@ -168,9 +168,6 @@ public:
 #endif
 
     void ensureLineBoxes();
-#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-    const LayoutIntegration::LineLayout* layoutFormattingContextLineLayout() const;
-#endif
     bool usesComplexLineLayoutPath() const;
 
     StringView stringView(unsigned start = 0, Optional<unsigned> stop = WTF::nullopt) const;
@@ -208,7 +205,7 @@ private:
 
     void setSelectionState(HighlightState) final;
     LayoutRect selectionRectForRepaint(const RenderLayerModelObject* repaintContainer, bool clipToVisibleContent = true) final;
-    LayoutRect localCaretRect(InlineBox*, unsigned caretOffset, LayoutUnit* extraWidthToEndOfLine = nullptr) override;
+    LayoutRect localCaretRect(const InlineRunAndOffset&, CaretRectMode) const override;
     LayoutRect clippedOverflowRectForRepaint(const RenderLayerModelObject* repaintContainer) const final;
 
     void computePreferredLogicalWidths(float leadWidth, HashSet<const Font*>& fallbackFonts, GlyphOverflow&);

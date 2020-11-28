@@ -47,16 +47,25 @@ bool defaultTextAutosizingUsesIdempotentMode();
 #endif
 #endif
 
+#if PLATFORM(MAC)
+bool defaultPassiveWheelListenersAsDefaultOnDocument();
+#endif
+
 #if PLATFORM(MAC) || PLATFORM(IOS_FAMILY)
 bool defaultDisallowSyncXHRDuringPageDismissalEnabled();
 #endif
 
-#if !PLATFORM(MACCATALYST)
+#if PLATFORM(MAC)
+bool defaultAppleMailPaginationQuirkEnabled();
+#endif
+
+#if !PLATFORM(MACCATALYST) && !PLATFORM(WATCHOS)
 bool allowsDeprecatedSynchronousXMLHttpRequestDuringUnload();
 #endif
 
 bool defaultAsyncFrameScrollingEnabled();
 bool defaultAsyncOverflowScrollingEnabled();
+bool defaultAppHighlightsEnabled();
 
 #if ENABLE(GPU_PROCESS)
 bool defaultUseGPUProcessForCanvasRenderingEnabled();

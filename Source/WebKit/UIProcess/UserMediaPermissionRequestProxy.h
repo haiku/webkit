@@ -47,8 +47,6 @@ public:
     enum class UserMediaAccessDenialReason { NoConstraints, UserMediaDisabled, NoCaptureDevices, InvalidConstraint, HardwareError, PermissionDenied, OtherFailure };
     void deny(UserMediaAccessDenialReason = UserMediaAccessDenialReason::UserMediaDisabled);
 
-    void doDefaultAction();
-
     void invalidate();
     bool isPending() const { return m_manager; }
 
@@ -88,6 +86,9 @@ public:
 
 #if ENABLE(MEDIA_STREAM)
     bool isUserGesturePriviledged() const { return m_request.isUserGesturePriviledged; }
+    void doDefaultAction();
+#else
+    NO_RETURN_DUE_TO_ASSERT void doDefaultAction();
 #endif
 
 private:

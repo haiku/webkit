@@ -36,6 +36,7 @@
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
 #include <wtf/WallTime.h>
+#include <wtf/WeakPtr.h>
 #include <wtf/text/WTFString.h>
 
 #if PLATFORM(COCOA) || USE(CFURLCONNECTION)
@@ -100,7 +101,7 @@ public:
 };
 #endif
 
-class NetworkStorageSession {
+class NetworkStorageSession : public CanMakeWeakPtr<NetworkStorageSession> {
     WTF_MAKE_NONCOPYABLE(NetworkStorageSession); WTF_MAKE_FAST_ALLOCATED;
 public:
     using TopFrameDomain = WebCore::RegistrableDomain;
@@ -206,6 +207,8 @@ public:
     WEBCORE_EXPORT void setPrevalentDomainsToBlockAndDeleteCookiesFor(const Vector<RegistrableDomain>&);
     WEBCORE_EXPORT void setPrevalentDomainsToBlockButKeepCookiesFor(const Vector<RegistrableDomain>&);
     WEBCORE_EXPORT void setDomainsWithUserInteractionAsFirstParty(const Vector<RegistrableDomain>&);
+    WEBCORE_EXPORT void setDomainsWithCrossPageStorageAccess(const HashMap<TopFrameDomain, SubResourceDomain>&);
+    WEBCORE_EXPORT void grantCrossPageStorageAccess(const TopFrameDomain&, const SubResourceDomain&);
     WEBCORE_EXPORT void setAgeCapForClientSideCookies(Optional<Seconds>);
     WEBCORE_EXPORT bool hasStorageAccess(const RegistrableDomain& resourceDomain, const RegistrableDomain& firstPartyDomain, Optional<FrameIdentifier>, PageIdentifier) const;
     WEBCORE_EXPORT Vector<String> getAllStorageAccessEntries() const;
@@ -219,6 +222,12 @@ public:
     WEBCORE_EXPORT void didCommitCrossSiteLoadWithDataTransferFromPrevalentResource(const RegistrableDomain& toDomain, PageIdentifier);
     WEBCORE_EXPORT void resetCrossSiteLoadsWithLinkDecorationForTesting();
     WEBCORE_EXPORT void setThirdPartyCookieBlockingMode(ThirdPartyCookieBlockingMode);
+
+    WEBCORE_EXPORT static HashMap<RegistrableDomain, RegistrableDomain>& storageAccessQuirks();
+    WEBCORE_EXPORT static bool canRequestStorageAccessForLoginPurposesWithoutPriorUserInteraction(const SubResourceDomain&, const TopFrameDomain&);
+    WEBCORE_EXPORT static Optional<RegistrableDomain> loginDomainForFirstParty(const RegistrableDomain&);
+    WEBCORE_EXPORT static bool loginDomainMatchesRequestingDomain(const TopFrameDomain&, const SubResourceDomain&);
+    WEBCORE_EXPORT static RegistrableDomain mapToTopDomain(const RegistrableDomain&);
 #endif
     
 #if ENABLE(APP_BOUND_DOMAINS)
@@ -280,6 +289,7 @@ private:
     HashSet<RegistrableDomain> m_registrableDomainsWithUserInteractionAsFirstParty;
     HashMap<PageIdentifier, HashMap<FrameIdentifier, RegistrableDomain>> m_framesGrantedStorageAccess;
     HashMap<PageIdentifier, HashMap<RegistrableDomain, RegistrableDomain>> m_pagesGrantedStorageAccess;
+    HashMap<TopFrameDomain, SubResourceDomain> m_pairsGrantedCrossPageStorageAccess;
     Optional<Seconds> m_cacheMaxAgeCapForPrevalentResources { };
     Optional<Seconds> m_ageCapForClientSideCookies { };
     Optional<Seconds> m_ageCapForClientSideCookiesShort { };

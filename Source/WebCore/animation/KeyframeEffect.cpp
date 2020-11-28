@@ -72,14 +72,12 @@ static Element* elementOrPseudoElementForStyleable(const Optional<const Styleabl
         return nullptr;
 
     switch (styleable->pseudoId) {
-    case PseudoId::None:
-        return &styleable->element;
     case PseudoId::Before:
         return styleable->element.beforePseudoElement();
     case PseudoId::After:
         return styleable->element.afterPseudoElement();
     default:
-        return nullptr;
+        return &styleable->element;
     }
 }
 
@@ -1147,17 +1145,15 @@ bool KeyframeEffect::targetsPseudoElement() const
 
 Element* KeyframeEffect::targetElementOrPseudoElement() const
 {
-    if (!targetsPseudoElement())
-        return m_target.get();
+    if (m_target) {
+        if (m_pseudoId == PseudoId::Before)
+            return m_target->beforePseudoElement();
 
-    if (m_pseudoId == PseudoId::Before)
-        return m_target->beforePseudoElement();
+        if (m_pseudoId == PseudoId::After)
+            return m_target->afterPseudoElement();
+    }
 
-    if (m_pseudoId == PseudoId::After)
-        return m_target->afterPseudoElement();
-
-    // We only support targeting ::before and ::after pseudo-elements at the moment.
-    return nullptr;
+    return m_target.get();
 }
 
 void KeyframeEffect::setTarget(RefPtr<Element>&& newTarget)
@@ -1177,7 +1173,7 @@ const String KeyframeEffect::pseudoElement() const
     // The target pseudo-selector. null if this effect has no effect target or if the effect target is an element (i.e. not a pseudo-element).
     // When the effect target is a pseudo-element, this specifies the pseudo-element selector (e.g. ::before).
     if (targetsPseudoElement())
-        return PseudoElement::pseudoElementNameForEvents(m_pseudoId);
+        return pseudoIdAsString(m_pseudoId);
     return { };
 }
 
@@ -1259,7 +1255,8 @@ void KeyframeEffect::apply(RenderStyle& targetStyle, Optional<Seconds> startTime
     auto computedTiming = getComputedTiming(startTime);
     if (!startTime) {
         m_phaseAtLastApplication = computedTiming.phase;
-        InspectorInstrumentation::willApplyKeyframeEffect(*targetElementOrPseudoElement(), *this, computedTiming);
+        if (auto* target = targetElementOrPseudoElement())
+            InspectorInstrumentation::willApplyKeyframeEffect(*target, *this, computedTiming);
     }
 
     if (!computedTiming.progress)
@@ -1282,6 +1279,17 @@ bool KeyframeEffect::isCurrentlyAffectingProperty(CSSPropertyID property, Accele
 bool KeyframeEffect::isRunningAcceleratedAnimationForProperty(CSSPropertyID property) const
 {
     return isRunningAccelerated() && CSSPropertyAnimation::animationOfPropertyIsAccelerated(property) && m_blendingKeyframes.properties().contains(property);
+}
+
+bool KeyframeEffect::isRunningAcceleratedTransformRelatedAnimation() const
+{
+    if (!isRunningAccelerated())
+        return false;
+
+    return m_blendingKeyframes.properties().contains(CSSPropertyTranslate)
+        || m_blendingKeyframes.properties().contains(CSSPropertyScale)
+        || m_blendingKeyframes.properties().contains(CSSPropertyRotate)
+        || m_blendingKeyframes.properties().contains(CSSPropertyTransform);
 }
 
 void KeyframeEffect::invalidate()
@@ -1591,7 +1599,7 @@ void KeyframeEffect::addPendingAcceleratedAction(AcceleratedAction action)
     if (action == AcceleratedAction::Stop)
         m_pendingAcceleratedActions.clear();
     m_pendingAcceleratedActions.append(action);
-    if (action != AcceleratedAction::UpdateTiming)
+    if (action != AcceleratedAction::UpdateTiming && action != AcceleratedAction::TransformChange)
         m_lastRecordedAcceleratedAction = action;
     animation()->acceleratedStateDidChange();
 }
@@ -1616,6 +1624,12 @@ void KeyframeEffect::animationDidChangeTimingProperties()
         addPendingAcceleratedAction(canBeAccelerated() ? AcceleratedAction::UpdateTiming : AcceleratedAction::Stop);
     else if (canBeAccelerated())
         m_runningAccelerated = RunningAccelerated::NotStarted;
+}
+
+void KeyframeEffect::transformRelatedPropertyDidChange()
+{
+    ASSERT(isRunningAcceleratedTransformRelatedAnimation());
+    addPendingAcceleratedAction(AcceleratedAction::TransformChange);
 }
 
 void KeyframeEffect::animationWasCanceled()
@@ -1706,6 +1720,9 @@ void KeyframeEffect::applyPendingAcceleratedActions()
             if (!document()->renderTreeBeingDestroyed())
                 m_target->invalidateStyleAndLayerComposition();
             m_runningAccelerated = RunningAccelerated::NotStarted;
+            break;
+        case AcceleratedAction::TransformChange:
+            renderer->transformRelatedPropertyDidChange();
             break;
         }
     }

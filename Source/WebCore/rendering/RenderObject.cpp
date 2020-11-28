@@ -455,12 +455,12 @@ RenderBoxModelObject& RenderObject::enclosingBoxModelObject() const
 const RenderBox* RenderObject::enclosingScrollableContainerForSnapping() const
 {
     auto& renderBox = enclosingBox();
-    if (auto* scrollableContainer = renderBox.findEnclosingScrollableContainer()) {
+    if (auto* scrollableContainer = renderBox.findEnclosingScrollableContainerForSnapping()) {
         // The scrollable container for snapping cannot be the node itself.
         if (scrollableContainer != this)
             return scrollableContainer;
         if (renderBox.parentBox())
-            return renderBox.parentBox()->findEnclosingScrollableContainer();
+            return renderBox.parentBox()->findEnclosingScrollableContainerForSnapping();
     }
     return nullptr;
 }
@@ -1400,11 +1400,8 @@ LayoutSize RenderObject::offsetFromAncestorContainer(RenderElement& container) c
     return offset;
 }
 
-LayoutRect RenderObject::localCaretRect(InlineBox*, unsigned, LayoutUnit* extraWidthToEndOfLine)
+LayoutRect RenderObject::localCaretRect(const InlineRunAndOffset&, CaretRectMode) const
 {
-    if (extraWidthToEndOfLine)
-        *extraWidthToEndOfLine = 0;
-
     return LayoutRect();
 }
 
@@ -1826,7 +1823,7 @@ void RenderObject::calculateBorderStyleColor(const BorderStyle& style, const Box
 
     enum Operation { Darken, Lighten };
 
-    Operation operation = (side == BSTop || side == BSLeft) == (style == BorderStyle::Inset) ? Darken : Lighten;
+    Operation operation = (side == BoxSide::Top || side == BoxSide::Left) == (style == BorderStyle::Inset) ? Darken : Lighten;
 
     // Here we will darken the border decoration color when needed. This will yield a similar behavior as in FF.
     if (operation == Darken) {
@@ -2136,7 +2133,7 @@ auto RenderObject::collectSelectionRectsInternal(const SimpleRange& range) -> Se
     // The range could span nodes with different writing modes.
     // If this is the case, we use the writing mode of the common ancestor.
     if (containsDifferentWritingModes) {
-        if (auto ancestor = commonInclusiveAncestor(range))
+        if (auto ancestor = commonInclusiveAncestor<ComposedTree>(range))
             hasFlippedWritingMode = ancestor->renderer()->style().isFlippedBlocksWritingMode();
     }
 

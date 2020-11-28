@@ -364,9 +364,11 @@ RenderLayer::RenderLayer(RenderLayerModelObject& rendererLayerModelObject)
 
     if (Element* element = renderer().element()) {
         // We save and restore only the scrollOffset as the other scroll values are recalculated.
-        m_scrollPosition = element->savedLayerScrollPosition();
-        if (!m_scrollPosition.isZero())
-            scrollAnimator().setCurrentPosition(m_scrollPosition);
+        if (renderBox()) {
+            m_scrollPosition = element->savedLayerScrollPosition();
+            if (!m_scrollPosition.isZero())
+                scrollAnimator().setCurrentPosition(m_scrollPosition);
+        }
         element->setSavedLayerScrollPosition(IntPoint());
     }
 }
@@ -2816,6 +2818,11 @@ void RenderLayer::scrollRectToVisible(const LayoutRect& absoluteRect, bool insid
         RenderBox* box = renderBox();
         ASSERT(box);
         LayoutRect localExposeRect(box->absoluteToLocalQuad(FloatQuad(FloatRect(absoluteRect))).boundingBox());
+
+        // localExposedRect is now the absolute rect in local coordinates, but relative to the
+        // border edge. Make the rectangle relative to the scrollable area.
+        localExposeRect.moveBy(-LayoutPoint(box->borderLeft(), box->borderTop()));
+
         if (shouldPlaceBlockDirectionScrollbarOnLeft()) {
             // For direction: rtl; writing-mode: horizontal-tb box, the scroll bar is on the left side. The visible rect
             // starts from the right side of scroll bar. So the x of localExposeRect should start from the same position too.
@@ -3587,7 +3594,7 @@ void RenderLayer::updateSnapOffsets()
         return;
 
     RenderBox* box = enclosingElement()->renderBox();
-    updateSnapOffsetsForScrollableArea(*this, *downcast<HTMLElement>(enclosingElement()), *box, box->style());
+    updateSnapOffsetsForScrollableArea(*this, *box, box->style(), box->paddingBoxRect());
 }
 
 bool RenderLayer::isScrollSnapInProgress() const
@@ -3898,6 +3905,7 @@ void RenderLayer::updateScrollInfoAfterLayout()
     ScrollOffset originalScrollOffset = scrollOffset();
 
     computeScrollDimensions();
+    updateSelfPaintingLayer();
 
 #if ENABLE(CSS_SCROLL_SNAP)
     // FIXME: Ensure that offsets are also updated in case of programmatic style changes.
@@ -6503,7 +6511,7 @@ bool RenderLayer::shouldBeSelfPaintingLayer() const
         return true;
 
     return hasOverlayScrollbars()
-        || canUseCompositedScrolling()
+        || hasCompositedScrollableOverflow()
         || renderer().isTableRow()
         || renderer().isCanvas()
         || renderer().isVideo()

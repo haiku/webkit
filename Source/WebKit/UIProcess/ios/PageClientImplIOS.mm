@@ -30,7 +30,6 @@
 
 #import "APIData.h"
 #import "ApplicationStateTracker.h"
-#import "AssertionServicesSPI.h"
 #import "DataReference.h"
 #import "DownloadProxy.h"
 #import "DrawingAreaProxy.h"
@@ -638,6 +637,11 @@ bool PageClientImpl::showShareSheet(const ShareDataWithParsedURL& shareData, WTF
 {
     [m_contentView _showShareSheet:shareData inRect:WTF::nullopt completionHandler:WTFMove(completionHandler)];
     return true;
+}
+
+void PageClientImpl::showContactPicker(const WebCore::ContactsRequestData& requestData, WTF::CompletionHandler<void(Optional<Vector<WebCore::ContactInfo>>&&)>&& completionHandler)
+{
+    [m_contentView _showContactPicker:requestData completionHandler:WTFMove(completionHandler)];
 }
 
 void PageClientImpl::showInspectorHighlight(const WebCore::InspectorOverlay::Highlight& highlight)

@@ -1919,12 +1919,12 @@ void RenderStyle::setFontItalic(Optional<FontSelectionValue> value)
     fontCascade().update(currentFontSelector);
 }
 
-void RenderStyle::getShadowExtent(const ShadowData* shadow, LayoutUnit& top, LayoutUnit& right, LayoutUnit& bottom, LayoutUnit& left) const
+LayoutBoxExtent RenderStyle::shadowExtent(const ShadowData* shadow)
 {
-    top = 0;
-    right = 0;
-    bottom = 0;
-    left = 0;
+    LayoutUnit top;
+    LayoutUnit right;
+    LayoutUnit bottom;
+    LayoutUnit left;
 
     for ( ; shadow; shadow = shadow->next()) {
         if (shadow->style() == ShadowStyle::Inset)
@@ -1936,9 +1936,11 @@ void RenderStyle::getShadowExtent(const ShadowData* shadow, LayoutUnit& top, Lay
         bottom = std::max<LayoutUnit>(bottom, shadow->y() + extentAndSpread);
         left = std::min<LayoutUnit>(left, shadow->x() - extentAndSpread);
     }
+    
+    return { top, right, bottom, left };
 }
 
-LayoutBoxExtent RenderStyle::getShadowInsetExtent(const ShadowData* shadow) const
+LayoutBoxExtent RenderStyle::shadowInsetExtent(const ShadowData* shadow)
 {
     LayoutUnit top;
     LayoutUnit right;
@@ -1956,10 +1958,10 @@ LayoutBoxExtent RenderStyle::getShadowInsetExtent(const ShadowData* shadow) cons
         left = std::max<LayoutUnit>(left, shadow->x() + extentAndSpread);
     }
 
-    return LayoutBoxExtent(WTFMove(top), WTFMove(right), WTFMove(bottom), WTFMove(left));
+    return { top, right, bottom, left };
 }
 
-void RenderStyle::getShadowHorizontalExtent(const ShadowData* shadow, LayoutUnit &left, LayoutUnit &right) const
+void RenderStyle::getShadowHorizontalExtent(const ShadowData* shadow, LayoutUnit &left, LayoutUnit &right)
 {
     left = 0;
     right = 0;
@@ -1974,7 +1976,7 @@ void RenderStyle::getShadowHorizontalExtent(const ShadowData* shadow, LayoutUnit
     }
 }
 
-void RenderStyle::getShadowVerticalExtent(const ShadowData* shadow, LayoutUnit &top, LayoutUnit &bottom) const
+void RenderStyle::getShadowVerticalExtent(const ShadowData* shadow, LayoutUnit &top, LayoutUnit &bottom)
 {
     top = 0;
     bottom = 0;
@@ -2392,6 +2394,51 @@ void RenderStyle::setNonInheritedCustomPropertyValue(const AtomString& name, Ref
     m_rareNonInheritedData.access().customProperties.access().setCustomPropertyValue(name, WTFMove(value));
 }
 
+const LengthBox& RenderStyle::scrollMargin() const
+{
+    return m_rareNonInheritedData->scrollMargin;
+}
+
+const Length& RenderStyle::scrollMarginTop() const
+{
+    return scrollMargin().top();
+}
+
+const Length& RenderStyle::scrollMarginBottom() const
+{
+    return scrollMargin().bottom();
+}
+
+const Length& RenderStyle::scrollMarginLeft() const
+{
+    return scrollMargin().left();
+}
+
+const Length& RenderStyle::scrollMarginRight() const
+{
+    return scrollMargin().right();
+}
+
+void RenderStyle::setScrollMarginTop(Length&& length)
+{
+    SET_VAR(m_rareNonInheritedData, scrollMargin.top(), WTFMove(length));
+}
+
+void RenderStyle::setScrollMarginBottom(Length&& length)
+{
+    SET_VAR(m_rareNonInheritedData, scrollMargin.bottom(), WTFMove(length));
+}
+
+void RenderStyle::setScrollMarginLeft(Length&& length)
+{
+    SET_VAR(m_rareNonInheritedData, scrollMargin.left(), WTFMove(length));
+}
+
+void RenderStyle::setScrollMarginRight(Length&& length)
+{
+    SET_VAR(m_rareNonInheritedData, scrollMargin.right(), WTFMove(length));
+}
+
 #if ENABLE(CSS_SCROLL_SNAP)
 
 ScrollSnapType RenderStyle::initialScrollSnapType()
@@ -2402,11 +2449,6 @@ ScrollSnapType RenderStyle::initialScrollSnapType()
 ScrollSnapAlign RenderStyle::initialScrollSnapAlign()
 {
     return { };
-}
-
-const StyleScrollSnapArea& RenderStyle::scrollSnapArea() const
-{
-    return *m_rareNonInheritedData->scrollSnapArea;
 }
 
 const StyleScrollSnapPort& RenderStyle::scrollSnapPort() const
@@ -2446,32 +2488,7 @@ const Length& RenderStyle::scrollPaddingRight() const
 
 const ScrollSnapAlign& RenderStyle::scrollSnapAlign() const
 {
-    return m_rareNonInheritedData->scrollSnapArea->alignment;
-}
-
-const LengthBox& RenderStyle::scrollSnapMargin() const
-{
-    return m_rareNonInheritedData->scrollSnapArea->scrollSnapMargin;
-}
-
-const Length& RenderStyle::scrollSnapMarginTop() const
-{
-    return scrollSnapMargin().top();
-}
-
-const Length& RenderStyle::scrollSnapMarginBottom() const
-{
-    return scrollSnapMargin().bottom();
-}
-
-const Length& RenderStyle::scrollSnapMarginLeft() const
-{
-    return scrollSnapMargin().left();
-}
-
-const Length& RenderStyle::scrollSnapMarginRight() const
-{
-    return scrollSnapMargin().right();
+    return m_rareNonInheritedData->scrollSnapAlign;
 }
 
 void RenderStyle::setScrollSnapType(const ScrollSnapType& type)
@@ -2501,29 +2518,14 @@ void RenderStyle::setScrollPaddingRight(Length&& length)
 
 void RenderStyle::setScrollSnapAlign(const ScrollSnapAlign& alignment)
 {
-    SET_NESTED_VAR(m_rareNonInheritedData, scrollSnapArea, alignment, alignment);
+    SET_VAR(m_rareNonInheritedData, scrollSnapAlign, alignment);
 }
 
-void RenderStyle::setScrollSnapMarginTop(Length&& length)
+bool RenderStyle::hasSnapPosition() const
 {
-    SET_NESTED_VAR(m_rareNonInheritedData, scrollSnapArea, scrollSnapMargin.top(), WTFMove(length));
+    const ScrollSnapAlign& alignment = this->scrollSnapAlign();
+    return alignment.x != ScrollSnapAxisAlignType::None || alignment.y != ScrollSnapAxisAlignType::None;
 }
-
-void RenderStyle::setScrollSnapMarginBottom(Length&& length)
-{
-    SET_NESTED_VAR(m_rareNonInheritedData, scrollSnapArea, scrollSnapMargin.bottom(), WTFMove(length));
-}
-
-void RenderStyle::setScrollSnapMarginLeft(Length&& length)
-{
-    SET_NESTED_VAR(m_rareNonInheritedData, scrollSnapArea, scrollSnapMargin.left(), WTFMove(length));
-}
-
-void RenderStyle::setScrollSnapMarginRight(Length&& length)
-{
-    SET_NESTED_VAR(m_rareNonInheritedData, scrollSnapArea, scrollSnapMargin.right(), WTFMove(length));
-}
-
 #endif
 
 bool RenderStyle::hasReferenceFilterOnly() const

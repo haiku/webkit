@@ -805,13 +805,13 @@ void MediaPlayerPrivateRemote::paintCurrentFrameInContext(GraphicsContext&, cons
     notImplemented();
 }
 
-bool MediaPlayerPrivateRemote::copyVideoTextureToPlatformTexture(GraphicsContextGLOpenGL*, PlatformGLObject, GCGLenum, GCGLint, GCGLenum, GCGLenum, GCGLenum, bool, bool)
+bool MediaPlayerPrivateRemote::copyVideoTextureToPlatformTexture(GraphicsContextGL*, PlatformGLObject, GCGLenum, GCGLint, GCGLenum, GCGLenum, GCGLenum, bool, bool)
 {
     notImplemented();
     return false;
 }
 
-NativeImagePtr MediaPlayerPrivateRemote::nativeImageForCurrentTime()
+RefPtr<NativeImage> MediaPlayerPrivateRemote::nativeImageForCurrentTime()
 {
     notImplemented();
     return nullptr;

@@ -33,7 +33,6 @@
 #include "PageConsoleClient.h"
 #include "SecurityOriginPolicy.h"
 #include "Settings.h"
-#include "WorkerEventLoop.h"
 #include "WorkerMessagePortChannelProvider.h"
 #include "WorkerOrWorkletThread.h"
 #include "WorkerScriptLoader.h"
@@ -48,30 +47,29 @@ using namespace Inspector;
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(WorkletGlobalScope);
 
+static std::atomic<unsigned> gNumberOfWorkletGlobalScopes { 0 };
+
 WorkletGlobalScope::WorkletGlobalScope(WorkerOrWorkletThread& thread, const WorkletParameters& parameters)
-    : m_thread(&thread)
-    , m_script(makeUnique<WorkletScriptController>(this))
+    : WorkerOrWorkletGlobalScope(JSC::VM::create(), &thread)
     , m_topOrigin(SecurityOrigin::createUnique())
     , m_url(parameters.windowURL)
     , m_jsRuntimeFlags(parameters.jsRuntimeFlags)
 {
-    auto addResult = allWorkletGlobalScopesSet().add(this);
-    ASSERT_UNUSED(addResult, addResult);
+    ++gNumberOfWorkletGlobalScopes;
 
     setSecurityOriginPolicy(SecurityOriginPolicy::create(SecurityOrigin::create(this->url())));
     setContentSecurityPolicy(makeUnique<ContentSecurityPolicy>(URL { this->url() }, *this));
 }
 
 WorkletGlobalScope::WorkletGlobalScope(Document& document, Ref<JSC::VM>&& vm, ScriptSourceCode&& code)
-    : m_document(makeWeakPtr(document))
-    , m_script(makeUnique<WorkletScriptController>(WTFMove(vm), this))
+    : WorkerOrWorkletGlobalScope(WTFMove(vm), nullptr)
+    , m_document(makeWeakPtr(document))
     , m_topOrigin(SecurityOrigin::createUnique())
     , m_url(code.url())
     , m_jsRuntimeFlags(document.settings().javaScriptRuntimeFlags())
     , m_code(WTFMove(code))
 {
-    auto addResult = allWorkletGlobalScopesSet().add(this);
-    ASSERT_UNUSED(addResult, addResult);
+    ++gNumberOfWorkletGlobalScopes;
 
     ASSERT(document.page());
 
@@ -81,42 +79,25 @@ WorkletGlobalScope::WorkletGlobalScope(Document& document, Ref<JSC::VM>&& vm, Sc
 
 WorkletGlobalScope::~WorkletGlobalScope()
 {
-    ASSERT(!m_script);
+    ASSERT(!script());
     removeFromContextsMap();
-    auto removeResult = allWorkletGlobalScopesSet().remove(this);
-    ASSERT_UNUSED(removeResult, removeResult);
+    ASSERT(gNumberOfWorkletGlobalScopes);
+    --gNumberOfWorkletGlobalScopes;
+}
+
+unsigned WorkletGlobalScope::numberOfWorkletGlobalScopes()
+{
+    return gNumberOfWorkletGlobalScopes;
 }
 
 void WorkletGlobalScope::prepareForDestruction()
 {
-    if (!m_script)
-        return;
-    if (m_defaultTaskGroup)
-        m_defaultTaskGroup->stopAndDiscardAllTasks();
-    stopActiveDOMObjects();
-    removeAllEventListeners();
-    if (m_eventLoop)
-        m_eventLoop->clearMicrotaskQueue();
-    removeRejectedPromiseTracker();
-    m_script->vm().notifyNeedTermination();
-    m_script = nullptr;
-}
+    WorkerOrWorkletGlobalScope::prepareForDestruction();
 
-auto WorkletGlobalScope::allWorkletGlobalScopesSet() -> WorkletGlobalScopesSet&
-{
-    static NeverDestroyed<WorkletGlobalScopesSet> scopes;
-    return scopes;
-}
-
-EventLoopTaskGroup& WorkletGlobalScope::eventLoop()
-{
-    if (UNLIKELY(!m_defaultTaskGroup)) {
-        m_eventLoop = WorkerEventLoop::create(*this);
-        m_defaultTaskGroup = makeUnique<EventLoopTaskGroup>(*m_eventLoop);
-        if (activeDOMObjectsAreStopped())
-            m_defaultTaskGroup->stopAndDiscardAllTasks();
+    if (script()) {
+        script()->vm().notifyNeedTermination();
+        clearScript();
     }
-    return *m_defaultTaskGroup;
 }
 
 String WorkletGlobalScope::userAgent(const URL& url) const
@@ -129,22 +110,7 @@ String WorkletGlobalScope::userAgent(const URL& url) const
 void WorkletGlobalScope::evaluate()
 {
     if (m_code)
-        m_script->evaluate(*m_code);
-}
-
-bool WorkletGlobalScope::isJSExecutionForbidden() const
-{
-    return !m_script || m_script->isExecutionForbidden();
-}
-
-void WorkletGlobalScope::disableEval(const String& errorMessage)
-{
-    m_script->disableEval(errorMessage);
-}
-
-void WorkletGlobalScope::disableWebAssembly(const String& errorMessage)
-{
-    m_script->disableWebAssembly(errorMessage);
+        script()->evaluate(*m_code);
 }
 
 URL WorkletGlobalScope::completeURL(const String& url, ForceUTF8) const
@@ -204,11 +170,18 @@ void WorkletGlobalScope::processNextScriptFetchJobIfNeeded()
     ResourceRequest request { scriptFetchJob.moduleURL };
 
     FetchOptions fetchOptions;
-    fetchOptions.mode = FetchOptions::Mode::SameOrigin;
+    fetchOptions.mode = FetchOptions::Mode::Cors;
     fetchOptions.cache = FetchOptions::Cache::Default;
     fetchOptions.redirect = FetchOptions::Redirect::Follow;
-    fetchOptions.destination = FetchOptions::Destination::Worker;
     fetchOptions.credentials = scriptFetchJob.credentials;
+#if ENABLE(WEB_AUDIO)
+    if (isAudioWorkletGlobalScope())
+        fetchOptions.destination = FetchOptions::Destination::Audioworklet;
+#endif
+#if ENABLE(CSS_PAINTING_API)
+    if (isPaintWorkletGlobalScope())
+        fetchOptions.destination = FetchOptions::Destination::Paintworklet;
+#endif
 
     auto contentSecurityPolicyEnforcement = shouldBypassMainWorldContentSecurityPolicy() ? ContentSecurityPolicyEnforcement::DoNotEnforce : ContentSecurityPolicyEnforcement::EnforceChildSrcDirective;
 
@@ -234,9 +207,9 @@ void WorkletGlobalScope::notifyFinished()
     auto addResult = m_evaluatedModules.add(moduleURL);
     if (addResult.isNewEntry) {
         NakedPtr<JSC::Exception> exception;
-        m_script->evaluate(ScriptSourceCode(m_scriptLoader->script(), WTFMove(moduleURL)), exception);
+        script()->evaluate(ScriptSourceCode(m_scriptLoader->script(), WTFMove(moduleURL)), exception);
         if (exception)
-            m_script->setException(exception);
+            script()->setException(exception);
     }
 
     didCompleteScriptFetchJob(WTFMove(completedJob), { });
@@ -256,13 +229,6 @@ MessagePortChannelProvider& WorkletGlobalScope::messagePortChannelProvider()
     if (!m_messagePortChannelProvider)
         m_messagePortChannelProvider = makeUnique<WorkerMessagePortChannelProvider>(*this);
     return *m_messagePortChannelProvider;
-}
-
-bool WorkletGlobalScope::isContextThread() const
-{
-    if (m_thread)
-        return m_thread->thread() == &Thread::current();
-    return isMainThread();
 }
 
 } // namespace WebCore

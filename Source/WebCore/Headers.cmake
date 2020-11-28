@@ -19,6 +19,10 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     Modules/cache/DOMCacheEngine.h
     Modules/cache/RetrieveRecordsOptions.h
 
+    Modules/contact-picker/ContactInfo.h
+    Modules/contact-picker/ContactProperty.h
+    Modules/contact-picker/ContactsRequestData.h
+
     Modules/encryptedmedia/CDMClient.h
 
     Modules/fetch/FetchBodyConsumer.h
@@ -109,6 +113,15 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
 
     Modules/plugins/PluginReplacement.h
     Modules/plugins/YouTubePluginReplacement.h
+
+    Modules/speech/SpeechRecognitionConnection.h
+    Modules/speech/SpeechRecognitionConnectionClient.h
+    Modules/speech/SpeechRecognitionConnectionClientIdentifier.h
+    Modules/speech/SpeechRecognitionError.h
+    Modules/speech/SpeechRecognitionRequest.h
+    Modules/speech/SpeechRecognitionRequestInfo.h
+    Modules/speech/SpeechRecognitionResultData.h
+    Modules/speech/SpeechRecognitionUpdate.h
 
     Modules/streams/ReadableStreamChunk.h
     Modules/streams/ReadableStreamSink.h
@@ -577,7 +590,6 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     html/FormAssociatedElement.h
     html/FormNamedItem.h
     html/HTMLAnchorElement.h
-    html/HTMLAppletElement.h
     html/HTMLAreaElement.h
     html/HTMLAttachmentElement.h
     html/HTMLAudioElement.h
@@ -624,6 +636,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     html/HTMLMenuItemElement.h
     html/HTMLMetaElement.h
     html/HTMLModElement.h
+    html/HTMLModelElement.h
     html/HTMLOListElement.h
     html/HTMLObjectElement.h
     html/HTMLOptGroupElement.h
@@ -692,6 +705,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     inspector/InspectorClient.h
     inspector/InspectorController.h
     inspector/InspectorDebuggableType.h
+    inspector/InspectorFrontendAPIDispatcher.h
     inspector/InspectorFrontendClient.h
     inspector/InspectorFrontendClientLocal.h
     inspector/InspectorFrontendHost.h
@@ -719,7 +733,6 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     layout/integration/LayoutIntegrationRunIteratorModernPath.h
     layout/layouttree/LayoutBox.h
 
-    loader/AdClickAttribution.h
     loader/CanvasActivityRecord.h
     loader/ContentFilterClient.h
     loader/CookieJar.h
@@ -752,6 +765,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     loader/NetscapePlugInStreamLoader.h
     loader/PingLoader.h
     loader/PolicyChecker.h
+    loader/PrivateClickMeasurement.h
     loader/ProgressTracker.h
     loader/ProgressTrackerClient.h
     loader/ResourceCryptographicDigest.h
@@ -828,6 +842,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     page/DragActions.h
     page/DragClient.h
     page/DragController.h
+    page/DummySpeechRecognitionProvider.h
     page/EditorClient.h
     page/EventHandler.h
     page/FocusController.h
@@ -855,7 +870,6 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     page/PageOverlayController.h
     page/PerformanceLogging.h
     page/PerformanceLoggingClient.h
-    page/PlugInClient.h
     page/PointerCaptureController.h
     page/PointerCharacteristics.h
     page/PointerLockController.h
@@ -881,6 +895,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     page/SettingsBase.h
     page/ShareData.h
     page/SocketProvider.h
+    page/SpeechRecognitionProvider.h
     page/SpeechSynthesisClient.h
     page/SuspendableTimer.h
     page/TextIndicator.h
@@ -1040,6 +1055,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/SleepDisablerIdentifier.h
     platform/SuddenTermination.h
     platform/Supplementable.h
+    platform/SystemSoundDelegate.h
     platform/ThemeTypes.h
     platform/ThreadCheck.h
     platform/ThreadGlobalData.h
@@ -1199,13 +1215,14 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/MediaPlayerPrivate.h
     platform/graphics/MediaUsageInfo.h
     platform/graphics/NativeImage.h
-    platform/graphics/NativeImagePtr.h
+    platform/graphics/NativeImageReference.h
     platform/graphics/OpenGLESShims.h
     platform/graphics/OpenGLShims.h
     platform/graphics/Path.h
     platform/graphics/PathUtilities.h
     platform/graphics/Pattern.h
     platform/graphics/PlatformDisplay.h
+    platform/graphics/PlatformImage.h
     platform/graphics/PlatformImageBuffer.h
     platform/graphics/PlatformImageBufferBackend.h
     platform/graphics/PlatformLayer.h
@@ -1213,8 +1230,8 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/PlatformTextTrack.h
     platform/graphics/PlatformTimeRanges.h
     platform/graphics/Region.h
-    platform/graphics/RemoteResourceIdentifier.h
     platform/graphics/RemoteVideoSample.h
+    platform/graphics/RenderingResourceIdentifier.h
     platform/graphics/RenderingMode.h
     platform/graphics/RoundedRect.h
     platform/graphics/StringTruncator.h
@@ -1233,8 +1250,11 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/angle/ExtensionsGLANGLE.h
 
     platform/graphics/displaylists/DisplayList.h
+    platform/graphics/displaylists/DisplayListDrawGlyphsRecorder.h
     platform/graphics/displaylists/DisplayListDrawingContext.h
     platform/graphics/displaylists/DisplayListImageBuffer.h
+    platform/graphics/displaylists/DisplayListItemBuffer.h
+    platform/graphics/displaylists/DisplayListItemType.h
     platform/graphics/displaylists/DisplayListItems.h
     platform/graphics/displaylists/DisplayListRecorder.h
     platform/graphics/displaylists/DisplayListReplayer.h
@@ -1324,6 +1344,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/network/FormData.h
     platform/network/HTTPCookieAcceptPolicy.h
     platform/network/HTTPHeaderMap.h
+    platform/network/HTTPHeaderValues.h
     platform/network/HTTPParsers.h
     platform/network/NetworkLoadInformation.h
     platform/network/NetworkLoadMetrics.h
@@ -1429,7 +1450,6 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     rendering/RenderPtr.h
     rendering/RenderReplaced.h
     rendering/RenderSelectionInfo.h
-    rendering/RenderSnapshottedPlugIn.h
     rendering/RenderText.h
     rendering/RenderTextControl.h
     rendering/RenderTextLineBoxes.h

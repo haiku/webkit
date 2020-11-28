@@ -30,6 +30,7 @@
 #import "WebPreferencesInternal.h"
 
 #import "NetworkStorageSessionMap.h"
+#import "TestingFunctions.h"
 #import "WebApplicationCache.h"
 #import "WebFeature.h"
 #import "WebFrameNetworkingContext.h"
@@ -50,6 +51,7 @@
 #import <WebCore/TextEncodingRegistry.h>
 #import <WebCore/WebCoreJITOperations.h>
 #import <pal/spi/cf/CFNetworkSPI.h>
+#import <wtf/Compiler.h>
 #import <wtf/MainThread.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/RunLoop.h>
@@ -88,7 +90,7 @@ template<unsigned size> static bool contains(const char* const (&array)[size], c
     return false;
 }
 
-static WebCacheModel cacheModelForMainBundle(void)
+static WebCacheModel cacheModelForMainBundle(NSString *bundleIdentifier)
 {
     @autoreleasepool {
         // Apps that probably need the small setting
@@ -139,7 +141,7 @@ static WebCacheModel cacheModelForMainBundle(void)
             "net.hmdt-web.Shiira",
         };
 
-        const char* bundleID = [[[NSBundle mainBundle] bundleIdentifier] UTF8String];
+        const char* bundleID = [bundleIdentifier UTF8String];
         if (contains(documentViewerIDs, bundleID))
             return WebCacheModelDocumentViewer;
         if (contains(documentBrowserIDs, bundleID))
@@ -162,6 +164,13 @@ static WebCacheModel cacheModelForMainBundle(void)
         return WebCacheModelDocumentViewer; // To save memory.
     }
 }
+
+#if ENABLE(BUILD_FOR_TESTING)
+WebCacheModel TestWebPreferencesCacheModelForMainBundle(NSString *bundleIdentifier)
+{
+    return cacheModelForMainBundle(bundleIdentifier);
+}
+#endif // ENABLE(BUILD_FOR_TESTING)
 
 @interface WebPreferences ()
 - (void)_postCacheModelChangedNotification;
@@ -385,16 +394,12 @@ public:
 
         @NO, WebKitUserStyleSheetEnabledPreferenceKey,
         @"", WebKitUserStyleSheetLocationPreferenceKey,
-        @NO, WebKitShrinksStandaloneImagesToFitPreferenceKey,
-        @NO, WebKitExperimentalNotificationsEnabledPreferenceKey,
         @YES, WebKitAllowAnimatedImagesPreferenceKey,
         @YES, WebKitAllowAnimatedImageLoopingPreferenceKey,
         @"1800", WebKitBackForwardCacheExpirationIntervalKey,
         @NO, WebKitPrivateBrowsingEnabledPreferenceKey,
-        @(cacheModelForMainBundle()), WebKitCacheModelPreferenceKey,
+        @(cacheModelForMainBundle([[NSBundle mainBundle] bundleIdentifier])), WebKitCacheModelPreferenceKey,
         @YES, WebKitZoomsTextOnlyPreferenceKey,
-        @YES, WebKitForceWebGLUsesLowPowerPreferenceKey,
-        @NO, WebKitUsePreHTML5ParserQuirksKey,
         [NSNumber numberWithLongLong:ApplicationCacheStorage::noQuota()], WebKitApplicationCacheTotalQuota,
 
         // FIXME: Are these relevent to WebKitLegacy? If not, we should remove them.
@@ -1570,16 +1575,6 @@ public:
     [self _setBoolValue:localStorageEnabled forKey:WebKitLocalStorageEnabledPreferenceKey];
 }
 
-- (BOOL)experimentalNotificationsEnabled
-{
-    return [self _boolValueForKey:WebKitExperimentalNotificationsEnabledPreferenceKey];
-}
-
-- (void)setExperimentalNotificationsEnabled:(BOOL)experimentalNotificationsEnabled
-{
-    [self _setBoolValue:experimentalNotificationsEnabled forKey:WebKitExperimentalNotificationsEnabledPreferenceKey];
-}
-
 + (WebPreferences *)_getInstanceForIdentifier:(NSString *)ident
 {
     LOG(Encoding, "requesting for %@\n", ident);
@@ -1658,26 +1653,6 @@ static NSString *classIBCreatorID = nil;
     NSString *old = classIBCreatorID;
     classIBCreatorID = [string copy];
     [old release];
-}
-
-+ (void)_switchNetworkLoaderToNewTestingSession
-{
-#if PLATFORM(IOS_FAMILY)
-    WebThreadLock();
-#endif
-    NetworkStorageSessionMap::switchToNewTestingSession();
-}
-
-+ (void)_clearNetworkLoaderSession
-{
-    NetworkStorageSessionMap::defaultStorageSession().deleteAllCookies();
-}
-
-+ (void)_setCurrentNetworkLoaderSessionCookieAcceptPolicy:(NSHTTPCookieAcceptPolicy)policy
-{
-    RetainPtr<CFHTTPCookieStorageRef> cookieStorage = NetworkStorageSessionMap::defaultStorageSession().cookieStorage();
-    ASSERT(cookieStorage); // Will fail when NetworkStorageSessionMap::switchToNewTestingSession() was not called beforehand.
-    CFHTTPCookieStorageSetCookieAcceptPolicy(cookieStorage.get(), policy);
 }
 
 - (BOOL)isDOMPasteAllowed
@@ -1820,14 +1795,14 @@ static NSString *classIBCreatorID = nil;
     [self _setBoolValue:enabled forKey:WebKitSimpleLineLayoutEnabledPreferenceKey];
 }
 
-- (BOOL)simpleLineLayoutDebugBordersEnabled
+- (BOOL)legacyLineLayoutVisualCoverageEnabled
 {
-    return [self _boolValueForKey:WebKitSimpleLineLayoutDebugBordersEnabledPreferenceKey];
+    return [self _boolValueForKey:WebKitLegacyLineLayoutVisualCoverageEnabledPreferenceKey];
 }
 
-- (void)setSimpleLineLayoutDebugBordersEnabled:(BOOL)enabled
+- (void)setLegacyLineLayoutVisualCoverageEnabled:(BOOL)enabled
 {
-    [self _setBoolValue:enabled forKey:WebKitSimpleLineLayoutDebugBordersEnabledPreferenceKey];
+    [self _setBoolValue:enabled forKey:WebKitLegacyLineLayoutVisualCoverageEnabledPreferenceKey];
 }
 
 - (BOOL)showRepaintCounter
@@ -1868,16 +1843,6 @@ static NSString *classIBCreatorID = nil;
 - (void)setForceWebGLUsesLowPower:(BOOL)forceLowPower
 {
     [self _setBoolValue:forceLowPower forKey:WebKitForceWebGLUsesLowPowerPreferenceKey];
-}
-
-- (BOOL)accelerated2dCanvasEnabled
-{
-    return [self _boolValueForKey:WebKitAccelerated2dCanvasEnabledPreferenceKey];
-}
-
-- (void)setAccelerated2dCanvasEnabled:(BOOL)enabled
-{
-    [self _setBoolValue:enabled forKey:WebKitAccelerated2dCanvasEnabledPreferenceKey];
 }
 
 - (BOOL)isFrameFlatteningEnabled
@@ -1964,11 +1929,6 @@ static NSString *classIBCreatorID = nil;
 - (void)willAddToWebView
 {
     ++_private->numWebViews;
-}
-
-- (void)_setPreferenceForTestWithValue:(NSString *)value forKey:(NSString *)key
-{
-    [self _setStringValue:value forKey:key];
 }
 
 - (void)setFullScreenEnabled:(BOOL)flag
@@ -2090,7 +2050,7 @@ static NSString *classIBCreatorID = nil;
     return [self _boolValueForKey:WebKitAVKitEnabled];
 }
 
-- (void)setAVKitEnabled:(bool)flag
+- (void)setAVKitEnabled:(BOOL)flag
 {
 #if HAVE(AVKIT)
     [self _setBoolValue:flag forKey:WebKitAVKitEnabled];
@@ -2102,7 +2062,7 @@ static NSString *classIBCreatorID = nil;
     return [self _boolValueForKey:WebKitNetworkDataUsageTrackingEnabledPreferenceKey];
 }
 
-- (void)setNetworkDataUsageTrackingEnabled:(bool)trackingEnabled
+- (void)setNetworkDataUsageTrackingEnabled:(BOOL)trackingEnabled
 {
     [self _setBoolValue:trackingEnabled forKey:WebKitNetworkDataUsageTrackingEnabledPreferenceKey];
 }
@@ -2410,12 +2370,11 @@ static NSString *classIBCreatorID = nil;
 
 - (BOOL)plugInSnapshottingEnabled
 {
-    return [self _boolValueForKey:WebKitPlugInSnapshottingEnabledPreferenceKey];
+    return NO;
 }
 
 - (void)setPlugInSnapshottingEnabled:(BOOL)enabled
 {
-    [self _setBoolValue:enabled forKey:WebKitPlugInSnapshottingEnabledPreferenceKey];
 }
 
 - (BOOL)hiddenPageDOMTimerThrottlingEnabled
@@ -3003,12 +2962,56 @@ static NSString *classIBCreatorID = nil;
 
 - (BOOL)_isEnabledForFeature:(WebFeature *)feature
 {
-    return [self _boolValueForKey:feature.preferencesKey];
+    return [self _boolValueForKey:feature.preferenceKey];
 }
 
 - (void)_setEnabled:(BOOL)value forFeature:(WebFeature *)feature
 {
-    [self _setBoolValue:value forKey:feature.preferencesKey];
+    [self _setBoolValue:value forKey:feature.preferenceKey];
+}
+
+@end
+
+@implementation WebPreferences (WebPrivateTesting)
+
++ (void)_switchNetworkLoaderToNewTestingSession
+{
+#if PLATFORM(IOS_FAMILY)
+    WebThreadLock();
+#endif
+    NetworkStorageSessionMap::switchToNewTestingSession();
+}
+
++ (void)_setCurrentNetworkLoaderSessionCookieAcceptPolicy:(NSHTTPCookieAcceptPolicy)policy
+{
+    auto cookieStorage = NetworkStorageSessionMap::defaultStorageSession().cookieStorage();
+    RELEASE_ASSERT(cookieStorage); // Will fail when NetworkStorageSessionMap::switchToNewTestingSession() was not called beforehand.
+    CFHTTPCookieStorageSetCookieAcceptPolicy(cookieStorage.get(), policy);
+}
+
++ (void)_clearNetworkLoaderSession
+{
+    NetworkStorageSessionMap::defaultStorageSession().deleteAllCookies();
+}
+
+- (void)_setBoolPreferenceForTestingWithValue:(BOOL)value forKey:(NSString *)key
+{
+    [self _setBoolValue:value forKey:key];
+}
+
+- (void)_setUInt32PreferenceForTestingWithValue:(uint32_t)value forKey:(NSString *)key
+{
+    [self _setIntegerValue:value forKey:key];
+}
+
+- (void)_setDoublePreferenceForTestingWithValue:(double)value forKey:(NSString *)key
+{
+    [self _setFloatValue:value forKey:key];
+}
+
+- (void)_setStringPreferenceForTestingWithValue:(NSString *)value forKey:(NSString *)key
+{
+    [self _setStringValue:value forKey:key];
 }
 
 @end
@@ -3215,14 +3218,14 @@ static NSString *classIBCreatorID = nil;
     [self _setBoolValue:flag forKey:WebKitResizeObserverEnabledPreferenceKey];
 }
 
-- (BOOL)adClickAttributionEnabled
+- (BOOL)privateClickMeasurementEnabled
 {
-    return [self _boolValueForKey:WebKitAdClickAttributionEnabledPreferenceKey];
+    return [self _boolValueForKey:WebKitPrivateClickMeasurementEnabledPreferenceKey];
 }
 
-- (void)setAdClickAttributionEnabled:(BOOL)flag
+- (void)setPrivateClickMeasurementEnabled:(BOOL)flag
 {
-    [self _setBoolValue:flag forKey:WebKitAdClickAttributionEnabledPreferenceKey];
+    [self _setBoolValue:flag forKey:WebKitPrivateClickMeasurementEnabledPreferenceKey];
 }
 
 - (BOOL)fetchAPIKeepAliveEnabled
@@ -3243,16 +3246,6 @@ static NSString *classIBCreatorID = nil;
 - (void)setGenericCueAPIEnabled:(BOOL)flag
 {
     [self _setBoolValue:flag forKey:WebKitGenericCueAPIEnabledKey];
-}
-
-- (BOOL)useGPUProcessForMediaEnabled
-{
-    return [self _boolValueForKey:WebKitUseGPUProcessForMediaEnabledKey];
-}
-
-- (void)setUseGPUProcessForMediaEnabled:(BOOL)flag
-{
-    [self _setBoolValue:flag forKey:WebKitUseGPUProcessForMediaEnabledKey];
 }
 
 - (BOOL)aspectRatioOfImgFromWidthAndHeightEnabled
@@ -3375,6 +3368,16 @@ static NSString *classIBCreatorID = nil;
     [self _setBoolValue:flag forKey:WebKitCSSIndividualTransformPropertiesEnabledPreferenceKey];
 }
 
+- (BOOL)_speechRecognitionEnabled
+{
+    return [self _boolValueForKey:WebKitSpeechRecognitionEnabledPreferenceKey];
+}
+
+- (void)_setSpeechRecognitionEnabled:(BOOL)flag
+{
+    [self _setBoolValue:flag forKey:WebKitSpeechRecognitionEnabledPreferenceKey];
+}
+
 @end
 
 @implementation WebPreferences (WebPrivateObsolete)
@@ -3475,6 +3478,24 @@ static NSString *classIBCreatorID = nil;
 
 - (void)setDiskImageCacheEnabled:(BOOL)enabled
 {
+}
+
+- (void)setAccelerated2dCanvasEnabled:(BOOL)enabled
+{
+}
+
+- (BOOL)accelerated2dCanvasEnabled
+{
+    return NO;
+}
+
+- (void)setExperimentalNotificationsEnabled:(BOOL)enabled
+{
+}
+
+- (BOOL)experimentalNotificationsEnabled
+{
+    return NO;
 }
 
 @end

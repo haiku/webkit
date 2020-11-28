@@ -146,7 +146,7 @@ BaseAudioContext::BaseAudioContext(Document& document, const AudioContextOptions
 }
 
 // Constructor for offline (non-realtime) rendering.
-BaseAudioContext::BaseAudioContext(Document& document, unsigned numberOfChannels, RefPtr<AudioBuffer>&& renderTarget)
+BaseAudioContext::BaseAudioContext(Document& document, unsigned numberOfChannels, float sampleRate, RefPtr<AudioBuffer>&& renderTarget)
     : ActiveDOMObject(document)
 #if !RELEASE_LOG_DISABLED
     , m_logger(document.logger())
@@ -159,7 +159,7 @@ BaseAudioContext::BaseAudioContext(Document& document, unsigned numberOfChannels
     FFTFrame::initialize();
 
     // Create a new destination for offline rendering.
-    m_destinationNode = OfflineAudioDestinationNode::create(*this, numberOfChannels, m_renderTarget.copyRef());
+    m_destinationNode = OfflineAudioDestinationNode::create(*this, numberOfChannels, sampleRate, m_renderTarget.copyRef());
 }
 
 BaseAudioContext::~BaseAudioContext()
@@ -170,8 +170,8 @@ BaseAudioContext::~BaseAudioContext()
     ASSERT(!m_isInitialized);
     ASSERT(m_isStopScheduled);
     ASSERT(m_nodesToDelete.isEmpty());
-    ASSERT(m_referencedNodes.isEmpty());
-    ASSERT(m_finishedNodes.isEmpty()); // FIXME (bug 105870): This assertion fails on tests sometimes.
+    ASSERT(m_referencedSourceNodes.isEmpty());
+    ASSERT(m_finishedSourceNodes.isEmpty());
     ASSERT(m_automaticPullNodes.isEmpty());
     if (m_automaticPullNodesNeedUpdating)
         m_renderingAutomaticPullNodes.resize(m_automaticPullNodes.size());
@@ -244,7 +244,7 @@ void BaseAudioContext::uninitialize()
         AutoLocker locker(*this);
         // This should have been called from handlePostRenderTasks() at the end of rendering.
         // However, in case of lock contention, the tryLock() call could have failed in handlePostRenderTasks(),
-        // leaving nodes in m_finishedNodes. Now that the audio thread is gone, make sure we deref those nodes
+        // leaving nodes in m_finishedSourceNodes. Now that the audio thread is gone, make sure we deref those nodes
         // before the BaseAudioContext gets destroyed.
         derefFinishedSourceNodes();
     }
@@ -339,7 +339,7 @@ ExceptionOr<Ref<AudioBuffer>> BaseAudioContext::createBuffer(unsigned numberOfCh
 void BaseAudioContext::decodeAudioData(Ref<ArrayBuffer>&& audioData, RefPtr<AudioBufferCallback>&& successCallback, RefPtr<AudioBufferCallback>&& errorCallback, Optional<Ref<DeferredPromise>>&& promise)
 {
     if (promise && (!document() || !document()->isFullyActive())) {
-        promise.value()->reject(Exception { NotAllowedError, "Document is not fully active"_s });
+        promise.value()->reject(Exception { InvalidStateError, "Document is not fully active"_s });
         return;
     }
 
@@ -414,7 +414,7 @@ ExceptionOr<Ref<ScriptProcessorNode>> BaseAudioContext::createScriptProcessor(si
     case 16384:
         break;
     default:
-        return Exception { IndexSizeError };
+        return Exception { IndexSizeError, "Unsupported buffer size for ScriptProcessorNode"_s };
     }
 
     // An IndexSizeError exception must be thrown if bufferSize or numberOfInputChannels or numberOfOutputChannels
@@ -422,24 +422,21 @@ ExceptionOr<Ref<ScriptProcessorNode>> BaseAudioContext::createScriptProcessor(si
     // In this case an IndexSizeError must be thrown.
 
     if (!numberOfInputChannels && !numberOfOutputChannels)
-        return Exception { NotSupportedError };
+        return Exception { NotSupportedError, "numberOfInputChannels and numberOfOutputChannels cannot both be 0"_s };
 
     // This parameter [numberOfInputChannels] determines the number of channels for this node's input. Values of
     // up to 32 must be supported. A NotSupportedError must be thrown if the number of channels is not supported.
 
     if (numberOfInputChannels > maxNumberOfChannels())
-        return Exception { NotSupportedError };
+        return Exception { NotSupportedError, "numberOfInputChannels exceeds maximum number of channels"_s };
 
     // This parameter [numberOfOutputChannels] determines the number of channels for this node's output. Values of
     // up to 32 must be supported. A NotSupportedError must be thrown if the number of channels is not supported.
 
     if (numberOfOutputChannels > maxNumberOfChannels())
-        return Exception { NotSupportedError };
+        return Exception { NotSupportedError, "numberOfOutputChannels exceeds maximum number of channels"_s };
 
-    auto node = ScriptProcessorNode::create(*this, bufferSize, numberOfInputChannels, numberOfOutputChannels);
-
-    refNode(node); // context keeps reference until we stop making javascript rendering callbacks
-    return node;
+    return ScriptProcessorNode::create(*this, bufferSize, numberOfInputChannels, numberOfOutputChannels);
 }
 
 ExceptionOr<Ref<BiquadFilterNode>> BaseAudioContext::createBiquadFilter()
@@ -578,42 +575,38 @@ ExceptionOr<Ref<IIRFilterNode>> BaseAudioContext::createIIRFilter(ScriptExecutio
     return IIRFilterNode::create(scriptExecutionContext, *this, WTFMove(options));
 }
 
-void BaseAudioContext::notifyNodeFinishedProcessing(AudioNode* node)
-{
-    ASSERT(isAudioThread());
-    m_finishedNodes.append(node);
-}
-
 void BaseAudioContext::derefFinishedSourceNodes()
 {
     ASSERT(isGraphOwner());
     ASSERT(isAudioThread() || isAudioThreadFinished());
-    for (auto& node : m_finishedNodes)
-        derefNode(*node);
+    for (auto& node : m_finishedSourceNodes)
+        derefSourceNode(*node);
 
-    m_finishedNodes.clear();
+    m_finishedSourceNodes.clear();
 }
 
-void BaseAudioContext::refNode(AudioNode& node)
+void BaseAudioContext::refSourceNode(AudioNode& node)
 {
     ASSERT(isMainThread());
     AutoLocker locker(*this);
-    
-    m_referencedNodes.append(&node);
+
+    ASSERT(!m_referencedSourceNodes.contains(&node));
+    // Reference source node to keep it alive and playing even if its JS wrapper gets garbage collected.
+    m_referencedSourceNodes.append(&node);
 }
 
-void BaseAudioContext::derefNode(AudioNode& node)
+void BaseAudioContext::derefSourceNode(AudioNode& node)
 {
     ASSERT(isGraphOwner());
     
-    ASSERT(m_referencedNodes.contains(&node));
-    m_referencedNodes.removeFirst(&node);
+    ASSERT(m_referencedSourceNodes.contains(&node));
+    m_referencedSourceNodes.removeFirst(&node);
 }
 
 void BaseAudioContext::derefUnfinishedSourceNodes()
 {
     ASSERT(isMainThread() && isAudioThreadFinished());
-    m_referencedNodes.clear();
+    m_referencedSourceNodes.clear();
 }
 
 void BaseAudioContext::lock(bool& mustReleaseLock)
@@ -932,7 +925,7 @@ void BaseAudioContext::finishedRendering(bool didRendering)
     ASSERT(isOfflineContext());
     ASSERT(isMainThread());
     auto finishedRenderingScope = WTF::makeScopeExit([this] {
-        didFinishOfflineRendering(Exception { InvalidStateError });
+        didFinishOfflineRendering(Exception { InvalidStateError, "Offline rendering failed"_s });
     });
 
     if (!isMainThread())
@@ -1048,6 +1041,18 @@ void BaseAudioContext::addAudioParamDescriptors(const String& processorName, Vec
 {
     ASSERT(!m_parameterDescriptorMap.contains(processorName));
     m_parameterDescriptorMap.add(processorName, WTFMove(descriptors));
+}
+
+void BaseAudioContext::sourceNodeWillBeginPlayback(AudioNode& node)
+{
+    refSourceNode(node);
+}
+
+void BaseAudioContext::sourceNodeDidFinishPlayback(AudioNode& node)
+{
+    ASSERT(isAudioThread());
+
+    m_finishedSourceNodes.append(&node);
 }
 
 #if !RELEASE_LOG_DISABLED

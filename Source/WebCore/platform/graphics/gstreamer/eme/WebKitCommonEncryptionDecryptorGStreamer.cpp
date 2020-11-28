@@ -38,7 +38,6 @@ using WebCore::CDMProxy;
 
 #define WEBKIT_MEDIA_CENC_DECRYPT_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), WEBKIT_TYPE_MEDIA_CENC_DECRYPT, WebKitMediaCommonEncryptionDecryptPrivate))
 struct _WebKitMediaCommonEncryptionDecryptPrivate {
-    GRefPtr<GstEvent> protectionEvent;
     RefPtr<CDMProxy> cdmProxy;
 
     Lock cdmAttachmentMutex;
@@ -54,7 +53,7 @@ static GstFlowReturn transformInPlace(GstBaseTransform*, GstBuffer*);
 static gboolean sinkEventHandler(GstBaseTransform*, GstEvent*);
 static void setContext(GstElement*, GstContext*);
 
-GST_DEBUG_CATEGORY_STATIC(webkit_media_common_encryption_decrypt_debug_category);
+GST_DEBUG_CATEGORY(webkit_media_common_encryption_decrypt_debug_category);
 #define GST_CAT_DEFAULT webkit_media_common_encryption_decrypt_debug_category
 
 #define webkit_media_common_encryption_decrypt_parent_class parent_class

@@ -92,6 +92,11 @@ Range::~Range()
 #endif
 }
 
+Node* Range::commonAncestorContainer() const
+{
+    return commonInclusiveAncestor(startContainer(), endContainer());
+}
+
 void Range::updateAssociatedSelection()
 {
     if (m_isAssociatedWithSelection)
@@ -116,7 +121,7 @@ ExceptionOr<void> Range::setStart(Ref<Node>&& container, unsigned offset)
         return childNode.releaseException();
 
     m_start.set(WTFMove(container), offset, childNode.releaseReturnValue());
-    if (!is_lteq(documentOrder(makeBoundaryPoint(m_start), makeBoundaryPoint(m_end))))
+    if (!is_lteq(treeOrder(makeBoundaryPoint(m_start), makeBoundaryPoint(m_end))))
         m_end = m_start;
     updateAssociatedSelection();
     updateDocument();
@@ -130,7 +135,7 @@ ExceptionOr<void> Range::setEnd(Ref<Node>&& container, unsigned offset)
         return childNode.releaseException();
 
     m_end.set(WTFMove(container), offset, childNode.releaseReturnValue());
-    if (!is_lteq(documentOrder(makeBoundaryPoint(m_start), makeBoundaryPoint(m_end))))
+    if (!is_lteq(treeOrder(makeBoundaryPoint(m_start), makeBoundaryPoint(m_end))))
         m_start = m_end;
     updateAssociatedSelection();
     updateDocument();
@@ -155,7 +160,7 @@ ExceptionOr<bool> Range::isPointInRange(Node& container, unsigned offset)
             return false;
         return checkResult.releaseException();
     }
-    return WebCore::isPointInRange(makeSimpleRange(*this), { container, offset });
+    return contains(makeSimpleRange(*this), { container, offset });
 }
 
 ExceptionOr<short> Range::comparePoint(Node& container, unsigned offset) const
@@ -167,7 +172,7 @@ ExceptionOr<short> Range::comparePoint(Node& container, unsigned offset) const
             return Exception { WrongDocumentError };
         return checkResult.releaseException();
     }
-    auto ordering = documentOrder({ container, offset }, makeSimpleRange(*this));
+    auto ordering = treeOrder({ container, offset }, makeSimpleRange(*this));
     if (is_lt(ordering))
         return -1;
     if (is_eq(ordering))
@@ -198,8 +203,8 @@ ExceptionOr<Range::CompareResults> Range::compareNode(Node& node) const
         return Exception { NotFoundError };
     }
 
-    auto startOrdering = documentOrder(nodeRange->start, makeBoundaryPoint(m_start));
-    auto endOrdering = documentOrder(nodeRange->end, makeBoundaryPoint(m_end));
+    auto startOrdering = treeOrder(nodeRange->start, makeBoundaryPoint(m_start));
+    auto endOrdering = treeOrder(nodeRange->end, makeBoundaryPoint(m_end));
     if (is_gteq(startOrdering) && is_lteq(endOrdering))
         return NODE_INSIDE;
     if (is_lteq(startOrdering) && is_gteq(endOrdering))
@@ -235,7 +240,7 @@ ExceptionOr<short> Range::compareBoundaryPoints(unsigned short how, const Range&
     default:
         return Exception { NotSupportedError };
     }
-    auto ordering = documentOrder(makeBoundaryPoint(*thisPoint), makeBoundaryPoint(*otherPoint));
+    auto ordering = treeOrder(makeBoundaryPoint(*thisPoint), makeBoundaryPoint(*otherPoint));
     if (is_lt(ordering))
         return -1;
     if (is_eq(ordering))

@@ -66,23 +66,27 @@ public:
         static std::unique_ptr<LineBox::InlineLevelBox> createLineBreakBox(const Box&, InlineLayoutUnit logicalLeft);
         static std::unique_ptr<LineBox::InlineLevelBox> createGenericInlineLevelBox(const Box&, InlineLayoutUnit logicalLeft);
 
-        const InlineRect& logicalRect() const { return m_logicalRect; }
-        InlineLayoutUnit logicalTop() const { return m_logicalRect.top(); }
-        InlineLayoutUnit logicalBottom() const { return m_logicalRect.bottom(); }
-        InlineLayoutUnit logicalLeft() const { return m_logicalRect.left(); }
-        InlineLayoutUnit logicalWidth() const { return m_logicalRect.width(); }
-        InlineLayoutUnit logicalHeight() const { return m_logicalRect.height(); }
-
         InlineLayoutUnit baseline() const { return m_baseline; }
         Optional<InlineLayoutUnit> descent() const { return m_descent; }
+        // See https://www.w3.org/TR/css-inline-3/#layout-bounds
+        struct LayoutBounds {
+            InlineLayoutUnit height() const { return ascent + descent; }
+
+            InlineLayoutUnit ascent { 0 };
+            InlineLayoutUnit descent { 0 };
+        };
+        LayoutBounds layoutBounds() const { return m_layoutBounds; }
 
         bool isEmpty() const { return m_isEmpty; }
         void setIsNonEmpty() { m_isEmpty = false; }
 
-        const FontMetrics& fontMetrics() const { return layoutBox().style().fontMetrics(); }
+        VerticalAlign verticalAlign() const { return layoutBox().style().verticalAlign(); }
         const Box& layoutBox() const { return *m_layoutBox; }
+        const RenderStyle& style() const { return m_layoutBox->style(); }
 
         bool isInlineBox() const { return m_type == Type::InlineBox || m_type == Type::RootInlineBox; }
+        bool isRootInlineBox() const { return m_type == Type::RootInlineBox; }
+        bool isAtomicInlineLevelBox() const { return m_type == Type::AtomicInlineLevelBox; }
         bool isLineBreakBox() const { return m_type == Type::LineBreakBox; }
         bool hasLineBoxRelativeAlignment() const;
 
@@ -98,22 +102,21 @@ public:
 
     private:
         friend class LineBoxBuilder;
+        friend class LineBox;
+
+        const InlineRect& logicalRect() const { return m_logicalRect; }
+        InlineLayoutUnit logicalTop() const { return m_logicalRect.top(); }
+        InlineLayoutUnit logicalBottom() const { return m_logicalRect.bottom(); }
+        InlineLayoutUnit logicalLeft() const { return m_logicalRect.left(); }
+        InlineLayoutUnit logicalWidth() const { return m_logicalRect.width(); }
+        InlineLayoutUnit logicalHeight() const { return m_logicalRect.height(); }
 
         void setLogicalTop(InlineLayoutUnit logicalTop) { m_logicalRect.setTop(logicalTop); }
         void setLogicalWidth(InlineLayoutUnit logicalWidth) { m_logicalRect.setWidth(logicalWidth); }
         void setLogicalHeight(InlineLayoutUnit logicalHeight) { m_logicalRect.setHeight(logicalHeight); }
-        void setBaseline(InlineLayoutUnit baseline) { m_baseline = baseline; }
-        void setDescent(InlineLayoutUnit descent) { m_descent = descent; }
-
-        // See https://www.w3.org/TR/css-inline-3/#layout-bounds
-        struct LayoutBounds {
-            InlineLayoutUnit height() const { return ascent + descent; }
-
-            InlineLayoutUnit ascent { 0 };
-            InlineLayoutUnit descent { 0 };
-        };
-        void setLayoutBounds(const LayoutBounds& layoutBounds) { m_layoutBounds = layoutBounds; }
-        LayoutBounds layoutBounds() const { return m_layoutBounds; }
+        void setBaseline(InlineLayoutUnit);
+        void setDescent(InlineLayoutUnit);
+        void setLayoutBounds(const LayoutBounds&);
 
     private:
         WeakPtr<const Box> m_layoutBox;
@@ -125,15 +128,15 @@ public:
         Type m_type { Type::InlineBox };
     };
 
-    enum class IsLineVisuallyEmpty { No, Yes };
-    LineBox(InlineLayoutUnit logicalWidth, IsLineVisuallyEmpty);
+    enum class IsLineConsideredEmpty { No, Yes };
+    LineBox(InlineLayoutUnit logicalWidth, IsLineConsideredEmpty);
 
     InlineLayoutUnit logicalWidth() const { return m_logicalSize.width(); }
     InlineLayoutUnit logicalHeight() const { return m_logicalSize.height(); }
     InlineLayoutSize logicalSize() const { return m_logicalSize; }
 
     Optional<InlineLayoutUnit> horizontalAlignmentOffset() const { return m_horizontalAlignmentOffset; }
-    bool isLineVisuallyEmpty() const { return m_isLineVisuallyEmpty; }
+    bool isConsideredEmpty() const { return m_isConsideredEmpty; }
 
     const InlineLevelBox& inlineLevelBoxForLayoutBox(const Box& layoutBox) const { return *m_inlineLevelBoxRectMap.get(&layoutBox); }
 
@@ -142,6 +145,10 @@ public:
 
     auto inlineLevelBoxList() const { return m_inlineLevelBoxRectMap.values(); }
     bool containsInlineLevelBox(const Box& layoutBox) const { return m_inlineLevelBoxRectMap.contains(&layoutBox); }
+
+    const InlineLevelBox& rootInlineBox() const { return *m_rootInlineBox; }
+    using InlineLevelBoxList = Vector<std::unique_ptr<InlineLevelBox>>;
+    const InlineLevelBoxList& nonRootInlineLevelBoxes() const { return m_nonRootInlineLevelBoxList; }
 
     InlineLayoutUnit alignmentBaseline() const { return m_rootInlineBox->logicalTop() + m_rootInlineBox->baseline(); }
 
@@ -155,15 +162,13 @@ private:
     void addInlineLevelBox(std::unique_ptr<InlineLevelBox>&&);
 
     InlineLevelBox& rootInlineBox() { return *m_rootInlineBox; }
-    using InlineLevelBoxList = Vector<std::unique_ptr<InlineLevelBox>>;
-    const InlineLevelBoxList& nonRootInlineLevelBoxes() const { return m_nonRootInlineLevelBoxList; }
 
     InlineLevelBox& inlineLevelBoxForLayoutBox(const Box& layoutBox) { return *m_inlineLevelBoxRectMap.get(&layoutBox); }
 
 private:
     InlineLayoutSize m_logicalSize;
     Optional<InlineLayoutUnit> m_horizontalAlignmentOffset;
-    bool m_isLineVisuallyEmpty { true };
+    bool m_isConsideredEmpty { true };
 
     std::unique_ptr<InlineLevelBox> m_rootInlineBox;
     InlineLevelBoxList m_nonRootInlineLevelBoxList;

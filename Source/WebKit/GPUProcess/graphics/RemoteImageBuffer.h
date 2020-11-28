@@ -27,8 +27,11 @@
 
 #if ENABLE(GPU_PROCESS)
 
+#include "Decoder.h"
 #include "GPUConnectionToWebProcess.h"
 #include <WebCore/ConcreteImageBuffer.h>
+#include <WebCore/DisplayList.h>
+#include <WebCore/DisplayListItems.h>
 #include <WebCore/DisplayListReplayer.h>
 
 namespace WebKit {
@@ -41,16 +44,17 @@ class RemoteImageBuffer : public WebCore::ConcreteImageBuffer<BackendType>, publ
     using BaseConcreteImageBuffer::putImageData;
 
 public:
-    static auto create(const WebCore::FloatSize& size, float resolutionScale, WebCore::ColorSpace colorSpace, RemoteRenderingBackend& remoteRenderingBackend, WebCore::RemoteResourceIdentifier remoteResourceIdentifier)
+    static auto create(const WebCore::FloatSize& size, float resolutionScale, WebCore::ColorSpace colorSpace, WebCore::PixelFormat pixelFormat, RemoteRenderingBackend& remoteRenderingBackend, WebCore::RenderingResourceIdentifier renderingResourceIdentifier)
     {
-        return BaseConcreteImageBuffer::template create<RemoteImageBuffer>(size, resolutionScale, colorSpace, nullptr, remoteRenderingBackend, remoteResourceIdentifier);
+        return BaseConcreteImageBuffer::template create<RemoteImageBuffer>(size, resolutionScale, colorSpace, pixelFormat, nullptr, remoteRenderingBackend, renderingResourceIdentifier);
     }
 
-    RemoteImageBuffer(std::unique_ptr<BackendType>&& backend, RemoteRenderingBackend& remoteRenderingBackend, WebCore::RemoteResourceIdentifier remoteResourceIdentifier)
-        : BaseConcreteImageBuffer(WTFMove(backend))
+    RemoteImageBuffer(std::unique_ptr<BackendType>&& backend, RemoteRenderingBackend& remoteRenderingBackend, WebCore::RenderingResourceIdentifier renderingResourceIdentifier)
+        : BaseConcreteImageBuffer(WTFMove(backend), renderingResourceIdentifier)
         , m_remoteRenderingBackend(remoteRenderingBackend)
+        , m_renderingResourceIdentifier(renderingResourceIdentifier)
     {
-        m_remoteRenderingBackend.imageBufferBackendWasCreated(m_backend->logicalSize(), m_backend->backendSize(), m_backend->resolutionScale(), m_backend->colorSpace(), m_backend->createImageBufferBackendHandle(), remoteResourceIdentifier);
+        m_remoteRenderingBackend.imageBufferBackendWasCreated(m_backend->logicalSize(), m_backend->backendSize(), m_backend->resolutionScale(), m_backend->colorSpace(), m_backend->pixelFormat(), m_backend->createImageBufferBackendHandle(), renderingResourceIdentifier);
     }
 
     ~RemoteImageBuffer()
@@ -62,48 +66,42 @@ public:
     }
 
 private:
-    void flushDisplayList(const WebCore::DisplayList::DisplayList& displayList) override
+    void submitDisplayList(const WebCore::DisplayList::DisplayList& displayList) override
     {
-        if (displayList.itemCount()) {
-            WebCore::DisplayList::Replayer replayer(BaseConcreteImageBuffer::context(), displayList, this);
+        if (!displayList.isEmpty()) {
+            const auto& imageBuffers = m_remoteRenderingBackend.remoteResourceCache().imageBuffers();
+            const auto& nativeImages = m_remoteRenderingBackend.remoteResourceCache().nativeImages();
+            WebCore::DisplayList::Replayer replayer { BaseConcreteImageBuffer::context(), displayList, &imageBuffers, &nativeImages, this };
             replayer.replay();
         }
     }
 
-    bool apply(WebCore::DisplayList::Item& item, WebCore::GraphicsContext& context) override
+    bool apply(WebCore::DisplayList::ItemHandle item, WebCore::GraphicsContext& context) override
     {
-        if (item.type() == WebCore::DisplayList::ItemType::PutImageData) {
-            auto& putImageDataItem = static_cast<WebCore::DisplayList::PutImageData&>(item);
+        if (item.is<WebCore::DisplayList::PutImageData>()) {
+            auto& putImageDataItem = item.get<WebCore::DisplayList::PutImageData>();
             putImageData(putImageDataItem.inputFormat(), putImageDataItem.imageData(), putImageDataItem.srcRect(), putImageDataItem.destPoint(), putImageDataItem.destFormat());
             return true;
         }
 
-        if (item.type() == WebCore::DisplayList::ItemType::PaintFrameForMedia) {
-            apply(static_cast<WebCore::DisplayList::PaintFrameForMedia&>(item), context);
+        if (item.is<WebCore::DisplayList::FlushContext>()) {
+            BaseConcreteImageBuffer::flushContext();
+            auto identifier = item.get<WebCore::DisplayList::FlushContext>().identifier();
+            m_remoteRenderingBackend.flushDisplayListWasCommitted(identifier, m_renderingResourceIdentifier);
             return true;
         }
 
-        return false;
+        if (item.is<WebCore::DisplayList::MetaCommandSwitchTo>()) {
+            auto nextBufferIdentifier = item.get<WebCore::DisplayList::MetaCommandSwitchTo>().identifier();
+            m_remoteRenderingBackend.setNextItemBufferToRead(nextBufferIdentifier);
+            return true;
+        }
+
+        return m_remoteRenderingBackend.applyMediaItem(item, context);
     }
 
-    void apply(WebCore::DisplayList::PaintFrameForMedia& item, WebCore::GraphicsContext& context)
-    {
-        auto process = m_remoteRenderingBackend.gpuConnectionToWebProcess();
-        if (!process)
-            return;
-
-        auto playerProxy = process->remoteMediaPlayerManagerProxy().getProxy(item.identifier());
-        if (!playerProxy)
-            return;
-
-        auto player = playerProxy->mediaPlayer();
-        if (!player)
-            return;
-
-        context.paintFrameForMedia(*player, item.destination());
-    }
-    
     RemoteRenderingBackend& m_remoteRenderingBackend;
+    WebCore::RenderingResourceIdentifier m_renderingResourceIdentifier;
 };
 
 } // namespace WebKit

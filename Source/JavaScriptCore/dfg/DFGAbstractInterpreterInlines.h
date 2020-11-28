@@ -826,7 +826,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
     }
         
     case AtomicsIsLockFree: {
-        if (node->child1().useKind() != Int32Use)
+        if (m_graph.child(node, 0).useKind() != Int32Use)
             clobberWorld();
         setNonCellTypeForNode(node, SpecBoolInt32);
         break;
@@ -3348,6 +3348,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
         makeHeapTopForNode(node);
         break;
 
+    case GetPrivateNameById:
     case GetByIdDirect:
     case GetByIdDirectFlush:
     case GetById:
@@ -3383,6 +3384,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
         break;
     }
 
+    case GetPrivateName:
     case GetByValWithThis:
     case GetByIdWithThis:
         clobberWorld();
@@ -4351,7 +4353,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
     case CountExecution:
     case CheckTierUpInLoop:
     case CheckTierUpAtReturn:
-    case CheckNeutered:
+    case CheckDetached:
     case SuperSamplerBegin:
     case SuperSamplerEnd:
     case CheckTierUpAndOSREnter:

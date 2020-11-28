@@ -70,45 +70,44 @@ using namespace JSC;
 
 // Functions
 
-JSC_DECLARE_HOST_FUNCTION(jsTestDefaultToJSONPrototypeFunction_toJSON);
+static JSC_DECLARE_HOST_FUNCTION(jsTestDefaultToJSONPrototypeFunction_toJSON);
 
 // Attributes
 
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSONConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSONConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_longAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_enabledBySettingsAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSONConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_longAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_enabledBySettingsAttribute);
 #if ENABLE(TEST_CONDITIONAL)
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_enabledByConditionalAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_enabledByConditionalAttribute);
 #endif
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_eventHandlerAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_eventHandlerAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_firstStringAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_firstStringAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_secondLongAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_secondLongAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_thirdUnJSONableAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_thirdUnJSONableAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_fourthUnrestrictedDoubleAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_fourthUnrestrictedDoubleAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_fifthLongClampedAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_fifthLongClampedAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_sixthTypedefAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_sixthTypedefAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_seventhDirectlyToJSONableAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_seventhDirectlyToJSONableAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_eighthIndirectlyAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_eighthIndirectlyAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_ninthOptionalDirectlyToJSONableAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_ninthOptionalDirectlyToJSONableAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_tenthFrozenArrayAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_tenthFrozenArrayAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_eleventhSequenceAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_eleventhSequenceAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_twelfthInterfaceSequenceAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_twelfthInterfaceSequenceAttribute);
-JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_thirteenthRecordAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_thirteenthRecordAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_eventHandlerAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_eventHandlerAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_firstStringAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_firstStringAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_secondLongAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_secondLongAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_thirdUnJSONableAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_thirdUnJSONableAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_fourthUnrestrictedDoubleAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_fourthUnrestrictedDoubleAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_fifthLongClampedAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_fifthLongClampedAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_sixthTypedefAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_sixthTypedefAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_seventhDirectlyToJSONableAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_seventhDirectlyToJSONableAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_eighthIndirectlyAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_eighthIndirectlyAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_ninthOptionalDirectlyToJSONableAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_ninthOptionalDirectlyToJSONableAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_tenthFrozenArrayAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_tenthFrozenArrayAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_eleventhSequenceAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_eleventhSequenceAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_twelfthInterfaceSequenceAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_twelfthInterfaceSequenceAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestDefaultToJSON_thirteenthRecordAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestDefaultToJSON_thirteenthRecordAttribute);
 
 class JSTestDefaultToJSONPrototype final : public JSC::JSNonFinalObject {
 public:
@@ -163,7 +162,7 @@ template<> const ClassInfo JSTestDefaultToJSONDOMConstructor::s_info = { "TestDe
 
 static const HashTableValue JSTestDefaultToJSONPrototypeTableValues[] =
 {
-    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestDefaultToJSONConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestDefaultToJSONConstructor) } },
+    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestDefaultToJSONConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
     { "longAttribute", static_cast<unsigned>(JSC::PropertyAttribute::ReadOnly | JSC::PropertyAttribute::CustomAccessor | JSC::PropertyAttribute::DOMAttribute), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestDefaultToJSON_longAttribute), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
     { "enabledBySettingsAttribute", static_cast<unsigned>(JSC::PropertyAttribute::ReadOnly | JSC::PropertyAttribute::CustomAccessor | JSC::PropertyAttribute::DOMAttribute), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestDefaultToJSON_enabledBySettingsAttribute), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
 #if ENABLE(TEST_CONDITIONAL)
@@ -269,19 +268,6 @@ JSC_DEFINE_CUSTOM_GETTER(jsTestDefaultToJSONConstructor, (JSGlobalObject* lexica
     if (UNLIKELY(!prototype))
         return throwVMTypeError(lexicalGlobalObject, throwScope);
     return JSValue::encode(JSTestDefaultToJSON::getConstructor(JSC::getVM(lexicalGlobalObject), prototype->globalObject()));
-}
-
-JSC_DEFINE_CUSTOM_SETTER(setJSTestDefaultToJSONConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
-{
-    VM& vm = JSC::getVM(lexicalGlobalObject);
-    auto throwScope = DECLARE_THROW_SCOPE(vm);
-    auto* prototype = jsDynamicCast<JSTestDefaultToJSONPrototype*>(vm, JSValue::decode(thisValue));
-    if (UNLIKELY(!prototype)) {
-        throwVMTypeError(lexicalGlobalObject, throwScope);
-        return false;
-    }
-    // Shadowing a built-in constructor
-    return prototype->putDirect(vm, vm.propertyNames->constructor, JSValue::decode(encodedValue));
 }
 
 static inline JSValue jsTestDefaultToJSON_longAttributeGetter(JSGlobalObject& lexicalGlobalObject, JSTestDefaultToJSON& thisObject)

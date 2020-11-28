@@ -77,7 +77,6 @@
 #include <WebCore/PluginData.h>
 #include <WebCore/PointerCharacteristics.h>
 #include <WebCore/PointerID.h>
-#include <WebCore/RenderingMode.h>
 #include <WebCore/SecurityPolicyViolationEvent.h>
 #include <WebCore/ShareData.h>
 #include <WebCore/SimpleRange.h>
@@ -181,7 +180,6 @@ class HTMLImageElement;
 class HTMLMenuElement;
 class HTMLMenuItemElement;
 class HTMLPlugInElement;
-class HTMLPlugInImageElement;
 class IntPoint;
 class KeyboardEvent;
 class MediaPlaybackTargetContext;
@@ -216,6 +214,8 @@ struct AttributedString;
 struct BackForwardItemIdentifier;
 struct CompositionHighlight;
 struct CompositionUnderline;
+struct ContactInfo;
+struct ContactsRequestData;
 struct DictationAlternative;
 struct ElementContext;
 struct GlobalFrameIdentifier;
@@ -245,6 +245,7 @@ class NotificationPermissionRequestManager;
 class PDFPlugin;
 class PageBanner;
 class PluginView;
+class RemoteRenderingBackendProxy;
 class RemoteWebInspectorUI;
 class TextCheckingControllerProxy;
 class UserMediaPermissionRequestManager;
@@ -1073,11 +1074,6 @@ public:
     void setAsynchronousPluginInitializationEnabledForAllPlugins(bool enabled) { m_asynchronousPluginInitializationEnabledForAllPlugins = enabled; }
     bool artificialPluginInitializationDelayEnabled() const { return m_artificialPluginInitializationDelayEnabled; }
     void setArtificialPluginInitializationDelayEnabled(bool enabled) { m_artificialPluginInitializationDelayEnabled = enabled; }
-    void setTabToLinksEnabled(bool enabled) { m_tabToLinks = enabled; }
-    bool tabToLinksEnabled() const { return m_tabToLinks; }
-
-    bool scrollingPerformanceLoggingEnabled() const { return m_scrollingPerformanceLoggingEnabled; }
-    void setScrollingPerformanceLoggingEnabled(bool);
 
 #if PLATFORM(COCOA)
     bool shouldUsePDFPlugin() const;
@@ -1118,15 +1114,6 @@ public:
     void addTextCheckingRequest(uint64_t requestID, Ref<WebCore::TextCheckingRequest>&&);
     void didFinishCheckingText(uint64_t requestID, const Vector<WebCore::TextCheckingResult>&);
     void didCancelCheckingText(uint64_t requestID);
-
-#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
-    void determinePrimarySnapshottedPlugIn();
-    void determinePrimarySnapshottedPlugInTimerFired();
-    void resetPrimarySnapshottedPlugIn();
-    bool matchesPrimaryPlugIn(const String& pageOrigin, const String& pluginOrigin, const String& mimeType) const;
-    bool plugInIntersectsSearchRect(WebCore::HTMLPlugInImageElement& pluginImageElement);
-    bool plugInIsPrimarySize(WebCore::HTMLPlugInImageElement& pluginImageElement, unsigned &pluginArea);
-#endif
 
 #if ENABLE(DATA_DETECTION)
     void setDataDetectionResults(NSArray *);
@@ -1242,6 +1229,7 @@ public:
 #endif
 
     void showShareSheet(WebCore::ShareDataWithParsedURL&, CompletionHandler<void(bool)>&& callback);
+    void showContactPicker(const WebCore::ContactsRequestData&, CompletionHandler<void(Optional<Vector<WebCore::ContactInfo>>&&)>&&);
     
 #if ENABLE(ATTACHMENT_ELEMENT)
     void insertAttachment(const String& identifier, Optional<uint64_t>&& fileSize, const String& fileName, const String& contentType, CallbackID);
@@ -1360,8 +1348,6 @@ public:
     bool needsInAppBrowserPrivacyQuirks() { return m_needsInAppBrowserPrivacyQuirks; }
 #endif
 
-    bool shouldUseRemoteRenderingFor(WebCore::RenderingPurpose);
-
 #if ENABLE(MEDIA_USAGE)
     void addMediaUsageManagerSession(WebCore::MediaSessionIdentifier, const String&, const URL&);
     void updateMediaUsageManagerSessionState(WebCore::MediaSessionIdentifier, const WebCore::MediaUsageInfo&);
@@ -1375,6 +1361,10 @@ public:
     static void updatePreferencesGenerated(const WebPreferencesStore&);
 
     void synchronizeCORSDisablingPatternsWithNetworkProcess();
+
+#if ENABLE(GPU_PROCESS)
+    RemoteRenderingBackendProxy& ensureRemoteRenderingBackendProxy();
+#endif
 
 private:
     WebPage(WebCore::PageIdentifier, WebPageCreationParameters&&);
@@ -1825,24 +1815,16 @@ private:
     bool m_asynchronousPluginInitializationEnabled { false };
     bool m_asynchronousPluginInitializationEnabledForAllPlugins { false };
     bool m_artificialPluginInitializationDelayEnabled { false };
-    bool m_scrollingPerformanceLoggingEnabled { false };
     bool m_mainFrameIsScrollable { true };
 
     bool m_alwaysShowsHorizontalScroller { false };
     bool m_alwaysShowsVerticalScroller { false };
 
     bool m_shouldRenderCanvasInGPUProcess { false };
+    bool m_shouldRenderDOMInGPUProcess { false };
+    bool m_shouldPlayMediaInGPUProcess { false };
 #if ENABLE(APP_BOUND_DOMAINS)
     bool m_needsInAppBrowserPrivacyQuirks { false };
-#endif
-#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
-    bool m_readyToFindPrimarySnapshottedPlugin { false };
-    bool m_didFindPrimarySnapshottedPlugin { false };
-    unsigned m_numberOfPrimarySnapshotDetectionAttempts { 0 };
-    String m_primaryPlugInPageOrigin;
-    String m_primaryPlugInOrigin;
-    String m_primaryPlugInMimeType;
-    RunLoop::Timer<WebPage> m_determinePrimarySnapshottedPlugInTimer;
 #endif
 
     // The layer hosting mode.
@@ -2185,6 +2167,10 @@ private:
 #if ENABLE(IPC_TESTING_API)
     bool m_ipcTestingAPIEnabled { false };
     uint64_t m_visitedLinkTableID;
+#endif
+
+#if ENABLE(GPU_PROCESS)
+    std::unique_ptr<RemoteRenderingBackendProxy> m_remoteRenderingBackendProxy;
 #endif
 };
 

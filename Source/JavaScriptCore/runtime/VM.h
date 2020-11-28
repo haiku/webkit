@@ -32,7 +32,6 @@
 #include "CodeSpecializationKind.h"
 #include "CompleteSubspace.h"
 #include "ConcurrentJSLock.h"
-#include "DateInstanceCache.h"
 #include "DeleteAllCodeEffort.h"
 #include "DisallowVMEntry.h"
 #include "ExceptionEventLocation.h"
@@ -44,6 +43,7 @@
 #include "IsoCellSet.h"
 #include "IsoSubspace.h"
 #include "JSCJSValue.h"
+#include "JSDateMath.h"
 #include "JSLock.h"
 #include "MacroAssemblerCodeRef.h"
 #include "Microtask.h"
@@ -108,7 +108,7 @@ struct CheckpointOSRExitSideState;
 class CodeBlock;
 class CodeCache;
 class CommonIdentifiers;
-class CompactVariableMap;
+class CompactTDZEnvironmentMap;
 class ConservativeRoots;
 class ControlFlowProfiler;
 class CustomGetterSetter;
@@ -128,6 +128,7 @@ class IntlCache;
 class IntlCollator;
 class IntlDateTimeFormat;
 class IntlDisplayNames;
+class IntlListFormat;
 class IntlLocale;
 class IntlNumberFormat;
 class IntlPluralRules;
@@ -219,28 +220,6 @@ struct EntryFrame;
 struct HashTable;
 struct Instruction;
 struct ValueProfile;
-
-struct LocalTimeOffsetCache {
-    LocalTimeOffsetCache()
-        : start(0.0)
-        , end(-1.0)
-        , increment(0.0)
-    {
-    }
-
-    void reset()
-    {
-        offset = LocalTimeOffset();
-        start = 0.0;
-        end = -1.0;
-        increment = 0.0;
-    }
-
-    LocalTimeOffset offset;
-    double start;
-    double end;
-    double increment;
-};
 
 class QueuedTask {
     WTF_MAKE_NONCOPYABLE(QueuedTask);
@@ -408,6 +387,7 @@ public:
     std::unique_ptr<IsoHeapCellType> intlCollatorHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlDateTimeFormatHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlDisplayNamesHeapCellType;
+    std::unique_ptr<IsoHeapCellType> intlListFormatHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlLocaleHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlNumberFormatHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlPluralRulesHeapCellType;
@@ -570,6 +550,7 @@ public:
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlCollatorSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlDateTimeFormatSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlDisplayNamesSpace)
+    DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlListFormatSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlLocaleSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlNumberFormatSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlPluralRulesSpace)
@@ -733,6 +714,7 @@ public:
 
     AtomStringTable* m_atomStringTable;
     WTF::SymbolRegistry m_symbolRegistry;
+    WTF::SymbolRegistry m_privateSymbolRegistry;
     CommonIdentifiers* propertyNames;
     const ArgList* emptyList;
     SmallStrings smallStrings;
@@ -744,6 +726,7 @@ public:
 
     AtomStringTable* atomStringTable() const { return m_atomStringTable; }
     WTF::SymbolRegistry& symbolRegistry() { return m_symbolRegistry; }
+    WTF::SymbolRegistry& privateSymbolRegistry() { return m_privateSymbolRegistry; }
 
     Strong<JSBigInt> heapBigIntConstantOne;
 
@@ -978,14 +961,6 @@ public:
     JSObject* stringRecursionCheckFirstObject { nullptr };
     HashSet<JSObject*> stringRecursionCheckVisitedObjects;
 
-    struct DateCache {
-        DateInstanceCache dateInstanceCache;
-        LocalTimeOffsetCache utcTimeOffsetCache;
-        LocalTimeOffsetCache localTimeOffsetCache;
-
-        String cachedDateString;
-        double cachedDateStringValue;
-    };
     DateCache dateCache;
 
     std::unique_ptr<Profiler::Database> m_perBytecodeProfiler;
@@ -1004,7 +979,7 @@ public:
     static constexpr size_t patternContextBufferSize = 0; // Space allocated to save nested parenthesis context
 #endif
 
-    Ref<CompactVariableMap> m_compactVariableMap;
+    Ref<CompactTDZEnvironmentMap> m_compactVariableMap;
 
     std::unique_ptr<HasOwnPropertyCache> m_hasOwnPropertyCache;
     ALWAYS_INLINE HasOwnPropertyCache* hasOwnPropertyCache() { return m_hasOwnPropertyCache.get(); }
@@ -1015,7 +990,7 @@ public:
     RTTraceList* m_rtTraceList;
 #endif
 
-    JS_EXPORT_PRIVATE void resetDateCache();
+    void resetDateCache() { dateCache.reset(); }
 
     RegExpCache* regExpCache() { return m_regExpCache; }
 #if ENABLE(REGEXP_TRACING)

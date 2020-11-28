@@ -1,3 +1,136 @@
+2020-11-09  Lauro Moura  <lmoura@igalia.com>
+
+        [WebDriver] Gardening some WPE failures
+
+        Unreviewed test gardening.
+
+        * TestExpectations.json:
+
+2020-11-05  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: handle surrogate pairs in keyboard actions
+        https://bugs.webkit.org/show_bug.cgi?id=218279
+
+        Reviewed by Brian Burg.
+
+        Remove expectations for tests that are now passing.
+
+        * TestExpectations.json:
+
+2020-11-03  Lauro Moura  <lmoura@igalia.com>
+
+        [WebDriver] Update config.json after tools update in r269235
+        https://bugs.webkit.org/show_bug.cgi?id=218512
+
+        Reviewed by Carlos Garcia Campos.
+
+        * imported/w3c/config.json: Add missing value to https list.
+
+2020-10-27  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: sequence of char key press is not supported
+        https://bugs.webkit.org/show_bug.cgi?id=217951
+
+        Reviewed by Brian Burg.
+
+        Remove expectations for test that is now passing.
+
+        * TestExpectations.json:
+
+2020-10-22  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: handle key events with non-ASCII unicode code point
+        https://bugs.webkit.org/show_bug.cgi?id=217950
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Remove expectations for tests that are now passing.
+
+        * TestExpectations.json:
+
+2020-10-22  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update W3C WebDriver imported tests.
+
+        * TestExpectations.json:
+        * imported/w3c/importer.json:
+        * imported/w3c/tools/webdriver/webdriver/client.py:
+        * imported/w3c/tools/wptrunner/wptrunner/browsers/android_weblayer.py:
+        * imported/w3c/tools/wptrunner/wptrunner/browsers/chrome.py:
+        * imported/w3c/tools/wptrunner/wptrunner/browsers/chrome_android.py:
+        * imported/w3c/tools/wptrunner/wptrunner/environment.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/base.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/executormarionette.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/executorselenium.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/executorservodriver.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/executorwebdriver.py:
+        * imported/w3c/tools/wptrunner/wptrunner/executors/protocol.py:
+        * imported/w3c/tools/wptrunner/wptrunner/testdriver-extra.js:
+        * imported/w3c/tools/wptrunner/wptrunner/testharnessreport.js:¡
+        * imported/w3c/tools/wptrunner/wptrunner/webdriver_server.py:
+        * imported/w3c/tools/wptrunner/wptrunner/wptcommandline.py:
+        * imported/w3c/tools/wptrunner/wptrunner/wptrunner.py:
+        * imported/w3c/webdriver/tests/element_click/shadow_dom.py: Added.
+        * imported/w3c/webdriver/tests/perform_actions/support/refine.py:
+        * imported/w3c/webdriver/tests/print/printcmd.py:
+        * imported/w3c/webdriver/tests/print/user_prompts.py:
+
+2020-10-21  Lauro Moura  <lmoura@igalia.com>
+
+        webkitpy: Check for duplicated keys in json expectation files
+        https://bugs.webkit.org/show_bug.cgi?id=218032
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        * TestExpectations.json: Fix duplicated test key.
+
+2020-10-21  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: add support for wheel actions
+        https://bugs.webkit.org/show_bug.cgi?id=217174
+
+        Reviewed by Brian Burg.
+
+        Remove expectations for wheel actions test.
+
+        * TestExpectations.json:
+
+2020-10-20  Lauro Moura  <lmoura@igalia.com>
+
+        [WebDriver] Gardening WPE no browsing context failures
+
+        Unreviewed test gardening.
+
+        These failures are related to the lack of multi window support in
+        current WPE MiniBrowser code.
+
+        After this, a number of unexpected passes will appear due to
+        `test_no_browsing_context` failing in the teardown step and pytest
+        recording two runs (the actual test XPASSes but the teardown XFAILs).
+
+        * TestExpectations.json:
+
+2020-10-20  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: start a https server too for tests
+        https://bugs.webkit.org/show_bug.cgi?id=217223
+        <rdar://problem/70136595>
+
+        Reviewed by Adrian Perez de Castro.
+
+        * imported/w3c/config.json: Add HTTPs configuration.
+
+2020-10-20  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: add support for right variations of virtual keys
+        https://bugs.webkit.org/show_bug.cgi?id=217819
+
+        Reviewed by Brian Burg.
+
+        Remove expectations for tests that are now passing.
+
+        * TestExpectations.json:
+
 2020-10-02  Carlos Garcia Campos  <cgarcia@igalia.com>
 
         Unreviewed Gardening. Remove expectations for tests fixed in r267872

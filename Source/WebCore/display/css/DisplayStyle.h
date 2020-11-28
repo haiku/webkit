@@ -39,6 +39,7 @@
 
 namespace WebCore {
 
+class FillLayer;
 class RenderStyle;
 
 namespace Display {
@@ -46,7 +47,7 @@ namespace Display {
 // Style information needed to paint a Display::Box.
 // All colors should be resolved to their painted values [visitedDependentColorWithColorFilter()].
 // Should contain only absolute float values; no Lengths (which can contain calc values).
-
+// Should be sharable between boxes with different geometry but the same style.
 class Style {
     WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Style);
 public:
@@ -57,18 +58,16 @@ public:
     };
 
     explicit Style(const RenderStyle&);
+    explicit Style(const RenderStyle&, const RenderStyle* styleForBackground);
 
     const Color& color() const { return m_color; }
 
     const Color& backgroundColor() const { return m_backgroundColor; }
     bool hasBackground() const;
-    bool hasBackgroundImage() const { return false; } // FIXME
+    bool hasBackgroundImage() const;
 
-    bool hasVisibleBorder() const;
-    const BorderValue& borderLeft() const { return m_border.left; }
-    const BorderValue& borderRight() const { return m_border.right; }
-    const BorderValue& borderTop() const { return m_border.top; }
-    const BorderValue& borderBottom() const { return m_border.bottom; }
+    const FillLayer* backgroundLayers() const { return m_backgroundLayers.get(); }
+    bool backgroundHasOpaqueTopLayer() const;
 
     Optional<int> zIndex() const { return m_zIndex; }
     bool isStackingContext() const { return m_zIndex.hasValue(); }
@@ -89,20 +88,15 @@ public:
     const TabSize& tabSize() const { return m_tabSize; }
 
 private:
+    void setupBackground(const RenderStyle&);
+
     void setIsPositioned(bool value) { m_flags.set({ Flags::Positioned }, value); }
     void setIsFloating(bool value) { m_flags.set({ Flags::Floating }, value); }
 
     Color m_color;
     Color m_backgroundColor;
 
-    struct {
-        BorderValue left;
-        BorderValue right;
-        BorderValue top;
-        BorderValue bottom;
-
-        NinePieceImage image;
-    } m_border;
+    RefPtr<FillLayer> m_backgroundLayers;
 
     FontCascade m_fontCascade;
     WhiteSpace m_whiteSpace;

@@ -38,6 +38,7 @@ class BitmapTexturePool;
 class GraphicsLayer;
 class TextureMapper;
 class FilterOperations;
+class FloatRoundedRect;
 
 class TextureMapper {
     WTF_MAKE_FAST_ALLOCATED;
@@ -77,9 +78,7 @@ public:
 
     // makes a surface the target for the following drawTexture calls.
     virtual void bindSurface(BitmapTexture* surface) = 0;
-    void setGraphicsContext(GraphicsContext* context) { m_context = context; }
-    GraphicsContext* graphicsContext() { return m_context; }
-    virtual void beginClip(const TransformationMatrix&, const FloatRect&) = 0;
+    virtual void beginClip(const TransformationMatrix&, const FloatRoundedRect&) = 0;
     virtual void endClip() = 0;
     virtual IntRect clipBounds() = 0;
     virtual void beginPreserves3D() { };

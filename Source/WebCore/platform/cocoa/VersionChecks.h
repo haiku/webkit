@@ -65,11 +65,13 @@ enum class SDKVersion : uint32_t {
     FirstWithWKWebsiteDataStoreInitReturningNil = DYLD_IOS_VERSION_14_0,
     FirstVersionWithiOSAppsOnMacOS = DYLD_IOS_VERSION_FIRST_WITH_IOS_APPS_ON_MACOS,
     FirstWithDataURLFragmentRemoval = DYLD_IOS_VERSION_14_5,
+    FirstThatObservesClassProperty = DYLD_IOS_VERSION_14_5,
 #elif PLATFORM(MAC)
     FirstWithNetworkCache = DYLD_MACOSX_VERSION_10_11,
     FirstWithExceptionsForDuplicateCompletionHandlerCalls = DYLD_MACOSX_VERSION_10_13,
     FirstWithDropToNavigateDisallowedByDefault = DYLD_MACOSX_VERSION_10_13,
     FirstWithExpiredOnlyReloadBehavior = DYLD_MACOSX_VERSION_10_13,
+    FirstThatDefaultsToPassiveWheelListenersOnDocument = DYLD_MACOSX_VERSION_11_3,
     FirstWithWebIconDatabaseWarning = DYLD_MACOSX_VERSION_10_13,
     FirstWithMainThreadReleaseAssertionInWebPageProxy = DYLD_MACOSX_VERSION_10_14,
     FirstWithoutUnconditionalUniversalSandboxExtension = DYLD_MACOSX_VERSION_10_15,

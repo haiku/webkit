@@ -28,6 +28,7 @@
 
 #include "LayoutIntegrationLineLayout.h"
 #include "LayoutIntegrationRunIterator.h"
+#include "RenderBlockFlow.h"
 
 namespace WebCore {
 namespace LayoutIntegration {
@@ -72,42 +73,106 @@ LineIterator& LineIterator::traversePrevious()
 
 bool LineIterator::operator==(const LineIterator& other) const
 {
-    if (m_line.m_pathVariant.index() != other.m_line.m_pathVariant.index())
-        return false;
-
-    return WTF::switchOn(m_line.m_pathVariant, [&](const auto& path) {
-        return path == WTF::get<std::decay_t<decltype(path)>>(other.m_line.m_pathVariant);
-    });
+    return m_line.m_pathVariant == other.m_line.m_pathVariant;
 }
 
-LineRunIterator LineIterator::firstRun() const
+RunIterator LineIterator::firstRun() const
 {
     return WTF::switchOn(m_line.m_pathVariant, [](auto& path) -> RunIterator {
         return { path.firstRun() };
     });
 }
 
-LineRunIterator LineIterator::lastRun() const
+RunIterator LineIterator::lastRun() const
 {
     return WTF::switchOn(m_line.m_pathVariant, [](auto& path) -> RunIterator {
         return { path.lastRun() };
     });
 }
 
-LineRunIterator LineIterator::logicalStartRunWithNode() const
+RunIterator LineIterator::logicalStartRunWithNode() const
 {
     return WTF::switchOn(m_line.m_pathVariant, [](auto& path) -> RunIterator {
         return { path.logicalStartRunWithNode() };
     });
 }
 
-LineRunIterator LineIterator::logicalEndRunWithNode() const
+RunIterator LineIterator::logicalEndRunWithNode() const
 {
     return WTF::switchOn(m_line.m_pathVariant, [](auto& path) -> RunIterator {
         return { path.logicalEndRunWithNode() };
     });
 }
 
+LineIterator firstLineFor(const RenderBlockFlow& flow)
+{
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+    if (auto* lineLayout = flow.modernLineLayout())
+        return lineLayout->firstLine();
+#endif
+
+    return { LineIteratorLegacyPath { flow.firstRootBox() } };
+}
+
+LineIterator lastLineFor(const RenderBlockFlow& flow)
+{
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+    if (auto* lineLayout = flow.modernLineLayout())
+        return lineLayout->lastLine();
+#endif
+
+    return { LineIteratorLegacyPath { flow.lastRootBox() } };
+}
+
+RunIterator LineIterator::closestRunForPoint(const IntPoint& pointInContents, bool editableOnly)
+{
+    if (atEnd())
+        return { };
+    return closestRunForLogicalLeftPosition(m_line.isHorizontal() ? pointInContents.x() : pointInContents.y(), editableOnly);
+}
+
+RunIterator LineIterator::closestRunForLogicalLeftPosition(int leftPosition, bool editableOnly)
+{
+    auto isEditable = [&](auto run)
+    {
+        return run && run->renderer().node() && run->renderer().node()->hasEditableStyle();
+    };
+
+    auto firstRun = this->firstRun();
+    auto lastRun = this->lastRun();
+
+    if (firstRun != lastRun) {
+        if (firstRun->isLineBreak())
+            firstRun = firstRun.nextOnLineIgnoringLineBreak();
+        else if (lastRun->isLineBreak())
+            lastRun = lastRun.previousOnLineIgnoringLineBreak();
+    }
+
+    if (firstRun == lastRun && (!editableOnly || isEditable(firstRun)))
+        return firstRun;
+
+    if (firstRun && leftPosition <= firstRun->logicalLeft() && !firstRun->renderer().isListMarker() && (!editableOnly || isEditable(firstRun)))
+        return firstRun;
+
+    if (lastRun && leftPosition >= lastRun->logicalRight() && !lastRun->renderer().isListMarker() && (!editableOnly || isEditable(lastRun)))
+        return lastRun;
+
+    auto closestRun = lastRun;
+    for (auto run = firstRun; run; run = run.traverseNextOnLineIgnoringLineBreak()) {
+        if (!run->renderer().isListMarker() && (!editableOnly || isEditable(run))) {
+            if (leftPosition < run->logicalRight())
+                return run;
+            closestRun = run;
+        }
+    }
+
+    return closestRun;
+}
+
+int PathLine::blockDirectionPointInLine() const
+{
+    return !containingBlock().style().isFlippedBlocksWritingMode() ? std::max(top(), selectionTop()) : std::min(bottom(), selectionBottom());
+}
 
 }
 }

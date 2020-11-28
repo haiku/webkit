@@ -51,22 +51,21 @@ using namespace JSC;
 
 // Functions
 
-JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_clear);
-JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_get);
-JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_has);
-JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_entries);
-JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_keys);
-JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_values);
-JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_forEach);
-JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_delete);
+static JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_clear);
+static JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_get);
+static JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_has);
+static JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_entries);
+static JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_keys);
+static JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_values);
+static JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_forEach);
+static JSC_DECLARE_HOST_FUNCTION(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_delete);
 
 // Attributes
 
-JSC_DECLARE_CUSTOM_GETTER(jsTestMapLikeWithOverriddenOperationsConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestMapLikeWithOverriddenOperationsConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsTestMapLikeWithOverriddenOperations_set);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestMapLikeWithOverriddenOperations_set);
-JSC_DECLARE_CUSTOM_GETTER(jsTestMapLikeWithOverriddenOperations_size);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestMapLikeWithOverriddenOperationsConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestMapLikeWithOverriddenOperations_set);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestMapLikeWithOverriddenOperations_set);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestMapLikeWithOverriddenOperations_size);
 
 class JSTestMapLikeWithOverriddenOperationsPrototype final : public JSC::JSNonFinalObject {
 public:
@@ -121,7 +120,7 @@ template<> const ClassInfo JSTestMapLikeWithOverriddenOperationsDOMConstructor::
 
 static const HashTableValue JSTestMapLikeWithOverriddenOperationsPrototypeTableValues[] =
 {
-    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestMapLikeWithOverriddenOperationsConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestMapLikeWithOverriddenOperationsConstructor) } },
+    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestMapLikeWithOverriddenOperationsConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
     { "set", static_cast<unsigned>(JSC::PropertyAttribute::CustomAccessor | JSC::PropertyAttribute::DOMAttribute), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestMapLikeWithOverriddenOperations_set), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestMapLikeWithOverriddenOperations_set) } },
     { "size", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum | JSC::PropertyAttribute::ReadOnly | JSC::PropertyAttribute::CustomAccessor), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestMapLikeWithOverriddenOperations_size), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
     { "clear", static_cast<unsigned>(JSC::PropertyAttribute::Function), NoIntrinsic, { (intptr_t)static_cast<RawNativeFunction>(jsTestMapLikeWithOverriddenOperationsPrototypeFunction_clear), (intptr_t) (0) } },
@@ -199,19 +198,6 @@ JSC_DEFINE_CUSTOM_GETTER(jsTestMapLikeWithOverriddenOperationsConstructor, (JSGl
     if (UNLIKELY(!prototype))
         return throwVMTypeError(lexicalGlobalObject, throwScope);
     return JSValue::encode(JSTestMapLikeWithOverriddenOperations::getConstructor(JSC::getVM(lexicalGlobalObject), prototype->globalObject()));
-}
-
-JSC_DEFINE_CUSTOM_SETTER(setJSTestMapLikeWithOverriddenOperationsConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
-{
-    VM& vm = JSC::getVM(lexicalGlobalObject);
-    auto throwScope = DECLARE_THROW_SCOPE(vm);
-    auto* prototype = jsDynamicCast<JSTestMapLikeWithOverriddenOperationsPrototype*>(vm, JSValue::decode(thisValue));
-    if (UNLIKELY(!prototype)) {
-        throwVMTypeError(lexicalGlobalObject, throwScope);
-        return false;
-    }
-    // Shadowing a built-in constructor
-    return prototype->putDirect(vm, vm.propertyNames->constructor, JSValue::decode(encodedValue));
 }
 
 static inline JSValue jsTestMapLikeWithOverriddenOperations_setGetter(JSGlobalObject& lexicalGlobalObject, JSTestMapLikeWithOverriddenOperations& thisObject)

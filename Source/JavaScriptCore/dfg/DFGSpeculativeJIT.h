@@ -717,7 +717,7 @@ public:
     void compileMovHint(Node*);
     void compileMovHintAndCheck(Node*);
 
-    void compileCheckNeutered(Node*);
+    void compileCheckDetached(Node*);
 
     void cachedGetById(CodeOrigin, JSValueRegs base, JSValueRegs result, CacheableIdentifier, JITCompiler::Jump slowPathTarget, SpillRegistersMode, AccessType);
     void cachedPutById(CodeOrigin, GPRReg baseGPR, JSValueRegs valueRegs, GPRReg scratchGPR, CacheableIdentifier, PutKind, ECMAMode, JITCompiler::Jump slowPathTarget = JITCompiler::Jump(), SpillRegistersMode = NeedToSpill);
@@ -1282,7 +1282,11 @@ public:
 
     void compileGetByValOnDirectArguments(Node*);
     void compileGetByValOnScopedArguments(Node*);
-    
+
+    void compileGetPrivateName(Node*);
+    void compileGetPrivateNameById(Node*);
+    void compileGetPrivateNameByVal(Node*, JSValueRegs base, JSValueRegs property);
+
     void compileGetScope(Node*);
     void compileSkipScope(Node*);
     void compileGetGlobalObject(Node*);
@@ -1348,7 +1352,7 @@ public:
     void compileConstantStoragePointer(Node*);
     void compileGetIndexedPropertyStorage(Node*);
     JITCompiler::Jump jumpForTypedArrayOutOfBounds(Node*, GPRReg baseGPR, GPRReg indexGPR);
-    JITCompiler::Jump jumpForTypedArrayIsNeuteredIfOutOfBounds(Node*, GPRReg baseGPR, JITCompiler::Jump outOfBounds);
+    JITCompiler::Jump jumpForTypedArrayIsDetachedIfOutOfBounds(Node*, GPRReg baseGPR, JITCompiler::Jump outOfBounds);
     void emitTypedArrayBoundsCheck(Node*, GPRReg baseGPR, GPRReg indexGPR);
     void compileGetTypedArrayByteOffset(Node*);
     void compileGetByValOnIntTypedArray(Node*, TypedArrayType);

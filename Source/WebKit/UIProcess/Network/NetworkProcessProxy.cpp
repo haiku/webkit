@@ -432,6 +432,11 @@ void NetworkProcessProxy::didReceiveAuthenticationChallenge(PAL::SessionID sessi
         return;
     }
 
+    if (!topOrigin) {
+        authenticationChallenge->listener().completeChallenge(AuthenticationChallengeDisposition::RejectProtectionSpaceAndContinue);
+        return;
+    }
+
     WebPageProxy::forMostVisibleWebPageIfAny(sessionID, *topOrigin, [this, weakThis = makeWeakPtr(this), sessionID, authenticationChallenge = WTFMove(authenticationChallenge), negotiatedLegacyTLS](auto* page) mutable {
         if (!weakThis)
             return;
@@ -1260,19 +1265,29 @@ void NetworkProcessProxy::setThirdPartyCNAMEDomainForTesting(PAL::SessionID sess
 {
     sendWithAsyncReply(Messages::NetworkProcess::SetThirdPartyCNAMEDomainForTesting(sessionID, domain), WTFMove(completionHandler));
 }
+
 void NetworkProcessProxy::setDomainsWithUserInteraction(HashSet<WebCore::RegistrableDomain>&& domains)
 {
     for (auto* processPool : WebProcessPool::allProcessPools())
         processPool->setDomainsWithUserInteraction(HashSet<WebCore::RegistrableDomain> { domains });
 }
+
+void NetworkProcessProxy::setDomainsWithCrossPageStorageAccess(HashMap<TopFrameDomain, SubResourceDomain>&& domains, CompletionHandler<void()>&& completionHandler)
+{    
+    auto callbackAggregator = CallbackAggregator::create(WTFMove(completionHandler));
+    
+    for (auto* processPool : WebProcessPool::allProcessPools())
+        processPool->setDomainsWithCrossPageStorageAccess(HashMap<TopFrameDomain, SubResourceDomain> { domains }, [callbackAggregator] { });
+}
+
 #endif // ENABLE(RESOURCE_LOAD_STATISTICS)
 
-void NetworkProcessProxy::setAdClickAttributionDebugMode(bool debugMode)
+void NetworkProcessProxy::setPrivateClickMeasurementDebugMode(bool debugMode)
 {
     if (!canSendMessage())
         return;
 
-    send(Messages::NetworkProcess::SetAdClickAttributionDebugMode(debugMode), 0);
+    send(Messages::NetworkProcess::SetPrivateClickMeasurementDebugMode(debugMode), 0);
 }
 
 void NetworkProcessProxy::sendProcessWillSuspendImminentlyForTesting()

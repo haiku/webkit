@@ -971,6 +971,8 @@ static const GActionEntry editActions[] = {
     { "JustifyRight", NULL, NULL, "false", editingActionCallback, { 0 } },
     { "Indent", editingActionCallback, NULL, NULL, NULL, { 0 } },
     { "Outdent", editingActionCallback, NULL, NULL, NULL, { 0 } },
+    { "InsertUnorderedList", editingActionCallback, NULL, NULL, NULL, { 0 } },
+    { "InsertOrderedList", editingActionCallback, NULL, NULL, NULL, { 0 } },
 };
 
 static void browserWindowSetupEditorToolbar(BrowserWindow *window)
@@ -1072,6 +1074,22 @@ static void browserWindowSetupEditorToolbar(BrowserWindow *window)
 #else
     gtk_style_context_add_class(gtk_widget_get_style_context(groupBox), GTK_STYLE_CLASS_LINKED);
 #endif
+    /* Not the best icons for these, but we don't have insert list icons in GTK. */
+    addToolbarButton(groupBox, TOOLBAR_BUTTON_NORMAL, "media-record-symbolic", "edit.InsertUnorderedList");
+    addToolbarButton(groupBox, TOOLBAR_BUTTON_NORMAL, "zoom-original-symbolic", "edit.InsertOrderedList");
+#if GTK_CHECK_VERSION(3, 98, 5)
+    gtk_box_append(GTK_BOX(toolbar), groupBox);
+#else
+    gtk_box_pack_start(GTK_BOX(toolbar), groupBox, FALSE, FALSE, 0);
+    gtk_widget_show(groupBox);
+#endif
+
+    groupBox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+#if GTK_CHECK_VERSION(3, 98, 5)
+    gtk_widget_add_css_class(groupBox, "linked");
+#else
+    gtk_style_context_add_class(gtk_widget_get_style_context(groupBox), GTK_STYLE_CLASS_LINKED);
+#endif
     GtkWidget *button = addToolbarButton(groupBox, TOOLBAR_BUTTON_NORMAL, "insert-image-symbolic", NULL);
     g_signal_connect(button, "clicked", G_CALLBACK(insertImageCommandCallback), window);
     button = addToolbarButton(groupBox, TOOLBAR_BUTTON_NORMAL, "insert-link-symbolic", NULL);
@@ -1131,7 +1149,6 @@ static void browserWindowSwitchTab(GtkNotebook *notebook, BrowserTab *tab, guint
     g_signal_connect(webView, "notify::title", G_CALLBACK(webViewTitleChanged), window);
     g_signal_connect(webView, "notify::is-loading", G_CALLBACK(webViewIsLoadingChanged), window);
     g_signal_connect(webView, "create", G_CALLBACK(webViewCreate), window);
-    g_signal_connect(webView, "close", G_CALLBACK(webViewClose), window);
     g_signal_connect(webView, "load-failed", G_CALLBACK(webViewLoadFailed), window);
     g_signal_connect(webView, "decide-policy", G_CALLBACK(webViewDecidePolicy), window);
     g_signal_connect(webView, "mouse-target-changed", G_CALLBACK(webViewMouseTargetChanged), window);
@@ -1226,7 +1243,7 @@ static void browser_window_init(BrowserWindow *window)
     window->backgroundColor.alpha = 1;
 
     gtk_window_set_title(GTK_WINDOW(window), defaultWindowTitle);
-    gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);
+    gtk_window_set_default_size(GTK_WINDOW(window), 1024, 768);
 
     g_action_map_add_action_entries(G_ACTION_MAP(window), actions, G_N_ELEMENTS(actions), window);
 
@@ -1387,6 +1404,9 @@ void browser_window_append_view(BrowserWindow *window, WebKitWebView *webView)
         g_warning("Only one tab is allowed in editable mode");
         return;
     }
+
+    /* We always want close to be connected even for not active tabs */
+    g_signal_connect(webView, "close", G_CALLBACK(webViewClose), window);
 
     GtkWidget *tab = browser_tab_new(webView);
 #if !GTK_CHECK_VERSION(3, 98, 0)

@@ -695,7 +695,7 @@ bool RenderThemeIOS::paintMenuListButtonDecorations(const RenderBox& box, const 
 
     float separatorPosition = isRTL ? (clip.x() + MenuListButtonPaddingAfter) : (clip.maxX() - MenuListButtonPaddingAfter);
 
-    box.drawLineForBoxSide(paintInfo.context(), FloatRect(FloatPoint(separatorPosition - borderTopWidth, clip.y()), FloatPoint(separatorPosition, clip.maxY())), BSRight, style.visitedDependentColor(CSSPropertyBorderTopColor), style.borderTopStyle(), 0, 0);
+    box.drawLineForBoxSide(paintInfo.context(), FloatRect(FloatPoint(separatorPosition - borderTopWidth, clip.y()), FloatPoint(separatorPosition, clip.maxY())), BoxSide::Right, style.visitedDependentColor(CSSPropertyBorderTopColor), style.borderTopStyle(), 0, 0);
 
     FloatRect buttonClip;
     if (isRTL)
@@ -1840,7 +1840,7 @@ void RenderThemeIOS::paintSystemPreviewBadge(Image& image, const PaintInfo& pain
     CGRect insetBadgeRect = CGRectMake(rect.width() - badgeDimension - badgeOffset, badgeOffset, badgeDimension, badgeDimension);
     CGRect badgeRect = CGRectMake(0, 0, badgeDimension, badgeDimension);
 
-    CIImage *inputImage = [CIImage imageWithCGImage:image.nativeImage().get()];
+    CIImage *inputImage = [CIImage imageWithCGImage:image.nativeImage()->platformImage().get()];
 
     // Create a circle to be used for the clipping path in the badge, as well as the drop shadow.
     RetainPtr<CGPathRef> circle = adoptCF(CGPathCreateWithRoundedRect(absoluteBadgeRect, badgeDimension / 2, badgeDimension / 2, nullptr));

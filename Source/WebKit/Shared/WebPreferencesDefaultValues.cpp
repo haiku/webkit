@@ -52,6 +52,16 @@ bool defaultCSSOMViewScrollingAPIEnabled()
 
 #endif
 
+#if PLATFORM(MAC)
+
+bool defaultPassiveWheelListenersAsDefaultOnDocument()
+{
+    static bool result = linkedOnOrAfter(WebCore::SDKVersion::FirstThatDefaultsToPassiveWheelListenersOnDocument);
+    return result;
+}
+
+#endif
+
 #if PLATFORM(MAC) || PLATFORM(IOS_FAMILY)
 
 bool defaultDisallowSyncXHRDuringPageDismissalEnabled()
@@ -61,7 +71,7 @@ bool defaultDisallowSyncXHRDuringPageDismissalEnabled()
         WTFLogAlways("Allowing synchronous XHR during page unload due to managed preference");
         return false;
     }
-#elif PLATFORM(IOS_FAMILY) && !PLATFORM(MACCATALYST)
+#elif PLATFORM(IOS_FAMILY) && !PLATFORM(MACCATALYST) && !PLATFORM(WATCHOS)
     if (allowsDeprecatedSynchronousXMLHttpRequestDuringUnload()) {
         WTFLogAlways("Allowing synchronous XHR during page unload due to managed preference");
         return false;
@@ -72,6 +82,14 @@ bool defaultDisallowSyncXHRDuringPageDismissalEnabled()
 
 #endif
 
+#if PLATFORM(MAC)
+
+bool defaultAppleMailPaginationQuirkEnabled()
+{
+    return WebCore::MacApplication::isAppleMail();
+}
+
+#endif
 
 static bool defaultAsyncFrameAndOverflowScrollingEnabled()
 {
@@ -102,6 +120,19 @@ bool defaultAsyncFrameScrollingEnabled()
 bool defaultAsyncOverflowScrollingEnabled()
 {
     return defaultAsyncFrameAndOverflowScrollingEnabled();
+}
+
+bool defaultAppHighlightsEnabled()
+{
+#if HAVE(SYSTEM_FEATURE_FLAGS)
+    return isFeatureFlagEnabled("app_highlights");
+#endif
+
+#if ENABLE(APP_HIGHLIGHTS)
+    return true;
+#endif
+    
+    return false;
 }
 
 #if ENABLE(GPU_PROCESS)
@@ -152,7 +183,7 @@ bool defaultCaptureAudioInGPUProcessEnabled()
 #if PLATFORM(MAC)
     return isFeatureFlagEnabled("gpu_process_webrtc");
 #elif PLATFORM(IOS_FAMILY)
-    return isFeatureFlagEnabled("canvas_and_media_in_gpu_process");
+    return isFeatureFlagEnabled("gpu_process_media");
 #endif
 #endif
 
@@ -252,7 +283,7 @@ bool defaultVP9DecoderEnabled()
 bool defaultVP9SWDecoderEnabledOnBattery()
 {
 #if HAVE(SYSTEM_FEATURE_FLAGS)
-    return isFeatureFlagEnabled("SW_vp9_decoder_on_battery");
+    return isFeatureFlagEnabled("sw_vp9_decoder_on_battery");
 #endif
 
     return false;

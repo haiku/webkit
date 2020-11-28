@@ -56,7 +56,6 @@ class MediaSourcePrivateAVFObjC;
 class PixelBufferConformerCV;
 class PlatformClockCM;
 class VideoLayerManagerObjC;
-class VideoTextureCopierCV;
 class WebCoreDecompressionSession;
 
 
@@ -74,7 +73,7 @@ public:
     // MediaPlayer Factory Methods
     static bool isAvailable();
     static void getSupportedTypes(HashSet<String, ASCIICaseInsensitiveHash>& types);
-    static MediaPlayer::SupportsType supportsType(const MediaEngineSupportParameters&);
+    static MediaPlayer::SupportsType supportsTypeAndCodecs(const MediaEngineSupportParameters&);
 
     ALLOW_NEW_API_WITHOUT_GUARDS_BEGIN
     void addAudioRenderer(AVSampleBufferAudioRenderer*);
@@ -215,12 +214,12 @@ private:
 
     bool didLoadingProgress() const override;
 
-    NativeImagePtr nativeImageForCurrentTime() override;
+    RefPtr<NativeImage> nativeImageForCurrentTime() override;
     bool updateLastPixelBuffer();
     bool updateLastImage();
     void paint(GraphicsContext&, const FloatRect&) override;
     void paintCurrentFrameInContext(GraphicsContext&, const FloatRect&) override;
-    bool copyVideoTextureToPlatformTexture(GraphicsContextGLOpenGL*, PlatformGLObject, GCGLenum target, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY) override;
+    bool copyVideoTextureToPlatformTexture(GraphicsContextGL*, PlatformGLObject, GCGLenum target, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY) override;
 
     bool supportsAcceleratedRendering() const override;
     // called when the rendering system flips the into or out of accelerated rendering mode.
@@ -301,7 +300,7 @@ private:
     RetainPtr<id> m_performTaskObserver;
     RetainPtr<AVStreamSession> m_streamSession;
     RetainPtr<CVPixelBufferRef> m_lastPixelBuffer;
-    RetainPtr<CGImageRef> m_lastImage;
+    RefPtr<NativeImage> m_lastImage;
     std::unique_ptr<PixelBufferConformerCV> m_rgbConformer;
     RefPtr<WebCoreDecompressionSession> m_decompressionSession;
     Deque<RetainPtr<id>> m_sizeChangeObservers;
@@ -323,7 +322,6 @@ private:
     bool m_hasAvailableVideoFrame { false };
     bool m_allRenderersHaveAvailableSamples { false };
     bool m_visible { false };
-    std::unique_ptr<VideoTextureCopierCV> m_videoTextureCopier;
     RetainPtr<CVOpenGLTextureRef> m_lastTexture;
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
     RefPtr<MediaPlaybackTarget> m_playbackTarget;

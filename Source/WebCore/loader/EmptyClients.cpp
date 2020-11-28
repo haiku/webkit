@@ -42,6 +42,7 @@
 #include "DocumentFragment.h"
 #include "DocumentLoader.h"
 #include "DragClient.h"
+#include "DummySpeechRecognitionProvider.h"
 #include "EditorClient.h"
 #include "EmptyFrameLoaderClient.h"
 #include "FileChooser.h"
@@ -541,11 +542,6 @@ RefPtr<Widget> EmptyFrameLoaderClient::createPlugin(const IntSize&, HTMLPlugInEl
     return nullptr;
 }
 
-RefPtr<Widget> EmptyFrameLoaderClient::createJavaAppletWidget(const IntSize&, HTMLAppletElement&, const URL&, const Vector<String>&, const Vector<String>&)
-{
-    return nullptr;
-}
-
 inline EmptyFrameNetworkingContext::EmptyFrameNetworkingContext()
     : FrameNetworkingContext { nullptr }
 {
@@ -614,6 +610,7 @@ PageConfiguration pageConfigurationWithEmptyClients(PAL::SessionID sessionID)
         CookieJar::create(adoptRef(*new EmptyStorageSessionProvider)),
         makeUniqueRef<EmptyProgressTrackerClient>(),
         makeUniqueRef<EmptyFrameLoaderClient>(),
+        makeUniqueRef<DummySpeechRecognitionProvider>(),
         makeUniqueRef<EmptyMediaRecorderProvider>()
     };
 

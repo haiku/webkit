@@ -58,7 +58,6 @@
 #import "RenderMeter.h"
 #import "RenderProgress.h"
 #import "RenderSlider.h"
-#import "RenderSnapshottedPlugIn.h"
 #import "RenderView.h"
 #import "RuntimeEnabledFeatures.h"
 #import "SharedBuffer.h"
@@ -2138,81 +2137,6 @@ bool RenderThemeMac::paintSearchFieldResultsButton(const RenderBox& box, const P
     return false;
 }
 
-bool RenderThemeMac::paintSnapshottedPluginOverlay(const RenderObject& renderer, const PaintInfo& paintInfo, const IntRect&)
-{
-    if (paintInfo.phase != PaintPhase::BlockBackground)
-        return true;
-
-    if (!is<RenderBlock>(renderer))
-        return true;
-
-    const RenderBlock& renderBlock = downcast<RenderBlock>(renderer);
-
-    LayoutUnit contentWidth = renderBlock.contentWidth();
-    LayoutUnit contentHeight = renderBlock.contentHeight();
-    if (!contentWidth || !contentHeight)
-        return true;
-
-    GraphicsContext& context = paintInfo.context();
-
-    LayoutSize contentSize(contentWidth, contentHeight);
-    LayoutPoint contentLocation = renderBlock.location();
-    contentLocation.move(renderBlock.borderLeft() + renderBlock.paddingLeft(), renderBlock.borderTop() + renderBlock.paddingTop());
-
-    LayoutRect rect(contentLocation, contentSize);
-    IntRect alignedRect = snappedIntRect(rect);
-    if (alignedRect.width() <= 0 || alignedRect.height() <= 0)
-        return true;
-
-    // We need to get the snapshot image from the plugin element, which should be available
-    // from our node. Assuming this node is the plugin overlay element, we should get to the
-    // plugin itself by asking for the shadow root parent, and then its parent.
-
-    if (!is<HTMLElement>(*renderBlock.element()))
-        return true;
-
-    HTMLElement& plugInOverlay = downcast<HTMLElement>(*renderBlock.element());
-    Element* parent = plugInOverlay.parentOrShadowHostElement();
-    while (parent && !is<HTMLPlugInElement>(*parent))
-        parent = parent->parentOrShadowHostElement();
-
-    if (!parent)
-        return true;
-
-    HTMLPlugInElement& plugInElement = downcast<HTMLPlugInElement>(*parent);
-    if (!is<HTMLPlugInImageElement>(plugInElement))
-        return true;
-
-    HTMLPlugInImageElement& plugInImageElement = downcast<HTMLPlugInImageElement>(plugInElement);
-
-    Image* snapshot = plugInImageElement.snapshotImage();
-    if (!snapshot)
-        return true;
-
-    RenderSnapshottedPlugIn& plugInRenderer = downcast<RenderSnapshottedPlugIn>(*plugInImageElement.renderer());
-    FloatPoint snapshotAbsPos = plugInRenderer.localToAbsolute();
-    snapshotAbsPos.move(plugInRenderer.borderLeft() + plugInRenderer.paddingLeft(), plugInRenderer.borderTop() + plugInRenderer.paddingTop());
-
-    // We could draw the snapshot with that coordinates, but we need to make sure there
-    // isn't a composited layer between us and the plugInRenderer.
-    for (auto* renderBox = &downcast<RenderBox>(renderer); renderBox != &plugInRenderer; renderBox = renderBox->parentBox()) {
-        if (renderBox->isComposited()) {
-            snapshotAbsPos = -renderBox->location();
-            break;
-        }
-    }
-
-    LayoutSize pluginSize(plugInRenderer.contentWidth(), plugInRenderer.contentHeight());
-    LayoutRect pluginRect(snapshotAbsPos, pluginSize);
-    IntRect alignedPluginRect = snappedIntRect(pluginRect);
-
-    if (alignedPluginRect.width() <= 0 || alignedPluginRect.height() <= 0)
-        return true;
-
-    context.drawImage(*snapshot, alignedPluginRect);
-    return false;
-}
-
 #if ENABLE(DATALIST_ELEMENT)
 IntSize RenderThemeMac::sliderTickSize() const
 {
@@ -2668,8 +2592,10 @@ static RefPtr<Icon> iconForAttachment(const RenderAttachment& attachment)
     
     if (!attachmentType.isEmpty()) {
         if (equalIgnoringASCIICase(attachmentType, "multipart/x-folder") || equalIgnoringASCIICase(attachmentType, "application/vnd.apple.folder")) {
+ALLOW_DEPRECATED_DECLARATIONS_BEGIN
             if (auto icon = Icon::createIconForUTI(kUTTypeFolder))
                 return icon;
+ALLOW_DEPRECATED_DECLARATIONS_END
         } else {
             String UTI;
             if (isDeclaredUTI(attachmentType))

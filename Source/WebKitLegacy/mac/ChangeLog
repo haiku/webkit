@@ -1,3 +1,577 @@
+2020-11-16  Devin Rousso  <drousso@apple.com>
+
+        Ignore deprecation warnings for the uniform types C API
+        https://bugs.webkit.org/show_bug.cgi?id=218989
+
+        Reviewed by Tim Horton.
+
+        These should eventually be replaced with the ObjC API `UniformTypeIdentifiers.framework`.
+        See <https://developer.apple.com/documentation/uniformtypeidentifiers>.
+
+        * WebView/WebHTMLView.mm:
+        (-[WebHTMLView _documentFragmentFromPasteboard:inContext:allowPlainText:]):
+        (+[WebHTMLView _insertablePasteboardTypes]):
+        (-[WebHTMLView _documentFragmentFromPasteboard:forType:inContext:subresources:]):
+
+2020-11-16  Megan Gardner  <megan_gardner@apple.com>
+
+        Add menu support for app highlights for books
+        https://bugs.webkit.org/show_bug.cgi?id=218879
+        <rdar://problem/71352113>
+
+        Reviewed by Alex Christensen.
+
+        * WebView/WebHTMLView.mm:
+        (toTag):
+
+2020-11-13  Sam Weinig  <weinig@apple.com>
+
+        Move some more WebKit and WebKitLegacy preferences bound to Settings to WebPreferences.yaml
+        https://bugs.webkit.org/show_bug.cgi?id=218914
+
+        Reviewed by Tim Horton.
+
+        * WebView/WebView.mm:
+        (-[WebView _commonInitializationWithFrameName:groupName:]):
+        Remove explicit setting of Settings::setContentDispositionAttachmentSandboxEnabled as
+        it is now handled by the generated code. Merge together a few sequential #ifdefs while
+        in the area.
+
+2020-11-12  Darin Adler  <darin@apple.com>
+
+        Remove unused advanced plug-in features: snapshotting and plug-in load policy
+        https://bugs.webkit.org/show_bug.cgi?id=218835
+
+        Reviewed by Tim Horton.
+
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences plugInSnapshottingEnabled]): Return NO.
+        (-[WebPreferences setPlugInSnapshottingEnabled:]): Do nothing.
+
+2020-11-12  Simon Fraser  <simon.fraser@apple.com>
+
+        Force wheel event listeners on the root to be passive
+        https://bugs.webkit.org/show_bug.cgi?id=218842
+        <rdar://problem/71312668>
+
+        Reviewed by Chris Dumez.
+
+        Following Blink (https://www.chromestatus.com/feature/6662647093133312) force 'wheel' and
+        'mousewheel' event listeners on root objects (window, document and body) to be passive if
+        they were not explicitly registered as non-passive.
+
+        This behavior is controlled by an experimental feature flag, and a linked-on-or-after check
+        to avoid changing behavior for apps that embed WebKit until they link against new SDKs.
+
+        * WebView/WebPreferencesDefaultValues.h:
+        * WebView/WebPreferencesDefaultValues.mm:
+        (WebKit::defaultPassiveTouchListenersAsDefaultOnDocument):
+        (WebKit::defaultPassiveWheelListenersAsDefaultOnDocument):
+
+2020-11-12  Sam Weinig  <weinig@apple.com>
+
+        Move more WebKitLegacy specific settings usage to WebPreferences.yaml
+        https://bugs.webkit.org/show_bug.cgi?id=218852
+
+        Reviewed by Tim Horton.
+
+        This batch focuses on settings with defaults based on SDK/host app conditions.
+
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        * WebView/WebPreferencesDefaultValues.h:
+        * WebView/WebPreferencesDefaultValues.mm:
+        (WebKit::defaultAllowContentSecurityPolicySourceStarToMatchAnyProtocol):
+        (WebKit::defaultLoadDeferringEnabled):
+        (WebKit::defaultWindowFocusRestricted):
+        (WebKit::defaultUsePreHTML5ParserQuirks):
+        (WebKit::defaultNeedsAdobeFrameReloadingQuirk):
+        (WebKit::defaultTreatsAnyTextCSSLinkAsStylesheet):
+        (WebKit::defaultNeedsFrameNameFallbackToIdQuirk):
+        (WebKit::defaultNeedsKeyboardEventDisambiguationQuirks):
+        (WebKit::defaultEnforceCSSMIMETypeInNoQuirksMode):
+        (WebKit::defaultNeedsIsLoadingInAPISenseQuirk):
+        (WebKit::defaultUseLegacyBackgroundSizeShorthandBehavior):
+        (WebKit::defaultAllowDisplayOfInsecureContent):
+        (WebKit::defaultAllowRunningOfInsecureContent):
+        (WebKit::defaultShouldConvertInvalidURLsToBlank):
+        * WebView/WebView.mm:
+        (-[WebView _commonInitializationWithFrameName:groupName:]):
+        (needsSelfRetainWhileLoadingQuirk):
+        (-[WebView _preferencesChanged:]):
+        (-[WebView dealloc]):
+        (-[WebView setFrameLoadDelegate:]):
+        (shouldEnableLoadDeferring): Deleted.
+        (shouldRestrictWindowFocus): Deleted.
+        (shouldUseLegacyBackgroundSizeShorthandBehavior): Deleted.
+        (shouldAllowDisplayAndRunningOfInsecureContent): Deleted.
+        (shouldAllowContentSecurityPolicySourceStarToMatchAnyProtocol): Deleted.
+        (shouldConvertInvalidURLsToBlank): Deleted.
+        (-[WebView _needsAdobeFrameReloadingQuirk]): Deleted.
+        (-[WebView _needsLinkElementTextCSSQuirk]): Deleted.
+        (-[WebView _needsFrameNameFallbackToIdQuirk]): Deleted.
+        (-[WebView _needsIsLoadingInAPISenseQuirk]): Deleted.
+        (-[WebView _needsKeyboardEventDisambiguationQuirks]): Deleted.
+        (-[WebView _needsPreHTML5ParserQuirks]): Deleted.
+
+2020-11-12  Zalan Bujtas  <zalan@apple.com>
+
+        Show legacy line layout visual coverage instead of "simple line" layout.
+        https://bugs.webkit.org/show_bug.cgi?id=218695
+
+        Reviewed by Antti Koivisto.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences legacyLineLayoutVisualCoverageEnabled]):
+        (-[WebPreferences setLegacyLineLayoutVisualCoverageEnabled:]):
+        (-[WebPreferences simpleLineLayoutDebugBordersEnabled]): Deleted.
+        (-[WebPreferences setSimpleLineLayoutDebugBordersEnabled:]): Deleted.
+        * WebView/WebPreferencesPrivate.h:
+
+2020-11-11  Sam Weinig  <weinig@apple.com>
+
+        Move more WebKitLegacy preferences bound to Settings to WebPreferences.yaml
+        https://bugs.webkit.org/show_bug.cgi?id=218826
+
+        Reviewed by Tim Horton.
+
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        Remove manual defaults for ShrinksStandaloneImagesToFit and ForceWebGLUsesLowPower
+        now they are generated.
+
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+        Remove manual setting of AcceleratedCompositingForFixedPositionEnabled, ForceWebGLUsesLowPower, 
+        RubberBandingForSubScrollableRegionsEnabled, ShrinksStandaloneImagesToFit and
+        VisualViewportEnabled now that they are generated.
+
+
+2020-11-11  John Wilander  <wilander@apple.com>
+
+        PCM: Change from ad-click-attribution to private-click-measurement (in all forms, including .well-known URL)
+        https://bugs.webkit.org/show_bug.cgi?id=218730
+        <rdar://problem/71094296>
+
+        Reviewed by Alex Christensen.
+
+        Change to the official name of the proposed standard Private Click Measurement
+        https://github.com/privacycg/private-click-measurement.
+
+        This includes a change of the reporting URL from 
+        "/.well-known/ad-click-attribution/" to
+        "/.well-known/private-click-measurement/".
+
+        * WebCoreSupport/WebChromeClient.mm:
+        (stringForMessageSource):
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences privateClickMeasurementEnabled]):
+        (-[WebPreferences setPrivateClickMeasurementEnabled:]):
+        (-[WebPreferences adClickAttributionEnabled]): Deleted.
+        (-[WebPreferences setAdClickAttributionEnabled:]): Deleted.
+        * WebView/WebPreferencesPrivate.h:
+
+2020-11-11  Sam Weinig  <weinig@apple.com>
+
+        Remove unused ExperimentalNotificationsEnabled setting
+        https://bugs.webkit.org/show_bug.cgi?id=218813
+
+        Reviewed by Tim Horton.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (-[WebPreferences setExperimentalNotificationsEnabled:]):
+        (-[WebPreferences experimentalNotificationsEnabled]):
+        * WebView/WebPreferencesPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+        Obsolete ExperimentalNotificationsEnabled preference as it does nothing.
+
+2020-11-10  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r269660.
+        https://bugs.webkit.org/show_bug.cgi?id=218786
+
+        Crashing in EWS iOS simulator bots
+
+        Reverted changeset:
+
+        "PCM: Change from ad-click-attribution to private-click-
+        measurement (in all forms, including .well-known URL)"
+        https://bugs.webkit.org/show_bug.cgi?id=218730
+        https://trac.webkit.org/changeset/269660
+
+2020-11-10  Chris Dumez  <cdumez@apple.com>
+
+        Webkit incorrectly setting visibilityState to "prerender" when opening link in new tab
+        https://bugs.webkit.org/show_bug.cgi?id=215851
+        <rdar://problem/67817100>
+
+        Reviewed by Geoff Garen.
+
+        * DOM/DOMDocument.mm:
+        (-[DOMDocument visibilityState]):
+        * WebView/WebView.mm:
+        (kit):
+
+2020-11-10  Darin Adler  <darin@apple.com>
+
+        Remove another function that implicitly uses the composed tree (intersects with range)
+        https://bugs.webkit.org/show_bug.cgi?id=218726
+
+        Reviewed by Ryosuke Niwa.
+
+        * WebView/WebPDFView.mm:
+        (isFrameInRange): Deleted. This function used intersects, and deleting it side-steps
+        the issue of calling the intersects function template from outside WebCore.
+        (-[WebPDFView countMatchesForText:inDOMRange:options:limit:markMatches:]):
+        Use containsCrossingDocumentBoundaries instead of isFrameInRange.
+
+2020-11-10  John Wilander  <wilander@apple.com>
+
+        PCM: Change from ad-click-attribution to private-click-measurement (in all forms, including .well-known URL)
+        https://bugs.webkit.org/show_bug.cgi?id=218730
+        <rdar://problem/71094296>
+
+        Reviewed by Devin Rousso.
+
+        Change to the official name of the proposed standard Private Click Measurement
+        https://github.com/privacycg/private-click-measurement.
+
+        This includes a change of the reporting URL from 
+        "/.well-known/ad-click-attribution/" to
+        "/.well-known/private-click-measurement/".
+
+        * WebCoreSupport/WebChromeClient.mm:
+        (stringForMessageSource):
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences privateClickMeasurementEnabled]):
+        (-[WebPreferences setPrivateClickMeasurementEnabled:]):
+        (-[WebPreferences adClickAttributionEnabled]): Deleted.
+        (-[WebPreferences setAdClickAttributionEnabled:]): Deleted.
+        * WebView/WebPreferencesPrivate.h:
+
+2020-11-10  Simon Fraser  <simon.fraser@apple.com>
+
+        Make PlatformWheelEventPhase an enum class
+        https://bugs.webkit.org/show_bug.cgi?id=218772
+
+        Reviewed by Tim Horton.
+
+        Change PlatformWheelEventPhase to be an enum class.
+
+        Changed code that maps between NSEventPhase and PlatformWheelEventPhase to not
+        treat NSEventPhase as a set of bits, since it only ever contains one of the bits.
+
+        * DOM/WebDOMOperations.mm:
+        (toNSEventPhase):
+
+2020-11-10  Said Abou-Hallawa  <said@apple.com>
+
+        [macCatalyst] Fix various build breaks
+        https://bugs.webkit.org/show_bug.cgi?id=218771
+
+        Reviewed by Tim Horton.
+
+        Use 'BOOL' instead of 'bool' for the functions arguments to resolve the 
+        conflict with _setBoolValue which takes 'BOOL'.
+
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences setAVKitEnabled:]):
+        (-[WebPreferences setNetworkDataUsageTrackingEnabled:]):
+
+2020-11-09  Said Abou-Hallawa  <said@apple.com>
+
+        [GPU Process] Control the life cycle of the platform image by a new class named NativeImage
+        https://bugs.webkit.org/show_bug.cgi?id=218427
+
+        Reviewed by Simon Fraser.
+
+        * DOM/DOM.mm:
+        (-[DOMNode getPreviewSnapshotImage:andRects:]):
+        * Misc/WebCache.mm:
+        (+[WebCache imageForURL:]):
+        * WebView/WebView.mm:
+        (-[WebUITextIndicatorData initWithImage:textIndicatorData:scale:]):
+
+2020-11-09  Chris Dumez  <cdumez@apple.com>
+
+        Unexpose obsolete HTMLAppletElement interface
+        https://bugs.webkit.org/show_bug.cgi?id=218677
+
+        Reviewed by Darin Adler.
+
+        * DOM/DOMHTMLAppletElement.mm:
+        (-[DOMHTMLAppletElement align]):
+        (-[DOMHTMLAppletElement setAlign:]):
+        (-[DOMHTMLAppletElement alt]):
+        (-[DOMHTMLAppletElement setAlt:]):
+        (-[DOMHTMLAppletElement archive]):
+        (-[DOMHTMLAppletElement setArchive:]):
+        (-[DOMHTMLAppletElement code]):
+        (-[DOMHTMLAppletElement setCode:]):
+        (-[DOMHTMLAppletElement codeBase]):
+        (-[DOMHTMLAppletElement setCodeBase:]):
+        (-[DOMHTMLAppletElement height]):
+        (-[DOMHTMLAppletElement setHeight:]):
+        (-[DOMHTMLAppletElement hspace]):
+        (-[DOMHTMLAppletElement setHspace:]):
+        (-[DOMHTMLAppletElement name]):
+        (-[DOMHTMLAppletElement setName:]):
+        (-[DOMHTMLAppletElement object]):
+        (-[DOMHTMLAppletElement setObject:]):
+        (-[DOMHTMLAppletElement vspace]):
+        (-[DOMHTMLAppletElement setVspace:]):
+        (-[DOMHTMLAppletElement width]):
+        (-[DOMHTMLAppletElement setWidth:]):
+        * WebCoreSupport/WebFrameLoaderClient.h:
+        * WebCoreSupport/WebFrameLoaderClient.mm:
+        (WebFrameLoaderClient::redirectDataToPlugin):
+
+2020-11-09  Alan Bujtas  <zalan@apple.com>
+
+        Unreviewed, reverting r269603.
+
+        Needs Safari patch
+
+        Reverted changeset:
+
+        "Show legacy line layout visual coverage instead of "simple
+        line" layout."
+        https://bugs.webkit.org/show_bug.cgi?id=218695
+        https://trac.webkit.org/changeset/269603
+
+2020-11-09  Zalan Bujtas  <zalan@apple.com>
+
+        Show legacy line layout visual coverage instead of "simple line" layout.
+        https://bugs.webkit.org/show_bug.cgi?id=218695
+
+        Reviewed by Antti Koivisto.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences legacyLineLayoutVisualCoverageEnabled]):
+        (-[WebPreferences setLegacyLineLayoutVisualCoverageEnabled:]):
+        (-[WebPreferences simpleLineLayoutDebugBordersEnabled]): Deleted.
+        (-[WebPreferences setSimpleLineLayoutDebugBordersEnabled:]): Deleted.
+        * WebView/WebPreferencesPrivate.h:
+
+2020-11-06  Peng Liu  <peng.liu6@apple.com>
+
+        PiP return to element full screen is not smooth on some websites
+        https://bugs.webkit.org/show_bug.cgi?id=218419
+
+        Reviewed by Jer Noble.
+
+        * WebCoreSupport/WebChromeClient.h:
+        (WebChromeClient::exitVideoFullscreenForVideoElement):
+        * WebCoreSupport/WebChromeClient.mm:
+        (WebChromeClient::exitVideoFullscreenForVideoElement):
+
+2020-11-04  Said Abou-Hallawa  <said@apple.com>
+
+        [GPU Process] Move the internal GPU rendering flags from WebPage to WebProcess
+        https://bugs.webkit.org/show_bug.cgi?id=218549
+
+        Reviewed by Tim Horton.
+
+        GPU Process can't be enabled for WK1.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences useGPUProcessForMediaEnabled]): Deleted.
+        (-[WebPreferences setUseGPUProcessForMediaEnabled:]): Deleted.
+        * WebView/WebPreferencesPrivate.h:
+
+2020-11-04  David Kilzer  <ddkilzer@apple.com>
+
+        WebKit should remove unused debug variant support
+        <https://webkit.org/b/218315>
+        <rdar://problem/70785369>
+
+        Reviewed by Darin Adler.
+
+        Remove support for building the debug variant since it is
+        currently unused. We now set default values for the
+        DEAD_CODE_STRIPPING, DEBUG_DEFINES, GCC_OPTIMIZATION_LEVEL and
+        STRIP_INSTALLED_PRODUCT variables.
+
+        Also move these values out of the Xcode project into
+        Base.xcconfig files using the [config=Debug] specifier so that
+        these overrides are next to the definitions.
+
+        Additional changes in behavior are noted below.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/WebKitLegacy.xcconfig:
+        - Move definition of ENABLE_WEBKIT_UNSET_DYLD_FRAMEWORK_PATH
+          in DEBUG_DEFINES from the Xcode project to
+          WebKitLegacy.xcconfig.
+
+2020-11-03  Sihui Liu  <sihui_liu@apple.com>
+
+        Set up basic infrastructure for SpeechRecognition
+        https://bugs.webkit.org/show_bug.cgi?id=218216
+        <rdar://problem/70703788>
+
+        Reviewed by Youenn Fablet.
+
+        * WebView/WebView.mm:
+        (-[WebView _commonInitializationWithFrameName:groupName:]):
+        (-[WebView initSimpleHTMLDocumentWithStyle:frame:preferences:groupName:]):
+
+2020-11-03  David Kilzer  <ddkilzer@apple.com>
+
+        Add test for cacheModelForMainBundle() in WebKitLegacy
+        <https://webkit.org/b/217960>
+
+        Reviewed by Darin Adler.
+
+        * Configurations/DebugRelease.xcconfig:
+        (WK_BUILD_FOR_TESTING): Add.
+        - This single setting controls whether test code is built and
+          test functions are exported.  Currently only Debug and Release
+          configurations are supported.
+
+        * Configurations/WebKitLegacy.xcconfig:
+        (OTHER_CFLAGS):
+        - Include necessary macro definition when WK_BUILD_FOR_TESTING
+          is YES.
+        (WK_CFLAGS_BUILD_FOR_TESTING_YES):
+        - Define macro set when WK_BUILD_FOR_TESTING is YES.  Used by
+          both OTHER_CFLAGS and OTHER_TAPI_FLAGS to enable test code.
+        (OTHER_TAPI_FLAGS[sdk=iphone*]):
+        - Include necessary macro definition when WK_BUILD_FOR_TESTING
+          is YES.
+        - Add -extra-private-header argument to declare exported
+          functions in TestingFunctions.h when WK_BUILD_FOR_TESTING is
+          YES.
+
+        * TestingFunctions.h: Add.
+        - Declare functions exported when WK_BUILD_FOR_TESTING is YES.
+
+        * WebKit.Testing.exp: Add.
+        - This contains a list of test functions that are only exported
+          when WK_BUILD_FOR_TESTING is YES.
+
+        * WebView/WebPreferences.mm:
+        (cacheModelForMainBundle):
+        - Add NSString *bundleIdentifier argument to make testable.
+        (TestWebPreferencesCacheModelForMainBundle): Add.
+        - Add function only used for testing, and only compiled when
+          WK_BUILD_FOR_TESTING is YES.
+        (+[WebPreferences initialize]):
+        - Change to pass main bundle identifier as argument.
+
+2020-11-02  Sam Weinig  <weinig@apple.com>
+
+        [Testing] Match WebKitTestRunner and enable all "experimental" features in DumpRenderTree (cocoa)
+        https://bugs.webkit.org/show_bug.cgi?id=218447
+
+        Reviewed by Darin Adler.
+
+        * Scripts/PreferencesTemplates/WebPreferencesExperimentalFeatures.mm.erb:
+        * Scripts/PreferencesTemplates/WebPreferencesInternalFeatures.mm.erb:
+        * WebView/WebFeature.m:
+        (-[WebFeature initWithKey:preferencesKey:name:details:defaultValue:hidden:]):
+        (-[WebFeature initWithKey:name:details:defaultValue:hidden:]): Deleted.
+        * WebView/WebFeatureInternal.h:
+        Handle non-standard preference keys by ensure we initialize WebFeatures with the generated 
+        preferenceKey accessor rather than trying to derive it from the key directly.
+
+2020-10-28  Sam Weinig  <weinig@apple.com>
+
+        [Testing] Remove requirement of adding new SPI for each preference that needs testing
+        https://bugs.webkit.org/show_bug.cgi?id=218267
+
+        Reviewed by Simon Fraser.
+
+        Expose a set of setters to for DumpRenderTree to use when setting preferences
+        by string.
+
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences _setBoolPreferenceForTestingWithValue:forKey:]):
+        (-[WebPreferences _setUInt32PreferenceForTestingWithValue:forKey:]):
+        (-[WebPreferences _setDoublePreferenceForTestingWithValue:forKey:]):
+        (-[WebPreferences _setStringPreferenceForTestingWithValue:forKey:]):
+        * WebView/WebPreferencesPrivate.h:
+
+2020-10-27  Tetsuharu Ohzeki  <tetsuharu.ohzeki@gmail.com>
+
+        Make WebCore::FocusDirection to enum class
+        https://bugs.webkit.org/show_bug.cgi?id=218162
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/WebChromeClient.mm:
+        (WebChromeClient::takeFocus):
+        * WebView/WebHTMLView.mm:
+        (-[WebHTMLView becomeFirstResponder]):
+
+2020-10-26  Zan Dobersek  <zdobersek@igalia.com>
+
+        Remove Accelerated2dCanvasEnabled WebPreferences entry
+        https://bugs.webkit.org/show_bug.cgi?id=218114
+
+        Reviewed by Adrian Perez de Castro.
+
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences accelerated2dCanvasEnabled]): Make the API function
+        no-op and move it into the deprecated section.
+        (-[WebPreferences setAccelerated2dCanvasEnabled:]): Ditto.
+
+2020-10-21  Devin Rousso  <drousso@apple.com>
+
+        [macOS WK1] provide a way for Apple-internal clients to disable link preview
+        https://bugs.webkit.org/show_bug.cgi?id=217984
+        <rdar://problem/70500022>
+
+        Reviewed by Tim Horton.
+
+        * WebView/WebViewPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _allowsLinkPreview]): Added.
+        (-[WebView _setAllowsLinkPreview:]): Added.
+
+        * WebView/WebImmediateActionController.h:
+        * WebView/WebImmediateActionController.mm:
+        (-[WebImmediateActionController isEnabled]): Added.
+        (-[WebImmediateActionController setEnabled:]): Added.
+        (-[WebImmediateActionController _cancelImmediateAction]):
+
+2020-10-20  Sihui Liu  <sihui_liu@apple.com>
+
+        Add stubs for SpeechRecognition
+        https://bugs.webkit.org/show_bug.cgi?id=217780
+        <rdar://problem/70350727>
+
+        Reviewed by Youenn Fablet.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences _speechRecognitionEnabled]):
+        (-[WebPreferences _setSpeechRecognitionEnabled:]):
+        * WebView/WebPreferencesPrivate.h:
+
+2020-10-20  Sam Weinig  <weinig@apple.com>
+
+        Tweak WebPreferences*.yaml "exposed" key to only indicate that the key should not be changeable by the frontend
+        https://bugs.webkit.org/show_bug.cgi?id=217918
+
+        Reviewed by Darin Adler.
+
+        Update to use new "exposed" prefix bindings and use default value explicitly
+        when updating settings for non-exposed preferences.
+
+        * Scripts/PreferencesTemplates/WebPreferencesDefinitions.h.erb:
+        * Scripts/PreferencesTemplates/WebPreferencesExperimentalFeatures.mm.erb:
+        * Scripts/PreferencesTemplates/WebPreferencesInternalFeatures.mm.erb:
+        * Scripts/PreferencesTemplates/WebViewPreferencesChangedGenerated.mm.erb:
+
 2020-10-17  David Kilzer  <ddkilzer@apple.com>
 
         REGRESSION (r25430): Fix -Wstring-concatenation warning from open source clang

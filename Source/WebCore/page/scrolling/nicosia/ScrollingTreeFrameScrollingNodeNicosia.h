@@ -47,6 +47,8 @@ public:
     static Ref<ScrollingTreeFrameScrollingNode> create(ScrollingTree&, ScrollingNodeType, ScrollingNodeID);
     virtual ~ScrollingTreeFrameScrollingNodeNicosia();
 
+    RefPtr<Nicosia::CompositionLayer> rootContentsLayer() const { return m_rootContentsLayer; }
+
 private:
     ScrollingTreeFrameScrollingNodeNicosia(ScrollingTree&, ScrollingNodeType, ScrollingNodeID);
 
@@ -66,7 +68,7 @@ private:
 
     FloatPoint adjustedScrollPosition(const FloatPoint&, ScrollClamping) const override;
 
-    void currentScrollPositionChanged(ScrollingLayerPositionAction) override;
+    void currentScrollPositionChanged(ScrollType, ScrollingLayerPositionAction) override;
 
     void repositionScrollingLayers() override;
     void repositionRelatedLayers() override;

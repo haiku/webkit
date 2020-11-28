@@ -63,49 +63,48 @@ using namespace JSC;
 // Functions
 
 #if (ENABLE(Condition12) && ENABLE(Condition22)) || ENABLE(Condition23)
-JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_mixinOperation);
+static JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_mixinOperation);
 #endif
 #if (ENABLE(Condition12) && ENABLE(Condition22)) || ENABLE(Condition23)
-JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_mixinComplexOperation);
+static JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_mixinComplexOperation);
 #endif
 #if (ENABLE(Condition12) && ENABLE(Condition22)) || ENABLE(Condition23)
-JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_mixinCustomOperation);
+static JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_mixinCustomOperation);
 #endif
 #if (ENABLE(Condition11) && ENABLE(Condition12) && ENABLE(Condition22)) || ENABLE(Condition23)
-JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_mixinConditionalOperation);
+static JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_mixinConditionalOperation);
 #endif
 #if (ENABLE(Condition12) && ENABLE(Condition22)) || ENABLE(Condition23)
-JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_mixinSettingsConditionalOperation);
+static JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_mixinSettingsConditionalOperation);
 #endif
 #if (ENABLE(Condition12) && ENABLE(Condition22)) || ENABLE(Condition23)
-JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_mixinResultFieldOperation);
+static JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_mixinResultFieldOperation);
 #endif
 #if (ENABLE(Condition12) && ENABLE(Condition22) && ENABLE(Condition33)) || ENABLE(Condition23)
-JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_partialMixinOperationFromPartial);
+static JSC_DECLARE_HOST_FUNCTION(jsTestConditionalIncludesPrototypeFunction_partialMixinOperationFromPartial);
 #endif
 
 // Attributes
 
-JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludesConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestConditionalIncludesConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludes_testAttr);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludesConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludes_testAttr);
 #if ENABLE(Condition22) || ENABLE(Condition23)
-JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludes_mixinReadOnlyAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludes_mixinReadOnlyAttribute);
 #endif
 #if ENABLE(Condition22) || ENABLE(Condition23)
-JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludes_mixinAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestConditionalIncludes_mixinAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludes_mixinAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestConditionalIncludes_mixinAttribute);
 #endif
 #if ENABLE(Condition22) || ENABLE(Condition23)
-JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludes_mixinCustomAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestConditionalIncludes_mixinCustomAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludes_mixinCustomAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestConditionalIncludes_mixinCustomAttribute);
 #endif
 #if ENABLE(Condition22) || ENABLE(Condition23)
-JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludes_mixinNodeAttribute);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestConditionalIncludes_mixinNodeAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludes_mixinNodeAttribute);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestConditionalIncludes_mixinNodeAttribute);
 #endif
 #if ENABLE(Condition22) || ENABLE(Condition23)
-JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludes_partialMixinAttributeFromPartial);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestConditionalIncludes_partialMixinAttributeFromPartial);
 #endif
 
 class JSTestConditionalIncludesPrototype final : public JSC::JSNonFinalObject {
@@ -217,7 +216,7 @@ template<> const ClassInfo JSTestConditionalIncludesDOMConstructor::s_info = { "
 
 static const HashTableValue JSTestConditionalIncludesPrototypeTableValues[] =
 {
-    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestConditionalIncludesConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestConditionalIncludesConstructor) } },
+    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestConditionalIncludesConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
     { "testAttr", static_cast<unsigned>(JSC::PropertyAttribute::ReadOnly | JSC::PropertyAttribute::CustomAccessor | JSC::PropertyAttribute::DOMAttribute), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestConditionalIncludes_testAttr), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
 #if ENABLE(Condition22) || ENABLE(Condition23)
     { "mixinReadOnlyAttribute", static_cast<unsigned>(JSC::PropertyAttribute::ReadOnly | JSC::PropertyAttribute::CustomAccessor | JSC::PropertyAttribute::DOMAttribute), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestConditionalIncludes_mixinReadOnlyAttribute), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
@@ -498,19 +497,6 @@ JSC_DEFINE_CUSTOM_GETTER(jsTestConditionalIncludesConstructor, (JSGlobalObject* 
     if (UNLIKELY(!prototype))
         return throwVMTypeError(lexicalGlobalObject, throwScope);
     return JSValue::encode(JSTestConditionalIncludes::getConstructor(JSC::getVM(lexicalGlobalObject), prototype->globalObject()));
-}
-
-JSC_DEFINE_CUSTOM_SETTER(setJSTestConditionalIncludesConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
-{
-    VM& vm = JSC::getVM(lexicalGlobalObject);
-    auto throwScope = DECLARE_THROW_SCOPE(vm);
-    auto* prototype = jsDynamicCast<JSTestConditionalIncludesPrototype*>(vm, JSValue::decode(thisValue));
-    if (UNLIKELY(!prototype)) {
-        throwVMTypeError(lexicalGlobalObject, throwScope);
-        return false;
-    }
-    // Shadowing a built-in constructor
-    return prototype->putDirect(vm, vm.propertyNames->constructor, JSValue::decode(encodedValue));
 }
 
 static inline JSValue jsTestConditionalIncludes_testAttrGetter(JSGlobalObject& lexicalGlobalObject, JSTestConditionalIncludes& thisObject)

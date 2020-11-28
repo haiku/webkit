@@ -297,11 +297,11 @@ void InlineFormattingContext::computeWidthAndMargin(const Box& layoutBox, const 
 {
     auto compute = [&](Optional<LayoutUnit> usedWidth) {
         if (layoutBox.isFloatingPositioned())
-            return geometry().floatingWidthAndMargin(layoutBox, horizontalConstraints, { usedWidth, { } });
+            return geometry().floatingContentWidthAndMargin(layoutBox, horizontalConstraints, { usedWidth, { } });
         if (layoutBox.isInlineBlockBox())
-            return geometry().inlineBlockWidthAndMargin(layoutBox, horizontalConstraints, { usedWidth, { } });
+            return geometry().inlineBlockContentWidthAndMargin(layoutBox, horizontalConstraints, { usedWidth, { } });
         if (layoutBox.isReplacedBox())
-            return geometry().inlineReplacedWidthAndMargin(downcast<ReplacedBox>(layoutBox), horizontalConstraints, { }, { usedWidth, { } });
+            return geometry().inlineReplacedContentWidthAndMargin(downcast<ReplacedBox>(layoutBox), horizontalConstraints, { }, { usedWidth, { } });
         ASSERT_NOT_REACHED();
         return ContentWidthAndMargin { };
     };
@@ -329,11 +329,11 @@ void InlineFormattingContext::computeHeightAndMargin(const Box& layoutBox, const
 {
     auto compute = [&](Optional<LayoutUnit> usedHeight) {
         if (layoutBox.isFloatingPositioned())
-            return geometry().floatingHeightAndMargin(layoutBox, horizontalConstraints, { usedHeight });
+            return geometry().floatingContentHeightAndMargin(layoutBox, horizontalConstraints, { usedHeight });
         if (layoutBox.isInlineBlockBox())
-            return geometry().inlineBlockHeightAndMargin(layoutBox, horizontalConstraints, { usedHeight });
+            return geometry().inlineBlockContentHeightAndMargin(layoutBox, horizontalConstraints, { usedHeight });
         if (layoutBox.isReplacedBox())
-            return geometry().inlineReplacedHeightAndMargin(downcast<ReplacedBox>(layoutBox), horizontalConstraints, { }, { usedHeight });
+            return geometry().inlineReplacedContentHeightAndMargin(downcast<ReplacedBox>(layoutBox), horizontalConstraints, { }, { usedHeight });
         ASSERT_NOT_REACHED();
         return ContentHeightAndMargin { };
     };
@@ -361,7 +361,7 @@ void InlineFormattingContext::collectInlineContentIfNeeded()
     if (!formattingState.inlineItems().isEmpty())
         return;
     // Traverse the tree and create inline items out of containers and leaf nodes. This essentially turns the tree inline structure into a flat one.
-    // <span>text<span></span><img></span> -> [ContainerStart][InlineBox][ContainerStart][ContainerEnd][InlineBox][ContainerEnd]
+    // <span>text<span></span><img></span> -> [InlineBoxStart][InlineLevelBox][InlineBoxStart][InlineBoxEnd][InlineLevelBox][InlineBoxEnd]
     ASSERT(root().hasInFlowOrFloatingChild());
     LayoutQueue layoutQueue;
     layoutQueue.append(root().firstInFlowOrFloatingChild());
@@ -372,7 +372,7 @@ void InlineFormattingContext::collectInlineContentIfNeeded()
             if (!isBoxWithInlineContent)
                 break;
             // This is the start of an inline box (e.g. <span>).
-            formattingState.addInlineItem({ layoutBox, InlineItem::Type::ContainerStart });
+            formattingState.addInlineItem({ layoutBox, InlineItem::Type::InlineBoxStart });
             auto& inlineBoxWithInlineContent = downcast<ContainerBox>(layoutBox);
             if (!inlineBoxWithInlineContent.hasInFlowOrFloatingChild())
                 break;
@@ -391,7 +391,7 @@ void InlineFormattingContext::collectInlineContentIfNeeded()
             else if (layoutBox.isInlineTextBox()) {
                 InlineTextItem::createAndAppendTextItems(formattingState.inlineItems(), downcast<InlineTextBox>(layoutBox));
             } else if (layoutBox.isInlineBox())
-                formattingState.addInlineItem({ layoutBox, InlineItem::Type::ContainerEnd });
+                formattingState.addInlineItem({ layoutBox, InlineItem::Type::InlineBoxEnd });
             else
                 ASSERT_NOT_REACHED();
 
@@ -485,7 +485,7 @@ InlineRect InlineFormattingContext::computeGeometryForLineContent(const LineBuil
                 continue;
             }
             // This is a just a simple box geometry for the line spanning inline box. getBoundingClientRect looks into each line boxes (will turn into fragmented boxes).
-            boxGeometry.setLogicalLeft(std::min(boxGeometry.logicalLeft(), toLayoutUnit(borderBoxLogicalTopLeft.x())));
+            boxGeometry.setLogicalLeft(std::min(BoxGeometry::borderBoxLeft(boxGeometry), toLayoutUnit(borderBoxLogicalTopLeft.x())));
             boxGeometry.setContentBoxWidth(std::max(toLayoutUnit(contentBoxWidth), boxGeometry.contentBoxWidth()));
             boxGeometry.setContentBoxHeight(boxGeometry.contentBoxHeight() + toLayoutUnit(logicalRect.height()));
         }
@@ -493,8 +493,7 @@ InlineRect InlineFormattingContext::computeGeometryForLineContent(const LineBuil
     updateBoxGeometry();
 
     auto constructLineGeometry = [&] {
-        auto lineBoxLogicalRect = InlineRect { lineLogicalRect.top(), lineLogicalRect.left(), lineBox.logicalWidth(), lineBox.logicalHeight() };
-        formattingState.addLine({ lineLogicalRect, lineBoxLogicalRect, lineBox.alignmentBaseline(), lineBox.horizontalAlignmentOffset().valueOr(InlineLayoutUnit { }) });
+        formattingState.addLine({ lineLogicalRect, lineBox.logicalSize(), lineBox.alignmentBaseline(), lineBox.horizontalAlignmentOffset().valueOr(InlineLayoutUnit { }) });
     };
     constructLineGeometry();
 

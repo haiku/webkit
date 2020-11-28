@@ -43,6 +43,7 @@ public:
 
     Node* node() const { return m_node.get(); }
     EventTarget* currentTarget() const { return m_currentTarget.get(); }
+    bool isCurrentTargetInShadowTree() const { return m_currentTargetIsInShadowTree; }
     EventTarget* target() const { return m_target.get(); }
     int closedShadowDepth() const { return m_closedShadowDepth; }
 
@@ -50,6 +51,8 @@ public:
 
     virtual bool isMouseOrFocusEventContext() const;
     virtual bool isTouchEventContext() const;
+
+    virtual Node* relatedTarget() const { return nullptr; }
 
 protected:
 #if ASSERT_ENABLED
@@ -60,6 +63,7 @@ protected:
     RefPtr<EventTarget> m_currentTarget;
     RefPtr<EventTarget> m_target;
     int m_closedShadowDepth { 0 };
+    bool m_currentTargetIsInShadowTree { false };
 };
 
 class MouseOrFocusEventContext final : public EventContext {
@@ -67,7 +71,7 @@ public:
     MouseOrFocusEventContext(Node&, EventTarget* currentTarget, EventTarget*, int closedShadowDepth);
     virtual ~MouseOrFocusEventContext();
 
-    Node* relatedTarget() const { return m_relatedTarget.get(); }
+    Node* relatedTarget() const final { return m_relatedTarget.get(); }
     void setRelatedTarget(Node*);
 
 private:

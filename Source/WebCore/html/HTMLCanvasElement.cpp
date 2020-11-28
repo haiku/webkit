@@ -936,10 +936,10 @@ void HTMLCanvasElement::createImageBuffer() const
 
     auto hostWindow = (document().view() && document().view()->root()) ? document().view()->root()->hostWindow() : nullptr;
 
-    auto accelerate = shouldAccelerate(size()) ? ShouldAccelerate::Yes : ShouldAccelerate::No;
+    auto renderingMode = shouldAccelerate(size()) ? RenderingMode::Accelerated : RenderingMode::Unaccelerated;
     // FIXME: Add a new setting for DisplayList drawing on canvas.
     auto useDisplayList = m_usesDisplayListDrawing.valueOr(document().settings().displayListDrawingEnabled()) ? ShouldUseDisplayList::Yes : ShouldUseDisplayList::No;
-    setImageBuffer(ImageBuffer::create(size(), accelerate, useDisplayList, RenderingPurpose::Canvas, 1, ColorSpace::SRGB, hostWindow));
+    setImageBuffer(ImageBuffer::create(size(), renderingMode, useDisplayList, RenderingPurpose::Canvas, 1, ColorSpace::SRGB, PixelFormat::BGRA8, hostWindow));
 
     if (buffer() && buffer()->drawingContext())
         buffer()->drawingContext()->setTracksDisplayListReplay(m_tracksDisplayListReplay);
@@ -950,9 +950,12 @@ void HTMLCanvasElement::createImageBuffer() const
         const_cast<HTMLCanvasElement*>(this)->invalidateStyleAndLayerComposition();
     }
 #endif
+
+    if (m_context && buffer() && buffer()->prefersPreparationForDisplay())
+        const_cast<HTMLCanvasElement*>(this)->addObserver(document());
 }
 
-void HTMLCanvasElement::setImageBufferAndMarkDirty(std::unique_ptr<ImageBuffer>&& buffer)
+void HTMLCanvasElement::setImageBufferAndMarkDirty(RefPtr<ImageBuffer>&& buffer)
 {
     IntSize oldSize = size();
     m_hasCreatedImageBuffer = true;
@@ -1073,12 +1076,10 @@ bool HTMLCanvasElement::needsPreparationForDisplay()
 
 void HTMLCanvasElement::prepareForDisplay()
 {
-#if ENABLE(WEBGL)
     ASSERT(needsPreparationForDisplay());
 
     if (m_context)
         m_context->prepareForDisplay();
-#endif
 }
 
 bool HTMLCanvasElement::isControlledByOffscreen() const

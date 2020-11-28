@@ -34,39 +34,35 @@ template<typename BackendType>
 class ConcreteImageBuffer : public ImageBuffer {
 public:
     template<typename ImageBufferType = ConcreteImageBuffer, typename... Arguments>
-    static std::unique_ptr<ImageBufferType> create(const FloatSize& size, float resolutionScale, ColorSpace colorSpace, const HostWindow* hostWindow, Arguments&&... arguments)
+    static RefPtr<ImageBufferType> create(const FloatSize& size, float resolutionScale, ColorSpace colorSpace, PixelFormat pixelFormat, const HostWindow* hostWindow, Arguments&&... arguments)
     {
-        auto backend = BackendType::create(size, resolutionScale, colorSpace, hostWindow);
+        auto backend = BackendType::create(size, resolutionScale, colorSpace, pixelFormat, hostWindow);
         if (!backend)
             return nullptr;
-        return std::unique_ptr<ImageBufferType>(new ImageBufferType(WTFMove(backend), std::forward<Arguments>(arguments)...));
+        return adoptRef(new ImageBufferType(WTFMove(backend), std::forward<Arguments>(arguments)...));
     }
 
     template<typename ImageBufferType = ConcreteImageBuffer, typename... Arguments>
-    static std::unique_ptr<ImageBufferType> create(const FloatSize& size, const GraphicsContext& context, Arguments&&... arguments)
+    static RefPtr<ImageBufferType> create(const FloatSize& size, const GraphicsContext& context, Arguments&&... arguments)
     {
         auto backend = BackendType::create(size, context);
         if (!backend)
             return nullptr;
-        return std::unique_ptr<ImageBufferType>(new ImageBufferType(WTFMove(backend), std::forward<Arguments>(arguments)...));
+        return adoptRef(new ImageBufferType(WTFMove(backend), std::forward<Arguments>(arguments)...));
     }
-    
-    bool isAccelerated() const override
-    {
-        if (auto* backend = ensureBackendCreated())
-            return backend->isAccelerated();
-        return false;
-    }
+
+    bool isAccelerated() const override { return BackendType::isAccelerated; }
 
 protected:
-    ConcreteImageBuffer(std::unique_ptr<BackendType>&& backend)
+    ConcreteImageBuffer(std::unique_ptr<BackendType>&& backend = nullptr, RenderingResourceIdentifier renderingResourceIdentifier = RenderingResourceIdentifier::generate())
         : m_backend(WTFMove(backend))
+        , m_renderingResourceIdentifier(renderingResourceIdentifier)
     {
     }
 
-    ConcreteImageBuffer() = default;
-
     virtual BackendType* ensureBackendCreated() const { return m_backend.get(); }
+
+    RenderingResourceIdentifier renderingResourceIdentifier() const override { return m_renderingResourceIdentifier; }
 
     GraphicsContext& context() const override
     {
@@ -120,7 +116,7 @@ protected:
         return m_backend ? m_backend->externalMemoryCost() : 0;
     }
 
-    NativeImagePtr copyNativeImage(BackingStoreCopy copyBehavior = CopyBackingStore) const override
+    RefPtr<NativeImage> copyNativeImage(BackingStoreCopy copyBehavior = CopyBackingStore) const override
     {
         if (auto* backend = ensureBackendCreated()) {
             const_cast<ConcreteImageBuffer&>(*this).flushDrawingContext();
@@ -154,7 +150,7 @@ protected:
         }
     }
 
-    NativeImagePtr sinkIntoNativeImage() override
+    RefPtr<NativeImage> sinkIntoNativeImage() override
     {
         if (auto* backend = ensureBackendCreated()) {
             flushDrawingContext();
@@ -177,6 +173,14 @@ protected:
         if (auto* backend = ensureBackendCreated()) {
             flushDrawingContext();
             backend->drawConsuming(destContext, destRect, srcRect, options);
+        }
+    }
+    
+    void clipToMask(GraphicsContext& destContext, const FloatRect& destRect) override
+    {
+        if (auto* backend = ensureBackendCreated()) {
+            flushContext();
+            backend->clipToMask(destContext, destRect);
         }
     }
 
@@ -247,14 +251,48 @@ protected:
         return nullptr;
     }
 
-    bool copyToPlatformTexture(GraphicsContextGLOpenGL& context, GCGLenum target, PlatformGLObject destinationTexture, GCGLenum internalformat, bool premultiplyAlpha, bool flipY) const override
+    bool copyToPlatformTexture(GraphicsContextGL& context, GCGLenum target, PlatformGLObject destinationTexture, GCGLenum internalformat, bool premultiplyAlpha, bool flipY) const override
     {
         if (auto* backend = ensureBackendCreated())
             return backend->copyToPlatformTexture(context, target, destinationTexture, internalformat, premultiplyAlpha, flipY);
         return false;
     }
 
+    bool isInUse() const override
+    {
+        if (auto* backend = ensureBackendCreated())
+            return backend->isInUse();
+        return false;
+    }
+
+    void releaseGraphicsContext() override
+    {
+        if (auto* backend = ensureBackendCreated())
+            return backend->releaseGraphicsContext();
+    }
+
+    VolatilityState setVolatile(bool isVolatile) override
+    {
+        if (auto* backend = ensureBackendCreated())
+            return backend->setVolatile(isVolatile);
+        return VolatilityState::Valid;
+    }
+
+    std::unique_ptr<ThreadSafeImageBufferFlusher> createFlusher() override
+    {
+        if (auto* backend = ensureBackendCreated())
+            return backend->createFlusher();
+        return nullptr;
+    }
+
+    void releaseBufferToPool() override
+    {
+        if (auto* backend = ensureBackendCreated())
+            backend->releaseBufferToPool();
+    }
+
     std::unique_ptr<BackendType> m_backend;
+    RenderingResourceIdentifier m_renderingResourceIdentifier;
 };
 
 } // namespace WebCore

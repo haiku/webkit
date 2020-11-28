@@ -19,6 +19,19 @@ window.UIHelper = class UIHelper {
         eventSender.mouseUp();
     }
 
+    static doubleClickAtMouseDown(x1, y1)
+    {
+        eventSender.mouseMoveTo(x1, y1);
+        eventSender.mouseDown();
+        eventSender.mouseUp();
+        eventSender.mouseDown();
+    }
+
+    static mouseUp()
+    {
+        eventSender.mouseUp();
+    }
+
     static doubleClickAtThenDragTo(x1, y1, x2, y2)
     {
         eventSender.mouseMoveTo(x1, y1);
@@ -27,6 +40,28 @@ window.UIHelper = class UIHelper {
         eventSender.mouseDown();
         eventSender.mouseMoveTo(x2, y2);
         eventSender.mouseUp();
+    }
+
+    static dragMouseAcrossElement(element)
+    {
+        const x1 = element.offsetLeft + element.offsetWidth;
+        const x2 = element.offsetLeft + element.offsetWidth * .75;
+        const x3 = element.offsetLeft + element.offsetWidth / 2;
+        const x4 = element.offsetLeft + element.offsetWidth / 4;
+        const x5 = element.offsetLeft;
+        const y = element.offsetTop + element.offsetHeight / 2;
+        eventSender.mouseMoveTo(x1, y);
+        eventSender.mouseMoveTo(x2, y);
+        eventSender.mouseMoveTo(x3, y);
+        eventSender.mouseMoveTo(x4, y);
+        eventSender.mouseMoveTo(x5, y);
+    }
+
+    static doubleClickElementMouseDown(element1)
+    {
+        const x1 = element1.offsetLeft + element1.offsetWidth / 2;
+        const y1 = element1.offsetTop + element1.offsetHeight / 2;
+        return UIHelper.doubleClickAtMouseDown(x1, y1);
     }
 
     static async moveMouseAndWaitForFrame(x, y)
@@ -542,6 +577,13 @@ window.UIHelper = class UIHelper {
     {
         return new Promise(resolve => {
             testRunner.runUIScript("uiController.isShowingKeyboard", result => resolve(result === "true"));
+        });
+    }
+
+    static isShowingPopover()
+    {
+        return new Promise(resolve => {
+            testRunner.runUIScript("uiController.isShowingPopover", result => resolve(result === "true"));
         });
     }
 
@@ -1343,6 +1385,64 @@ window.UIHelper = class UIHelper {
                     })
                 })();`, result => resolve(result === "true"));
         });
+    }
+
+    static moveToNextByKeyboardAccessoryBar()
+    {
+        return new Promise((resolve) => {
+            testRunner.runUIScript(`
+                uiController.keyboardAccessoryBarNext();
+                uiController.uiScriptComplete();
+            `, resolve);
+        });
+    }
+
+    static moveToPrevByKeyboardAccessoryBar()
+    {
+        return new Promise((resolve) => {
+            testRunner.runUIScript(`
+                uiController.keyboardAccessoryBarPrevious();
+                uiController.uiScriptComplete();
+            `, resolve);
+        });
+    }
+
+    static waitForContactPickerToShow()
+    {
+        if (!this.isWebKit2())
+            return Promise.resolve();
+
+        return new Promise(resolve => {
+            testRunner.runUIScript(`
+                (function() {
+                    if (!uiController.isShowingContactPicker)
+                        uiController.didShowContactPickerCallback = () => uiController.uiScriptComplete();
+                    else
+                        uiController.uiScriptComplete();
+                })()`, resolve);
+        });
+    }
+
+    static waitForContactPickerToHide()
+    {
+        if (!this.isWebKit2())
+            return Promise.resolve();
+
+        return new Promise(resolve => {
+            testRunner.runUIScript(`
+                (function() {
+                    if (uiController.isShowingContactPicker)
+                        uiController.didHideContactPickerCallback = () => uiController.uiScriptComplete();
+                    else
+                        uiController.uiScriptComplete();
+                })()`, resolve);
+        });
+    }
+
+    static dismissContactPickerWithContacts(contacts)
+    {
+       const script = `(() => uiController.dismissContactPickerWithContacts(${JSON.stringify(contacts)}))()`;
+       return new Promise(resolve => testRunner.runUIScript(script, resolve));
     }
 }
 

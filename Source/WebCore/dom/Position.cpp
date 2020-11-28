@@ -750,15 +750,15 @@ Position Position::upstream(EditingBoundaryCrossingRule rule) const
             }
 
             unsigned textOffset = currentPosition.offsetInLeafNode();
-            for (auto run = firstTextRun; run; run.traverseNextTextRunInTextOrder()) {
-                if (textOffset <= run->localEndOffset()) {
-                    if (textOffset > run->localStartOffset())
-                        return currentPosition;
-                    continue;
-                }
-
-                if (textOffset == run->localEndOffset() + 1 && run->isLastTextRunOnLine() && !run->isLastTextRun())
+            for (auto run = firstTextRun; run;) {
+                if (textOffset > run->start() && textOffset <= run->end())
                     return currentPosition;
+
+                auto nextRun = run.nextTextRunInTextOrder();
+                if (textOffset == run->end() + 1 && nextRun && run.line() != nextRun.line())
+                    return currentPosition;
+
+                run = nextRun;
             }
         }
     }
@@ -853,18 +853,18 @@ Position Position::downstream(EditingBoundaryCrossingRule rule) const
             }
 
             unsigned textOffset = currentPosition.offsetInLeafNode();
-            for (auto run = firstTextRun; run; run.traverseNextTextRunInTextOrder()) {
-                if (!run->length() && textOffset == run->localStartOffset())
+            for (auto run = firstTextRun; run;) {
+                if (!run->length() && textOffset == run->start())
                     return currentPosition;
 
-                if (textOffset < run->localEndOffset()) {
-                    if (textOffset >= run->localStartOffset())
-                        return currentPosition;
-                    continue;
-                }
-
-                if (textOffset == run->localEndOffset() && run->isLastTextRunOnLine() && !run->isLastTextRun())
+                if (textOffset >= run->start() && textOffset < run->end())
                     return currentPosition;
+
+                auto nextRun = run.nextTextRunInTextOrder();
+                if (textOffset == run->end() && nextRun && run.line() != nextRun.line())
+                    return currentPosition;
+
+                run = nextRun;
             }
         }
     }
@@ -1584,13 +1584,13 @@ TextStream& operator<<(TextStream& stream, const Position& position)
     return stream;
 }
 
-RefPtr<Node> commonInclusiveAncestor(const Position& a, const Position& b)
+Node* commonInclusiveAncestor(const Position& a, const Position& b)
 {
     auto nodeA = a.containerNode();
     auto nodeB = b.containerNode();
     if (!nodeA || !nodeB)
         return nullptr;
-    return commonInclusiveAncestor(*nodeA, *nodeB);
+    return commonInclusiveAncestor<ComposedTree>(*nodeA, *nodeB);
 }
 
 Position positionInParentBeforeNode(Node* node)
@@ -1641,7 +1641,7 @@ PartialOrdering documentOrder(const Position& a, const Position& b)
     auto bContainer = b.containerNode();
 
     if (!aContainer || !bContainer) {
-        if (!commonInclusiveAncestor(*a.anchorNode(), *b.anchorNode()))
+        if (!commonInclusiveAncestor<ComposedTree>(*a.anchorNode(), *b.anchorNode()))
             return PartialOrdering::unordered;
         if (!aContainer && !bContainer && a.anchorType() == b.anchorType())
             return PartialOrdering::equivalent;
@@ -1652,7 +1652,7 @@ PartialOrdering documentOrder(const Position& a, const Position& b)
 
     // FIXME: Avoid computing node offset for cases where we don't need to.
 
-    return documentOrder(*makeBoundaryPoint(a), *makeBoundaryPoint(b));
+    return treeOrder<ComposedTree>(*makeBoundaryPoint(a), *makeBoundaryPoint(b));
 }
 
 } // namespace WebCore

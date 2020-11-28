@@ -14,12 +14,6 @@ Property values requiring vendor prefixes:
 None
 ------------------------------------------------------------------------
 List of files:
-/LayoutTests/imported/w3c/web-platform-tests/html/browsers/offline/manifest_main_empty-manual.https.html
-/LayoutTests/imported/w3c/web-platform-tests/html/browsers/offline/manifest_notchanged_online-manual.https.html
-/LayoutTests/imported/w3c/web-platform-tests/html/browsers/offline/manifest_section_empty-manual.https.html
-/LayoutTests/imported/w3c/web-platform-tests/html/browsers/offline/manifest_section_many-manual.https.html
 /LayoutTests/imported/w3c/web-platform-tests/html/browsers/offline/manifest_url_check.https.https.html
 /LayoutTests/imported/w3c/web-platform-tests/html/browsers/offline/no-appcache-in-shared-workers-historical.https.html
 /LayoutTests/imported/w3c/web-platform-tests/html/browsers/offline/no-appcache-in-shared-workers-historical.js
-/LayoutTests/imported/w3c/web-platform-tests/html/browsers/offline/section_network_offline-manual.https.html
-/LayoutTests/imported/w3c/web-platform-tests/html/browsers/offline/section_network_online-manual.https.html

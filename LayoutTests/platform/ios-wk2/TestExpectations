@@ -11,6 +11,9 @@ compositing/shared-backing/overflow-scroll [ Pass ]
 compositing/scrolling/async-overflow-scrolling [ Pass ]
 compositing/scrolling/async-overflow-scrolling/mac [ Skip ]
 compositing/layer-creation/clipping-scope [ Pass ]
+contact-picker/contacts-select-after-dismissing-picker.html [ Pass ]
+contact-picker/contacts-select-while-presenting-picker.html [ Pass ]
+contact-picker/contacts-select.html [ Pass ]
 fast/device-orientation [ Pass ]
 fast/history/ios [ Pass ]
 fast/scrolling/ios [ Pass ]
@@ -56,8 +59,16 @@ webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpayment
 webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpaymentrequest/removing-allowpaymentrequest.https.sub.html [ Skip ]
 webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpaymentrequest/setting-allowpaymentrequest-timing.https.sub.html [ Skip ]
 webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpaymentrequest/setting-allowpaymentrequest.https.sub.html [ Skip ]
+webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpayment/allowpaymentrequest-attribute-cross-origin-bc-containers.https.html [ Skip ]
+webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpayment/no-attribute-cross-origin-bc-containers.https.html [ Skip ]
+webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpayment/removing-allowpaymentrequest.https.sub.html [ Skip ]
+webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpayment/setting-allowpaymentrequest.https.sub.html [ Skip ]
 imported/w3c/web-platform-tests/payment-request/payment-request-canmakepayment-method.https.html [ Skip ]
 imported/w3c/web-platform-tests/payment-request/payment-request-hasenrolledinstrument-method.tentative.https.html [ Skip ]
+imported/w3c/web-platform-tests/payment-request/show-method-optional-promise-rejects.https.html [ DumpJSConsoleLogInStdErr ]
+
+# This test is failing due to lack of user activation.
+imported/w3c/web-platform-tests/payment-request/payment-is-showing.https.html [ Skip ]
 
 # skip in favor of tests in http/tests/paymentrequest
 imported/w3c/web-platform-tests/payment-request/payment-request-abort-method.https.html [ WontFix ]
@@ -428,7 +439,6 @@ fast/frames/frame-programmatic-noresize.html [ Failure ]
 fast/frames/frame-with-noresize-can-be-resized-after-removal-of-noresize.html [ Failure ]
 fast/frames/frame-with-noresize-can-be-resized-after-setting-noResize-to-false.html [ Failure ]
 fast/frames/location-redirect-user-gesture.html [ Failure ]
-fast/harness/override-preferences-2.html [ Failure ]
 fast/selectors/querySelector-window-inactive.html [ Failure ]
 fast/spatial-navigation/snav-only-clipped-overflow-content.html [ Failure ]
 fast/spatial-navigation/snav-z-index.html [ Failure ]
@@ -1212,38 +1222,6 @@ webkit.org/b/184783 compositing/ios/overflow-scroll-touch-tiles.html [ Pass Fail
 
 webkit.org/b/179853 [ Debug ] imported/blink/fast/text/international-iteration-simple-text.html [ Pass Failure ]
 
-# skip manual payment-request tests
-imported/w3c/web-platform-tests/payment-request/PaymentRequestUpdateEvent/updateWith-call-immediate-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentRequestUpdateEvent/updateWith-duplicate-shipping-options-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentRequestUpdateEvent/updateWith-incremental-update-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentRequestUpdateEvent/updateWith-method-abort-update-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentRequestUpdateEvent/updateWith-state-checks-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentValidationErrors/retry-shows-error-member-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentValidationErrors/retry-shows-payer-member-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentValidationErrors/retry-shows-shippingAddress-member-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/algorithms-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/change-shipping-option-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/change-shipping-option-select-last-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/complete-method-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/methodName-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/onpayerdetailchange-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/payerEmail-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/payerName-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/payerPhone-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/rejects_if_not_active-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/requestId-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/retry-method-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/shippingAddress-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/payment-response/shippingOption-attribute-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/PaymentAddress/attributes-and-toJSON-method-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/shipping-address-changed-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/show-method-optional-promise-rejects-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/show-method-optional-promise-resolves-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/show-method-postmessage-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/updateWith-method-pmi-handling-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/user-abort-algorithm-manual.https.html [ Skip ]
-imported/w3c/web-platform-tests/payment-request/user-accepts-payment-request-algo-manual.https.html [ Skip ]
-
 webkit.org/b/189087 svg/animations/animate-end-attribute-numeric-precision.html [ Pass Failure ]
 
 webkit.org/b/190847 [ Debug ] imported/w3c/web-platform-tests/service-workers/service-worker/unregister-then-register-new-script.https.html [ Pass Failure ] 
@@ -1408,8 +1386,6 @@ webkit.org/b/209006 imported/w3c/web-platform-tests/html/semantics/scripting-1/t
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-compositing-change.html [ ImageOnlyFailure Pass ]
 
 webkit.org/b/209205 fast/events/autoscroll-in-iframe.html [ Pass Failure ]
-
-webkit.org/b/209139 webgl/1.0.3/conformance/textures/copy-tex-image-2d-formats.html [ Pass Failure ]
 
 webkit.org/b/209080 imported/w3c/web-platform-tests/css/css-writing-modes/wm-propagation-body-scroll-offset-vertical-lr.html [ Failure ]
 webkit.org/b/209080 imported/w3c/web-platform-tests/css/css-writing-modes/abs-pos-non-replaced-vlr-003.xht [ ImageOnlyFailure ]
@@ -1827,7 +1803,7 @@ webkit.org/b/215278 [ Debug ] imported/w3c/web-platform-tests/html/semantics/scr
 
 webkit.org/b/215283 [ Debug ] imported/w3c/web-platform-tests/html/semantics/scripting-1/the-script-element/moving-between-documents/before-prepare-iframe-success-external-classic.html [ Pass Failure ]
 
-webkit.org/b/215324 compositing/clipping/border-radius-on-webgl.html [ Pass Failure Timeout ]
+webkit.org/b/215324 compositing/clipping/border-radius-on-webgl.html [ Pass ImageOnlyFailure Timeout ]
 
 webkit.org/b/215326 imported/w3c/web-platform-tests/css/css-images/image-set/image-set-parsing.html [ Pass Timeout ]
 
@@ -1891,7 +1867,7 @@ webkit.org/b/217257 webgl/1.0.3/conformance/textures/tex-image-and-sub-image-2d-
 
 webkit.org/b/217258 svg/W3C-I18N/tspan-direction-rtl.svg [ Failure ]
 
-webkit.org/b/217263 imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-no-sink.https.html [ Slow Failure ]
+webkit.org/b/217263 imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-no-sink.https.html [ Slow Failure Crash ]
 
 webkit.org/b/217263 imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-peerconnection.https.html [ Slow Failure ]
 
@@ -1904,3 +1880,9 @@ webkit.org/b/217268 imported/w3c/web-platform-tests/mathml/relations/html5-tree/
 webkit.org/b/217408 http/tests/cache-storage/page-cache-domcache-pending-promise.html [ Pass Failure ]
 
 webkit.org/b/217641 [ Debug ] imported/w3c/web-platform-tests/xhr/event-timeout.any.worker.html [ Pass Failure ]
+
+#<rdar://70623742> 2 compositing/contents-scale/*  and 2 fast/canvas/canvas* tests are flaky failures
+compositing/contents-scale/non-decomposable-matrix.html [ Pass Failure ]
+compositing/contents-scale/rasterization-scale.html [ Pass Failure ]
+fast/canvas/canvas-blending-global-alpha.html [ Pass Failure ]
+fast/canvas/canvas-scale-shadowBlur.html [ Pass Failure ]

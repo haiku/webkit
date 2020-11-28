@@ -60,11 +60,11 @@ void Line::initialize(InlineLayoutUnit horizontalConstraint)
 {
     m_horizontalConstraint = horizontalConstraint;
     m_contentLogicalWidth = { };
-    m_isVisuallyEmpty = true;
     m_runs.clear();
     m_trailingSoftHyphenWidth = { };
     m_trimmableTrailingContent.reset();
-    m_lineIsVisuallyEmptyBeforeTrimmableTrailingContent = { };
+    m_isConsideredEmpty = true;
+    m_isConsideredEmptyBeforeTrimmableTrailingContent = { };
 }
 
 void Line::removeCollapsibleContent()
@@ -141,19 +141,17 @@ void Line::removeTrailingTrimmableContent()
 
     m_contentLogicalWidth -= m_trimmableTrailingContent.remove();
     // If we removed the first visible run on the line, we need to re-check the visibility status.
-    if (m_lineIsVisuallyEmptyBeforeTrimmableTrailingContent) {
-        // Just because the line was visually empty before the removed content, it does not necessarily mean it is still visually empty.
+    if (m_isConsideredEmptyBeforeTrimmableTrailingContent) {
+        // Just because the line was considered empty before the removed content, it does not necessarily mean it is still empty.
         // <span>  </span><span style="padding-left: 10px"></span>  <- non-empty
-        auto lineIsVisuallyEmpty = [&] {
+        m_isConsideredEmpty = [&] {
             for (auto& run : m_runs) {
-                if (isRunVisuallyNonEmpty(run))
+                if (!isRunConsideredEmpty(run))
                     return false;
             }
             return true;
-        };
-        // We could only go from visually non empty -> to visually empty. Trimmed runs should never make the line visible.
-        m_isVisuallyEmpty = lineIsVisuallyEmpty();
-        m_lineIsVisuallyEmptyBeforeTrimmableTrailingContent = { };
+        }();
+        m_isConsideredEmptyBeforeTrimmableTrailingContent = { };
     }
 }
 
@@ -174,7 +172,7 @@ void Line::visuallyCollapsePreWrapOverflowContent()
             // We are only interested in pre-wrap trailing content.
             break;
         }
-        auto preWrapVisuallyCollapsibleInlineItem = run.isContainerStart() || run.isContainerEnd() || run.hasTrailingWhitespace();
+        auto preWrapVisuallyCollapsibleInlineItem = run.isInlineBoxStart() || run.isInlineBoxEnd() || run.hasTrailingWhitespace();
         if (!preWrapVisuallyCollapsibleInlineItem)
             break;
         ASSERT(!run.hasCollapsibleTrailingWhitespace());
@@ -219,10 +217,10 @@ void Line::append(const InlineItem& inlineItem, InlineLayoutUnit logicalWidth)
         appendLineBreak(inlineItem);
     else if (inlineItem.isWordBreakOpportunity())
         appendWordBreakOpportunity(inlineItem);
-    else if (inlineItem.isContainerStart())
-        appendInlineContainerStart(inlineItem, logicalWidth);
-    else if (inlineItem.isContainerEnd())
-        appendInlineContainerEnd(inlineItem, logicalWidth);
+    else if (inlineItem.isInlineBoxStart())
+        appendInlineBoxStart(inlineItem, logicalWidth);
+    else if (inlineItem.isInlineBoxEnd())
+        appendInlineBoxEnd(inlineItem, logicalWidth);
     else if (inlineItem.layoutBox().isReplacedBox())
         appendReplacedInlineBox(inlineItem, logicalWidth);
     else if (inlineItem.isBox())
@@ -230,9 +228,9 @@ void Line::append(const InlineItem& inlineItem, InlineLayoutUnit logicalWidth)
     else
         ASSERT_NOT_REACHED();
 
-    // Check if this newly appended content makes the line visually non-empty.
-    if (m_isVisuallyEmpty && !m_runs.isEmpty() && isRunVisuallyNonEmpty(m_runs.last()))
-        m_isVisuallyEmpty = false;
+    // Check if this newly appended content makes the line non-empty.
+    if (m_isConsideredEmpty && !m_runs.isEmpty() && !isRunConsideredEmpty(m_runs.last()))
+        m_isConsideredEmpty = false;
 }
 
 void Line::appendNonBreakableSpace(const InlineItem& inlineItem, InlineLayoutUnit logicalLeft, InlineLayoutUnit logicalWidth)
@@ -241,13 +239,15 @@ void Line::appendNonBreakableSpace(const InlineItem& inlineItem, InlineLayoutUni
     m_contentLogicalWidth += logicalWidth;
 }
 
-void Line::appendInlineContainerStart(const InlineItem& inlineItem, InlineLayoutUnit logicalWidth)
+void Line::appendInlineBoxStart(const InlineItem& inlineItem, InlineLayoutUnit logicalWidth)
 {
     // This is really just a placeholder to mark the start of the inline level container <span>.
-    appendNonBreakableSpace(inlineItem, contentLogicalWidth(), logicalWidth);
+    auto& boxGeometry = formattingContext().geometryForBox(inlineItem.layoutBox());
+    auto adjustedRunStart = contentLogicalWidth() + std::min(boxGeometry.marginStart(), 0_lu);
+    appendNonBreakableSpace(inlineItem, adjustedRunStart, logicalWidth);
 }
 
-void Line::appendInlineContainerEnd(const InlineItem& inlineItem, InlineLayoutUnit logicalWidth)
+void Line::appendInlineBoxEnd(const InlineItem& inlineItem, InlineLayoutUnit logicalWidth)
 {
     // This is really just a placeholder to mark the end of the inline level container </span>.
     auto removeTrailingLetterSpacing = [&] {
@@ -280,7 +280,7 @@ void Line::appendTextContent(const InlineTextItem& inlineTextItem, InlineLayoutU
             // Not that when the inline container has preserve whitespace style, "<span style="white-space: pre">  </span> " <- this whitespace stays around.
             if (run.isText())
                 return run.hasCollapsibleTrailingWhitespace();
-            ASSERT(run.isContainerStart() || run.isContainerEnd() || run.isWordBreakOpportunity());
+            ASSERT(run.isInlineBoxStart() || run.isInlineBoxEnd() || run.isWordBreakOpportunity());
         }
         // Leading whitespace.
         return !isWhitespacePreserved(style);
@@ -304,7 +304,7 @@ void Line::appendTextContent(const InlineTextItem& inlineTextItem, InlineLayoutU
         m_trimmableTrailingContent.addFullyTrimmableContent(m_runs.size() - 1, logicalWidth);
         // If we ever trim this content, we need to know if the line visibility state needs to be recomputed.
         if (m_trimmableTrailingContent.isEmpty())
-            m_lineIsVisuallyEmptyBeforeTrimmableTrailingContent = isVisuallyEmpty();
+            m_isConsideredEmptyBeforeTrimmableTrailingContent = isConsideredEmpty();
         return;
     }
     // Any non-whitespace, no-trimmable content resets the existing trimmable.
@@ -316,11 +316,11 @@ void Line::appendTextContent(const InlineTextItem& inlineTextItem, InlineLayoutU
 
 void Line::appendNonReplacedInlineBox(const InlineItem& inlineItem, InlineLayoutUnit logicalWidth)
 {
-    auto& layoutBox = inlineItem.layoutBox();
-    auto& boxGeometry = formattingContext().geometryForBox(layoutBox);
-    auto horizontalMargin = boxGeometry.horizontalMargin();
-    m_runs.append({ inlineItem, contentLogicalWidth() + horizontalMargin.start, logicalWidth });
-    m_contentLogicalWidth += logicalWidth + horizontalMargin.start + horizontalMargin.end;
+    auto& boxGeometry = formattingContext().geometryForBox(inlineItem.layoutBox());
+    // Negative margin start pulls the content to the logical left direction.
+    auto adjustedRunStart = contentLogicalWidth() + std::min(boxGeometry.marginStart(), 0_lu);
+    m_runs.append({ inlineItem, adjustedRunStart, logicalWidth });
+    m_contentLogicalWidth += logicalWidth;
     m_trimmableTrailingContent.reset();
     m_trailingSoftHyphenWidth = { };
 }
@@ -347,37 +347,37 @@ void Line::appendWordBreakOpportunity(const InlineItem& inlineItem)
     m_runs.append({ inlineItem, contentLogicalWidth(), 0_lu });
 }
 
-bool Line::isRunVisuallyNonEmpty(const Run& run) const
+bool Line::isRunConsideredEmpty(const Run& run) const
 {
     if (run.isText())
-        return true;
+        return false;
 
     if (run.isLineBreak())
         return true;
 
     // Note that this does not check whether the inline container has content. It simply checks if the container itself is considered non-empty.
-    if (run.isContainerStart() || run.isContainerEnd()) {
+    if (run.isInlineBoxStart() || run.isInlineBoxEnd()) {
         if (!run.logicalWidth())
-            return false;
-        // Margin does not make the container visually non-empty. Check if it has border or padding.
+            return true;
+        // Margin does not make the container non-empty only border or padding.
         auto& boxGeometry = formattingContext().geometryForBox(run.layoutBox());
-        if (run.isContainerStart())
-            return boxGeometry.borderLeft() || (boxGeometry.paddingLeft() && boxGeometry.paddingLeft().value());
-        return boxGeometry.borderRight() || (boxGeometry.paddingRight() && boxGeometry.paddingRight().value());
+        auto hasBorderOrPadding = run.isInlineBoxStart() ? boxGeometry.borderLeft() || (boxGeometry.paddingLeft() && boxGeometry.paddingLeft().value())
+            : boxGeometry.borderRight() || (boxGeometry.paddingRight() && boxGeometry.paddingRight().value());
+        return !hasBorderOrPadding;
     }
 
     if (run.isBox()) {
         if (run.layoutBox().isReplacedBox())
-            return true;
+            return false;
         ASSERT(run.layoutBox().isInlineBlockBox() || run.layoutBox().isInlineTableBox());
-        return run.logicalWidth();
+        return !run.logicalWidth();
     }
 
     if (run.isWordBreakOpportunity())
-        return false;
+        return true;
 
     ASSERT_NOT_REACHED();
-    return false;
+    return true;
 }
 
 void Line::addTrailingHyphen(InlineLayoutUnit hyphenLogicalWidth)
@@ -443,7 +443,7 @@ InlineLayoutUnit Line::TrimmableTrailingContent::remove()
     // not produce a run since in ::appendText() we see it as a fully collapsible run.
     for (auto index = *m_firstTrimmableRunIndex + 1; index < m_runs.size(); ++index) {
         auto& run = m_runs[index];
-        ASSERT(run.isContainerStart() || run.isContainerEnd() || run.isLineBreak());
+        ASSERT(run.isInlineBoxStart() || run.isInlineBoxEnd() || run.isLineBreak());
         run.moveHorizontally(-trimmableWidth);
     }
     if (!trimmableRun.textContent()->length()) {

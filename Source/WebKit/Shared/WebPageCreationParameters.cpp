@@ -114,6 +114,9 @@ void WebPageCreationParameters::encode(IPC::Encoder& encoder) const
 #if PLATFORM(COCOA)
     encoder << smartInsertDeleteEnabled;
     encoder << additionalSupportedImageTypes;
+    // FIXME(207716): The following should be removed when the GPU process is complete.
+    encoder << mediaExtensionHandles;
+    encoder << gpuIOKitExtensionHandles;
 #endif
 #if HAVE(APP_ACCENT_COLORS)
     encoder << accentColor;
@@ -124,8 +127,6 @@ void WebPageCreationParameters::encode(IPC::Encoder& encoder) const
 #if PLATFORM(WIN)
     encoder << nativeWindowHandle;
 #endif
-    encoder << appleMailPaginationQuirkEnabled;
-    encoder << appleMailLinesClampEnabled;
     encoder << shouldScaleViewToFitDocument;
     encoder << userInterfaceLayoutDirection;
     encoder << observedLayoutMilestones;
@@ -155,6 +156,8 @@ void WebPageCreationParameters::encode(IPC::Encoder& encoder) const
     encoder << shouldCaptureVideoInGPUProcess;
     encoder << shouldCaptureDisplayInUIProcess;
     encoder << shouldRenderCanvasInGPUProcess;
+    encoder << shouldRenderDOMInGPUProcess;
+    encoder << shouldPlayMediaInGPUProcess;
     encoder << shouldEnableVP9Decoder;
     encoder << shouldEnableVP9SWDecoder;
 #if ENABLE(APP_BOUND_DOMAINS)
@@ -360,6 +363,20 @@ Optional<WebPageCreationParameters> WebPageCreationParameters::decode(IPC::Decod
         return WTF::nullopt;
     if (!decoder.decode(parameters.additionalSupportedImageTypes))
         return WTF::nullopt;
+
+    // FIXME(207716): The following should be removed when the GPU process is complete.
+    Optional<SandboxExtension::HandleArray> mediaExtensionHandles;
+    decoder >> mediaExtensionHandles;
+    if (!mediaExtensionHandles)
+        return WTF::nullopt;
+    parameters.mediaExtensionHandles = WTFMove(*mediaExtensionHandles);
+    // FIXME(207716): End region to remove.
+
+    Optional<SandboxExtension::HandleArray> gpuIOKitExtensionHandles;
+    decoder >> gpuIOKitExtensionHandles;
+    if (!gpuIOKitExtensionHandles)
+        return WTF::nullopt;
+    parameters.gpuIOKitExtensionHandles = WTFMove(*gpuIOKitExtensionHandles);
 #endif
 
 #if HAVE(APP_ACCENT_COLORS)
@@ -376,12 +393,6 @@ Optional<WebPageCreationParameters> WebPageCreationParameters::decode(IPC::Decod
     if (!decoder.decode(parameters.nativeWindowHandle))
         return WTF::nullopt;
 #endif
-
-    if (!decoder.decode(parameters.appleMailPaginationQuirkEnabled))
-        return WTF::nullopt;
-
-    if (!decoder.decode(parameters.appleMailLinesClampEnabled))
-        return WTF::nullopt;
 
     if (!decoder.decode(parameters.shouldScaleViewToFitDocument))
         return WTF::nullopt;
@@ -492,6 +503,12 @@ Optional<WebPageCreationParameters> WebPageCreationParameters::decode(IPC::Decod
         return WTF::nullopt;
 
     if (!decoder.decode(parameters.shouldRenderCanvasInGPUProcess))
+        return WTF::nullopt;
+
+    if (!decoder.decode(parameters.shouldRenderDOMInGPUProcess))
+        return WTF::nullopt;
+
+    if (!decoder.decode(parameters.shouldPlayMediaInGPUProcess))
         return WTF::nullopt;
 
     if (!decoder.decode(parameters.shouldEnableVP9Decoder))

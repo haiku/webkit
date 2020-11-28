@@ -253,8 +253,8 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
         return;
 
     case AtomicsIsLockFree:
-        if (node->child1().useKind() == Int32Use)
-            def(PureValue(node));
+        if (graph.child(node, 0).useKind() == Int32Use)
+            def(PureValue(graph, node));
         else
             clobberTop();
         return;
@@ -673,6 +673,8 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
     case PutSetterByVal:
     case PutPrivateName:
     case PutPrivateNameById:
+    case GetPrivateName:
+    case GetPrivateNameById:
     case DefineDataProperty:
     case DefineAccessorProperty:
     case DeleteById:
@@ -1156,7 +1158,7 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
         read(JSCell_structureID);
         return;
 
-    case CheckNeutered:
+    case CheckDetached:
         read(MiscFields);
         return; 
         

@@ -245,6 +245,8 @@ struct ApplicationManifest;
 struct AttributedString;
 struct BackForwardItemIdentifier;
 struct CompositionHighlight;
+struct ContactInfo;
+struct ContactsRequestData;
 struct ContentRuleListResults;
 struct DataListSuggestionInformation;
 struct DateTimeChooserParameters;
@@ -302,6 +304,7 @@ class RemoteLayerTreeScrollingPerformanceData;
 class RemoteLayerTreeTransaction;
 class RemoteScrollingCoordinatorProxy;
 class SecKeyProxyStore;
+class SpeechRecognitionPermissionManager;
 class UserData;
 class ViewSnapshot;
 class VisitedLinkStore;
@@ -362,6 +365,7 @@ struct UserMessage;
 
 enum class NegotiatedLegacyTLS : bool;
 enum class ProcessSwapRequestedByClient : bool;
+enum class SpeechRecognitionPermissionDecision : bool;
 enum class UndoOrRedo : bool;
 enum class WebContentMode : uint8_t;
 
@@ -943,6 +947,7 @@ public:
     void didFinishProcessingAllPendingMouseEvents();
     void flushPendingMouseEventCallbacks();
 
+    bool isProcessingWheelEvents() const;
     void handleWheelEvent(const NativeWebWheelEvent&);
 
     bool isProcessingKeyboardEvents() const;
@@ -1450,8 +1455,7 @@ public:
     bool isCapturingVideo() const { return m_mediaState & WebCore::MediaProducer::VideoCaptureMask; }
     bool hasActiveAudioStream() const { return m_mediaState & WebCore::MediaProducer::HasActiveAudioCaptureDevice; }
     bool hasActiveVideoStream() const { return m_mediaState & WebCore::MediaProducer::HasActiveVideoCaptureDevice; }
-    WebCore::MediaProducer::MediaStateFlags mediaStateFlags() const { return m_mediaState; }
-    WebCore::MediaProducer::MediaStateFlags reportedMediaCaptureState() const { return m_reportedMediaCaptureState; }
+    WebCore::MediaProducer::MediaStateFlags reportedMediaState() const { return m_reportedMediaCaptureState | (m_mediaState & ~WebCore::MediaProducer::MediaCaptureMask); }
     WebCore::MediaProducer::MutedStateFlags mutedStateFlags() const { return m_mutedState; }
 
     void handleAutoplayEvent(WebCore::AutoplayEvent, OptionSet<WebCore::AutoplayEventFlags>);
@@ -1681,11 +1685,11 @@ public:
     void contentFilterDidBlockLoadForFrameShared(Ref<WebProcessProxy>&&, const WebCore::ContentFilterUnblockHandler&, WebCore::FrameIdentifier);
 #endif
 
-    void dumpAdClickAttribution(CompletionHandler<void(const String&)>&&);
-    void clearAdClickAttribution(CompletionHandler<void()>&&);
-    void setAdClickAttributionOverrideTimerForTesting(bool value, CompletionHandler<void()>&&);
-    void setAdClickAttributionConversionURLForTesting(const URL&, CompletionHandler<void()>&&);
-    void markAdClickAttributionsAsExpiredForTesting(CompletionHandler<void()>&&);
+    void dumpPrivateClickMeasurement(CompletionHandler<void(const String&)>&&);
+    void clearPrivateClickMeasurement(CompletionHandler<void()>&&);
+    void setPrivateClickMeasurementOverrideTimerForTesting(bool value, CompletionHandler<void()>&&);
+    void setPrivateClickMeasurementConversionURLForTesting(const URL&, CompletionHandler<void()>&&);
+    void markPrivateClickMeasurementsAsExpiredForTesting(CompletionHandler<void()>&&);
 
 #if ENABLE(SPEECH_SYNTHESIS)
     void speechSynthesisVoiceList(CompletionHandler<void(Vector<WebSpeechSynthesisVoice>&&)>&&);
@@ -1815,6 +1819,8 @@ public:
     Seconds mediaCaptureReportingDelay() const { return m_mediaCaptureReportingDelay; }
     void setMediaCaptureReportingDelay(Seconds captureReportingDelay) { m_mediaCaptureReportingDelay = captureReportingDelay; }
     size_t suspendMediaPlaybackCounter() { return m_suspendMediaPlaybackCounter; }
+
+    void requestSpeechRecognitionPermission(const WebCore::ClientOrigin&, CompletionHandler<void(SpeechRecognitionPermissionDecision)>&&);
 
 private:
     WebPageProxy(PageClient&, WebProcessProxy&, Ref<API::PageConfiguration>&&);
@@ -1954,6 +1960,7 @@ private:
     void runOpenPanel(WebCore::FrameIdentifier, FrameInfoData&&, const WebCore::FileChooserSettings&);
     bool didChooseFilesForOpenPanelWithImageTranscoding(const Vector<String>& fileURLs, const Vector<String>& allowedMIMETypes);
     void showShareSheet(const WebCore::ShareDataWithParsedURL&, CompletionHandler<void(bool)>&&);
+    void showContactPicker(const WebCore::ContactsRequestData&, CompletionHandler<void(Optional<Vector<WebCore::ContactInfo>>&&)>&&);
     void printFrame(WebCore::FrameIdentifier, CompletionHandler<void()>&&);
     void exceededDatabaseQuota(WebCore::FrameIdentifier, const String& originIdentifier, const String& databaseName, const String& displayName, uint64_t currentQuota, uint64_t currentOriginUsage, uint64_t currentDatabaseUsage, uint64_t expectedUsage, Messages::WebPageProxy::ExceededDatabaseQuotaDelayedReply&&);
     void reachedApplicationCacheOriginQuota(const String& originIdentifier, uint64_t currentQuota, uint64_t totalBytesNeeded, Messages::WebPageProxy::ReachedApplicationCacheOriginQuotaDelayedReply&&);
@@ -2100,15 +2107,6 @@ private:
     void didPerformDictionaryLookup(const WebCore::DictionaryPopupInfo&);
 #endif
 
-#if PLATFORM(MAC)
-    bool appleMailPaginationQuirkEnabled();
-#endif
-
-#if PLATFORM(MAC)
-    // FIXME: Need to support iOS too, but there is no isAppleMail for iOS.
-    bool appleMailLinesClampEnabled();
-#endif
-
     // Spelling and grammar.
     void checkSpellingOfString(const String& text, CompletionHandler<void(int32_t misspellingLocation, int32_t misspellingLength)>&&);
     void checkGrammarOfString(const String& text, CompletionHandler<void(Vector<WebCore::GrammarDetail>&&, int32_t badGrammarLocation, int32_t badGrammarLength)>&&);
@@ -2119,7 +2117,7 @@ private:
     void ignoreWord(const String& word);
     void requestCheckingOfString(uint64_t requestID, const WebCore::TextCheckingRequestData&, int32_t insertionPoint);
 
-    void takeFocus(uint32_t direction);
+    void takeFocus(uint8_t direction);
     void setToolTip(const String&);
     void setCursor(const WebCore::Cursor&);
     void setCursorHiddenUntilMouseMoves(bool);
@@ -2243,7 +2241,7 @@ private:
 #endif
 
 #if ENABLE(NETSCAPE_PLUGIN_API)
-    void findPlugin(const String& mimeType, WebKit::PluginProcessType, const String& urlString, const String& frameURLString, const String& pageURLString, bool allowOnlyApplicationPlugins, Messages::WebPageProxy::FindPluginDelayedReply&&);
+    void findPlugin(const String& mimeType, const String& urlString, const String& frameURLString, const String& pageURLString, bool allowOnlyApplicationPlugins, Messages::WebPageProxy::FindPluginDelayedReply&&);
 #endif
 
 #if USE(QUICK_LOOK)
@@ -2752,8 +2750,7 @@ private:
 
     // To make sure capture indicators are visible long enough, m_reportedMediaCaptureState is the same as m_mediaState except that we might delay a bit transition from capturing to not-capturing.
     WebCore::MediaProducer::MediaStateFlags m_reportedMediaCaptureState { WebCore::MediaProducer::IsNotPlaying };
-    WebCore::DeferrableTaskTimer m_delayStopCapturingReportingTimer;
-    bool m_delayStopCapturingReporting { false };
+    RunLoop::Timer<WebPageProxy> m_updateReportedMediaCaptureStateTimer;
     static constexpr Seconds DefaultMediaCaptureReportingDelay { 3_s };
     Seconds m_mediaCaptureReportingDelay { DefaultMediaCaptureReportingDelay };
 
@@ -2846,6 +2843,9 @@ private:
     };
     Optional<SpeechSynthesisData> m_speechSynthesisData;
 #endif
+
+    std::unique_ptr<SpeechRecognitionPermissionManager> m_speechRecognitionPermissionManager;
+
 #if USE(DIRECT2D)
     COMPtr<ID3D11Device1> m_device;
 #endif
@@ -2883,6 +2883,8 @@ private:
     bool m_canUseCredentialStorage { true };
 
     size_t m_suspendMediaPlaybackCounter { 0 };
+
+    Optional<WebCore::PrivateClickMeasurement> m_newPageNavigationPrivateClickMeasurement;
 };
 
 } // namespace WebKit

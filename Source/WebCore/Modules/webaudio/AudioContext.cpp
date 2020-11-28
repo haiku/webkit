@@ -86,7 +86,7 @@ ExceptionOr<Ref<AudioContext>> AudioContext::create(Document& document, AudioCon
     ASSERT(isMainThread());
 #if OS(WINDOWS)
     if (s_hardwareContextCount >= maxHardwareContexts)
-        return Exception { QuotaExceededError };
+        return Exception { QuotaExceededError, "Reached maximum number of hardware contexts on this platform"_s };
 #endif
     
     if (!document.isFullyActive())
@@ -120,8 +120,8 @@ AudioContext::AudioContext(Document& document, const AudioContextOptions& contex
 }
 
 // Only needed for WebKitOfflineAudioContext.
-AudioContext::AudioContext(Document& document, unsigned numberOfChannels, RefPtr<AudioBuffer>&& renderTarget)
-    : BaseAudioContext(document, numberOfChannels, WTFMove(renderTarget))
+AudioContext::AudioContext(Document& document, unsigned numberOfChannels, float sampleRate, RefPtr<AudioBuffer>&& renderTarget)
+    : BaseAudioContext(document, numberOfChannels, sampleRate, WTFMove(renderTarget))
     , m_mediaSession(PlatformMediaSession::create(PlatformMediaSessionManager::sharedManager(), *this))
 {
     constructCommon();
@@ -204,56 +204,78 @@ DefaultAudioDestinationNode* AudioContext::destination()
 
 void AudioContext::suspendRendering(DOMPromiseDeferred<void>&& promise)
 {
-    if (isOfflineContext() || isStopped()) {
-        promise.reject(InvalidStateError);
+    if (isOfflineContext()) {
+        promise.reject(Exception { InvalidStateError, "Cannot call suspend() on an OfflineAudioContext"_s });
         return;
     }
 
-    if (state() == State::Closed || state() == State::Interrupted || !destinationNode()) {
-        promise.reject();
+    if (isStopped() || state() == State::Closed || !destinationNode()) {
+        promise.reject(Exception { InvalidStateError, "Context is closed"_s });
         return;
     }
 
-    addReaction(State::Suspended, WTFMove(promise));
     m_wasSuspendedByScript = true;
 
-    if (!willPausePlayback())
+    if (!willPausePlayback()) {
+        addReaction(State::Suspended, WTFMove(promise));
         return;
+    }
 
     lazyInitialize();
 
-    destinationNode()->suspend([this, protectedThis = makeRef(*this)] {
+    destinationNode()->suspend([this, protectedThis = makeRef(*this), promise = WTFMove(promise)](Optional<Exception>&& exception) mutable {
+        if (exception) {
+            promise.reject(WTFMove(*exception));
+            return;
+        }
         setState(State::Suspended);
+        promise.resolve();
     });
 }
 
 void AudioContext::resumeRendering(DOMPromiseDeferred<void>&& promise)
 {
-    if (isOfflineContext() || isStopped()) {
-        promise.reject(InvalidStateError);
+    if (isOfflineContext()) {
+        promise.reject(Exception { InvalidStateError, "Cannot call resume() on an OfflineAudioContext"_s });
         return;
     }
 
-    if (state() == State::Closed || !destinationNode()) {
-        promise.reject();
+    if (isStopped() || state() == State::Closed || !destinationNode()) {
+        promise.reject(Exception { InvalidStateError, "Context is closed"_s });
         return;
     }
 
-    addReaction(State::Running, WTFMove(promise));
     m_wasSuspendedByScript = false;
 
-    if (!willBeginPlayback())
+    if (!willBeginPlayback()) {
+        addReaction(State::Running, WTFMove(promise));
         return;
+    }
 
     lazyInitialize();
 
-    destinationNode()->resume([this, protectedThis = makeRef(*this)] {
-        setState(State::Running);
+    destinationNode()->resume([this, protectedThis = makeRef(*this), promise = WTFMove(promise)](Optional<Exception>&& exception) mutable {
+        if (exception) {
+            promise.reject(WTFMove(*exception));
+            return;
+        }
+
+        // Since we update the state asynchronously, we may have been interrupted after the
+        // call to resume() and before this lambda runs. In this case, we don't want to
+        // reset the state to running.
+        bool interrupted = m_mediaSession->state() == PlatformMediaSession::Interrupted;
+        setState(interrupted ? State::Interrupted : State::Running);
+        if (interrupted)
+            addReaction(State::Running, WTFMove(promise));
+        else
+            promise.resolve();
     });
 }
 
-void AudioContext::nodeWillBeginPlayback()
+void AudioContext::sourceNodeWillBeginPlayback(AudioNode& audioNode)
 {
+    BaseAudioContext::sourceNodeWillBeginPlayback(audioNode);
+
     // Called by scheduled AudioNodes when clients schedule their start times.
     // Prior to the introduction of suspend(), resume(), and stop(), starting
     // a scheduled AudioNode would remove the user-gesture restriction, if present,
@@ -273,10 +295,11 @@ void AudioContext::startRendering()
 
     makePendingActivity();
 
-    setState(State::Running);
-
     lazyInitialize();
-    destination()->startRendering();
+    destination()->startRendering([this, protectedThis = makeRef(*this)](Optional<Exception>&& exception) {
+        if (!exception)
+            setState(State::Running);
+    });
 }
 
 void AudioContext::lazyInitialize()
@@ -344,8 +367,8 @@ void AudioContext::mayResumePlayback(bool shouldResume)
 
     lazyInitialize();
 
-    destinationNode()->resume([this, protectedThis = makeRef(*this)] {
-        setState(State::Running);
+    destinationNode()->resume([this, protectedThis = makeRef(*this)](Optional<Exception>&& exception) {
+        setState(exception ? State::Suspended : State::Running);
     });
 }
 
@@ -400,18 +423,20 @@ void AudioContext::visibilityStateChanged()
 
 void AudioContext::suspend(ReasonForSuspension)
 {
-    if (state() == State::Running) {
-        m_mediaSession->beginInterruption(PlatformMediaSession::PlaybackSuspended);
-        document()->updateIsPlayingMedia();
-    }
+    if (isClosed() || m_wasSuspendedByScript)
+        return;
+
+    m_mediaSession->beginInterruption(PlatformMediaSession::PlaybackSuspended);
+    document()->updateIsPlayingMedia();
 }
 
 void AudioContext::resume()
 {
-    if (state() == State::Interrupted) {
-        m_mediaSession->endInterruption(PlatformMediaSession::MayResumePlaying);
-        document()->updateIsPlayingMedia();
-    }
+    if (isClosed() || m_wasSuspendedByScript)
+        return;
+
+    m_mediaSession->endInterruption(PlatformMediaSession::MayResumePlaying);
+    document()->updateIsPlayingMedia();
 }
 
 void AudioContext::suspendPlayback()
@@ -419,15 +444,12 @@ void AudioContext::suspendPlayback()
     if (!destinationNode() || state() == State::Closed)
         return;
 
-    if (state() == State::Suspended) {
-        if (m_mediaSession->state() == PlatformMediaSession::Interrupted)
-            setState(State::Interrupted);
-        return;
-    }
-
     lazyInitialize();
 
-    destinationNode()->suspend([this, protectedThis = makeRef(*this)] {
+    destinationNode()->suspend([this, protectedThis = makeRef(*this)](Optional<Exception>&& exception) {
+        if (exception)
+            return;
+
         bool interrupted = m_mediaSession->state() == PlatformMediaSession::Interrupted;
         setState(interrupted ? State::Interrupted : State::Suspended);
     });

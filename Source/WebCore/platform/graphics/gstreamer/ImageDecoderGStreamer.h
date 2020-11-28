@@ -67,7 +67,7 @@ public:
     bool frameAllowSubsamplingAtIndex(size_t index) const final { return index <= m_sampleData.size(); }
     unsigned frameBytesAtIndex(size_t, SubsamplingLevel = SubsamplingLevel::Default) const final;
 
-    NativeImagePtr createFrameImageAtIndex(size_t, SubsamplingLevel = SubsamplingLevel::Default, const DecodingOptions& = DecodingOptions(DecodingMode::Synchronous)) final;
+    PlatformImagePtr createFrameImageAtIndex(size_t, SubsamplingLevel = SubsamplingLevel::Default, const DecodingOptions& = DecodingOptions(DecodingMode::Synchronous)) final;
 
     void setExpectedContentSize(long long) final { }
     void setData(SharedBuffer&, bool allDataReceived) final;
@@ -106,11 +106,13 @@ private:
         static void decodebinPadAddedCallback(ImageDecoderGStreamer::InnerDecoder*, GstPad*);
         void handleMessage(GstMessage*);
         void preparePipeline();
+        int selectStream(GstStream*);
         void connectDecoderPad(GstPad*);
 
         ImageDecoderGStreamer& m_decoder;
         GRefPtr<GstElement> m_pipeline;
         GRefPtr<GInputStream> m_memoryStream;
+        GRefPtr<GstElement> m_decodebin;
         RunLoop& m_runLoop;
     };
 

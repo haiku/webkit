@@ -44,6 +44,7 @@ set(WebCore_PRIVATE_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/Modules/mediacapabilities"
     "${WEBCORE_DIR}/Modules/mediacontrols"
     "${WEBCORE_DIR}/Modules/mediarecorder"
+    "${WEBCORE_DIR}/Modules/mediasession"
     "${WEBCORE_DIR}/Modules/mediasource"
     "${WEBCORE_DIR}/Modules/mediastream"
     "${WEBCORE_DIR}/Modules/mediastream/libwebrtc"
@@ -293,8 +294,8 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/geolocation/PositionErrorCallback.idl
     Modules/geolocation/PositionOptions.idl
 
-    Modules/highlight/HighlightMap.idl
-    Modules/highlight/HighlightRangeGroup.idl
+    Modules/highlight/Highlight.idl
+    Modules/highlight/HighlightRegister.idl
 
     Modules/indexeddb/DOMWindow+IndexedDatabase.idl
     Modules/indexeddb/IDBCursor.idl
@@ -333,6 +334,17 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/mediarecorder/BlobEvent.idl
     Modules/mediarecorder/MediaRecorder.idl
     Modules/mediarecorder/MediaRecorderErrorEvent.idl
+
+    Modules/mediasession/MediaImage.idl
+    Modules/mediasession/MediaMetadata.idl
+    Modules/mediasession/MediaMetadataInit.idl
+    Modules/mediasession/MediaPositionState.idl
+    Modules/mediasession/MediaSession.idl
+    Modules/mediasession/MediaSessionAction.idl
+    Modules/mediasession/MediaSessionActionDetails.idl
+    Modules/mediasession/MediaSessionActionHandler.idl
+    Modules/mediasession/MediaSessionPlaybackState.idl
+    Modules/mediasession/Navigator+MediaSession.idl
 
     Modules/mediasource/AudioTrack+MediaSource.idl
     Modules/mediasource/DOMURL+MediaSource.idl
@@ -391,13 +403,17 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/mediastream/RTCRtpFecParameters.idl
     Modules/mediastream/RTCRtpHeaderExtensionParameters.idl
     Modules/mediastream/RTCRtpParameters.idl
+    Modules/mediastream/RTCRtpReceiver+Transform.idl
     Modules/mediastream/RTCRtpReceiver.idl
     Modules/mediastream/RTCRtpRtxParameters.idl
+    Modules/mediastream/RTCRtpSFrameTransform.idl
     Modules/mediastream/RTCRtpSendParameters.idl
+    Modules/mediastream/RTCRtpSender+Transform.idl
     Modules/mediastream/RTCRtpSender.idl
     Modules/mediastream/RTCRtpSynchronizationSource.idl
     Modules/mediastream/RTCRtpTransceiver.idl
     Modules/mediastream/RTCRtpTransceiverDirection.idl
+    Modules/mediastream/RTCRtpTransform.idl
     Modules/mediastream/RTCSdpType.idl
     Modules/mediastream/RTCSessionDescription.idl
     Modules/mediastream/RTCSessionDescriptionInit.idl
@@ -439,6 +455,14 @@ set(WebCore_NON_SVG_IDL_FILES
 
     Modules/remoteplayback/RemotePlayback.idl
     Modules/remoteplayback/RemotePlaybackAvailabilityCallback.idl
+
+    Modules/speech/SpeechRecognition.idl
+    Modules/speech/SpeechRecognitionAlternative.idl
+    Modules/speech/SpeechRecognitionErrorCode.idl
+    Modules/speech/SpeechRecognitionErrorEvent.idl
+    Modules/speech/SpeechRecognitionEvent.idl
+    Modules/speech/SpeechRecognitionResult.idl
+    Modules/speech/SpeechRecognitionResultList.idl
 
     Modules/speech/DOMWindow+SpeechSynthesis.idl
     Modules/speech/SpeechSynthesis.idl
@@ -820,6 +844,7 @@ set(WebCore_NON_SVG_IDL_FILES
     dom/EventTarget.idl
     dom/FocusEvent.idl
     dom/GlobalEventHandlers+PointerEvents.idl
+    dom/GlobalEventHandlers+Selection.idl
     dom/GlobalEventHandlers.idl
     dom/HashChangeEvent.idl
     dom/IdleDeadline.idl
@@ -898,7 +923,6 @@ set(WebCore_NON_SVG_IDL_FILES
     html/DOMURL.idl
     html/HTMLAllCollection.idl
     html/HTMLAnchorElement.idl
-    html/HTMLAppletElement.idl
     html/HTMLAreaElement.idl
     html/HTMLAttachmentElement.idl
     html/HTMLAudioElement.idl
@@ -949,6 +973,7 @@ set(WebCore_NON_SVG_IDL_FILES
     html/HTMLMetaElement.idl
     html/HTMLMeterElement.idl
     html/HTMLModElement.idl
+    html/HTMLModelElement.idl
     html/HTMLOListElement.idl
     html/HTMLObjectElement.idl
     html/HTMLOptGroupElement.idl
@@ -1733,6 +1758,7 @@ set(WebCoreTestSupport_IDL_FILES
     testing/MockCDMFactory.idl
     testing/MockContentFilterSettings.idl
     testing/MockPageOverlay.idl
+    testing/MockRTCRtpTransform.idl
     testing/ServiceWorkerInternals.idl
     testing/TypeConversions.idl
 )
@@ -1756,6 +1782,7 @@ list(APPEND WebCoreTestSupport_SOURCES
     testing/MockLibWebRTCPeerConnection.cpp
     testing/MockPageOverlay.cpp
     testing/MockPageOverlayClient.cpp
+    testing/MockRTCRtpTransform.cpp
     testing/ServiceWorkerInternals.cpp
     testing/js/WebCoreTestSupport.cpp
 )
@@ -1884,7 +1911,7 @@ list(APPEND WebCore_SOURCES ${WebCore_DERIVED_SOURCES_DIR}/HTTPHeaderNames.cpp)
 
 # Generate CSS property names
 add_custom_command(
-    OUTPUT ${WebCore_DERIVED_SOURCES_DIR}/CSSProperties.json ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.h ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.cpp ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.gperf ${WebCore_DERIVED_SOURCES_DIR}/StyleBuilderGenerated.cpp ${WebCore_DERIVED_SOURCES_DIR}/StylePropertyShorthandFunctions.h ${WebCore_DERIVED_SOURCES_DIR}/StylePropertyShorthandFunctions.cpp ${WebCore_DERIVED_SOURCES_DIR}/CSSStyleDeclaration+PropertyNames.idl
+    OUTPUT ${WebCore_DERIVED_SOURCES_DIR}/CSSProperties.json ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.h ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.cpp ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.gperf ${WebCore_DERIVED_SOURCES_DIR}/StyleBuilderGenerated.cpp ${WebCore_DERIVED_SOURCES_DIR}/StylePropertyShorthandFunctions.h ${WebCore_DERIVED_SOURCES_DIR}/StylePropertyShorthandFunctions.cpp
     MAIN_DEPENDENCY ${WEBCORE_DIR}/css/makeprop.pl
     DEPENDS ${WebCore_CSS_PROPERTY_NAMES}
     WORKING_DIRECTORY ${WebCore_DERIVED_SOURCES_DIR}
@@ -1894,7 +1921,6 @@ add_custom_command(
 list(APPEND WebCore_SOURCES ${WebCore_DERIVED_SOURCES_DIR}/CSSPropertyNames.cpp)
 list(APPEND WebCore_SOURCES ${WebCore_DERIVED_SOURCES_DIR}/StyleBuilderGenerated.cpp)
 list(APPEND WebCore_SOURCES ${WebCore_DERIVED_SOURCES_DIR}/StylePropertyShorthandFunctions.cpp)
-list(APPEND WebCore_IDL_FILES ${WebCore_DERIVED_SOURCES_DIR}/CSSStyleDeclaration+PropertyNames.idl)
 ADD_SOURCE_WEBCORE_DERIVED_DEPENDENCIES(${WEBCORE_DIR}/css/CSSParser.cpp CSSValueKeywords.h)
 
 # Generate CSS value keywords

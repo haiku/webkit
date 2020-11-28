@@ -184,7 +184,6 @@ imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-relevant-mutations.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-srcset.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-in-viewport-dynamic.html [ Skip ]
-imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-load-event.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-move-document.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-move-into-script-disabled-iframe.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-referrerpolicy-change.sub.html [ Skip ]
@@ -291,10 +290,6 @@ webkit.org/b/187230 editing/mac/style/do-not-crash-when-showing-font-panel.html 
 # Fails with WebKit1 only.
 editing/secure-input/reset-state-on-navigation.html [ Failure ]
 
-# Plug-in blocking callback doesn't exist in WebKit1.
-plugins/unavailable-plugin-indicator-obscurity.html
-http/tests/plugins/plugin-allow-then-reload.html [ Skip ]
-
 http/tests/plugins/nounsupported-plugin.html [ Skip ]
 http/tests/plugins/supported-plugin-all-origin-visibility.html [ Skip ]
 http/tests/plugins/supported-plugin-origin-specific-visibility.html [ Skip ]
@@ -355,6 +350,7 @@ imported/w3c/web-platform-tests/IndexedDB/key-generators/reading-autoincrement-i
 imported/w3c/web-platform-tests/IndexedDB/key-generators/reading-autoincrement-store-cursors.any.serviceworker.html [ Skip ]
 imported/w3c/web-platform-tests/IndexedDB/key-generators/reading-autoincrement-store.any.serviceworker.html [ Skip ]
 imported/w3c/web-platform-tests/html/webappapis/scripting/processing-model-2/integration-with-the-javascript-agent-formalism/requires-failure.https.any.serviceworker.html [ Skip ]
+imported/w3c/web-platform-tests/wasm/serialization/module/window-serviceworker-failure.https.html [ Skip ]
 
 # Quota check missing in WK1
 http/tests/IndexedDB/storage-limit.https.html [ Skip ]
@@ -384,9 +380,6 @@ fast/forms/validation-message-clone.html
 fast/forms/validation-message-in-relative-body.html
 fast/forms/validation-message-appearance.html
 fast/forms/validation-message-on-textarea.html
-
-# Disable snapshotting tests on WK1 only
-plugins/snapshotting
 
 # Disable small plugin blocking on WK1
 plugins/small-plugin-blocked.html [ Skip ]
@@ -1020,6 +1013,9 @@ webkit.org/b/215339 [ Release ] imported/w3c/web-platform-tests/IndexedDB/blob-d
 
 webkit.org/b/215392 webaudio/oscillator-sawtooth.html [ Pass Failure ]
 
+# This test is failing on WK1 only with a NotSupportedError.
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/no-cors.https.html [ Failure ]
+
 webkit.org/b/215397 media/modern-media-controls/media-controller/media-controller-fullscreen-ltr.html [ Pass Failure ]
 
 webkit.org/b/215452 [ Debug ] imported/w3c/web-platform-tests/css/css-grid/grid-items/grid-items-percentage-paddings-002.html [ Pass Failure ]
@@ -1193,3 +1189,9 @@ webkit.org/b/217478 imported/w3c/web-platform-tests/css/css-masking/clip-path/cl
 webkit.org/b/215325 [ Mojave ] media/remote-control-command-seek.html [ Pass Timeout ]
 
 webkit.org/b/217761 [ Mojave+ Debug ] webgl/2.0.0/conformance/extensions/webgl-compressed-texture-s3tc-srgb.html [ Pass Crash ]
+
+webkit.org/b/217934 inspector/debugger/breakpoint-resolve-when-script-added.html [ Skip ]
+
+webkit.org/b/218341 [ Debug ] inspector/dom-debugger/attribute-modified-style.html [ Pass Timeout ]
+
+webkit.org/b/218591 fast/text/canvas-color-fonts/COLR.html [ ImageOnlyFailure ]

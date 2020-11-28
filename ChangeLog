@@ -1,3 +1,207 @@
+2020-11-09  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        Enable llint asm on aarch64 when USE(64KB_PAGE_BLOCK) is enabled
+        https://bugs.webkit.org/show_bug.cgi?id=218613
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Normally we fall back to cloop when JIT is not supported. But on aarch64, llint asm is well-
+        supported, so it is safe to use that here. This will only happen on aarch64, and only when
+        USE(64KB_PAGE_BLOCK) is enabled, which should probably only be used by RHEL and SUSE.
+        Everyone else should get the JIT.
+
+        * Source/cmake/WebKitFeatures.cmake:
+
+2020-11-04  Sergey Rubanov  <chi187@gmail.com>
+
+        Fix JSC build on macOS Big Sur
+        https://bugs.webkit.org/show_bug.cgi?id=218566
+
+        Reviewed by David Kilzer.
+
+        * Source/cmake/WebKitFindPackage.cmake:
+
+2020-11-04  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        Add new build option USE(64KB_PAGE_BLOCK)
+        https://bugs.webkit.org/show_bug.cgi?id=217989
+
+        Reviewed by Yusuke Suzuki.
+
+        Why do we need this option? Because JSC and bmalloc both want to know the userspace page
+        size at compile time, which is impossible on Linux because it's a runtime setting. We
+        cannot test the system page size at build time in hopes that it will be the same on the
+        target system, because (a) cross compiling wouldn't work, and (b) the build system could
+        use a different page size than the target system (which will be true for Fedora aarch64,
+        because Fedora is built using RHEL), so the best we can do is guess based on the target CPU
+        architecture. In practice, guessing works for all architectures except aarch64 (unless
+        unusual page sizes are used), but it fails for aarch64 because distros are split between
+        using 4 KB and 64 KB pages there. Most distros (including Fedora) use 4 KB, but RHEL uses
+        64 KB. SUSE actually supports both. Since there is no way to guess correctly, the best we
+        can do is provide an option for it. You should probably only use this if building for
+        aarch64. Otherwise, known CPUs except PowerPC will use 4 KB, while PowerPC and unknown CPUs
+        will use 64 KB (see wtf/PageBlock.h). aarch64 will continue to default to 4 KB because this
+        is a much better default on systems where it doesn't crash.
+
+        Having one flag will help avoid mistakes. E.g. both RHEL and SUSE were manually passing
+        -DENABLE_JIT=OFF and -DUSE_SYSTEM_MALLOC=ON, but we missed -DENABLE_C_LOOP=ON and
+        -DENABLE_SAMPLING_PROFILER=OFF, so wound up running with both JIT and cloop disabled, a
+        configuration not otherwise used on Linux (and not supported by GTK or WPE ports). It will
+        be easier to not mess up if we only have to pass one special build option. This will also
+        allow us to stop patching PageBlock.h downstream, because I don't like downstream patches
+        that we have to keep forever.
+
+        * Source/cmake/WebKitFeatures.cmake:
+
+2020-10-30  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Add Introduction to WebKit
+        https://bugs.webkit.org/show_bug.cgi?id=217017
+
+        Rubber-stamped by Simon Fraser.
+
+        Added the basic introductory documentation for WebKit.
+
+        * Introduction.md: Added.
+        * resources/js-wrapper.png: Added.
+        * resources/webkit2-process-architecture.png: Added.
+        * resources/xcode-add-file.png: Added.
+        * resources/xcode-build-settings-for-run.png: Added.
+        * resources/xcode-export-header.png: Added.
+        * resources/xcode-scheme-dumprendertree.png: Added.
+        * resources/xcode-scheme-layout-test.png: Added.
+        * resources/xcode-workspace-build-location.png: Added.
+        * resources/xcode-workspace-settings.png: Added.
+
+2020-10-30  Jonathan Bedard  <jbedard@apple.com>
+
+        Github mirror ReadMe need to update
+        https://bugs.webkit.org/show_bug.cgi?id=218120
+        <rdar://problem/70861595>
+
+        Reviewed by Aakash Jain.
+
+        * ReadMe.md:
+
+2020-10-27  Keith Rollin  <krollin@apple.com>
+
+        Fix "usage" message when invoking `ar -V`
+        https://bugs.webkit.org/show_bug.cgi?id=218255
+        <rdar://problem/70735674>
+
+        Reviewed by Fujii Hironori.
+
+        The Mac/BSD version of `ar` does not support the -V flag. This flag is
+        used unconditionally in OptionsCommon.cmake when trying to determine
+        if the installed `ar` supports the thinning of archives, leading to a
+        "usage" message being emitted on macOS.
+
+        Avoid this message by capturing the error-output. Examine the output
+        to see if it's a "usage" message. If so, then treat the `ar` as one
+        that does not support thinning. Any other error-output is printed as a
+        warning. If there is no error-output, continue processing as normal.
+
+        * Source/cmake/OptionsCommon.cmake:
+
+2020-10-27  Brian Burg  <bburg@apple.com>
+
+        Web Inspector: add ENABLE(INSPECTOR_EXTENSIONS) to feature defines
+        https://bugs.webkit.org/show_bug.cgi?id=218237
+        <rdar://problem/69968787>
+
+        Reviewed by Antti Koivisto.
+
+        * Source/cmake/OptionsMac.cmake:
+        * Source/cmake/WebKitFeatures.cmake:
+        Add ENABLE(INSPECTOR_EXTENSIONS), which is only on for the Cocoa macOS port.
+
+2020-10-26  Keith Rollin  <krollin@apple.com>
+
+        Move some initialization code from top-level CMakeLists.txt to WebKitCommon.cmake
+        https://bugs.webkit.org/show_bug.cgi?id=218069
+        <rdar://problem/70556952>
+
+        Reviewed by Fujii Hironori.
+
+        Moving this initialization code into a central location allows other
+        top-level CMakeLists.txt files to include WebKitCommon.cmake and get
+        that same initialization.
+
+        * CMakeLists.txt:
+        * Source/cmake/WebKitCommon.cmake:
+
+2020-10-23  Philippe Normand  <pnormand@igalia.com>
+
+        [GStreamer] Replace USE(WEBAUDIO_GSTREAMER) with USE(GSTREAMER)
+        https://bugs.webkit.org/show_bug.cgi?id=218083
+
+        Reviewed by Xabier Rodriguez-Calvar.
+
+        A separate define was introduced back when we thought enabling WebAudio without enabling
+        <audio> would be a highly relevant scenario. I don't think it is very relevant, let's clean
+        this up.
+
+        * Source/cmake/GStreamerChecks.cmake: Wrap the WebAudio platform bits in the USE(GSTREAMER) umbrella.
+
+2020-10-21  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        WebDriver: add support for wheel actions
+        https://bugs.webkit.org/show_bug.cgi?id=217174
+
+        Reviewed by Brian Burg.
+
+        Enable WEBDRIVER_WHEEL_INTERACTIONS for GTK and WPE ports.
+
+        * Source/cmake/OptionsGTK.cmake:
+        * Source/cmake/OptionsWPE.cmake:
+        * Source/cmake/WebKitFeatures.cmake:
+
+2020-10-20  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        [GTK] Move ENABLE_ASYNC_SCROLLING build option to right place in OptionsGTK.cmake
+        https://bugs.webkit.org/show_bug.cgi?id=217977
+
+        Unreviewed. No functional changes.
+
+        * Source/cmake/OptionsGTK.cmake:
+
+2020-10-20  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [GTK] Implement HTML5 Gamepad API
+        https://bugs.webkit.org/show_bug.cgi?id=133847
+
+        Reviewed by Michael Catanzaro.
+
+        Enable the gamepad support by default for the GTK port. The option is marked PUBLIC
+        because libmanette is not available in the current Debian "old stable" (Buster), which
+        we need to support until September 2021.
+
+        * Source/cmake/OptionsGTK.cmake: Set ENABLE_GAMEPAD to PUBLIC and ON by default.
+
+2020-10-19  Lauro Moura  <lmoura@igalia.com>
+
+        REGRESSION(r268115) [GTK] Build failures with GCC 7 (Ubuntu 18.04) and GCC 8 (Debian Buster)
+        https://bugs.webkit.org/show_bug.cgi?id=217425
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        The root cause is lack of proper <filesystem> support in gcc7/8 (and
+        incompatibility with llvm's header that was included). As such, we
+        need to check whether to use <filesystem>, <experimental/filesystem>,
+        or fallback to the included header.
+
+        Note: In some systems like Ubuntu 20.04, gcc-8 can use gcc-9's
+        libstdc++ and link successfully, but running will fail as it should
+        actually link with its libstc++fs to provide the correct symbols. As
+        this is some corner case (Ubuntu's 20 default gcc is 9), LDFLAGS
+        can be used to overcome this.
+
+        * Source/cmake/OptionsCommon.cmake: Add a HAVE directive to
+        check whether <experimental/filesystem> is the filesystem impl
+        available.
+        * Source/cmake/WebKitCompilerFlags.cmake: Test first whether
+        <filesystem> can be used, with <experimental/filestystem> as fallback.
+
 2020-10-14  Zan Dobersek  <zdobersek@igalia.com>
 
         Remove ACCELERATED_2D_CANVAS build flags and guarded code

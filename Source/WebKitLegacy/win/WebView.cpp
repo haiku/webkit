@@ -97,6 +97,7 @@
 #include <WebCore/DocumentMarkerController.h>
 #include <WebCore/DragController.h>
 #include <WebCore/DragData.h>
+#include <WebCore/DummySpeechRecognitionProvider.h>
 #include <WebCore/Editor.h>
 #include <WebCore/EventHandler.h>
 #include <WebCore/EventNames.h>
@@ -3132,6 +3133,7 @@ HRESULT WebView::initWithFrame(RECT frame, _In_ BSTR frameName, _In_ BSTR groupN
         CookieJar::create(storageProvider.copyRef()),
         makeUniqueRef<WebProgressTrackerClient>(),
         makeUniqueRef<WebFrameLoaderClient>(webFrame),
+        makeUniqueRef<DummySpeechRecognitionProvider>(),
         makeUniqueRef<MediaRecorderProvider>()
     );
     configuration.chromeClient = new WebChromeClient(this);
@@ -5457,11 +5459,6 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
         return hr;
     settings.setLocalStorageEnabled(enabled);
 
-    hr = prefsPrivate->experimentalNotificationsEnabled(&enabled);
-    if (FAILED(hr))
-        return hr;
-    settings.setExperimentalNotificationsEnabled(enabled);
-
     hr = prefsPrivate->isWebSecurityEnabled(&enabled);
     if (FAILED(hr))
         return hr;
@@ -5656,6 +5653,11 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
     if (FAILED(hr))
         return hr;
     settings.setAspectRatioOfImgFromWidthAndHeightEnabled(!!enabled);
+
+    hr = prefsPrivate->speechRecognitionEnabled(&enabled);
+    if (FAILED(hr))
+        return hr;
+    settings.setSpeechRecognitionEnabled(!!enabled);
 
     return S_OK;
 }
@@ -5976,7 +5978,7 @@ HRESULT WebView::setInitialFocus(BOOL forward)
     if (m_page) {
         Frame& frame = m_page->focusController().focusedOrMainFrame();
         frame.document()->setFocusedElement(0);
-        m_page->focusController().setInitialFocus(forward ? FocusDirectionForward : FocusDirectionBackward, 0);
+        m_page->focusController().setInitialFocus(forward ? FocusDirection::Forward : FocusDirection::Backward, 0);
     }
     return S_OK;
 }
@@ -7879,11 +7881,14 @@ HRESULT WebView::layerTreeAsString(_Deref_opt_out_ BSTR* treeBstr)
         return S_OK;
 
     String tree = m_layerTreeHost->layerTreeAsString();
-
+#elif USE(TEXTURE_MAPPER_GL)
+    if (!isAcceleratedCompositing())
+        return S_OK;
+    String tree = m_acceleratedCompositingContext->layerTreeAsString();
+#endif
     *treeBstr = BString(tree).release();
     if (!*treeBstr && tree.length())
         return E_OUTOFMEMORY;
-#endif
 
     return S_OK;
 }

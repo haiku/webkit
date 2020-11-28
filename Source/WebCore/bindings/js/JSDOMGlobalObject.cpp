@@ -224,10 +224,8 @@ ScriptExecutionContext* JSDOMGlobalObject::scriptExecutionContext() const
         return nullptr;
     if (inherits<JSWorkerGlobalScopeBase>(vm()))
         return jsCast<const JSWorkerGlobalScopeBase*>(this)->scriptExecutionContext();
-#if ENABLE(CSS_PAINTING_API)
     if (inherits<JSWorkletGlobalScopeBase>(vm()))
         return jsCast<const JSWorkletGlobalScopeBase*>(this)->scriptExecutionContext();
-#endif
 #if ENABLE(INDEXED_DATABASE)
     if (inherits<JSIDBSerializationGlobalObject>(vm()))
         return jsCast<const JSIDBSerializationGlobalObject*>(this)->scriptExecutionContext();
@@ -259,16 +257,6 @@ void JSDOMGlobalObject::visitChildren(JSCell* cell, SlotVisitor& visitor)
     thisObject->m_builtinInternalFunctions.visit(visitor);
 }
 
-void JSDOMGlobalObject::setCurrentEvent(Event* currentEvent)
-{
-    m_currentEvent = currentEvent;
-}
-
-Event* JSDOMGlobalObject::currentEvent() const
-{
-    return m_currentEvent;
-}
-
 void JSDOMGlobalObject::promiseRejectionTracker(JSGlobalObject* jsGlobalObject, JSPromise* promise, JSPromiseRejectionOperation operation)
 {
     // https://html.spec.whatwg.org/multipage/webappapis.html#the-hostpromiserejectiontracker-implementation
@@ -294,6 +282,13 @@ void JSDOMGlobalObject::promiseRejectionTracker(JSGlobalObject* jsGlobalObject, 
 void JSDOMGlobalObject::reportUncaughtExceptionAtEventLoop(JSGlobalObject* jsGlobalObject, JSC::Exception* exception)
 {
     reportException(jsGlobalObject, exception);
+}
+
+void JSDOMGlobalObject::clearDOMGuardedObjects()
+{
+    auto guardedObjectsCopy = m_guardedObjects;
+    for (auto& guarded : guardedObjectsCopy)
+        guarded->clear();
 }
 
 JSDOMGlobalObject& callerGlobalObject(JSGlobalObject& lexicalGlobalObject, CallFrame& callFrame)
@@ -343,11 +338,8 @@ JSDOMGlobalObject* toJSDOMGlobalObject(ScriptExecutionContext& context, DOMWrapp
     if (is<Document>(context))
         return toJSDOMWindow(downcast<Document>(context).frame(), world);
 
-    if (is<WorkerGlobalScope>(context))
-        return downcast<WorkerGlobalScope>(context).script()->workerGlobalScopeWrapper();
-
-    if (is<WorkletGlobalScope>(context))
-        return downcast<WorkletGlobalScope>(context).script()->workletGlobalScopeWrapper();
+    if (is<WorkerOrWorkletGlobalScope>(context))
+        return downcast<WorkerOrWorkletGlobalScope>(context).script()->globalScopeWrapper();
 
     ASSERT_NOT_REACHED();
     return nullptr;

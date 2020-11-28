@@ -28,6 +28,7 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
+#include "FillLayer.h"
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/text/TextStream.h>
 
@@ -40,6 +41,8 @@ Box::Box(AbsoluteFloatRect absoluteRect, Style&& displayStyle, OptionSet<Flags> 
     , m_flags(flags)
 {
 }
+
+Box::~Box() = default;
 
 void Box::setNextSibling(std::unique_ptr<Box>&& box)
 {

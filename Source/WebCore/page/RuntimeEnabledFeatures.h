@@ -203,8 +203,8 @@ public:
     void setLineHeightUnitsEnabled(bool isEnabled) { m_lineHeightUnitsEnabled = isEnabled; }
     bool lineHeightUnitsEnabled() const { return m_lineHeightUnitsEnabled; }
 
-    bool adClickAttributionDebugModeEnabled() const { return m_adClickAttributionDebugModeEnabled; }
-    void setAdClickAttributionDebugModeEnabled(bool isEnabled) { m_adClickAttributionDebugModeEnabled = isEnabled; }
+    bool privateClickMeasurementDebugModeEnabled() const { return m_privateClickMeasurementDebugModeEnabled; }
+    void setPrivateClickMeasurementDebugModeEnabled(bool isEnabled) { m_privateClickMeasurementDebugModeEnabled = isEnabled; }
 
 #if ENABLE(TOUCH_EVENTS)
     bool mouseEventsSimulationEnabled() const { return m_mouseEventsSimulationEnabled; }
@@ -244,6 +244,11 @@ public:
 #if HAVE(CELESTIAL)
     void setDisableMediaExperiencePIDInheritance(bool isDisabled) { m_disableMediaExperiencePIDInheritance = isDisabled; }
     bool disableMediaExperiencePIDInheritance() const { return m_disableMediaExperiencePIDInheritance; }
+#endif
+
+#if ENABLE(WEB_AUTHN)
+    void setWebAuthenticationModernEnabled(bool areEnabled) { m_areWebAuthenticationModernEnabled = areEnabled; }
+    bool webAuthenticationModernEnabled() const { return m_areWebAuthenticationModernEnabled; }
 #endif
 
 private:
@@ -341,7 +346,7 @@ private:
     // https://github.com/w3c/csswg-drafts/issues/3257 have been sorted out.
     bool m_lineHeightUnitsEnabled { false };
 
-    bool m_adClickAttributionDebugModeEnabled { false };
+    bool m_privateClickMeasurementDebugModeEnabled { false };
 
 #if ENABLE(TOUCH_EVENTS)
     bool m_mouseEventsSimulationEnabled { false };
@@ -368,6 +373,10 @@ private:
 
 #if HAVE(CELESTIAL)
     bool m_disableMediaExperiencePIDInheritance { false };
+#endif
+
+#if ENABLE(WEB_AUTHN)
+    bool m_areWebAuthenticationModernEnabled { false };
 #endif
 
     friend class WTF::NeverDestroyed<RuntimeEnabledFeatures>;

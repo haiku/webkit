@@ -8,7 +8,7 @@ a interfaceName=HTMLAnchorElement
 abbr interfaceName=HTMLElement
 acronym interfaceName=HTMLElement
 address interfaceName=HTMLElement
-applet
+applet interfaceName=HTMLUnknownElement
 area
 article interfaceName=HTMLElement
 aside interfaceName=HTMLElement
@@ -87,6 +87,7 @@ menu
 menuitem interfaceName=HTMLMenuItemElement, runtimeEnabled=menuItemElement
 meta
 meter interfaceName=HTMLMeterElement
+model interfaceName=HTMLModelElement, conditional=MODEL_ELEMENT, settingsConditional=modelElementEnabled
 nav interfaceName=HTMLElement
 nobr interfaceName=HTMLElement
 noembed interfaceName=HTMLElement

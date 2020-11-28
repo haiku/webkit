@@ -28,7 +28,6 @@
 #if ENABLE(GPU_PROCESS)
 
 #include "Connection.h"
-#include "DisplayListFlushIdentifier.h"
 #include "ImageBufferBackendHandle.h"
 #include "ImageDataReference.h"
 #include "MessageReceiver.h"
@@ -36,37 +35,64 @@
 #include "RemoteResourceCache.h"
 #include "RenderingBackendIdentifier.h"
 #include <WebCore/ColorSpace.h>
+#include <WebCore/DisplayList.h>
 #include <WebCore/DisplayListItems.h>
 #include <wtf/WeakPtr.h>
 
 namespace WebCore {
 namespace DisplayList {
 class DisplayList;
+class Item;
 }
 class FloatSize;
+class NativeImage;
 enum class ColorSpace : uint8_t;
-enum class RenderingMode : uint8_t;
+enum class RenderingMode : bool;
 }
 
 namespace WebKit {
 
+class DisplayListReaderHandle;
 class GPUConnectionToWebProcess;
 
 class RemoteRenderingBackend
     : public IPC::MessageSender
-    , private IPC::MessageReceiver {
+    , private IPC::MessageReceiver
+    , public WebCore::DisplayList::ItemBufferReadingClient {
 public:
     static std::unique_ptr<RemoteRenderingBackend> create(GPUConnectionToWebProcess&, RenderingBackendIdentifier);
     virtual ~RemoteRenderingBackend();
 
     GPUConnectionToWebProcess* gpuConnectionToWebProcess() const;
+    RemoteResourceCache& remoteResourceCache() { return m_remoteResourceCache; }
+
+    // Rendering operations.
+    bool applyMediaItem(WebCore::DisplayList::ItemHandle, WebCore::GraphicsContext&);
 
     // Messages to be sent.
-    void imageBufferBackendWasCreated(const WebCore::FloatSize& logicalSize, const WebCore::IntSize& backendSize, float resolutionScale, WebCore::ColorSpace, ImageBufferBackendHandle, WebCore::RemoteResourceIdentifier);
-    void flushDisplayListWasCommitted(DisplayListFlushIdentifier, WebCore::RemoteResourceIdentifier);
+    void imageBufferBackendWasCreated(const WebCore::FloatSize& logicalSize, const WebCore::IntSize& backendSize, float resolutionScale, WebCore::ColorSpace, WebCore::PixelFormat, ImageBufferBackendHandle, WebCore::RenderingResourceIdentifier);
+    void flushDisplayListWasCommitted(WebCore::DisplayList::FlushIdentifier, WebCore::RenderingResourceIdentifier);
+
+    void setNextItemBufferToRead(WebCore::DisplayList::ItemBufferIdentifier);
 
 private:
     RemoteRenderingBackend(GPUConnectionToWebProcess&, RenderingBackendIdentifier);
+
+    Optional<WebCore::DisplayList::ItemHandle> WARN_UNUSED_RETURN decodeItem(const uint8_t* data, size_t length, WebCore::DisplayList::ItemType, uint8_t* handleLocation) override;
+
+    template<typename T>
+    Optional<WebCore::DisplayList::ItemHandle> WARN_UNUSED_RETURN decodeAndCreate(const uint8_t* data, size_t length, uint8_t* handleLocation)
+    {
+        if (auto item = IPC::Decoder::decodeSingleObject<T>(data, length)) {
+            // FIXME: WebKit2 should not need to know that the first 8 bytes at the handle are reserved for the type.
+            // Need to figure out a way to keep this knowledge within display list code in WebCore.
+            new (handleLocation + sizeof(uint64_t)) T(WTFMove(*item));
+            return {{ handleLocation }};
+        }
+        return WTF::nullopt;
+    }
+
+    void applyDisplayListsFromHandle(WebCore::ImageBuffer& destination, DisplayListReaderHandle&, size_t offset);
 
     // IPC::MessageSender.
     IPC::Connection* messageSenderConnection() const override;
@@ -77,15 +103,18 @@ private:
     void didReceiveSyncMessage(IPC::Connection&, IPC::Decoder&, std::unique_ptr<IPC::Encoder>&) override;
 
     // Messages to be received.
-    void createImageBuffer(const WebCore::FloatSize& logicalSize, WebCore::RenderingMode, float resolutionScale, WebCore::ColorSpace, WebCore::RemoteResourceIdentifier);
-    void flushDisplayList(const WebCore::DisplayList::DisplayList&, WebCore::RemoteResourceIdentifier);
-    void flushDisplayListAndCommit(const WebCore::DisplayList::DisplayList&, DisplayListFlushIdentifier, WebCore::RemoteResourceIdentifier);
-    void getImageData(WebCore::AlphaPremultiplication outputFormat, WebCore::IntRect srcRect, WebCore::RemoteResourceIdentifier, CompletionHandler<void(IPC::ImageDataReference&&)>&&);
-    void releaseRemoteResource(WebCore::RemoteResourceIdentifier);
+    void createImageBuffer(const WebCore::FloatSize& logicalSize, WebCore::RenderingMode, float resolutionScale, WebCore::ColorSpace, WebCore::PixelFormat, WebCore::RenderingResourceIdentifier);
+    void wakeUpAndApplyDisplayList(WebCore::DisplayList::ItemBufferIdentifier initialIdentifier, uint64_t initialOffset, WebCore::RenderingResourceIdentifier destinationBufferIdentifier);
+    void getImageData(WebCore::AlphaPremultiplication outputFormat, WebCore::IntRect srcRect, WebCore::RenderingResourceIdentifier, CompletionHandler<void(IPC::ImageDataReference&&)>&&);
+    void cacheNativeImage(Ref<WebCore::NativeImage>&&);
+    void releaseRemoteResource(WebCore::RenderingResourceIdentifier);
+    void didCreateSharedDisplayListHandle(WebCore::DisplayList::ItemBufferIdentifier, const SharedMemory::IPCHandle&, WebCore::RenderingResourceIdentifier destinationBufferIdentifier);
 
     RemoteResourceCache m_remoteResourceCache;
     WeakPtr<GPUConnectionToWebProcess> m_gpuConnectionToWebProcess;
     RenderingBackendIdentifier m_renderingBackendIdentifier;
+    HashMap<WebCore::DisplayList::ItemBufferIdentifier, RefPtr<DisplayListReaderHandle>> m_sharedDisplayListHandles;
+    WebCore::DisplayList::ItemBufferIdentifier m_nextItemBufferToRead;
 };
 
 } // namespace WebKit

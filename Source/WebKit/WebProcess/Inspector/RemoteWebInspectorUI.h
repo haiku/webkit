@@ -27,7 +27,7 @@
 
 #include "DebuggableInfoData.h"
 #include "MessageReceiver.h"
-#include "WebInspectorFrontendAPIDispatcher.h"
+#include <WebCore/InspectorFrontendAPIDispatcher.h>
 #include <WebCore/InspectorFrontendClient.h>
 #include <WebCore/InspectorFrontendHost.h>
 #include <wtf/Deque.h>
@@ -39,11 +39,16 @@ class FloatRect;
 
 namespace WebKit {
 
+class WebInspectorUIExtensionController;
 class WebPage;
 
-class RemoteWebInspectorUI final : public RefCounted<RemoteWebInspectorUI>, public IPC::MessageReceiver, public WebCore::InspectorFrontendClient {
+class RemoteWebInspectorUI final
+    : public RefCounted<RemoteWebInspectorUI>
+    , public IPC::MessageReceiver
+    , public WebCore::InspectorFrontendClient {
 public:
     static Ref<RemoteWebInspectorUI> create(WebPage&);
+    ~RemoteWebInspectorUI();
 
     // Implemented in generated RemoteWebInspectorUIMessageReceiver.cpp
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) override;
@@ -62,6 +67,10 @@ public:
     // WebCore::InspectorFrontendClient
     void windowObjectCleared() override;
     void frontendLoaded() override;
+
+    void pagePaused() override;
+    void pageUnpaused() override;
+
     void changeSheetRect(const WebCore::FloatRect&) override;
     void startWindowDrag() override;
     void moveWindowBy(float x, float y) override;
@@ -92,6 +101,8 @@ public:
     void inspectedURLChanged(const String&) override;
     void showCertificate(const WebCore::CertificateInfo&) override;
     void sendMessageToBackend(const String&) override;
+    WebCore::InspectorFrontendAPIDispatcher& frontendAPIDispatcher() override { return m_frontendAPIDispatcher; }
+    WebCore::Page* frontendPage() final;
 
 #if ENABLE(INSPECTOR_TELEMETRY)
     bool supportsDiagnosticLogging() override;
@@ -110,8 +121,12 @@ private:
     explicit RemoteWebInspectorUI(WebPage&);
 
     WebPage& m_page;
-    WebInspectorFrontendAPIDispatcher m_frontendAPIDispatcher;
+    Ref<WebCore::InspectorFrontendAPIDispatcher> m_frontendAPIDispatcher;
     RefPtr<WebCore::InspectorFrontendHost> m_frontendHost;
+#if ENABLE(INSPECTOR_EXTENSIONS)
+    std::unique_ptr<WebInspectorUIExtensionController> m_extensionController;
+#endif
+
     DebuggableInfoData m_debuggableInfo;
     String m_backendCommandsURL;
 

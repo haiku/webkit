@@ -578,10 +578,11 @@ void RenderLayerBacking::destroyGraphicsLayers()
 
     GraphicsLayer::clear(m_maskLayer);
 
-    if (m_ancestorClippingStack) {
-        for (auto& entry : m_ancestorClippingStack->stack())
-            GraphicsLayer::unparentAndClear(entry.clippingLayer);
-    }
+    if (m_ancestorClippingStack)
+        removeClippingStackLayers(*m_ancestorClippingStack);
+
+    if (m_overflowControlsHostLayerAncestorClippingStack)
+        removeClippingStackLayers(*m_overflowControlsHostLayerAncestorClippingStack);
 
     GraphicsLayer::unparentAndClear(m_contentsContainmentLayer);
     GraphicsLayer::unparentAndClear(m_foregroundLayer);
@@ -1321,11 +1322,17 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
         clipLayer->setSize(snappedClippingGraphicsLayer.m_snappedRect.size());
         clipLayer->setOffsetFromRenderer(toLayoutSize(clippingBox.location() - snappedClippingGraphicsLayer.m_snapDelta));
 
-        if ((renderer().style().clipPath() || renderer().style().hasBorderRadius()) && !m_childClippingMaskLayer) {
-            FloatRoundedRect contentsClippingRect = renderBox.roundedBorderBoxRect().pixelSnappedRoundedRectForPainting(deviceScaleFactor);
-            contentsClippingRect.move(LayoutSize(-clipLayer->offsetFromRenderer()));
-            clipLayer->setMasksToBoundsRect(contentsClippingRect);
-        }
+        auto computeMasksToBoundsRect = [&] {
+            if ((renderer().style().clipPath() || renderer().style().hasBorderRadius()) && !m_childClippingMaskLayer) {
+                FloatRoundedRect contentsClippingRect = renderBox.roundedBorderBoxRect().pixelSnappedRoundedRectForPainting(deviceScaleFactor);
+                contentsClippingRect.move(LayoutSize(-clipLayer->offsetFromRenderer()));
+                return contentsClippingRect;
+            }
+
+            return FloatRoundedRect { FloatRect { { }, snappedClippingGraphicsLayer.m_snappedRect.size() } };
+        };
+
+        clipLayer->setMasksToBoundsRect(computeMasksToBoundsRect());
 
         if (m_childClippingMaskLayer && !m_scrollContainerLayer) {
             m_childClippingMaskLayer->setSize(clipLayer->size());
@@ -1901,7 +1908,7 @@ void RenderLayerBacking::updateClippingStackLayerGeometry(LayerAncestorClippingS
         entry.clippingLayer->setSize(snappedClippingLayerRect.size());
 
         if (entry.clipData.isOverflowScroll) {
-            ScrollOffset scrollOffset = entry.clipData.clippingLayer->scrollOffset();
+            ScrollOffset scrollOffset = entry.clipData.clippingLayer ? entry.clipData.clippingLayer->scrollOffset() : ScrollOffset();
 
             entry.clippingLayer->setBoundsOrigin(scrollOffset);
             lastClipLayerRect.moveBy(-scrollOffset);
@@ -1926,8 +1933,13 @@ bool RenderLayerBacking::updateAncestorClipping(bool needsAncestorClip, const Re
         }
     } else if (m_ancestorClippingStack) {
         removeClippingStackLayers(*m_ancestorClippingStack);
-
         m_ancestorClippingStack = nullptr;
+        
+        if (m_overflowControlsHostLayerAncestorClippingStack) {
+            removeClippingStackLayers(*m_overflowControlsHostLayerAncestorClippingStack);
+            m_overflowControlsHostLayerAncestorClippingStack = nullptr;
+        }
+        
         layersChanged = true;
     }
     
@@ -2204,33 +2216,21 @@ bool RenderLayerBacking::updateMaskingLayer(bool hasMask, bool hasClipPath)
 
 void RenderLayerBacking::updateChildClippingStrategy(bool needsDescendantsClippingLayer)
 {
-    if (hasClippingLayer() && needsDescendantsClippingLayer) {
-        if (is<RenderBox>(renderer()) && (renderer().style().clipPath() || renderer().style().hasBorderRadius())) {
-            auto* clipLayer = clippingLayer();
-            FloatRoundedRect contentsClippingRect = downcast<RenderBox>(renderer()).roundedBorderBoxRect().pixelSnappedRoundedRectForPainting(deviceScaleFactor());
-            contentsClippingRect.move(LayoutSize(-clipLayer->offsetFromRenderer()));
-            // Note that we have to set this rounded rect again during the geometry update (clipLayer->offsetFromRenderer() may be stale here).
-            if (clipLayer->setMasksToBoundsRect(contentsClippingRect)) {
-                clipLayer->setMaskLayer(nullptr);
-                GraphicsLayer::clear(m_childClippingMaskLayer);
-                return;
-            }
+    auto needsClipMaskLayer = [&] {
+        return needsDescendantsClippingLayer && !GraphicsLayer::supportsRoundedClip() && is<RenderBox>(renderer()) && (renderer().style().hasBorderRadius() || renderer().style().clipPath());
+    };
 
-            if (!m_childClippingMaskLayer) {
-                m_childClippingMaskLayer = createGraphicsLayer("child clipping mask");
-                m_childClippingMaskLayer->setDrawsContent(true);
-                m_childClippingMaskLayer->setPaintingPhase({ GraphicsLayerPaintingPhase::ChildClippingMask });
-                clippingLayer()->setMaskLayer(m_childClippingMaskLayer.copyRef());
-            }
-        }
-    } else {
-        if (m_childClippingMaskLayer) {
-            if (hasClippingLayer())
-                clippingLayer()->setMaskLayer(nullptr);
-            GraphicsLayer::clear(m_childClippingMaskLayer);
-        } else 
-            if (hasClippingLayer())
-                clippingLayer()->setMasksToBoundsRect(FloatRoundedRect(FloatRect({ }, clippingLayer()->size())));
+    auto* clippingLayer = this->clippingLayer();
+    if (needsClipMaskLayer()) {
+        m_childClippingMaskLayer = createGraphicsLayer("child clipping mask");
+        m_childClippingMaskLayer->setDrawsContent(true);
+        m_childClippingMaskLayer->setPaintingPhase({ GraphicsLayerPaintingPhase::ChildClippingMask });
+        if (clippingLayer)
+            clippingLayer->setMaskLayer(m_childClippingMaskLayer.copyRef());
+    } else if (m_childClippingMaskLayer) {
+        if (clippingLayer)
+            clippingLayer->setMaskLayer(nullptr);
+        GraphicsLayer::clear(m_childClippingMaskLayer);
     }
 }
 
@@ -2638,18 +2638,6 @@ bool RenderLayerBacking::paintsContent(RenderLayer::PaintedContentRequest& reque
     return paintsContent;
 }
 
-static bool isRestartedPlugin(RenderObject& renderer)
-{
-    if (!is<RenderEmbeddedObject>(renderer))
-        return false;
-
-    auto& element = downcast<RenderEmbeddedObject>(renderer).frameOwnerElement();
-    if (!is<HTMLPlugInElement>(element))
-        return false;
-
-    return downcast<HTMLPlugInElement>(element).isRestartedPlugin();
-}
-
 static bool isCompositedPlugin(RenderObject& renderer)
 {
     return is<RenderEmbeddedObject>(renderer) && downcast<RenderEmbeddedObject>(renderer).allowsAcceleratedCompositing();
@@ -2666,7 +2654,7 @@ bool RenderLayerBacking::isSimpleContainerCompositingLayer(PaintedContentsInfo& 
     if (hasBackingSharingLayers())
         return false;
 
-    if (renderer().isRenderReplaced() && (!isCompositedPlugin(renderer()) || isRestartedPlugin(renderer())))
+    if (renderer().isRenderReplaced() && !isCompositedPlugin(renderer()))
         return false;
 
     if (renderer().isTextControl())
@@ -3667,6 +3655,11 @@ void RenderLayerBacking::animationFinished(const String& animationName)
     m_graphicsLayer->removeAnimation(animationName);
     m_owningLayer.setNeedsPostLayoutCompositingUpdate();
     m_owningLayer.setNeedsCompositingGeometryUpdate();
+}
+
+void RenderLayerBacking::transformRelatedPropertyDidChange()
+{
+    m_graphicsLayer->transformRelatedPropertyDidChange();
 }
 
 void RenderLayerBacking::notifyAnimationStarted(const GraphicsLayer*, const String&, MonotonicTime)

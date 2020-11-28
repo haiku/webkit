@@ -305,14 +305,14 @@ static _WKStorageBlockingPolicy toAPI(WebCore::SecurityOrigin::StorageBlockingPo
     _preferences->setSimpleLineLayoutEnabled(simpleLineLayoutEnabled);
 }
 
-- (BOOL)_simpleLineLayoutDebugBordersEnabled
+- (BOOL)_legacyLineLayoutVisualCoverageEnabled
 {
-    return _preferences->simpleLineLayoutDebugBordersEnabled();
+    return _preferences->legacyLineLayoutVisualCoverageEnabled();
 }
 
-- (void)_setSimpleLineLayoutDebugBordersEnabled:(BOOL)simpleLineLayoutDebugBordersEnabled
+- (void)_setLegacyLineLayoutVisualCoverageEnabled:(BOOL)legacyLineLayoutVisualCoverageEnabled
 {
-    _preferences->setSimpleLineLayoutDebugBordersEnabled(simpleLineLayoutDebugBordersEnabled);
+    _preferences->setLegacyLineLayoutVisualCoverageEnabled(legacyLineLayoutVisualCoverageEnabled);
 }
 
 - (BOOL)_contentChangeObserverEnabled
@@ -1104,12 +1104,11 @@ static WebCore::EditableLinkBehavior toEditableLinkBehavior(_WKEditableLinkBehav
 
 - (void)_setPlugInSnapshottingEnabled:(BOOL)enabled
 {
-    _preferences->setPlugInSnapshottingEnabled(enabled);
 }
 
 - (BOOL)_plugInSnapshottingEnabled
 {
-    return _preferences->plugInSnapshottingEnabled();
+    return NO;
 }
 
 - (void)_setViewGestureDebuggingEnabled:(BOOL)enabled
@@ -1435,6 +1434,16 @@ static WebCore::EditableLinkBehavior toEditableLinkBehavior(_WKEditableLinkBehav
 #else
     return false;
 #endif
+}
+
+- (BOOL)_speechRecognitionEnabled
+{
+    return _preferences->speechRecognitionEnabled();
+}
+
+- (void)_setSpeechRecognitionEnabled:(BOOL)speechRecognitionEnabled
+{
+    _preferences->setSpeechRecognitionEnabled(speechRecognitionEnabled);
 }
 
 @end

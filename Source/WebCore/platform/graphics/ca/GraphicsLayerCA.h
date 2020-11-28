@@ -30,6 +30,7 @@
 #include "PlatformCALayer.h"
 #include "PlatformCALayerClient.h"
 #include <wtf/HashMap.h>
+#include <wtf/Optional.h>
 #include <wtf/RetainPtr.h>
 #include <wtf/text/StringHash.h>
 
@@ -45,6 +46,7 @@ class DisplayList;
 
 class FloatRoundedRect;
 class Image;
+class NativeImage;
 class TransformState;
 
 class GraphicsLayerCA : public GraphicsLayer, public PlatformCALayerClient {
@@ -121,7 +123,7 @@ public:
     WEBCORE_EXPORT void setContentsRect(const FloatRect&) override;
     WEBCORE_EXPORT void setContentsClippingRect(const FloatRoundedRect&) override;
     WEBCORE_EXPORT void setContentsRectClipsDescendants(bool) override;
-    WEBCORE_EXPORT bool setMasksToBoundsRect(const FloatRoundedRect&) override;
+    WEBCORE_EXPORT void setMasksToBoundsRect(const FloatRoundedRect&) override;
 
     WEBCORE_EXPORT void setShapeLayerPath(const Path&) override;
     WEBCORE_EXPORT void setShapeLayerWindRule(WindRule) override;
@@ -137,7 +139,7 @@ public:
     WEBCORE_EXPORT bool addAnimation(const KeyframeValueList&, const FloatSize& boxSize, const Animation*, const String& animationName, double timeOffset) override;
     WEBCORE_EXPORT void pauseAnimation(const String& animationName, double timeOffset) override;
     WEBCORE_EXPORT void removeAnimation(const String& animationName) override;
-
+    WEBCORE_EXPORT void transformRelatedPropertyDidChange() override;
     WEBCORE_EXPORT void setContentsToImage(Image*) override;
 #if PLATFORM(IOS_FAMILY)
     WEBCORE_EXPORT PlatformLayer* contentsLayerForMedia() const override;
@@ -462,6 +464,12 @@ private:
         { }
 
         String animationIdentifier() const { return makeString(m_name, '_', static_cast<unsigned>(m_property), '_', m_index, '_', m_subIndex); }
+        Optional<Seconds> computedBeginTime() const
+        {
+            if (m_beginTime)
+                return m_beginTime - m_timeOffset;
+            return WTF::nullopt;
+        }
 
         RefPtr<PlatformCAAnimation> m_animation;
         String m_name;
@@ -593,8 +601,8 @@ private:
 
     Color m_contentsSolidColor;
 
-    RetainPtr<CGImageRef> m_uncorrectedContentsImage;
-    RetainPtr<CGImageRef> m_pendingContentsImage;
+    RefPtr<NativeImage> m_uncorrectedContentsImage;
+    RefPtr<NativeImage> m_pendingContentsImage;
     
     Vector<LayerPropertyAnimation> m_animations;
     Vector<LayerPropertyAnimation> m_baseValueTransformAnimations;

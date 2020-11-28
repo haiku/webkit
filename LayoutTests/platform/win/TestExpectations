@@ -270,11 +270,16 @@ accessibility/aria-listbox-clear-selection-crash.html [ Skip ]
 accessibility/listbox-clear-selection.html [ Skip ]
 
 # TODO Investigate why these mouse scroll tests are failing.
-fast/events/platform-wheelevent-in-scrolling-div.html [ Failure Timeout ]
-fast/events/continuous-platform-wheelevent-in-scrolling-div.html [ Failure ]
 fast/events/scroll-in-scaled-page-with-overflow-hidden.html [ Failure ]
-fast/events/wheelevent-in-horizontal-scrollbar-in-rtl.html [ Failure ]
-fast/events/wheelevent-in-vertical-scrollbar-in-rtl.html [ Failure ]
+fast/events/wheel/continuous-platform-wheelevent-in-scrolling-div.html [ Failure ]
+fast/events/wheel/platform-wheelevent-in-scrolling-div.html [ Failure Timeout ]
+fast/events/wheel/wheelevent-in-horizontal-scrollbar-in-rtl.html [ Failure ]
+fast/events/wheel/wheelevent-in-vertical-scrollbar-in-rtl.html [ Failure ]
+fast/events/wheel/wheel-event-listeners-on-body-made-passive.html [ Skip ]
+fast/events/wheel/wheel-event-listeners-on-document-made-passive.html [ Skip ]
+fast/events/wheel/wheel-event-listeners-on-window-left-active.html [ Skip ]
+fast/events/wheel/wheel-event-listeners-on-window-made-passive.html [ Skip ]
+
 scrollbars/scroll-rtl-or-bt-layer.html [ Timeout ]
 webkit.org/b/208559 fast/scrolling/arrow-key-scroll-in-rtl-document.html [ Skip ]
 webkit.org/b/208559 fast/scrolling/programmatic-scroll-to-zero-zero.html [ Skip ]
@@ -576,16 +581,16 @@ webkit.org/b/87919 fast/repaint/hidpi-wrong-repaint-rect-when-parent-has-noncomp
 webkit.org/b/151754 fast/borders/hidpi-border-clipping-right-after-move.html [ ImageOnlyFailure ]
 
 # Skip because this platform does not support a paging mouse wheel event
-fast/events/platform-wheelevent-paging-x-in-non-scrolling-div.html [ Skip ]
-fast/events/platform-wheelevent-paging-x-in-non-scrolling-page.html [ Skip ]
-fast/events/platform-wheelevent-paging-x-in-scrolling-div.html [ Skip ]
-fast/events/platform-wheelevent-paging-x-in-scrolling-page.html [ Skip ]
-fast/events/platform-wheelevent-paging-xy-in-scrolling-div.html [ Skip ]
-fast/events/platform-wheelevent-paging-xy-in-scrolling-page.html [ Skip ]
-fast/events/platform-wheelevent-paging-y-in-non-scrolling-div.html [ Skip ]
-fast/events/platform-wheelevent-paging-y-in-non-scrolling-page.html [ Skip ]
-fast/events/platform-wheelevent-paging-y-in-scrolling-div.html [ Skip ]
-fast/events/platform-wheelevent-paging-y-in-scrolling-page.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-x-in-non-scrolling-div.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-x-in-non-scrolling-page.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-x-in-scrolling-div.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-x-in-scrolling-page.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-xy-in-scrolling-div.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-xy-in-scrolling-page.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-y-in-non-scrolling-div.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-y-in-non-scrolling-page.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-y-in-scrolling-div.html [ Skip ]
+fast/events/wheel/platform-wheelevent-paging-y-in-scrolling-page.html [ Skip ]
 
 # Pointer Lock is not implemented.
 pointer-lock/ [ Skip ]
@@ -639,9 +644,6 @@ fast/events/clear-drag-state.html [ Failure ]
 # Need support for ResourceHandle::didChangePriority and DRT support
 webkit.org/b/111016 http/tests/loading/promote-img-preload-priority.html [ Skip ] # Crash
 
-# TODO Snapshotted plugins not enabled on WK1
-webkit.org/b/98696 plugins/snapshotting [ Skip ]
-
 # TODO Exclude WebSQL tests:
 webkit.org/b/116559 storage/websql/ [ Skip ]
 
@@ -683,6 +685,9 @@ webkit.org/b/149245 imported/w3c/web-platform-tests/css/css-multicol/multicol-sh
 webkit.org/b/149245 imported/w3c/web-platform-tests/css/css-multicol/multicol-span-all-block-sibling-003.xht [ Skip ]
 webkit.org/b/149245 imported/w3c/web-platform-tests/css/css-multicol/multicol-span-all-margin-nested-firstchild-001.xht [ Skip ]
 
+# TODO EXIF-resolution is not supported
+imported/w3c/web-platform-tests/density-size-correction/ [ Skip ]
+
 # font-variant-* not implemented on Windows
 webkit.org/b/149630 css3/font-variant-all.html [ ImageOnlyFailure ]
 
@@ -699,10 +704,6 @@ fast/visual-viewport/zoomed-fixed-scroll-down-then-up.html [ Failure ]
 # locale-specific shaping isn't implemented on any non-Cocoa port yet.
 webkit.org/b/77568 fast/text/locale-shaping.html [ ImageOnlyFailure ]
 webkit.org/b/77568 fast/text/locale-shaping-complex.html [ ImageOnlyFailure ]
-
-# WebAssembly doesn't exist on Windows
-fast/frames/detached-frame-wasm-resolve.html [ Skip ]
-fast/history/page-cache-wasm-promise-resolve.html [ Skip ]
 
 ################################################################################
 ###########    End Missing Functionality Prevents Testing         ##############
@@ -2387,7 +2388,6 @@ http/tests/security/cross-frame-access-get.html [ Failure ]
 http/tests/security/cross-frame-access-getOwnPropertyDescriptor.html [ Failure ]
 http/tests/security/cross-origin-appcache-allowed.html [ Failure ]
 http/tests/security/cross-origin-appcache.html [ Failure ]
-webkit.org/b/98079 http/tests/security/cross-origin-local-storage-wk1.html [ Failure ]
 http/tests/security/cross-origin-plugin-allowed.html [ Failure ]
 http/tests/security/cross-origin-plugin-private-browsing-toggled-allowed.html [ Failure ]
 http/tests/security/cross-origin-plugin-private-browsing-toggled.html [ Failure ]
@@ -2765,7 +2765,7 @@ fast/encoding/parser-tests-110.html [ Pass Timeout ]
 
 webkit.org/b/103043 fast/events/frame-scroll-fake-mouse-move.html [ Skip ]
 # fast/events/page-visibility tests timeout.
-webkit.org/b/121509 fast/events/wheelevent-mousewheel-interaction.html [ Skip ] #  [ Timeout ]
+webkit.org/b/121509 fast/events/wheel/wheelevent-mousewheel-interaction.html [ Skip ] #  [ Timeout ]
 fast/events/special-key-events-in-input-text.html [ Failure ]
 fast/events/attribute-listener-cloned-from-frameless-doc-context.html [ Pass Failure ]
 [ Release ] fast/events/drag-outside-window.html [ Pass Timeout ]
@@ -3227,7 +3227,7 @@ fast/events/input-events-paste-rich-datatransfer.html [ Failure ]
 fast/events/key-events-in-input-button.html [ Failure ]
 fast/events/keyboardevent-code.html [ Failure ]
 fast/events/updateLayoutForHitTest.html [ Failure ]
-fast/events/wheelevent-basic.html [ Failure ]
+fast/events/wheel/wheelevent-basic.html [ Failure ]
 fast/forms/listbox-respects-padding-bottom.html [ Failure ]
 fast/forms/placeholder-position.html [ Failure ]
 fast/forms/search-input-rtl.html [ Failure ]
@@ -4497,7 +4497,6 @@ http/tests/lazyload [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/below-viewport-image-loading-lazy-load-event.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-below-viewport-dynamic.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-in-viewport-dynamic.html [ Skip ]
-imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-load-event.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-move-document.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-move-into-script-disabled-iframe.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-referrerpolicy-change.sub.html [ Skip ]
@@ -4527,8 +4526,6 @@ webkit.org/b/211860 fast/text/multiple-codeunit-vertical-upright.html [ Pass Ima
 webkit.org/b/211860 fast/text/multiple-codeunit-vertical-upright-2.html [ Pass ImageOnlyFailure ]
 webkit.org/b/212172 fast/text/font-collection.html [ ImageOnlyFailure ]
 webkit.org/b/212172 fast/text/font-collection-2.html [ ImageOnlyFailure ]
-
-webanimations/accelerated-animation-single-keyframe.html [ Skip ]
 
 webkit.org/b/214088 webanimations/accelerated-animation-single-keyframe.html [ Skip ]
 
@@ -4586,3 +4583,20 @@ webkit.org/b/217812 transforms/2d/scale-change-composited.html [ Skip ]
 webkit.org/b/217812 transforms/2d/rotate-change-composited.html [ Skip ]
 webkit.org/b/217812 transforms/2d/translate-change-composited.html [ Skip ]
 webkit.org/b/217812 transforms/2d/rotate-composited.html [ Skip ]
+webkit.org/b/217812 webanimations/accelerated-transform-related-animation-property-order.html [ Skip ]
+webkit.org/b/217812 webanimations/accelerated-translate-animation-additional-animation-added-in-flight.html [ Skip ]
+webkit.org/b/217812 webanimations/accelerated-translate-animation-underlying-transform-changed-in-flight.html [ Skip ]
+webkit.org/b/217812 webanimations/accelerated-translate-animation-with-transform.html [ Skip ]
+webkit.org/b/217812 webanimations/accelerated-translate-animation.html [ Skip ]
+
+webkit.org/b/217922 [ Release ] animations/additive-transform-animations.html [ ImageOnlyFailure ]
+webkit.org/b/217922 animations/needs-layout.html [ ImageOnlyFailure ]
+webkit.org/b/217922 fast/animation/animation-mixed-transform-crash.html [ ImageOnlyFailure ]
+
+webkit.org/b/217997 webanimations/accelerated-overlapping-transform-animations.html [ Pass Failure ]
+
+webkit.org/b/218040 svg/clip-path/clip-path-invalid.svg [ Pass Crash ]
+
+# Windows doesn't support color fonts.
+webkit.org/b/218346 fast/text/canvas-color-fonts [ Pass ImageOnlyFailure ]
+webkit.org/b/218346 http/tests/canvas/color-fonts [ Pass ImageOnlyFailure ]

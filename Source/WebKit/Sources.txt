@@ -24,6 +24,7 @@
 GPUProcess/GPUProcess.cpp
 GPUProcess/GPUConnectionToWebProcess.cpp
 GPUProcess/GPUProcessCreationParameters.cpp
+GPUProcess/graphics/DisplayListReaderHandle.cpp
 GPUProcess/graphics/RemoteRenderingBackend.cpp
 GPUProcess/graphics/RemoteResourceCache.cpp
 GPUProcess/media/RemoteAudioSessionProxy.cpp
@@ -51,7 +52,7 @@ GPUProcess/webrtc/RemoteSampleBufferDisplayLayer.cpp
 GPUProcess/webrtc/RemoteSampleBufferDisplayLayerManager.cpp
 
 
-NetworkProcess/AdClickAttributionManager.cpp
+NetworkProcess/PrivateClickMeasurementManager.cpp
 NetworkProcess/NetworkActivityTracker.cpp
 NetworkProcess/NetworkCORSPreflightChecker.cpp
 NetworkProcess/NetworkConnectionToWebProcess.cpp
@@ -137,6 +138,7 @@ Platform/IPC/Connection.cpp @no-unify
 Platform/IPC/DataReference.cpp @no-unify
 Platform/IPC/Decoder.cpp @no-unify
 Platform/IPC/Encoder.cpp @no-unify
+Platform/IPC/JSIPCBinding.cpp @no-unify
 Platform/IPC/MessageReceiverMap.cpp @no-unify
 Platform/IPC/MessageSender.cpp @no-unify
 Platform/IPC/SharedBufferCopy.cpp @no-unify
@@ -160,6 +162,7 @@ Shared/EditingRange.cpp
 Shared/EditorState.cpp
 Shared/FontInfo.cpp
 Shared/FrameInfoData.cpp
+Shared/InspectorExtensionTypes.cpp
 Shared/LayerTreeContext.cpp
 Shared/LoadParameters.cpp
 Shared/NavigationActionData.cpp
@@ -285,8 +288,10 @@ UIProcess/ProcessAssertion.cpp
 UIProcess/ProcessThrottler.cpp
 UIProcess/ProvisionalPageProxy.cpp
 UIProcess/ResponsivenessTimer.cpp
+UIProcess/SpeechRecognitionServer.cpp
 UIProcess/SuspendedPageProxy.cpp
 UIProcess/SystemPreviewController.cpp
+UIProcess/SpeechRecognitionPermissionManager.cpp
 UIProcess/TextChecker.cpp
 UIProcess/TextCheckerCompletion.cpp
 UIProcess/UserMediaPermissionCheckProxy.cpp
@@ -342,6 +347,7 @@ UIProcess/API/APIFrameInfo.cpp
 UIProcess/API/APIFrameTreeNode.cpp
 UIProcess/API/APIHTTPCookieStore.cpp
 UIProcess/API/APIHitTestResult.cpp
+UIProcess/API/APIInspectorConfiguration.cpp
 UIProcess/API/APIInternalDebugFeature.cpp
 UIProcess/API/APINavigation.cpp
 UIProcess/API/APINavigationData.cpp
@@ -399,6 +405,7 @@ UIProcess/API/C/WKPreferences.cpp
 UIProcess/API/C/WKProtectionSpace.cpp
 UIProcess/API/C/WKResourceCacheManager.cpp
 UIProcess/API/C/WKSessionStateRef.cpp
+UIProcess/API/C/WKSpeechRecognitionPermissionCallback.cpp
 UIProcess/API/C/WKTextChecker.cpp
 UIProcess/API/C/WKUserContentControllerRef.cpp
 UIProcess/API/C/WKUserContentExtensionStoreRef.cpp
@@ -434,6 +441,7 @@ UIProcess/GPU/GPUProcessProxy.cpp
 UIProcess/Inspector/InspectorTargetProxy.cpp
 UIProcess/Inspector/RemoteWebInspectorProxy.cpp
 UIProcess/Inspector/WebInspectorProxy.cpp
+UIProcess/Inspector/WebInspectorUIExtensionControllerProxy.cpp
 UIProcess/Inspector/WebInspectorUtilities.cpp
 UIProcess/Inspector/WebPageDebuggable.cpp
 UIProcess/Inspector/WebPageInspectorController.cpp
@@ -448,7 +456,6 @@ UIProcess/Notifications/WebNotification.cpp
 UIProcess/Notifications/WebNotificationManagerProxy.cpp
 UIProcess/Notifications/WebNotificationProvider.cpp
 
-UIProcess/Plugins/PlugInAutoStartProvider.cpp
 UIProcess/Plugins/PluginInfoStore.cpp
 UIProcess/Plugins/PluginProcessManager.cpp
 UIProcess/Plugins/PluginProcessProxy.cpp
@@ -486,6 +493,7 @@ WebAuthnProcess/WebAuthnProcessCreationParameters.cpp
 WebProcess/WebConnectionToUIProcess.cpp
 WebProcess/WebProcess.cpp
 WebProcess/WebSleepDisablerClient.cpp
+WebProcess/WebSystemSoundDelegate.cpp
 
 // FIXME(206266): AutomationProtocolObjects.h's "namespace Protocol" conflicts with objc/runtime.h's "typedef struct objc_object Protocol"
 WebProcess/Automation/WebAutomationSessionProxy.cpp @no-unify
@@ -545,9 +553,9 @@ WebProcess/InjectedBundle/DOM/InjectedBundleRangeHandle.cpp @no-unify
 WebProcess/Inspector/RemoteWebInspectorUI.cpp
 WebProcess/Inspector/WebInspector.cpp
 WebProcess/Inspector/WebInspectorClient.cpp
-WebProcess/Inspector/WebInspectorFrontendAPIDispatcher.cpp
 WebProcess/Inspector/WebInspectorInterruptDispatcher.cpp
 WebProcess/Inspector/WebInspectorUI.cpp
+WebProcess/Inspector/WebInspectorUIExtensionController.cpp
 WebProcess/Inspector/WebPageInspectorTarget.cpp
 WebProcess/Inspector/WebPageInspectorTargetController.cpp
 WebProcess/Inspector/WebPageInspectorTargetFrontendChannel.cpp
@@ -556,9 +564,10 @@ WebProcess/MediaStream/MediaDeviceSandboxExtensions.cpp
 WebProcess/MediaStream/UserMediaPermissionRequestManager.cpp
 
 WebProcess/GPU/GPUProcessConnection.cpp
+WebProcess/GPU/graphics/DisplayListWriterHandle.cpp
 WebProcess/GPU/graphics/ImageBufferShareableBitmapBackend.cpp
-WebProcess/GPU/graphics/RemoteImageBufferMessageHandlerProxy.cpp
 WebProcess/GPU/graphics/RemoteRenderingBackendProxy.cpp
+WebProcess/GPU/graphics/RemoteResourceCacheProxy.cpp
 WebProcess/GPU/media/AudioTrackPrivateRemote.cpp
 WebProcess/GPU/media/MediaPlayerPrivateRemote.cpp
 WebProcess/GPU/media/RemoteAudioDestinationProxy.cpp
@@ -648,12 +657,12 @@ WebProcess/WebCoreSupport/WebMessagePortChannelProvider.cpp
 WebProcess/WebCoreSupport/WebNotificationClient.cpp
 WebProcess/WebCoreSupport/WebPerformanceLoggingClient.cpp
 WebProcess/WebCoreSupport/WebPlatformStrategies.cpp
-WebProcess/WebCoreSupport/WebPlugInClient.cpp
 WebProcess/WebCoreSupport/WebPopupMenu.cpp
 WebProcess/WebCoreSupport/WebProgressTrackerClient.cpp
 WebProcess/WebCoreSupport/WebResourceLoadObserver.cpp
 WebProcess/WebCoreSupport/WebSearchPopupMenu.cpp
 WebProcess/WebCoreSupport/WebUserMediaClient.cpp
+WebProcess/WebCoreSupport/WebSpeechRecognitionConnection.cpp
 WebProcess/WebCoreSupport/WebSpeechSynthesisClient.cpp
 
 WebProcess/WebPage/DrawingArea.cpp

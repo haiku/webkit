@@ -303,6 +303,10 @@ SourceBufferPrivateAVFObjC::SourceBufferPrivateAVFObjC(MediaSourcePrivateAVFObjC
     if (![PAL::getAVSampleBufferDisplayLayerClass() instancesRespondToSelector:@selector(prerollDecodeWithCompletionHandler:)])
         CMNotificationCenterAddListener(CMNotificationCenterGetDefaultLocalCenter(), reinterpret_cast<void*>(m_mapID), bufferWasConsumedCallback, kCMSampleBufferConsumerNotification_BufferConsumed, nullptr, 0);
 
+#if !RELEASE_LOG_DISABLED
+    m_parser->setLogger(m_logger.get(), m_logIdentifier);
+#endif
+
     sourceBufferMap().add(m_mapID, makeWeakPtr(*this));
 
     m_parser->setDidParseInitializationDataCallback([weakThis = makeWeakPtr(this)] (InitializationSegment&& segment) mutable {
@@ -1190,7 +1194,7 @@ bool SourceBufferPrivateAVFObjC::canSwitchToType(const ContentType& contentType)
     MediaEngineSupportParameters parameters;
     parameters.isMediaSource = true;
     parameters.type = contentType;
-    return MediaPlayerPrivateMediaSourceAVFObjC::supportsType(parameters) != MediaPlayer::SupportsType::IsNotSupported;
+    return MediaPlayerPrivateMediaSourceAVFObjC::supportsTypeAndCodecs(parameters) != MediaPlayer::SupportsType::IsNotSupported;
 }
 
 void SourceBufferPrivateAVFObjC::setVideoLayer(AVSampleBufferDisplayLayer* layer)

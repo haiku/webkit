@@ -69,12 +69,9 @@ public:
 
     virtual void drawGlyphs(const Font&, const GlyphBuffer&, unsigned from, unsigned numGlyphs, const FloatPoint& anchorPoint, FontSmoothingMode) = 0;
 
-    virtual ImageDrawResult drawImage(Image&, const FloatRect& destination, const FloatRect& source, const ImagePaintingOptions&) = 0;
-    virtual ImageDrawResult drawTiledImage(Image&, const FloatRect& destination, const FloatPoint& source, const FloatSize& tileSize, const FloatSize& spacing, const ImagePaintingOptions&) = 0;
-    virtual ImageDrawResult drawTiledImage(Image&, const FloatRect& destination, const FloatRect& source, const FloatSize& tileScaleFactor, Image::TileRule hRule, Image::TileRule vRule, const ImagePaintingOptions&) = 0;
-
-    virtual void drawNativeImage(const NativeImagePtr&, const FloatSize& selfSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions&) = 0;
-    virtual void drawPattern(Image&, const FloatRect& destRect, const FloatRect& srcRect, const AffineTransform&, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions&) = 0;
+    virtual void drawImageBuffer(ImageBuffer&, const FloatRect& destination, const FloatRect& source, const ImagePaintingOptions&) = 0;
+    virtual void drawNativeImage(NativeImage&, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions&) = 0;
+    virtual void drawPattern(NativeImage&, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const AffineTransform&, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions&) = 0;
 
     virtual void drawRect(const FloatRect&, float borderThickness) = 0;
     virtual void drawLine(const FloatPoint&, const FloatPoint&) = 0;
@@ -112,11 +109,6 @@ public:
     virtual void applyDeviceScaleFactor(float) = 0;
 
     virtual FloatRect roundToDevicePixels(const FloatRect&, GraphicsContext::RoundingMode) = 0;
-
-protected:
-    static ImageDrawResult drawImageImpl(GraphicsContext&, Image&, const FloatRect&, const FloatRect&, const ImagePaintingOptions&);
-    static ImageDrawResult drawTiledImageImpl(GraphicsContext&, Image&, const FloatRect&, const FloatPoint&, const FloatSize&, const FloatSize&, const ImagePaintingOptions&);
-    static ImageDrawResult drawTiledImageImpl(GraphicsContext&, Image&, const FloatRect&, const FloatRect&, const FloatSize&, Image::TileRule, Image::TileRule, const ImagePaintingOptions&);
 
 private:
     friend class GraphicsContext;

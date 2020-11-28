@@ -29,6 +29,7 @@
 #import <wtf/NakedPtr.h>
 
 OBJC_CLASS WKWebView;
+OBJC_CLASS _WKInspectorConfiguration;
 
 namespace WebKit {
 class WebPageProxy;
@@ -43,7 +44,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) WKWebView *webView;
 @property (nonatomic, weak) id <WKInspectorViewControllerDelegate> delegate;
 
-- (instancetype)initWithInspectedPage:(NakedPtr<WebKit::WebPageProxy>)inspectedPage;
+- (instancetype)initWithConfiguration:(_WKInspectorConfiguration *)configuration inspectedPage:(NakedPtr<WebKit::WebPageProxy>)inspectedPage;
 
 + (BOOL)viewIsInspectorWebView:(NSView *)view;
 

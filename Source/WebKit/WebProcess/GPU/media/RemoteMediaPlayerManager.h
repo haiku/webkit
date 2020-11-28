@@ -28,11 +28,6 @@
 #if ENABLE(GPU_PROCESS)
 
 #include "GPUProcessConnection.h"
-#include "MessageReceiver.h"
-#include "RemoteMediaPlayerState.h"
-#include "RemoteMediaResourceIdentifier.h"
-#include "SharedMemory.h"
-#include "TrackPrivateRemoteIdentifier.h"
 #include "WebProcessSupplement.h"
 #include <WebCore/MediaPlayer.h>
 #include <WebCore/MediaPlayerIdentifier.h>
@@ -40,7 +35,6 @@
 
 namespace WebCore {
 class MediaPlayerPrivateInterface;
-class Settings;
 }
 
 namespace WebKit {
@@ -53,7 +47,7 @@ struct TrackPrivateRemoteConfiguration;
 
 class RemoteMediaPlayerManager
     : public WebProcessSupplement
-    , public CanMakeWeakPtr<RemoteMediaPlayerManager> {
+    , public GPUProcessConnection::Client {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit RemoteMediaPlayerManager(WebProcess&);
@@ -62,7 +56,7 @@ public:
     static const char* supplementName();
     WebProcess& parentProcess() const { return m_process; }
 
-    void updatePreferences(const WebCore::Settings&);
+    void setUseGPUProcess(bool);
 
     GPUProcessConnection& gpuProcessConnection() const;
 
@@ -77,6 +71,9 @@ private:
 
     // WebProcessSupplement
     void initialize(const WebProcessCreationParameters&) final;
+
+    // GPUProcessConnection::Client
+    void gpuProcessConnectionDidClose(GPUProcessConnection&) final;
 
     friend class MediaPlayerRemoteFactory;
     void getSupportedTypes(WebCore::MediaPlayerEnums::MediaEngineIdentifier, HashSet<String, ASCIICaseInsensitiveHash>&);

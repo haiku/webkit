@@ -232,6 +232,12 @@ void VisibleSelection::setBaseAndExtentToDeepEquivalents()
         m_extent = m_base;
     else
         m_extent = VisiblePosition(m_focus, m_affinity).deepEquivalent();
+    if (m_base.isNull() != m_extent.isNull()) {
+        if (m_base.isNull())
+            m_base = m_extent;
+        else
+            m_extent = m_base;
+    }
 }
 
 void VisibleSelection::adjustSelectionRespectingGranularity(TextGranularity granularity)
@@ -386,8 +392,8 @@ void VisibleSelection::validate(TextGranularity granularity)
     adjustSelectionToAvoidCrossingEditingBoundaries();
     updateSelectionType();
 
-    bool shouldUpdateAnchor = m_start != startBeforeAdjustments;
-    bool shouldUpdateFocus = m_end != endBeforeAdjustments;
+    bool shouldUpdateAnchor = false; // Set to false because of <rdar://problem/69542459>. Can be returned to original logic when this problem is fully fixed.
+    bool shouldUpdateFocus = false; // Ditto.
 
     if (isRange()) {
         // "Constrain" the selection to be the smallest equivalent range of nodes.

@@ -1,0 +1,3 @@
+
+FAIL SpeechRecognition basics undefined is not an object (evaluating 'reco.grammars.length')
+

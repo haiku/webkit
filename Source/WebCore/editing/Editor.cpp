@@ -103,6 +103,7 @@
 #include "SpellingCorrectionCommand.h"
 #include "StaticPasteboard.h"
 #include "StyleProperties.h"
+#include "SystemSoundManager.h"
 #include "TelephoneNumberDetector.h"
 #include "Text.h"
 #include "TextCheckerClient.h"
@@ -115,7 +116,6 @@
 #include "VisibleUnits.h"
 #include "markup.h"
 #include <pal/FileSizeFormatter.h>
-#include <pal/system/Sound.h>
 #include <pal/text/KillRing.h>
 #include <wtf/SetForScope.h>
 #include <wtf/unicode/CharacterNames.h>
@@ -1366,7 +1366,7 @@ void Editor::cut(FromMenuOrKeyBinding fromMenuOrKeyBinding)
     if (tryDHTMLCut())
         return; // DHTML did the whole operation
     if (!canCut()) {
-        PAL::systemBeep();
+        SystemSoundManager::singleton().systemBeep();
         return;
     }
 
@@ -1379,7 +1379,7 @@ void Editor::copy(FromMenuOrKeyBinding fromMenuOrKeyBinding)
     if (tryDHTMLCopy())
         return; // DHTML did the whole operation
     if (!canCopy()) {
-        PAL::systemBeep();
+        SystemSoundManager::singleton().systemBeep();
         return;
     }
 
@@ -1516,7 +1516,7 @@ void Editor::quoteFragmentForPasting(DocumentFragment& fragment)
 void Editor::performDelete()
 {
     if (!canDelete()) {
-        PAL::systemBeep();
+        SystemSoundManager::singleton().systemBeep();
         return;
     }
 
@@ -3346,18 +3346,7 @@ IntRect Editor::firstRectForRange(const SimpleRange& range) const
     if (inSameLine(start, end))
         return enclosingIntRect(unitedBoundingBoxes(RenderObject::absoluteTextQuads(range)));
 
-    LayoutUnit extraWidthToEndOfLine;
-    IntRect startCaretRect = RenderedPosition(start).absoluteRect(&extraWidthToEndOfLine);
-    if (startCaretRect == IntRect())
-        return IntRect();
-
-    // When start and end aren't on the same line, we want to go from start to the end of its line.
-    auto result = startCaretRect;
-    if (startCaretRect.width() == caretWidth)
-        result.expand(extraWidthToEndOfLine, 0);
-    else
-        result.expand(0, extraWidthToEndOfLine);
-    return result;
+    return RenderedPosition(start).absoluteRect(CaretRectMode::ExpandToEndOfLine);
 }
 
 bool Editor::shouldChangeSelection(const VisibleSelection& oldSelection, const VisibleSelection& newSelection, Affinity affinity, bool stillSelecting) const
@@ -3545,7 +3534,7 @@ static bool isFrameInRange(Frame& frame, const SimpleRange& range)
 {
     for (auto* ownerElement = frame.ownerElement(); ownerElement; ownerElement = ownerElement->document().ownerElement()) {
         if (&ownerElement->document() == &range.start.document())
-            return intersects(range, *ownerElement);
+            return intersects<ComposedTree>(range, *ownerElement);
     }
     return false;
 }
@@ -3703,7 +3692,7 @@ void Editor::scanSelectionForTelephoneNumbers()
             addMarker(range, DocumentMarker::TelephoneNumber);
 
             // Only consider ranges with a detected telephone number if they overlap with the selection.
-            if (intersects(range, selectedRange))
+            if (intersects<ComposedTree>(range, selectedRange))
                 m_detectedTelephoneNumberRanges.append(range);
         }
     }
@@ -4227,7 +4216,7 @@ Optional<SimpleRange> Editor::adjustedSelectionRange()
     // FIXME: Why do we need to adjust the selection to include the anchor tag it's in? Whoever wrote this code originally forgot to leave us a comment explaining the rationale.
     auto range = selectedRange();
     if (range) {
-        if (auto enclosingAnchor = enclosingElementWithTag(firstPositionInNode(commonInclusiveAncestor(*range).get()), HTMLNames::aTag)) {
+        if (auto enclosingAnchor = enclosingElementWithTag(firstPositionInNode(commonInclusiveAncestor<ComposedTree>(*range)), HTMLNames::aTag)) {
             if (firstPositionInOrBeforeNode(range->start.container.ptr()) >= makeDeprecatedLegacyPosition(range->start))
                 range->start = makeBoundaryPointBeforeNodeContents(*enclosingAnchor);
         }

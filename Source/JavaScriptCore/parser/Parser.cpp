@@ -1343,7 +1343,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseForStatement(
     JSTextPosition declsEnd;
     TreeExpression decls = 0;
     TreeDestructuringPattern pattern = 0;
-    bool isVarDeclaraton = match(VAR);
+    bool isVarDeclaration = match(VAR);
     bool isLetDeclaration = match(LET);
     bool isConstDeclaration = match(CONSTTOKEN);
     bool forLoopConstDoesNotHaveInitializer = false;
@@ -1365,7 +1365,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseForStatement(
             popScope(lexicalScope, TreeBuilder::NeedsFreeVariableInfo);
     };
 
-    if (isVarDeclaraton || isLetDeclaration || isConstDeclaration) {
+    if (isVarDeclaration || isLetDeclaration || isConstDeclaration) {
         /*
          for (var/let/const IDENT in/of expression) statement
          for (var/let/const varDeclarationList; expressionOpt; expressionOpt)
@@ -1383,7 +1383,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseForStatement(
         JSTextPosition initStart;
         JSTextPosition initEnd;
         DeclarationType declarationType;
-        if (isVarDeclaraton)
+        if (isVarDeclaration)
             declarationType = DeclarationType::VarDeclaration;
         else if (isLetDeclaration)
             declarationType = DeclarationType::LetDeclaration;
@@ -1447,7 +1447,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseForStatement(
             result = context.createForOfLoop(isAwaitFor, location, forInTarget, expr, statement, declLocation, declsStart, inLocation, exprEnd, startLine, endLine, *lexicalVariables);
         else {
             ASSERT(!isAwaitFor);
-            if (isVarDeclaraton && forInInitializer)
+            if (isVarDeclaration && forInInitializer)
                 result = context.createForInLoop(location, decls, expr, statement, declLocation, declsStart, inLocation, exprEnd, startLine, endLine, *lexicalVariables);
             else
                 result = context.createForInLoop(location, forInTarget, expr, statement, declLocation, declsStart, inLocation, exprEnd, startLine, endLine, *lexicalVariables);
@@ -2837,6 +2837,8 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseClassDeclarat
     return context.createClassDeclStatement(location, classExpr, classStart, classEnd, classStartLine, classEndLine);
 }
 
+static constexpr ASCIILiteral instanceComputedNamePrefix { "instanceComputedName"_s };
+
 template <typename LexerType>
 template <class TreeBuilder> TreeClassExpression Parser<LexerType>::parseClass(TreeBuilder& context, FunctionNameRequirements requirements, ParserClassInfo<TreeBuilder>& info)
 {
@@ -2996,7 +2998,7 @@ parseMethod:
             }
 
             if (computedPropertyName) {
-                ident = &m_parserArena.identifierArena().makeNumericIdentifier(m_vm, numComputedFields++);
+                ident = &m_parserArena.identifierArena().makePrivateIdentifier(m_vm, instanceComputedNamePrefix, numComputedFields++);
                 DeclarationResultMask declarationResult = classScope->declareLexicalVariable(ident, true);
                 ASSERT_UNUSED(declarationResult, declarationResult == DeclarationResult::Valid);
                 classScope->useVariable(ident, false);
@@ -3077,7 +3079,6 @@ template <class TreeBuilder> TreeSourceElements Parser<LexerType>::parseInstance
 
         JSTokenLocation fieldLocation = tokenLocation();
         const Identifier* ident = nullptr;
-        TreeExpression computedPropertyName = 0;
         DefineFieldNode::Type type = DefineFieldNode::Type::Name;
         switch (m_token.m_type) {
         case PRIVATENAME:
@@ -3101,14 +3102,15 @@ template <class TreeBuilder> TreeSourceElements Parser<LexerType>::parseInstance
             ASSERT(ident);
             next();
             break;
-        case OPENBRACKET:
+        case OPENBRACKET: {
             next();
-            computedPropertyName = parseAssignmentExpression(context);
+            TreeExpression computedPropertyName = parseAssignmentExpression(context);
             failIfFalse(computedPropertyName, "Cannot parse computed property name");
             handleProductionOrFail(CLOSEBRACKET, "]", "end", "computed property name");
-            ident = &m_parserArena.identifierArena().makeNumericIdentifier(m_vm, numComputedFields++);
+            ident = &m_parserArena.identifierArena().makePrivateIdentifier(m_vm, instanceComputedNamePrefix, numComputedFields++);
             type = DefineFieldNode::Type::ComputedName;
             break;
+        }
         default:
             if (m_token.m_type & KeywordTokenFlag)
                 goto namedKeyword;
@@ -4026,7 +4028,12 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseConditionalE
     m_parserState.nonTrivialExpressionCount++;
     m_parserState.nonLHSCount++;
     next(TreeBuilder::DontBuildStrings);
-    TreeExpression lhs = parseAssignmentExpression(context);
+    TreeExpression lhs = 0;
+    {
+        // this block is necessary so that we don't leave `in` enabled for the rhs
+        AllowInOverride allowInOverride(this);
+        lhs = parseAssignmentExpression(context);
+    }
     failIfFalse(lhs, "Cannot parse left hand side of ternary operator");
     context.setEndOffset(lhs, m_lastTokenEndPosition.offset);
     consumeOrFailWithFlags(COLON, TreeBuilder::DontBuildStrings, "Expected ':' in ternary operator");

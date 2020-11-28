@@ -555,7 +555,7 @@ void FrameSelection::respondToNodeModification(Node& node, bool baseRemoved, boo
         else
             m_selection.setWithoutValidation(m_selection.end(), m_selection.start());
     } else if (isRange()) {
-        if (auto range = m_selection.firstRange(); range && intersects(*range, node)) {
+        if (auto range = m_selection.firstRange(); range && intersects<ComposedTree>(*range, node)) {
             // If we did nothing here, when this node's renderer was destroyed, the rect that it
             // occupied would be invalidated, but, selection gaps that change as a result of
             // the removal wouldn't be invalidated.
@@ -1902,7 +1902,7 @@ bool FrameSelection::contains(const LayoutPoint& point) const
     if (!innerNode || !innerNode->renderer())
         return false;
 
-    return isPointInRange(*range, makeBoundaryPoint(innerNode->renderer()->positionForPoint(result.localPoint(), nullptr)));
+    return WebCore::contains<ComposedTree>(*range, makeBoundaryPoint(innerNode->renderer()->positionForPoint(result.localPoint(), nullptr)));
 }
 
 // Workaround for the fact that it's hard to delete a frame.

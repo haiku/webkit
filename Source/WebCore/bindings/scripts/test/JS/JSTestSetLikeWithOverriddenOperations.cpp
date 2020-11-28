@@ -51,21 +51,20 @@ using namespace JSC;
 
 // Functions
 
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_delete);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_has);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_entries);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_keys);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_values);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_forEach);
-JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_clear);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_delete);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_has);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_entries);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_keys);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_values);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_forEach);
+static JSC_DECLARE_HOST_FUNCTION(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_clear);
 
 // Attributes
 
-JSC_DECLARE_CUSTOM_GETTER(jsTestSetLikeWithOverriddenOperationsConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestSetLikeWithOverriddenOperationsConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsTestSetLikeWithOverriddenOperations_add);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestSetLikeWithOverriddenOperations_add);
-JSC_DECLARE_CUSTOM_GETTER(jsTestSetLikeWithOverriddenOperations_size);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestSetLikeWithOverriddenOperationsConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestSetLikeWithOverriddenOperations_add);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestSetLikeWithOverriddenOperations_add);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestSetLikeWithOverriddenOperations_size);
 
 class JSTestSetLikeWithOverriddenOperationsPrototype final : public JSC::JSNonFinalObject {
 public:
@@ -120,7 +119,7 @@ template<> const ClassInfo JSTestSetLikeWithOverriddenOperationsDOMConstructor::
 
 static const HashTableValue JSTestSetLikeWithOverriddenOperationsPrototypeTableValues[] =
 {
-    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestSetLikeWithOverriddenOperationsConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestSetLikeWithOverriddenOperationsConstructor) } },
+    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestSetLikeWithOverriddenOperationsConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
     { "add", static_cast<unsigned>(JSC::PropertyAttribute::CustomAccessor | JSC::PropertyAttribute::DOMAttribute), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestSetLikeWithOverriddenOperations_add), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestSetLikeWithOverriddenOperations_add) } },
     { "size", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum | JSC::PropertyAttribute::ReadOnly | JSC::PropertyAttribute::CustomAccessor), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestSetLikeWithOverriddenOperations_size), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
     { "delete", static_cast<unsigned>(JSC::PropertyAttribute::Function), NoIntrinsic, { (intptr_t)static_cast<RawNativeFunction>(jsTestSetLikeWithOverriddenOperationsPrototypeFunction_delete), (intptr_t) (0) } },
@@ -197,19 +196,6 @@ JSC_DEFINE_CUSTOM_GETTER(jsTestSetLikeWithOverriddenOperationsConstructor, (JSGl
     if (UNLIKELY(!prototype))
         return throwVMTypeError(lexicalGlobalObject, throwScope);
     return JSValue::encode(JSTestSetLikeWithOverriddenOperations::getConstructor(JSC::getVM(lexicalGlobalObject), prototype->globalObject()));
-}
-
-JSC_DEFINE_CUSTOM_SETTER(setJSTestSetLikeWithOverriddenOperationsConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
-{
-    VM& vm = JSC::getVM(lexicalGlobalObject);
-    auto throwScope = DECLARE_THROW_SCOPE(vm);
-    auto* prototype = jsDynamicCast<JSTestSetLikeWithOverriddenOperationsPrototype*>(vm, JSValue::decode(thisValue));
-    if (UNLIKELY(!prototype)) {
-        throwVMTypeError(lexicalGlobalObject, throwScope);
-        return false;
-    }
-    // Shadowing a built-in constructor
-    return prototype->putDirect(vm, vm.propertyNames->constructor, JSValue::decode(encodedValue));
 }
 
 static inline JSValue jsTestSetLikeWithOverriddenOperations_addGetter(JSGlobalObject& lexicalGlobalObject, JSTestSetLikeWithOverriddenOperations& thisObject)

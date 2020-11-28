@@ -93,6 +93,12 @@ enum ContentSizeCategory {
     "XXXL"
 };
 
+enum TreeType {
+    "Tree",
+    "ShadowIncludingTree",
+    "ComposedTree"
+};
+
 [
     ExportMacro=WEBCORE_TESTSUPPORT_EXPORT,
     Conditional=VIDEO,
@@ -514,6 +520,7 @@ enum ContentSizeCategory {
     unsigned long numberOfLiveDocuments();
     unsigned long referencingNodeCount(Document document);
     [Conditional=INTERSECTION_OBSERVER] unsigned long numberOfIntersectionObservers(Document document);
+    [Conditional = RESIZE_OBSERVER] unsigned long numberOfResizeObservers(Document document);
     WindowProxy? openDummyInspectorFrontend(DOMString url);
     undefined closeDummyInspectorFrontend();
     [MayThrowException] undefined setInspectorIsUnderTest(boolean isUnderTest);
@@ -552,6 +559,7 @@ enum ContentSizeCategory {
     undefined setFullscreenAutoHideDuration(double duration);
     undefined setFullscreenControlsHidden(boolean hidden);
 
+    [Conditional=VIDEO_PRESENTATION_MODE] boolean isChangingPresentationMode(HTMLVideoElement element);
     [Conditional=VIDEO_PRESENTATION_MODE] undefined setMockVideoPresentationModeEnabled(boolean enabled);
 
     undefined setApplicationCacheOriginQuota(unsigned long long quota);
@@ -793,6 +801,9 @@ enum ContentSizeCategory {
     [Conditional=WEB_RTC] undefined applyRotationForOutgoingVideoSources(RTCPeerConnection connection);
     [Conditional=WEB_RTC] undefined setWebRTCH265Support(boolean allowed);
     [Conditional=WEB_RTC] undefined setWebRTCVP9Support(boolean allowed);
+    [Conditional=WEB_RTC] undefined setWebRTCVP9VTBSupport(boolean allowed);
+    [Conditional=WEB_RTC] MockRTCRtpTransform createMockRTCRtpTransform();
+    [Conditional=WEB_RTC] unsigned long long sframeCounter(RTCRtpSFrameTransform transform);
 
     [Conditional=MEDIA_STREAM] undefined setMockAudioTrackChannelNumber(MediaStreamTrack track, unsigned short count);
     [Conditional=MEDIA_STREAM] undefined setShouldInterruptAudioOnPageVisibilityChange(boolean shouldInterrupt);
@@ -952,4 +963,17 @@ enum ContentSizeCategory {
     undefined setContentSizeCategory(ContentSizeCategory category);
 
     [Conditional=ATTACHMENT_ELEMENT, MayThrowException] AttachmentThumbnailInfo attachmentThumbnailInfo(HTMLAttachmentElement element);
+
+    [Conditional=MEDIA_SESSION, MayThrowException] double currentMediaSessionPosition(MediaSession session);
+    [Conditional=MEDIA_SESSION, MayThrowException] undefined sendMediaSessionAction(MediaSession session, MediaSessionActionDetails actionDetails);
+
+    DOMString treeOrder(Node a, Node b, optional TreeType tree = "Tree");
+    DOMString treeOrderBoundaryPoints(Node containerA, unsigned long offsetA, Node containerB, unsigned long offsetB, optional TreeType tree = "Tree");
+    boolean rangeContainsNode(AbstractRange range, Node node, optional TreeType tree = "Tree");
+    boolean rangeContainsRange(AbstractRange outerRange, AbstractRange innerRange, optional TreeType tree = "Tree");
+    boolean rangeContainsBoundaryPoint(AbstractRange outerRange, Node container, unsigned long offset, optional TreeType tree = "Tree");
+    boolean rangeIntersectsNode(AbstractRange range, Node node, optional TreeType tree = "Tree");
+    boolean rangeIntersectsRange(AbstractRange outerRange, AbstractRange innerRange, optional TreeType tree = "Tree");
+
+    undefined systemBeep();
 };

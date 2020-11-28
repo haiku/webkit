@@ -124,7 +124,7 @@ NSString *WebConsoleMessageMediaMessageSource = @"MediaMessageSource";
 NSString *WebConsoleMessageMediaSourceMessageSource = @"MediaSourceMessageSource";
 NSString *WebConsoleMessageWebRTCMessageSource = @"WebRTCMessageSource";
 NSString *WebConsoleMessageITPDebugMessageSource = @"ITPDebugMessageSource";
-NSString *WebConsoleMessageAdClickAttributionMessageSource = @"AdClickAttributionMessageSource";
+NSString *WebConsoleMessagePrivateClickMeasurementMessageSource = @"PrivateClickMeasurementMessageSource";
 NSString *WebConsoleMessageOtherMessageSource = @"OtherMessageSource";
 
 NSString *WebConsoleMessageDebugMessageLevel = @"DebugMessageLevel";
@@ -205,7 +205,7 @@ bool WebChromeClient::canTakeFocus(FocusDirection)
 void WebChromeClient::takeFocus(FocusDirection direction)
 {
 #if !PLATFORM(IOS_FAMILY)
-    if (direction == FocusDirectionForward) {
+    if (direction == FocusDirection::Forward) {
         // Since we're trying to move focus out of m_webView, and because
         // m_webView may contain subviews within it, we ask it for the next key
         // view of the last view in its key view loop. This makes m_webView
@@ -403,8 +403,8 @@ inline static NSString *stringForMessageSource(MessageSource source)
         return WebConsoleMessageWebRTCMessageSource;
     case MessageSource::ITPDebug:
         return WebConsoleMessageITPDebugMessageSource;
-    case MessageSource::AdClickAttribution:
-        return WebConsoleMessageAdClickAttributionMessageSource;
+    case MessageSource::PrivateClickMeasurement:
+        return WebConsoleMessagePrivateClickMeasurementMessageSource;
     case MessageSource::Other:
         return WebConsoleMessageOtherMessageSource;
     }
@@ -993,14 +993,15 @@ void WebChromeClient::enterVideoFullscreenForVideoElement(HTMLVideoElement& vide
     END_BLOCK_OBJC_EXCEPTIONS
 }
 
-void WebChromeClient::exitVideoFullscreenForVideoElement(WebCore::HTMLVideoElement& videoElement)
+void WebChromeClient::exitVideoFullscreenForVideoElement(WebCore::HTMLVideoElement& videoElement, CompletionHandler<void(bool)>&& completionHandler)
 {
     BEGIN_BLOCK_OBJC_EXCEPTIONS
     if (m_mockVideoPresentationModeEnabled)
         videoElement.didStopBeingFullscreenElement();
     else
         [m_webView _exitVideoFullscreen];
-    END_BLOCK_OBJC_EXCEPTIONS    
+    END_BLOCK_OBJC_EXCEPTIONS
+    completionHandler(true);
 }
 
 void WebChromeClient::exitVideoFullscreenToModeWithoutAnimation(HTMLVideoElement& videoElement, HTMLMediaElementEnums::VideoFullscreenMode targetMode)

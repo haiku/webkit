@@ -28,11 +28,13 @@
 
 #if ENABLE(GPU_PROCESS)
 
+#include "DisplayListWriterHandle.h"
 #include "GPUConnectionToWebProcess.h"
-#include "GPUProcessConnection.h"
+#include "ImageDataReference.h"
 #include "PlatformRemoteImageBufferProxy.h"
 #include "RemoteRenderingBackendMessages.h"
 #include "RemoteRenderingBackendProxyMessages.h"
+#include "SharedMemory.h"
 #include "WebProcess.h"
 
 namespace WebKit {
@@ -46,12 +48,7 @@ std::unique_ptr<RemoteRenderingBackendProxy> RemoteRenderingBackendProxy::create
 
 RemoteRenderingBackendProxy::RemoteRenderingBackendProxy()
 {
-    // Register itself as a MessageReceiver in the GPUProcessConnection.
-    IPC::MessageReceiverMap& messageReceiverMap = WebProcess::singleton().ensureGPUProcessConnection().messageReceiverMap();
-    messageReceiverMap.addMessageReceiver(Messages::RemoteRenderingBackendProxy::messageReceiverName(), m_renderingBackendIdentifier.toUInt64(), *this);
-
-    // Create the RemoteRenderingBackend
-    send(Messages::GPUConnectionToWebProcess::CreateRenderingBackend(m_renderingBackendIdentifier), 0);
+    connectToGPUProcess();
 }
 
 RemoteRenderingBackendProxy::~RemoteRenderingBackendProxy()
@@ -62,6 +59,47 @@ RemoteRenderingBackendProxy::~RemoteRenderingBackendProxy()
 
     // Release the RemoteRenderingBackend.
     send(Messages::GPUConnectionToWebProcess::ReleaseRenderingBackend(m_renderingBackendIdentifier), 0);
+}
+
+void RemoteRenderingBackendProxy::connectToGPUProcess()
+{
+    auto& connection = WebProcess::singleton().ensureGPUProcessConnection();
+    connection.addClient(*this);
+    connection.messageReceiverMap().addMessageReceiver(Messages::RemoteRenderingBackendProxy::messageReceiverName(), m_renderingBackendIdentifier.toUInt64(), *this);
+
+    send(Messages::GPUConnectionToWebProcess::CreateRenderingBackend(m_renderingBackendIdentifier), 0);
+}
+
+template<typename T>
+static void recreateImageBuffer(RemoteRenderingBackendProxy& proxy, T& imageBuffer, RenderingResourceIdentifier resourceIdentifier, RenderingBackendIdentifier renderingBackendIdentifier)
+{
+    imageBuffer.clearBackend();
+    proxy.send(Messages::RemoteRenderingBackend::CreateImageBuffer(imageBuffer.size(), imageBuffer.renderingMode(), imageBuffer.resolutionScale(), imageBuffer.colorSpace(), imageBuffer.pixelFormat(), resourceIdentifier), renderingBackendIdentifier);
+}
+
+void RemoteRenderingBackendProxy::reestablishGPUProcessConnection()
+{
+    connectToGPUProcess();
+
+    for (auto& pair : m_remoteResourceCacheProxy.imageBuffers()) {
+        if (auto& baseImageBuffer = pair.value) {
+            if (is<AcceleratedRemoteImageBufferProxy>(*baseImageBuffer))
+                recreateImageBuffer(*this, downcast<AcceleratedRemoteImageBufferProxy>(*baseImageBuffer), pair.key, m_renderingBackendIdentifier);
+            else
+                recreateImageBuffer(*this, downcast<UnacceleratedRemoteImageBufferProxy>(*baseImageBuffer), pair.key, m_renderingBackendIdentifier);
+        }
+    }
+}
+
+void RemoteRenderingBackendProxy::gpuProcessConnectionDidClose(GPUProcessConnection& previousConnection)
+{
+    previousConnection.removeClient(*this);
+
+    m_identifiersOfReusableHandles.clear();
+    m_identifiersOfHandlesAvailableForWriting.clear();
+    m_sharedDisplayListHandles.clear();
+
+    reestablishGPUProcessConnection();
 }
 
 IPC::Connection* RemoteRenderingBackendProxy::messageSenderConnection() const
@@ -86,40 +124,139 @@ bool RemoteRenderingBackendProxy::waitForFlushDisplayListWasCommitted()
     return connection->waitForAndDispatchImmediately<Messages::RemoteRenderingBackendProxy::FlushDisplayListWasCommitted>(m_renderingBackendIdentifier, 1_s, IPC::WaitForOption::InterruptWaitingIfSyncMessageArrives);
 }
 
-std::unique_ptr<ImageBuffer> RemoteRenderingBackendProxy::createImageBuffer(const FloatSize& size, ShouldAccelerate shouldAccelerate, float resolutionScale, ColorSpace colorSpace)
+RefPtr<ImageBuffer> RemoteRenderingBackendProxy::createImageBuffer(const FloatSize& size, RenderingMode renderingMode, float resolutionScale, ColorSpace colorSpace, PixelFormat pixelFormat)
 {
-    if (shouldAccelerate == ShouldAccelerate::Yes) {
-        if (auto imageBuffer = AcceleratedRemoteImageBufferProxy::create(size, RenderingMode::RemoteAccelerated, resolutionScale, colorSpace, *this)) {
-            m_imageBufferMessageHandlerMap.add(imageBuffer->remoteResourceIdentifier(), imageBuffer.get());
-            return imageBuffer;
-        }
-    }
+    RefPtr<ImageBuffer> imageBuffer;
 
-    if (auto imageBuffer = UnacceleratedRemoteImageBufferProxy::create(size, RenderingMode::RemoteUnaccelerated, resolutionScale, colorSpace, *this)) {
-        m_imageBufferMessageHandlerMap.add(imageBuffer->remoteResourceIdentifier(), imageBuffer.get());
+    if (renderingMode == RenderingMode::Accelerated)
+        imageBuffer = AcceleratedRemoteImageBufferProxy::create(size, renderingMode, resolutionScale, colorSpace, pixelFormat, *this);
+
+    if (!imageBuffer)
+        imageBuffer = UnacceleratedRemoteImageBufferProxy::create(size, renderingMode, resolutionScale, colorSpace, pixelFormat, *this);
+
+    if (imageBuffer) {
+        send(Messages::RemoteRenderingBackend::CreateImageBuffer(size, renderingMode, resolutionScale, colorSpace, pixelFormat, imageBuffer->renderingResourceIdentifier()), m_renderingBackendIdentifier);
         return imageBuffer;
     }
 
     return nullptr;
 }
 
-void RemoteRenderingBackendProxy::releaseRemoteResource(RemoteResourceIdentifier remoteResourceIdentifier)
+RefPtr<ImageData> RemoteRenderingBackendProxy::getImageData(AlphaPremultiplication outputFormat, const IntRect& srcRect, RenderingResourceIdentifier renderingResourceIdentifier)
 {
-    // CreateImageBuffer message should have been received before this one.
-    bool found = m_imageBufferMessageHandlerMap.remove(remoteResourceIdentifier);
-    ASSERT_UNUSED(found, found);
+    IPC::ImageDataReference imageDataReference;
+    sendSync(Messages::RemoteRenderingBackend::GetImageData(outputFormat, srcRect, renderingResourceIdentifier), Messages::RemoteRenderingBackend::GetImageData::Reply(imageDataReference), m_renderingBackendIdentifier, 1_s);
+    return imageDataReference.buffer();
 }
 
-void RemoteRenderingBackendProxy::imageBufferBackendWasCreated(const FloatSize& logicalSize, const IntSize& backendSize, float resolutionScale, ColorSpace colorSpace, ImageBufferBackendHandle handle, RemoteResourceIdentifier remoteResourceIdentifier)
+void RemoteRenderingBackendProxy::submitDisplayList(const DisplayList::DisplayList& displayList, RenderingResourceIdentifier destinationBufferIdentifier)
 {
-    if (auto imageBuffer = m_imageBufferMessageHandlerMap.get(remoteResourceIdentifier))
-        imageBuffer->createBackend(logicalSize, backendSize, resolutionScale, colorSpace, WTFMove(handle));
+    Optional<std::pair<DisplayList::ItemBufferIdentifier, size_t>> identifierAndOffsetForWakeUpMessage;
+    bool isFirstHandle = true;
+
+    displayList.forEachItemBuffer([&] (auto& handle) {
+        m_identifiersOfHandlesAvailableForWriting.add(handle.identifier);
+
+        auto* sharedHandle = m_sharedDisplayListHandles.get(handle.identifier);
+        RELEASE_ASSERT_WITH_MESSAGE(sharedHandle, "%s failed to find shared display list", __PRETTY_FUNCTION__);
+
+        bool unreadCountWasEmpty = sharedHandle->advance(handle.capacity) == handle.capacity;
+        if (isFirstHandle && unreadCountWasEmpty)
+            identifierAndOffsetForWakeUpMessage = {{ handle.identifier, handle.data - sharedHandle->data() }};
+
+        isFirstHandle = false;
+    });
+
+    if (identifierAndOffsetForWakeUpMessage) {
+        auto [identifier, offset] = *identifierAndOffsetForWakeUpMessage;
+        send(Messages::RemoteRenderingBackend::WakeUpAndApplyDisplayList(identifier, offset, destinationBufferIdentifier), m_renderingBackendIdentifier);
+    }
 }
 
-void RemoteRenderingBackendProxy::flushDisplayListWasCommitted(DisplayListFlushIdentifier flushIdentifier, RemoteResourceIdentifier remoteResourceIdentifier)
+void RemoteRenderingBackendProxy::cacheNativeImage(NativeImage& image)
 {
-    if (auto imageBuffer = m_imageBufferMessageHandlerMap.get(remoteResourceIdentifier))
-        imageBuffer->commitFlushContext(flushIdentifier);
+    send(Messages::RemoteRenderingBackend::CacheNativeImage(makeRef(image)), m_renderingBackendIdentifier);
+}
+
+void RemoteRenderingBackendProxy::releaseRemoteResource(RenderingResourceIdentifier renderingResourceIdentifier)
+{
+    send(Messages::RemoteRenderingBackend::ReleaseRemoteResource(renderingResourceIdentifier), m_renderingBackendIdentifier);
+}
+
+void RemoteRenderingBackendProxy::imageBufferBackendWasCreated(const FloatSize& logicalSize, const IntSize& backendSize, float resolutionScale, ColorSpace colorSpace, PixelFormat pixelFormat, ImageBufferBackendHandle handle, RenderingResourceIdentifier renderingResourceIdentifier)
+{
+    auto imageBuffer = m_remoteResourceCacheProxy.cachedImageBuffer(renderingResourceIdentifier);
+    if (!imageBuffer)
+        return;
+    
+    if (imageBuffer->isAccelerated())
+        downcast<AcceleratedRemoteImageBufferProxy>(*imageBuffer).createBackend(logicalSize, backendSize, resolutionScale, colorSpace, pixelFormat, WTFMove(handle));
+    else
+        downcast<UnacceleratedRemoteImageBufferProxy>(*imageBuffer).createBackend(logicalSize, backendSize, resolutionScale, colorSpace, pixelFormat, WTFMove(handle));
+}
+
+void RemoteRenderingBackendProxy::flushDisplayListWasCommitted(DisplayList::FlushIdentifier flushIdentifier, RenderingResourceIdentifier renderingResourceIdentifier)
+{
+    auto imageBuffer = m_remoteResourceCacheProxy.cachedImageBuffer(renderingResourceIdentifier);
+    if (!imageBuffer)
+        return;
+
+    if (imageBuffer->isAccelerated())
+        downcast<AcceleratedRemoteImageBufferProxy>(*imageBuffer).commitFlushDisplayList(flushIdentifier);
+    else
+        downcast<UnacceleratedRemoteImageBufferProxy>(*imageBuffer).commitFlushDisplayList(flushIdentifier);
+}
+
+void RemoteRenderingBackendProxy::updateReusableHandles()
+{
+    for (auto identifier : m_identifiersOfHandlesAvailableForWriting) {
+        auto* handle = m_sharedDisplayListHandles.get(identifier);
+        if (!handle->resetWritableOffsetIfPossible())
+            continue;
+
+        if (m_identifiersOfReusableHandles.contains(identifier))
+            continue;
+
+        m_identifiersOfReusableHandles.append(identifier);
+    }
+}
+
+DisplayList::ItemBufferHandle RemoteRenderingBackendProxy::createItemBuffer(size_t capacity, RenderingResourceIdentifier destinationBufferIdentifier)
+{
+    updateReusableHandles();
+
+    while (!m_identifiersOfReusableHandles.isEmpty()) {
+        auto identifier = m_identifiersOfReusableHandles.first();
+        auto* reusableHandle = m_sharedDisplayListHandles.get(identifier);
+        RELEASE_ASSERT_WITH_MESSAGE(reusableHandle, "%s failed to find shared display list", __PRETTY_FUNCTION__);
+
+        if (m_identifiersOfHandlesAvailableForWriting.contains(identifier) && reusableHandle->availableCapacity() >= capacity) {
+            m_identifiersOfHandlesAvailableForWriting.remove(identifier);
+            return reusableHandle->createHandle();
+        }
+
+        m_identifiersOfReusableHandles.removeFirst();
+    }
+
+    static constexpr size_t defaultSharedItemBufferSize = 1 << 16;
+
+    auto sharedMemory = SharedMemory::allocate(std::max(defaultSharedItemBufferSize, capacity + SharedDisplayListHandle::reservedCapacityAtStart));
+    if (!sharedMemory)
+        return { };
+
+    SharedMemory::Handle sharedMemoryHandle;
+    sharedMemory->createHandle(sharedMemoryHandle, SharedMemory::Protection::ReadWrite);
+
+    auto identifier = DisplayList::ItemBufferIdentifier::generate();
+    send(Messages::RemoteRenderingBackend::DidCreateSharedDisplayListHandle(identifier, { WTFMove(sharedMemoryHandle), sharedMemory->size() }, destinationBufferIdentifier), m_renderingBackendIdentifier);
+
+    auto newHandle = DisplayListWriterHandle::create(identifier, sharedMemory.releaseNonNull());
+    auto displayListHandle = newHandle->createHandle();
+
+    m_identifiersOfReusableHandles.append(identifier);
+    m_sharedDisplayListHandles.set(identifier, WTFMove(newHandle));
+
+    return displayListHandle;
 }
 
 } // namespace WebKit

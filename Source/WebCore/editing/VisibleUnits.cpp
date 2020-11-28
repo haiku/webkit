@@ -31,6 +31,7 @@
 #include "HTMLBRElement.h"
 #include "HTMLElement.h"
 #include "HTMLNames.h"
+#include "InlineRunAndOffset.h"
 #include "InlineTextBox.h"
 #include "NodeTraversal.h"
 #include "Range.h"
@@ -789,7 +790,7 @@ static VisiblePosition startPositionForLine(const VisiblePosition& c, LineEndpoi
     }
 
     Node* startNode;
-    LayoutIntegration::LineRunIterator startRun;
+    LayoutIntegration::RunIterator startRun;
     if (mode == UseLogicalOrdering) {
         startRun = line.logicalStartRunWithNode();
         if (!startRun)
@@ -811,7 +812,7 @@ static VisiblePosition startPositionForLine(const VisiblePosition& c, LineEndpoi
         }
     }
 
-    return is<Text>(*startNode) ? Position(downcast<Text>(startNode), downcast<LayoutIntegration::PathTextRun>(*startRun).localStartOffset())
+    return is<Text>(*startNode) ? Position(downcast<Text>(startNode), downcast<LayoutIntegration::PathTextRun>(*startRun).start())
         : positionBeforeNode(startNode);
 }
 
@@ -864,7 +865,7 @@ static VisiblePosition endPositionForLine(const VisiblePosition& c, LineEndpoint
     }
 
     Node* endNode;
-    LayoutIntegration::LineRunIterator endRun;
+    LayoutIntegration::RunIterator endRun;
     if (mode == UseLogicalOrdering) {
         endRun = line.logicalEndRunWithNode();
         if (!endRun)
@@ -891,7 +892,7 @@ static VisiblePosition endPositionForLine(const VisiblePosition& c, LineEndpoint
         pos = positionBeforeNode(endNode);
     else if (is<LayoutIntegration::PathTextRun>(*endRun) && is<Text>(*endNode)) {
         auto& endTextRun = downcast<LayoutIntegration::PathTextRun>(*endRun);
-        int endOffset = endTextRun.localStartOffset();
+        int endOffset = endTextRun.start();
         if (!endTextRun.isLineBreak())
             endOffset += endTextRun.length();
         pos = Position(downcast<Text>(endNode), endOffset);
@@ -981,15 +982,15 @@ bool isLogicalEndOfLine(const VisiblePosition& p)
     return p.isNotNull() && p == logicalEndOfLine(p);
 }
 
-static inline IntPoint absoluteLineDirectionPointToLocalPointInBlock(RootInlineBox& root, int lineDirectionPoint)
+static inline IntPoint absoluteLineDirectionPointToLocalPointInBlock(LayoutIntegration::LineIterator& line, int lineDirectionPoint)
 {
-    RenderBlockFlow& containingBlock = root.blockFlow();
+    auto& containingBlock = line->containingBlock();
     FloatPoint absoluteBlockPoint = containingBlock.localToAbsolute(FloatPoint()) - toFloatSize(containingBlock.scrollPosition());
 
     if (containingBlock.isHorizontalWritingMode())
-        return IntPoint(lineDirectionPoint - absoluteBlockPoint.x(), root.blockDirectionPointInLine());
+        return IntPoint(lineDirectionPoint - absoluteBlockPoint.x(), line->blockDirectionPointInLine());
 
-    return IntPoint(root.blockDirectionPointInLine(), lineDirectionPoint - absoluteBlockPoint.y());
+    return IntPoint(line->blockDirectionPointInLine(), lineDirectionPoint - absoluteBlockPoint.y());
 }
 
 static Element* rootEditableOrDocumentElement(Node& node, EditableType editableType)
@@ -1013,33 +1014,33 @@ VisiblePosition previousLinePosition(const VisiblePosition& visiblePosition, int
     if (!renderer)
         return VisiblePosition();
 
-    RootInlineBox* root = nullptr;
-    if (auto box = visiblePosition.inlineBoxAndOffset().box) {
-        root = box->root().prevRootBox();
+    LayoutIntegration::LineIterator line;
+    if (auto run = visiblePosition.inlineRunAndOffset().run) {
+        line = run.line().previous();
         // We want to skip zero height boxes.
         // This could happen in case it is a TrailingFloatsRootInlineBox.
-        if (!root || !root->logicalHeight() || !root->firstLeafDescendant())
-            root = nullptr;
+        if (!line || !line->logicalHeight() || !line.firstRun())
+            line = { };
     }
 
-    if (!root) {
+    if (!line) {
         Position position = previousRootInlineBoxCandidatePosition(node, visiblePosition, editableType);
         if (position.isNotNull()) {
             RenderedPosition renderedPosition(position);
-            root = renderedPosition.rootBox();
-            if (!root)
+            line = renderedPosition.line();
+            if (!line)
                 return position;
         }
     }
     
-    if (root) {
+    if (line) {
         // FIXME: Can be wrong for multi-column layout and with transforms.
-        IntPoint pointInLine = absoluteLineDirectionPointToLocalPointInBlock(*root, lineDirectionPoint);
-        RenderObject& renderer = root->closestLeafChildForPoint(pointInLine, isEditablePosition(p))->renderer();
+        auto pointInLine = absoluteLineDirectionPointToLocalPointInBlock(line, lineDirectionPoint);
+        auto& renderer = line.closestRunForPoint(pointInLine, isEditablePosition(p))->renderer();
         Node* node = renderer.node();
         if (node && editingIgnoresContent(*node))
             return positionInParentBeforeNode(node);
-        return renderer.positionForPoint(pointInLine, nullptr);
+        return const_cast<RenderObject&>(renderer).positionForPoint(pointInLine, nullptr);
     }
     
     // Could not find a previous line. This means we must already be on the first line.
@@ -1063,36 +1064,36 @@ VisiblePosition nextLinePosition(const VisiblePosition& visiblePosition, int lin
     if (!node->renderer())
         return VisiblePosition();
 
-    RootInlineBox* root = nullptr;
-    if (auto box = visiblePosition.inlineBoxAndOffset().box) {
-        root = box->root().nextRootBox();
+    LayoutIntegration::LineIterator line;
+    if (auto run = visiblePosition.inlineRunAndOffset().run) {
+        line = run.line().next();
         // We want to skip zero height boxes.
         // This could happen in case it is a TrailingFloatsRootInlineBox.
-        if (!root || !root->logicalHeight() || !root->firstLeafDescendant())
-            root = nullptr;
+        if (!line || !line->logicalHeight() || !line.firstRun())
+            line = { };
     }
 
-    if (!root) {
+    if (!line) {
         // FIXME: We need do the same in previousLinePosition.
         Node* child = node->traverseToChildAt(p.deprecatedEditingOffset());
         node = child ? child : node->lastDescendant();
         Position position = nextRootInlineBoxCandidatePosition(node, visiblePosition, editableType);
         if (position.isNotNull()) {
             RenderedPosition renderedPosition(position);
-            root = renderedPosition.rootBox();
-            if (!root)
+            line = renderedPosition.line();
+            if (!line)
                 return position;
         }
     }
     
-    if (root) {
+    if (line) {
         // FIXME: Can be wrong for multi-column layout and with transforms.
-        IntPoint pointInLine = absoluteLineDirectionPointToLocalPointInBlock(*root, lineDirectionPoint);
-        RenderObject& renderer = root->closestLeafChildForPoint(pointInLine, isEditablePosition(p))->renderer();
+        auto pointInLine = absoluteLineDirectionPointToLocalPointInBlock(line, lineDirectionPoint);
+        auto& renderer = line.closestRunForPoint(pointInLine, isEditablePosition(p))->renderer();
         Node* node = renderer.node();
         if (node && editingIgnoresContent(*node))
             return positionInParentBeforeNode(node);
-        return renderer.positionForPoint(pointInLine, nullptr);
+        return const_cast<RenderObject&>(renderer).positionForPoint(pointInLine, nullptr);
     }
 
     // Could not find a next line. This means we must already be on the last line.

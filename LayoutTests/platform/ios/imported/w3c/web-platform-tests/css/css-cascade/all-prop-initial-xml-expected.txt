@@ -297,7 +297,6 @@ PASS -apple-pay-button-style
 PASS -apple-pay-button-type
 PASS -apple-trailing-word
 PASS -webkit-appearance
-PASS -webkit-aspect-ratio
 PASS -webkit-backdrop-filter
 PASS -webkit-backface-visibility
 PASS -webkit-background-clip
@@ -363,7 +362,6 @@ PASS -webkit-overflow-scrolling
 PASS -webkit-print-color-adjust
 PASS -webkit-rtl-ordering
 PASS -webkit-ruby-position
-PASS -webkit-tap-highlight-color
 PASS -webkit-text-combine
 PASS -webkit-text-emphasis-color
 PASS -webkit-text-emphasis-position

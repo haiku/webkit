@@ -37,6 +37,8 @@
 #include "PluginInfoStore.h"
 #include "PluginProcessManager.h"
 #include "ProvisionalPageProxy.h"
+#include "SpeechRecognitionPermissionRequest.h"
+#include "SpeechRecognitionServerMessages.h"
 #include "TextChecker.h"
 #include "TextCheckerState.h"
 #include "UserData.h"
@@ -65,6 +67,7 @@
 #include <WebCore/PrewarmInformation.h>
 #include <WebCore/PublicSuffix.h>
 #include <WebCore/SuddenTermination.h>
+#include <pal/system/Sound.h>
 #include <stdio.h>
 #include <wtf/Algorithms.h>
 #include <wtf/NeverDestroyed.h>
@@ -225,6 +228,9 @@ WebProcessProxy::~WebProcessProxy()
 {
     RELEASE_ASSERT(isMainThreadOrCheckDisabled());
     ASSERT(m_pageURLRetainCountMap.isEmpty());
+
+    for (auto identifier : m_speechRecognitionServerMap.keys())
+        removeMessageReceiver(Messages::SpeechRecognitionServer::messageReceiverName(), identifier);
 
     auto result = allProcesses().remove(coreProcessIdentifier());
     ASSERT_UNUSED(result, result);
@@ -1694,17 +1700,37 @@ PAL::SessionID WebProcessProxy::sessionID() const
     return m_websiteDataStore->sessionID();
 }
 
-void WebProcessProxy::addPlugInAutoStartOriginHash(String&& pageOrigin, uint32_t hash)
+void WebProcessProxy::createSpeechRecognitionServer(SpeechRecognitionServerIdentifier identifier)
 {
-    MESSAGE_CHECK(PlugInAutoStartProvider::AutoStartTable::isValidKey(pageOrigin));
-    MESSAGE_CHECK(PlugInAutoStartProvider::HashToOriginMap::isValidKey(hash));
-    processPool().plugInAutoStartProvider().addAutoStartOriginHash(WTFMove(pageOrigin), hash, sessionID());
+    auto speechRecognitionServer = m_speechRecognitionServerMap.add(identifier, nullptr);
+    ASSERT(speechRecognitionServer.isNewEntry);
+    WebPageProxy* targetPage = nullptr;
+    for (auto* page : pages()) {
+        if (page && page->webPageID() == identifier) {
+            targetPage = page;
+            break;
+        }
+    }
+
+    if (!targetPage)
+        return;
+
+    speechRecognitionServer.iterator->value = makeUnique<SpeechRecognitionServer>(makeRef(*connection()), identifier, [weakPage = makeWeakPtr(targetPage)](auto& origin, auto&& completionHandler) mutable {
+        if (!weakPage) {
+            completionHandler(SpeechRecognitionPermissionDecision::Deny);
+            return;
+        }
+
+        weakPage->requestSpeechRecognitionPermission(origin, WTFMove(completionHandler));
+    });
+    addMessageReceiver(Messages::SpeechRecognitionServer::messageReceiverName(), identifier, *speechRecognitionServer.iterator->value);
 }
 
-void WebProcessProxy::plugInDidReceiveUserInteraction(uint32_t hash)
+void WebProcessProxy::destroySpeechRecognitionServer(SpeechRecognitionServerIdentifier identifier)
 {
-    MESSAGE_CHECK(PlugInAutoStartProvider::HashToOriginMap::isValidKey(hash));
-    processPool().plugInAutoStartProvider().didReceiveUserInteraction(hash, sessionID());
+    ASSERT(m_speechRecognitionServerMap.contains(identifier));
+    removeMessageReceiver(Messages::SpeechRecognitionServer::messageReceiverName(), identifier);
+    m_speechRecognitionServerMap.remove(identifier);
 }
 
 #if PLATFORM(WATCHOS)
@@ -1883,6 +1909,11 @@ void WebProcessProxy::didDestroySleepDisabler(SleepDisablerIdentifier identifier
 bool WebProcessProxy::hasSleepDisabler() const
 {
     return !m_sleepDisablers.isEmpty();
+}
+
+void WebProcessProxy::systemBeep()
+{
+    PAL::systemBeep();
 }
 
 } // namespace WebKit

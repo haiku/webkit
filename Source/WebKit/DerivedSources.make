@@ -167,6 +167,7 @@ MESSAGE_RECEIVERS = \
 	UIProcess/WebProcessPool \
 	UIProcess/Downloads/DownloadProxy \
 	UIProcess/Media/AudioSessionRoutingArbitratorProxy \
+	UIProcess/SpeechRecognitionServer \
 	WebProcess/Databases/IndexedDB/WebIDBConnectionToServer \
 	WebProcess/GPU/GPUProcessConnection \
 	WebProcess/GPU/graphics/RemoteRenderingBackendProxy \
@@ -183,6 +184,7 @@ MESSAGE_RECEIVERS = \
 	WebProcess/UserContent/WebUserContentController \
 	WebProcess/Inspector/WebInspectorInterruptDispatcher \
 	WebProcess/Inspector/WebInspectorUI \
+	WebProcess/Inspector/WebInspectorUIExtensionController \
 	WebProcess/Inspector/WebInspector \
 	WebProcess/Inspector/RemoteWebInspectorUI \
 	WebProcess/Plugins/PluginProcessConnectionManager \
@@ -197,6 +199,7 @@ MESSAGE_RECEIVERS = \
 	WebProcess/Network/webrtc/WebMDNSRegister \
 	WebProcess/Network/webrtc/WebRTCResolver \
 	WebProcess/WebCoreSupport/WebDeviceOrientationUpdateProvider \
+	WebProcess/WebCoreSupport/WebSpeechRecognitionConnection \
 	WebProcess/Storage/WebSWContextManagerConnection \
 	WebProcess/Storage/WebSWClientConnection \
 	WebProcess/WebProcess \

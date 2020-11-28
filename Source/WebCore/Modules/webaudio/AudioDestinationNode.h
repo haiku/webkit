@@ -28,14 +28,14 @@
 #include "AudioIOCallback.h"
 #include "AudioNode.h"
 #include "ExceptionOr.h"
-#include <wtf/Function.h>
+#include <wtf/CompletionHandler.h>
 
 namespace WebCore {
 
 class AudioDestinationNode : public AudioNode, public AudioIOCallback {
     WTF_MAKE_ISO_ALLOCATED(AudioDestinationNode);
 public:
-    explicit AudioDestinationNode(BaseAudioContext&);
+    AudioDestinationNode(BaseAudioContext&, float sampleRate);
     virtual ~AudioDestinationNode();
     
     // AudioNode   
@@ -45,6 +45,8 @@ public:
     // It will optionally give us local/live audio input in sourceBus (if it's not 0).
     void render(AudioBus* sourceBus, AudioBus* destinationBus, size_t numberOfFrames, const AudioIOPosition& outputPosition) override;
 
+    float sampleRate() const final { return m_sampleRate; }
+
     size_t currentSampleFrame() const { return m_currentSampleFrame; }
     double currentTime() const { return currentSampleFrame() / static_cast<double>(sampleRate()); }
 
@@ -53,10 +55,10 @@ public:
     // Enable local/live input for the specified device.
     virtual void enableInput(const String& inputDeviceId) = 0;
 
-    virtual ExceptionOr<void> startRendering() = 0;
-    virtual void resume(WTF::Function<void ()>&&) { }
-    virtual void suspend(WTF::Function<void ()>&&) { }
-    virtual void close(WTF::Function<void ()>&&) { }
+    virtual void startRendering(CompletionHandler<void(Optional<Exception>&&)>&&) = 0;
+    virtual void resume(CompletionHandler<void(Optional<Exception>&&)>&& completionHandler) { completionHandler(WTF::nullopt); }
+    virtual void suspend(CompletionHandler<void(Optional<Exception>&&)>&& completionHandler) { completionHandler(WTF::nullopt); }
+    virtual void close(CompletionHandler<void()>&& completionHandler) { completionHandler(); }
 
     virtual bool isPlaying() { return false; }
     void isPlayingDidChange() override;
@@ -71,8 +73,9 @@ protected:
     void updateIsEffectivelyPlayingAudio();
 
     // Counts the number of sample-frames processed by the destination.
-    size_t m_currentSampleFrame { 0 };
+    std::atomic<size_t> m_currentSampleFrame { 0 };
 
+    float m_sampleRate;
     bool m_isSilent { true };
     bool m_isEffectivelyPlayingAudio { false };
     bool m_muted { false };

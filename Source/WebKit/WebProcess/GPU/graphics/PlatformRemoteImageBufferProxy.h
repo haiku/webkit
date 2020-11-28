@@ -37,4 +37,14 @@ using AcceleratedRemoteImageBufferProxy = RemoteImageBufferProxy<AcceleratedImag
 
 } // namespace WebKit
 
+SPECIALIZE_TYPE_TRAITS_BEGIN(WebKit::UnacceleratedRemoteImageBufferProxy)
+    static bool isType(const WebCore::ImageBuffer& imageBuffer) { return imageBuffer.renderingResourceIdentifier() && !imageBuffer.isAccelerated(); }
+SPECIALIZE_TYPE_TRAITS_END()
+
+#if HAVE(IOSURFACE)
+SPECIALIZE_TYPE_TRAITS_BEGIN(WebKit::AcceleratedRemoteImageBufferProxy)
+    static bool isType(const WebCore::ImageBuffer& imageBuffer) { return imageBuffer.renderingResourceIdentifier() && imageBuffer.isAccelerated(); }
+SPECIALIZE_TYPE_TRAITS_END()
+#endif
+
 #endif // ENABLE(GPU_PROCESS)

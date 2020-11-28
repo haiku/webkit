@@ -43,6 +43,7 @@
 #import "UIKitSPI.h"
 #import "WKActionSheetAssistant.h"
 #import "WKAirPlayRoutePicker.h"
+#import "WKContactPicker.h"
 #import "WKDeferringGestureRecognizer.h"
 #import "WKFileUploadPanel.h"
 #import "WKFormPeripheral.h"
@@ -79,6 +80,8 @@ class Color;
 class FloatQuad;
 class IntSize;
 class SelectionRect;
+struct ContactInfo;
+struct ContactsRequestData;
 struct PromisedAttachmentInfo;
 struct ShareDataWithParsedURL;
 enum class DOMPasteAccessResponse : uint8_t;
@@ -110,8 +113,8 @@ class WebPageProxy;
 @class WKTextRange;
 @class _WKTextInputContext;
 
+@class UIPointerInteraction;
 @class UITargetedPreview;
-@class _UICursorInteraction;
 @class _UILookupGestureRecognizer;
 @class _UIHighlightView;
 
@@ -248,10 +251,10 @@ struct WKAutoCorrectionData {
     RetainPtr<UIIndirectScribbleInteraction> _scribbleInteraction;
 #endif
 
-#if HAVE(UI_CURSOR_INTERACTION)
-    RetainPtr<_UICursorInteraction> _cursorInteraction;
-    BOOL _hasOutstandingCursorInteractionRequest;
-    Optional<std::pair<WebKit::InteractionInformationRequest, BlockPtr<void(_UICursorRegion *)>>> _deferredCursorInteractionRequest;
+#if HAVE(UI_POINTER_INTERACTION)
+    RetainPtr<UIPointerInteraction> _pointerInteraction;
+    BOOL _hasOutstandingPointerInteractionRequest;
+    Optional<std::pair<WebKit::InteractionInformationRequest, BlockPtr<void(UIPointerRegion *)>>> _deferredPointerInteractionRequest;
 #endif
 
     RetainPtr<UIWKTextInteractionAssistant> _textInteractionAssistant;
@@ -274,6 +277,9 @@ struct WKAutoCorrectionData {
     WebKit::FrameInfoData _frameInfoForFileUploadPanel;
 #if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
     RetainPtr<WKShareSheet> _shareSheet;
+#endif
+#if HAVE(CONTACTSUI)
+    RetainPtr<WKContactPicker> _contactPicker;
 #endif
     RetainPtr<UIGestureRecognizer> _previewGestureRecognizer;
     RetainPtr<UIGestureRecognizer> _previewSecondaryGestureRecognizer;
@@ -423,6 +429,9 @@ struct WKAutoCorrectionData {
 @end
 
 @interface WKContentView (WKInteraction) <UIGestureRecognizerDelegate, UITextAutoscrolling, UITextInputMultiDocument, UITextInputPrivate, UIWebFormAccessoryDelegate, UIWebTouchEventsGestureRecognizerDelegate, UIWKInteractionViewProtocol, WKActionSheetAssistantDelegate, WKFileUploadPanelDelegate, WKKeyboardScrollViewAnimatorDelegate, WKDeferringGestureRecognizerDelegate
+#if HAVE(CONTACTSUI)
+    , WKContactPickerDelegate
+#endif
 #if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
     , WKShareSheetDelegate
 #endif
@@ -520,6 +529,7 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 - (void)_showPlaybackTargetPicker:(BOOL)hasVideo fromRect:(const WebCore::IntRect&)elementRect routeSharingPolicy:(WebCore::RouteSharingPolicy)policy routingContextUID:(NSString *)contextUID;
 - (void)_showRunOpenPanel:(API::OpenPanelParameters*)parameters frameInfo:(const WebKit::FrameInfoData&)frameInfo resultListener:(WebKit::WebOpenPanelResultListenerProxy*)listener;
 - (void)_showShareSheet:(const WebCore::ShareDataWithParsedURL&)shareData inRect:(WTF::Optional<WebCore::FloatRect>)rect completionHandler:(WTF::CompletionHandler<void(bool)>&&)completionHandler;
+- (void)_showContactPicker:(const WebCore::ContactsRequestData&)requestData completionHandler:(WTF::CompletionHandler<void(Optional<Vector<WebCore::ContactInfo>>&&)>&&)completionHandler;
 - (void)dismissFilePicker;
 - (void)_didHandleKeyEvent:(::WebEvent *)event eventWasHandled:(BOOL)eventWasHandled;
 - (Vector<WebKit::OptionItem>&) focusedSelectElementOptions;
@@ -627,6 +637,7 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 - (NSDictionary *)_contentsOfUserInterfaceItem:(NSString *)userInterfaceItem;
 - (void)_doAfterResettingSingleTapGesture:(dispatch_block_t)action;
 - (void)_doAfterReceivingEditDragSnapshotForTesting:(dispatch_block_t)action;
+- (void)_dismissContactPickerWithContacts:(NSArray *)contacts;
 
 @property (nonatomic, readonly) NSString *textContentTypeForTesting;
 @property (nonatomic, readonly) NSString *selectFormPopoverTitle;

@@ -39,7 +39,6 @@ Ref<GraphicsLayer> GraphicsLayer::create(GraphicsLayerFactory* factory, Graphics
 
 GraphicsLayerTextureMapper::GraphicsLayerTextureMapper(Type layerType, GraphicsLayerClient& client)
     : GraphicsLayer(layerType, client)
-    , m_compositedNativeImagePtr(0)
     , m_changeMask(NoChanges)
     , m_needsDisplay(false)
     , m_debugBorderWidth(0)
@@ -294,22 +293,22 @@ void GraphicsLayerTextureMapper::setContentsToImage(Image* image)
 {
     if (image) {
         // Make the decision about whether the image has changed.
-        // This code makes the assumption that pointer equality on a NativeImagePtr is a valid way to tell if the image is changed.
+        // This code makes the assumption that pointer equality on a PlatformImagePtr is a valid way to tell if the image is changed.
         // This assumption is true for the GTK+ port.
-        NativeImagePtr newNativeImagePtr = image->nativeImageForCurrentFrame();
-        if (!newNativeImagePtr)
+        auto newNativeImage = image->nativeImageForCurrentFrame();
+        if (!newNativeImage)
             return;
 
-        if (newNativeImagePtr == m_compositedNativeImagePtr)
+        if (newNativeImage == m_compositedNativeImage)
             return;
 
-        m_compositedNativeImagePtr = newNativeImagePtr;
+        m_compositedNativeImage = newNativeImage;
         if (!m_compositedImage)
             m_compositedImage = TextureMapperTiledBackingStore::create();
         m_compositedImage->setContentsToImage(image);
         m_compositedImage->updateContentsScale(pageScaleFactor() * deviceScaleFactor());
     } else {
-        m_compositedNativeImagePtr = nullptr;
+        m_compositedNativeImage = nullptr;
         m_compositedImage = nullptr;
     }
 
@@ -435,6 +434,7 @@ void GraphicsLayerTextureMapper::commitLayerChanges()
             m_backdropLayer = nullptr;
 
         m_layer.setBackdropLayer(m_backdropLayer.get());
+        m_layer.setBackdropFiltersRect(m_backdropFiltersRect);
     }
 
     if (m_changeMask & PositionChange)
@@ -536,7 +536,7 @@ void GraphicsLayerTextureMapper::updateBackingStoreIncludingSubLayers()
     if (maskLayer())
         downcast<GraphicsLayerTextureMapper>(*maskLayer()).updateBackingStoreIfNeeded();
     if (replicaLayer())
-        downcast<GraphicsLayerTextureMapper>(*replicaLayer()).updateBackingStoreIfNeeded();
+        downcast<GraphicsLayerTextureMapper>(*replicaLayer()).updateBackingStoreIncludingSubLayers();
     for (auto& child : children())
         downcast<GraphicsLayerTextureMapper>(child.get()).updateBackingStoreIncludingSubLayers();
 }

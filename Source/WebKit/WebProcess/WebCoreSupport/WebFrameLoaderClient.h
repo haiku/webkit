@@ -227,8 +227,6 @@ private:
     WebCore::WebGLLoadPolicy resolveWebGLPolicyForURL(const URL&) const final;
 #endif // ENABLE(WEBGL)
 
-    RefPtr<WebCore::Widget> createJavaAppletWidget(const WebCore::IntSize&, WebCore::HTMLAppletElement&, const URL& baseURL, const Vector<String>& paramNames, const Vector<String>& paramValues) final;
-    
     WebCore::ObjectContentType objectContentType(const URL&, const String& mimeType) final;
     String overrideMediaType() const final;
 
@@ -298,10 +296,14 @@ private:
 #endif
 };
 
-// As long as EmptyFrameLoaderClient exists in WebCore, this can return 0.
+// As long as EmptyFrameLoaderClient exists in WebCore, this can return nullptr.
 inline WebFrameLoaderClient* toWebFrameLoaderClient(WebCore::FrameLoaderClient& client)
 {
-    return client.isEmptyFrameLoaderClient() ? 0 : static_cast<WebFrameLoaderClient*>(&client);
+    return client.isEmptyFrameLoaderClient() ? nullptr : static_cast<WebFrameLoaderClient*>(&client);
+}
+inline const WebFrameLoaderClient* toWebFrameLoaderClient(const WebCore::FrameLoaderClient& client)
+{
+    return client.isEmptyFrameLoaderClient() ? nullptr : static_cast<const WebFrameLoaderClient*>(&client);
 }
 
 } // namespace WebKit

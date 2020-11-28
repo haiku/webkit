@@ -43,8 +43,8 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(OfflineAudioDestinationNode);
 
-OfflineAudioDestinationNode::OfflineAudioDestinationNode(BaseAudioContext& context, unsigned numberOfChannels, RefPtr<AudioBuffer>&& renderTarget)
-    : AudioDestinationNode(context)
+OfflineAudioDestinationNode::OfflineAudioDestinationNode(BaseAudioContext& context, unsigned numberOfChannels, float sampleRate, RefPtr<AudioBuffer>&& renderTarget)
+    : AudioDestinationNode(context, sampleRate)
     , m_numberOfChannels(numberOfChannels)
     , m_renderTarget(WTFMove(renderTarget))
     , m_framesToProcess(m_renderTarget ? m_renderTarget->length() : 0)
@@ -84,36 +84,38 @@ void OfflineAudioDestinationNode::uninitialize()
     AudioNode::uninitialize();
 }
 
-ExceptionOr<void> OfflineAudioDestinationNode::startRendering()
+void OfflineAudioDestinationNode::startRendering(CompletionHandler<void(Optional<Exception>&&)>&& completionHandler)
 {
     ALWAYS_LOG(LOGIDENTIFIER);
 
     ASSERT(isMainThread());
     ASSERT(m_renderTarget.get());
     if (!m_renderTarget.get())
-        return Exception { InvalidStateError };
+        return completionHandler(Exception { InvalidStateError, "OfflineAudioContextNode has no rendering buffer"_s });
     
     if (m_startedRendering)
-        return Exception { InvalidStateError, "Already started rendering"_s };
+        return completionHandler(Exception { InvalidStateError, "Already started rendering"_s });
 
     m_startedRendering = true;
     auto protectedThis = makeRef(*this);
 
     auto offThreadRendering = [this, protectedThis = WTFMove(protectedThis)]() mutable {
         auto result = offlineRender();
-        callOnMainThread([this, result, currentSampleFrame = m_currentSampleFrame, protectedThis = WTFMove(protectedThis)] {
-            m_startedRendering = false;
-            switch (result) {
-            case OfflineRenderResult::Failure:
-                context().finishedRendering(false);
-                break;
-            case OfflineRenderResult::Complete:
-                context().finishedRendering(true);
-                break;
-            case OfflineRenderResult::Suspended:
-                context().didSuspendRendering(currentSampleFrame);
-                break;
-            }
+        callOnMainThread([this, result, currentSampleFrame = m_currentSampleFrame.load(), protectedThis = WTFMove(protectedThis)]() mutable {
+            context().postTask([this, protectedThis = WTFMove(protectedThis), result, currentSampleFrame]() mutable {
+                m_startedRendering = false;
+                switch (result) {
+                case OfflineRenderResult::Failure:
+                    context().finishedRendering(false);
+                    break;
+                case OfflineRenderResult::Complete:
+                    context().finishedRendering(true);
+                    break;
+                case OfflineRenderResult::Suspended:
+                    context().didSuspendRendering(currentSampleFrame);
+                    break;
+                }
+            });
         });
     };
 
@@ -121,12 +123,12 @@ ExceptionOr<void> OfflineAudioDestinationNode::startRendering()
         workletProxy->postTaskForModeToWorkletGlobalScope([offThreadRendering = WTFMove(offThreadRendering)](ScriptExecutionContext&) mutable {
             offThreadRendering();
         }, WorkerRunLoop::defaultMode());
-        return { };
+        return completionHandler(WTF::nullopt);
     }
 
     // FIXME: We should probably limit the number of threads we create for offline audio.
     m_renderThread = Thread::create("offline renderer", WTFMove(offThreadRendering), ThreadType::Audio);
-    return { };
+    completionHandler(WTF::nullopt);
 }
 
 auto OfflineAudioDestinationNode::offlineRender() -> OfflineRenderResult

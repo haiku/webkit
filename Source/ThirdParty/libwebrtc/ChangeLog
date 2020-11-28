@@ -1,3 +1,373 @@
+2020-11-13  Youenn Fablet  <youenn@apple.com>
+
+        Remote encoder should set its encoder frame callback to nullptr when being released
+        https://bugs.webkit.org/show_bug.cgi?id=218906
+
+        Reviewed by Eric Carlson.
+
+        * Source/webrtc/sdk/WebKit/WebKitEncoder.mm:
+        (webrtc::RemoteVideoEncoder::Release):
+        We need to reset the callback at Release call time so that WebKit will take a lock to set it back to null.
+        That way, we ensure to not call this callback while libwebrtc expects not to be called.
+
+2020-11-12  Youenn Fablet  <youenn@apple.com>
+
+        Add infrastructure for WebRTC transforms
+        https://bugs.webkit.org/show_bug.cgi?id=218750
+
+        Reviewed by Eric Carlson.
+
+        Make sure buffer is owned by the encoded image object.
+
+        * Configurations/libwebrtc.mac.exp:
+        * Source/webrtc/sdk/WebKit/WebKitEncoder.h:
+        * Source/webrtc/sdk/WebKit/WebKitEncoder.mm:
+        (webrtc::encoderVideoTaskComplete):
+
+2020-11-10  Youenn Fablet  <youenn@apple.com> and Victor M Jaquez <vjaquez@igalia.com>
+
+        Update WebRTC liwebrtc to M87
+        https://bugs.webkit.org/show_bug.cgi?id=218436
+
+        Reviewed by Eric Carlson.
+
+        * CMakeLists.txt:
+        * Configurations/libwebrtc.iOS.exp:
+        * Configurations/libwebrtc.iOSsim.exp:
+        * Configurations/libwebrtc.mac.exp:
+        * Source/webrtc: Resynced.
+        * WebKit/libwebrtc-m87-diff: Added.
+        * libwebrtc.xcodeproj/project.pbxproj:
+
+2020-11-04  David Kilzer  <ddkilzer@apple.com>
+
+        WebKit should remove unused debug variant support
+        <https://webkit.org/b/218315>
+        <rdar://problem/70785369>
+
+        Reviewed by Darin Adler.
+
+        Remove support for building the debug variant since it is
+        currently unused. We now set default values for the
+        DEAD_CODE_STRIPPING, DEBUG_DEFINES, GCC_OPTIMIZATION_LEVEL and
+        STRIP_INSTALLED_PRODUCT variables.
+
+        Also move these values out of the Xcode project into
+        Base.xcconfig files using the [config=Debug] specifier so that
+        these overrides are next to the definitions.
+
+        Additional changes in behavior are noted below.
+
+        * Configurations/Base.xcconfig:
+        - Add missing copyright block.
+        - Set up DEBUG_DEFINES and GCC_OPTIMIZATION_LEVEL the same as
+          other WebKit projects.
+
+        * Configurations/DebugRelease.xcconfig:
+        - Add missing copyright block.
+        - Move DEBUG_DEFINES and GCC_OPTIMIZATION_LEVEL to Base.xcconfig
+          for [config=Debug].
+
+        * Configurations/libwebrtc.xcconfig:
+        - Add missing copyright block.
+        - Set up STRIP_INSTALLED_PRODUCT the same as for other WebKit
+          projects.  Previously symbols were never stripped in Release
+          or Production builds.
+
+        * Configurations/yasm.xcconfig:
+        - Add missing copyright block.
+        (GCC_PREPROCESSOR_DEFINITIONS):
+        - Add $(DEBUG_DEFINES) so yasm builds with -DNDEBUG in Release
+          and Production configurations.
+
+        * libwebrtc.xcodeproj/project.pbxproj:
+        - Remove unneeded PRODUCT_NAME variables.
+
+2020-11-04  Youenn Fablet  <youenn@apple.com>
+
+        Make functional WebRTC encoders in GPUProcess
+        https://bugs.webkit.org/show_bug.cgi?id=218498
+
+        Reviewed by Eric Carlson.
+
+        Add support for a remote encoder and remote factory that will first try to create a  remote encoder and use an in process encoder otherwise.
+        This is similar to what was done for remote video decoders.
+
+        * Configurations/libwebrtc.iOS.exp:
+        * Configurations/libwebrtc.iOSsim.exp:
+        * Configurations/libwebrtc.mac.exp:
+        * Source/webrtc/sdk/WebKit/WebKitEncoder.h:
+        (webrtc::WebKitEncodedFrameInfo::decode):
+        (webrtc::WebKitRTPFragmentationHeader::encode const):
+        (webrtc::WebKitRTPFragmentationHeader::decode):
+        Fix issues in routines to encode/decode frame/fragmentation headers.
+        * Source/webrtc/sdk/WebKit/WebKitEncoder.mm:
+        (-[WK_RTCLocalVideoH264H265Encoder initWithCodecInfo:]):
+        (-[WK_RTCLocalVideoH264H265Encoder codecType]):
+        (webrtc::RemoteVideoEncoderFactory::RemoteVideoEncoderFactory):
+        (webrtc::RemoteVideoEncoderFactory::CreateVideoEncoder):
+        (webrtc::createWebKitEncoderFactory):
+        (webrtc::RemoteVideoEncoder::~RemoteVideoEncoder):
+        (webrtc::RemoteVideoEncoder::Release):
+        (webrtc::encoderVideoTaskComplete):
+        (webrtc::initializeLocalEncoder):
+        (webrtc::encodeLocalEncoderFrame):
+
+2020-11-03  Youenn Fablet  <youenn@apple.com>
+
+        Add support for WebRTC VP9 decoder in GPU process
+        https://bugs.webkit.org/show_bug.cgi?id=218445
+
+        Reviewed by Eric Carlson.
+
+        Allow creating a VTB VP9 decoder from WebCore.
+        VTB VP9 decoder currently needs key frame width and height information so we provide it as part of the decode callback.
+
+        * Configurations/libwebrtc.iOS.exp:
+        * Configurations/libwebrtc.iOSsim.exp:
+        * Configurations/libwebrtc.mac.exp:
+        * Source/webrtc/sdk/WebKit/WebKitDecoder.h:
+        * Source/webrtc/sdk/WebKit/WebKitDecoder.mm:
+        (-[WK_RTCLocalVideoH264H265VP9Decoder initVP9DecoderWithCallback:]):
+        (-[WK_RTCLocalVideoH264H265VP9Decoder decodeData:size:timeStamp:]):
+        (-[WK_RTCLocalVideoH264H265VP9Decoder setWidth:height:]):
+        (-[WK_RTCLocalVideoH264H265VP9Decoder releaseDecoder]):
+        (webrtc::RemoteVideoDecoder::Decode):
+        (webrtc::RemoteVideoDecoderFactory::GetSupportedFormats const):
+        (webrtc::createLocalH264Decoder):
+        (webrtc::createLocalH265Decoder):
+        (webrtc::createLocalVP9Decoder):
+        (webrtc::releaseLocalDecoder):
+        (webrtc::decodeFrame):
+        (webrtc::setDecoderFrameSize):
+        * Source/webrtc/sdk/objc/components/video_codec/RTCVideoDecoderVTBVP9.h:
+        * Source/webrtc/sdk/objc/components/video_codec/RTCVideoDecoderVTBVP9.mm:
+        (-[RTCVideoDecoderVTBVP9 decode:missingFrames:codecSpecificInfo:renderTimeMs:]):
+        (-[RTCVideoDecoderVTBVP9 setWidth:height:]):
+
+2020-11-03  Youenn Fablet  <youenn@apple.com>
+
+        Update WebRTC boringssl to M87
+        https://bugs.webkit.org/show_bug.cgi?id=218431
+
+        Reviewed by Eric Carlson.
+
+        * CMakeLists.txt:
+        * Source/third_party/boringssl: Resynced.
+        * libwebrtc.xcodeproj/project.pbxproj:
+
+2020-11-03  Youenn Fablet  <youenn@apple.com>
+
+        Update WebRTC usrsctp to M87
+        https://bugs.webkit.org/show_bug.cgi?id=218433
+
+        Reviewed by Eric Carlson.
+
+        * Source/third_party/usrsctp: Resynced.
+
+2020-11-03  Youenn Fablet  <youenn@apple.com>
+
+        Allow low latency H264 encoder in GPUProcess
+        https://bugs.webkit.org/show_bug.cgi?id=218442
+
+        Reviewed by Eric Carlson.
+
+        Add a useLowLatency boolean in RTCVideoEncoderH264 and in encoder factory.
+        Encoder is set by the factory at creation time.
+        useLowLatency factory value is set at creation of the factory.
+
+        Clean up WebKitXX.h headers to do less include and move declarations in specific headers.
+
+        * Configurations/libwebrtc.iOS.exp:
+        * Configurations/libwebrtc.iOSsim.exp:
+        * Configurations/libwebrtc.mac.exp:
+        * Source/webrtc/sdk/WebKit/WebKitDecoder.h:
+        * Source/webrtc/sdk/WebKit/WebKitDecoder.mm:
+        (webrtc::videoDecoderTaskComplete):
+        * Source/webrtc/sdk/WebKit/WebKitEncoder.h:
+        * Source/webrtc/sdk/WebKit/WebKitEncoder.mm:
+        (-[WK_RTCLocalVideoH264H265Encoder setLowLatency:]):
+        (webrtc::createWebKitEncoderFactory):
+        (webrtc::setLocalEncoderLowLatency):
+        * Source/webrtc/sdk/WebKit/WebKitUtilities.h:
+        * Source/webrtc/sdk/WebKit/WebKitUtilities.mm:
+        * Source/webrtc/sdk/objc/components/video_codec/RTCDefaultVideoEncoderFactory.h:
+        * Source/webrtc/sdk/objc/components/video_codec/RTCDefaultVideoEncoderFactory.m:
+        (-[RTCDefaultVideoEncoderFactory initWithH265:vp9:lowLatencyH264:]):
+        (-[RTCDefaultVideoEncoderFactory createEncoder:]):
+        * Source/webrtc/sdk/objc/components/video_codec/RTCVideoEncoderH264.h:
+        * Source/webrtc/sdk/objc/components/video_codec/RTCVideoEncoderH264.mm:
+        (-[RTCVideoEncoderH264 initWithCodecInfo:]):
+        (-[RTCVideoEncoderH264 setH264LowLatencyEncoderEnabled:]):
+        (-[RTCVideoEncoderH264 resetCompressionSessionWithPixelFormat:]):
+
+2020-11-03  Youenn Fablet  <youenn@apple.com>
+
+        Update WebRTC libyuv to M87
+        https://bugs.webkit.org/show_bug.cgi?id=218434
+
+        Reviewed by Eric Carlson.
+
+        * Source/third_party/usrsctp: Resynced.
+
+2020-11-03  Youenn Fablet  <youenn@apple.com>
+
+        Update WebRTC abseil to M87
+        https://bugs.webkit.org/show_bug.cgi?id=218432
+
+        Reviewed by Eric Carlson.
+
+        * CMakeLists.txt:
+        * Source/third_party/abseil-cpp: Resynced.
+
+2020-11-03  Youenn Fablet  <youenn@apple.com>
+
+        Update WebRTC opus to M87
+        https://bugs.webkit.org/show_bug.cgi?id=218435
+
+        Reviewed by Eric Carlson.
+
+        * Source/third_party/opus: Resynced.
+
+2020-11-02  Youenn Fablet  <youenn@apple.com>
+
+        Set vpcC box for hardware WebRTC VP9 decoder
+        https://bugs.webkit.org/show_bug.cgi?id=218337
+
+        Reviewed by Eric Carlson.
+
+        Hardware VP9 decoder code path requires vpcC box information.
+        Provide it as part of the video format.
+        Initialize the vpcC box with a zeroed buffer.
+
+        Make sure WebKitVP9Decoder is able to handle dynamically 10 bits or 8 bits frames.
+
+        * Source/webrtc/sdk/WebKit/WebKitVP9Decoder.cpp:
+        (webrtc::createWebKitVP9Decoder):
+        (webrtc::startVP9DecoderSession):
+        (webrtc::WebKitVP9DecoderReceiver::initializeFromFormatDescription):
+        (webrtc::WebKitVP9DecoderReceiver::pixelBufferPool):
+        (webrtc::WebKitVP9DecoderReceiver::Decoded):
+        * Source/webrtc/sdk/objc/components/video_codec/RTCVideoDecoderVTBVP9.mm:
+        (-[RTCVideoDecoderVTBVP9 decodeData:size:timeStamp:]):
+        (-[RTCVideoDecoderVTBVP9 resetDecompressionSession]):
+
+2020-10-29  Youenn Fablet  <youenn@apple.com>
+
+        Add some logging to SequenceCheckerImpl::IsCurrent
+        https://bugs.webkit.org/show_bug.cgi?id=218328
+
+        Reviewed by Eric Carlson.
+
+        * Source/webrtc/rtc_base/synchronization/sequence_checker.cc:
+        This might help debugging https://bugs.webkit.org/show_bug.cgi?id=218063.
+
+2020-10-29  Youenn Fablet  <youenn@apple.com>
+
+        Disable VP9 VTB hardware decoding
+        https://bugs.webkit.org/show_bug.cgi?id=218326
+
+        Reviewed by Alex Christensen.
+
+        VP9 hardware decoder does not work properly yet as used in WebRTC pipeline.
+        Disable hardware support for now and use software based VP9 through VTB.
+
+        * Source/webrtc/sdk/objc/components/video_codec/RTCVideoDecoderVTBVP9.mm:
+        (-[RTCVideoDecoderVTBVP9 resetDecompressionSession]):
+
+2020-10-26  Youenn Fablet  <youenn@apple.com>
+
+        Add support for VP9 Profile 2 (10-bit color) in WebRTC
+        https://bugs.webkit.org/show_bug.cgi?id=217673
+        <rdar://problem/70283885>
+
+        Reviewed by Eric Carlson.
+
+        Add support for VP9 profile 0 and 2.
+        This requires correctly handling 10-bit decoded buffers as is done by the MSE code path.
+
+        * Configurations/libwebrtc.iOS.exp:
+        * Configurations/libwebrtc.iOSsim.exp:
+        * Configurations/libwebrtc.mac.exp:
+        * Source/webrtc/sdk/WebKit/WebKitUtilities.h:
+        * Source/webrtc/sdk/WebKit/WebKitUtilities.mm:
+        (webrtc::pixelBufferFromFrame):
+        * Source/webrtc/sdk/WebKit/WebKitVP9Decoder.cpp:
+        (webrtc::WebKitVP9DecoderReceiver::Decoded):
+        * Source/webrtc/sdk/objc/api/video_codec/RTCVideoEncoderVP9.h:
+        * Source/webrtc/sdk/objc/api/video_codec/RTCVideoEncoderVP9.mm:
+        (+[RTCVideoEncoderVP9 vp9Encoder:]):
+        * Source/webrtc/sdk/objc/components/video_codec/RTCDefaultVideoDecoderFactory.m:
+        (-[RTCDefaultVideoDecoderFactory supportedCodecs]):
+        * Source/webrtc/sdk/objc/components/video_codec/RTCDefaultVideoEncoderFactory.m:
+        (+[RTCDefaultVideoEncoderFactory supportedCodecsWithH265:vp9:]):
+        (-[RTCDefaultVideoEncoderFactory createEncoder:]):
+
+2020-10-24  Jer Noble  <jer.noble@apple.com>
+
+        [BigSur] Appending a new WebM init segment between Cluster elements throws an error
+        https://bugs.webkit.org/show_bug.cgi?id=218149
+        <rdar://problem/70416537>
+
+        Reviewed by Eric Carlson.
+
+        Add an "OnElementEnd()" callback to libwebm.
+
+        * Source/third_party/libwebm/webm_parser/include/webm/callback.h:
+        * Source/third_party/libwebm/webm_parser/src/callback.cc:
+        * Source/third_party/libwebm/webm_parser/src/master_parser.cc:
+        * Source/third_party/libwebm/webm_parser/src/webm_parser.cc:
+
+2020-10-21  Youenn Fablet  <youenn@apple.com>
+
+        WebRTC VP9 Decoder should be able to use VTB
+        https://bugs.webkit.org/show_bug.cgi?id=217811
+
+        Reviewed by Eric Carlson.
+
+        Add RTCVideoDecoderVTBVP9 as a VP9 decoder using the VTB API.
+        Enable this code path by default if VP9 is enabled and hardware VP9 decoding is supported.
+        Allow to override this setting for testing purposes.
+
+        Add SPI header files in case they are not available.
+
+        * Configurations/libwebrtc.iOS.exp:
+        * Configurations/libwebrtc.iOSsim.exp:
+        * Configurations/libwebrtc.mac.exp:
+        * Source/webrtc/sdk/WebKit/CMBaseObjectSPI.h: Added.
+        * Source/webrtc/sdk/WebKit/VTVideoDecoderSPI.h: Added.
+        * Source/webrtc/sdk/WebKit/WebKitDecoder.mm:
+        (webrtc::createWebKitDecoderFactory):
+        * Source/webrtc/sdk/WebKit/WebKitUtilities.h:
+        * Source/webrtc/sdk/WebKit/WebKitVP9Decoder.cpp:
+        (webrtc::createWebKitVP9Decoder):
+        * Source/webrtc/sdk/objc/api/video_codec/RTCWrappedNativeVideoDecoder.mm:
+        (-[RTCWrappedNativeVideoDecoder implementationName]):
+        * Source/webrtc/sdk/objc/components/video_codec/RTCDefaultVideoDecoderFactory.h:
+        * Source/webrtc/sdk/objc/components/video_codec/RTCDefaultVideoDecoderFactory.m:
+        (-[RTCDefaultVideoDecoderFactory initWithH265:vp9:vp9VTB:]):
+        (-[RTCDefaultVideoDecoderFactory createDecoder:]):
+        * Source/webrtc/sdk/objc/components/video_codec/RTCVideoDecoderVTBVP9.h: Added.
+        * Source/webrtc/sdk/objc/components/video_codec/RTCVideoDecoderVTBVP9.mm: Added.
+        (RTCFrameDecodeParams::RTCFrameDecodeParams):
+        (VP9BufferToCMSampleBuffer):
+        (vp9DecompressionOutputCallback):
+        (-[RTCVideoDecoderVTBVP9 dealloc]):
+        (-[RTCVideoDecoderVTBVP9 startDecodeWithNumberOfCores:]):
+        (-[RTCVideoDecoderVTBVP9 decode:missingFrames:codecSpecificInfo:renderTimeMs:]):
+        (-[RTCVideoDecoderVTBVP9 decodeData:size:timeStamp:]):
+        (-[RTCVideoDecoderVTBVP9 setCallback:]):
+        (-[RTCVideoDecoderVTBVP9 setError:]):
+        (-[RTCVideoDecoderVTBVP9 releaseDecoder]):
+        (-[RTCVideoDecoderVTBVP9 resetDecompressionSession]):
+        (-[RTCVideoDecoderVTBVP9 configureDecompressionSession]):
+        (-[RTCVideoDecoderVTBVP9 destroyDecompressionSession]):
+        (-[RTCVideoDecoderVTBVP9 setVideoFormat:]):
+        (-[RTCVideoDecoderVTBVP9 implementationName]):
+        * Source/webrtc/sdk/objc/native/src/objc_video_decoder_factory.mm:
+        (webrtc::ObjCVideoDecoderFactory::CreateVideoDecoder):
+        * libwebrtc.xcodeproj/project.pbxproj:
+
 2020-10-13  Keith Rollin  <krollin@apple.com>
 
         Remove leftover MACOSX_DEPLOYMENT_TARGET_macosx support

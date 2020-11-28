@@ -62,6 +62,7 @@
 #include <WebKit/WKProtectionSpace.h>
 #include <WebKit/WKRetainPtr.h>
 #include <WebKit/WKSecurityOriginRef.h>
+#include <WebKit/WKSpeechRecognitionPermissionCallback.h>
 #include <WebKit/WKTextChecker.h>
 #include <WebKit/WKURL.h>
 #include <WebKit/WKUserContentControllerRef.h>
@@ -297,6 +298,21 @@ static void runWebAuthenticationPanel()
 {
 }
 
+static void decidePolicyForSpeechRecognitionPermissionRequest(WKPageRef, WKSecurityOriginRef, WKSpeechRecognitionPermissionCallbackRef callback)
+{
+    TestController::singleton().completeSpeechRecognitionPermissionCheck(callback);
+}
+
+void TestController::completeSpeechRecognitionPermissionCheck(WKSpeechRecognitionPermissionCallbackRef callback)
+{
+    WKSpeechRecognitionPermissionCallbackComplete(callback, m_isSpeechRecognitionPermissionGranted);
+}
+
+void TestController::setIsSpeechRecognitionPermissionGranted(bool granted)
+{
+    m_isSpeechRecognitionPermissionGranted = granted;
+}
+
 WKPageRef TestController::createOtherPage(WKPageRef, WKPageConfigurationRef configuration, WKNavigationActionRef navigationAction, WKWindowFeaturesRef windowFeatures, const void *clientInfo)
 {
     PlatformWebView* parentView = static_cast<PlatformWebView*>(const_cast<void*>(clientInfo));
@@ -468,14 +484,7 @@ void TestController::initialize(int argc, const char* argv[])
     m_allowedHosts = options.allowedHosts;
     m_checkForWorldLeaks = options.checkForWorldLeaks;
     m_allowAnyHTTPSCertificateForAllowedHosts = options.allowAnyHTTPSCertificateForAllowedHosts;
-
-    m_globalFeatures = TestOptions::defaults();
-    m_globalFeatures.internalDebugFeatures = options.internalFeatures;
-    m_globalFeatures.experimentalFeatures = options.experimentalFeatures;
-    m_globalFeatures.boolWebPreferenceFeatures.insert({ "AcceleratedDrawingEnabled", options.shouldUseAcceleratedDrawing });
-    m_globalFeatures.boolTestRunnerFeatures.insert({ "useRemoteLayerTree", options.shouldUseRemoteLayerTree });
-    m_globalFeatures.boolTestRunnerFeatures.insert({ "shouldShowWebView", options.shouldShowWebView });
-    m_globalFeatures.boolTestRunnerFeatures.insert({ "shouldShowTouches", options.shouldShowTouches });
+    m_globalFeatures = std::move(options.features);
 
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
     m_accessibilityIsolatedTreeMode = options.accessibilityIsolatedTreeMode;
@@ -657,8 +666,8 @@ void TestController::createWebViewWithOptions(const TestOptions& options)
     WKHTTPCookieStoreDeleteAllCookies(WKWebsiteDataStoreGetHTTPCookieStore(websiteDataStore()), nullptr, nullptr);
 
     platformCreateWebView(configuration.get(), options);
-    WKPageUIClientV14 pageUIClient = {
-        { 14, m_mainWebView.get() },
+    WKPageUIClientV15 pageUIClient = {
+        { 15, m_mainWebView.get() },
         0, // createNewPage_deprecatedForUseWithV0
         0, // showPage
         0, // close
@@ -731,7 +740,8 @@ void TestController::createWebViewWithOptions(const TestOptions& options)
         0, // didResignInputElementStrongPasswordAppearance
         0, // requestStorageAccessConfirm
         shouldAllowDeviceOrientationAndMotionAccess,
-        runWebAuthenticationPanel
+        runWebAuthenticationPanel,
+        decidePolicyForSpeechRecognitionPermissionRequest
     };
     WKPageSetPageUIClient(m_mainWebView->page(), &pageUIClient.base);
 
@@ -836,43 +846,22 @@ void TestController::resetPreferencesToConsistentValues(const TestOptions& optio
     WKPreferencesResetTestRunnerOverrides(preferences);
 
     WKPreferencesEnableAllExperimentalFeatures(preferences);
-    for (const auto& [key, value] : options.experimentalFeatures())
-        WKPreferencesSetExperimentalFeatureForKey(preferences, value, toWK(key).get());
-
     WKPreferencesResetAllInternalDebugFeatures(preferences);
-
-    // Set internal features that have different default values for testing.
-    WKPreferencesSetInternalDebugFeatureForKey(preferences, false, toWK("AsyncOverflowScrollingEnabled").get());
-    WKPreferencesSetInternalDebugFeatureForKey(preferences, false, toWK("AsyncFrameScrollingEnabled").get());
-    WKPreferencesSetInternalDebugFeatureForKey(preferences, true, toWK("InputTypeDateEnabled").get());
-    WKPreferencesSetInternalDebugFeatureForKey(preferences, true, toWK("InputTypeDateTimeLocalEnabled").get());
-    WKPreferencesSetInternalDebugFeatureForKey(preferences, true, toWK("InputTypeMonthEnabled").get());
-    WKPreferencesSetInternalDebugFeatureForKey(preferences, true, toWK("InputTypeTimeEnabled").get());
-    WKPreferencesSetInternalDebugFeatureForKey(preferences, true, toWK("InputTypeWeekEnabled").get());
-    WKPreferencesSetInternalDebugFeatureForKey(preferences, false, toWK("SpeakerSelectionRequiresUserGesture").get());
-
-    for (const auto& [key, value]  : options.internalDebugFeatures())
-        WKPreferencesSetInternalDebugFeatureForKey(preferences, value, toWK(key).get());
 
     // FIXME: Convert these to default values for TestOptions.
     WKPreferencesSetProcessSwapOnNavigationEnabled(preferences, options.shouldEnableProcessSwapOnNavigation());
     WKPreferencesSetOfflineWebApplicationCacheEnabled(preferences, true);
     WKPreferencesSetSubpixelAntialiasedLayerTextEnabled(preferences, false);
-    WKPreferencesSetXSSAuditorEnabled(preferences, false);
     WKPreferencesSetWebAudioEnabled(preferences, true);
     WKPreferencesSetMediaDevicesEnabled(preferences, true);
     WKPreferencesSetWebRTCMDNSICECandidatesEnabled(preferences, false);
     WKPreferencesSetDeveloperExtrasEnabled(preferences, true);
     WKPreferencesSetJavaScriptRuntimeFlags(preferences, kWKJavaScriptRuntimeFlagsAllEnabled);
-    WKPreferencesSetJavaScriptCanOpenWindowsAutomatically(preferences, true);
-    WKPreferencesSetJavaScriptCanAccessClipboard(preferences, true);
-    WKPreferencesSetUniversalAccessFromFileURLsAllowed(preferences, true);
-    WKPreferencesSetFileAccessFromFileURLsAllowed(preferences, true);
     WKPreferencesSetFullScreenEnabled(preferences, true);
     WKPreferencesSetAsynchronousPluginInitializationEnabled(preferences, false);
     WKPreferencesSetAsynchronousPluginInitializationEnabledForAllPlugins(preferences, false);
     WKPreferencesSetArtificialPluginInitializationDelayEnabled(preferences, false);
-    WKPreferencesSetTabToLinksEnabled(preferences, false);
+    WKPreferencesSetTabsToLinks(preferences, false);
     WKPreferencesSetInteractiveFormValidationEnabled(preferences, true);
     WKPreferencesSetDataTransferItemsEnabled(preferences, true);
     WKPreferencesSetCustomPasteboardDataEnabled(preferences, true);
@@ -921,17 +910,16 @@ void TestController::resetPreferencesToConsistentValues(const TestOptions& optio
     platformResetPreferencesToConsistentValues();
 
     for (const auto& [key, value] : options.boolWebPreferenceFeatures())
-        WKPreferencesSetBoolValueForKey(preferences, value, toWK(key).get());
+        WKPreferencesSetBoolValueForKeyForTesting(preferences, value, toWK(key).get());
 
     for (const auto& [key, value] : options.doubleWebPreferenceFeatures())
-        WKPreferencesSetDoubleValueForKey(preferences, value, toWK(key).get());
+        WKPreferencesSetDoubleValueForKeyForTesting(preferences, value, toWK(key).get());
 
     for (const auto& [key, value] : options.uint32WebPreferenceFeatures())
-        WKPreferencesSetUInt32ValueForKey(preferences, value, toWK(key).get());
+        WKPreferencesSetUInt32ValueForKeyForTesting(preferences, value, toWK(key).get());
 
     for (const auto& [key, value] : options.stringWebPreferenceFeatures())
-        WKPreferencesSetStringValueForKey(preferences, toWK(value).get(), toWK(key).get());
-
+        WKPreferencesSetStringValueForKeyForTesting(preferences, toWK(value).get(), toWK(key).get());
 }
 
 bool TestController::resetStateToConsistentValues(const TestOptions& options, ResetStage resetStage)
@@ -1075,13 +1063,15 @@ bool TestController::resetStateToConsistentValues(const TestOptions& options, Re
     statisticsResetToConsistentState();
     clearLoadedSubresourceDomains();
     clearAppBoundSession();
-    clearAdClickAttribution();
+    clearPrivateClickMeasurement();
 
     WKPageDispatchActivityStateUpdateForTesting(m_mainWebView->page());
 
     m_didReceiveServerRedirectForProvisionalNavigation = false;
     m_serverTrustEvaluationCallbackCallsCount = 0;
     m_shouldDismissJavaScriptAlertsAsynchronously = false;
+
+    setIsSpeechRecognitionPermissionGranted(true);
 
     auto loadAboutBlank = [this] {
         m_doneResetting = false;
@@ -1285,7 +1275,8 @@ WKURLRef TestController::createTestURL(const char* pathOrURL)
 
 TestOptions TestController::testOptionsForTest(const TestCommand& command) const
 {
-    TestFeatures features = m_globalFeatures;
+    TestFeatures features = TestOptions::defaults();
+    merge(features, m_globalFeatures);
     merge(features, hardcodedFeaturesBasedOnPathForTest(command));
     merge(features, platformSpecificFeatureDefaultsForTest(command));
     merge(features, featureDefaultsFromTestHeaderForTest(command, TestOptions::keyTypeMapping()));
@@ -3536,35 +3527,35 @@ void TestController::setServiceWorkerFetchTimeoutForTesting(double seconds)
     WKWebsiteDataStoreSetServiceWorkerFetchTimeoutForTesting(websiteDataStore(), seconds);
 }
 
-struct AdClickAttributionStringResultCallbackContext {
-    explicit AdClickAttributionStringResultCallbackContext(TestController& controller)
+struct PrivateClickMeasurementStringResultCallbackContext {
+    explicit PrivateClickMeasurementStringResultCallbackContext(TestController& controller)
         : testController(controller)
     {
     }
     
     TestController& testController;
     bool done { false };
-    WKRetainPtr<WKStringRef> adClickAttributionRepresentation;
+    WKRetainPtr<WKStringRef> privateClickMeasurementRepresentation;
 };
 
-static void adClickAttributionStringResultCallback(WKStringRef adClickAttributionRepresentation, void* userData)
+static void privateClickMeasurementStringResultCallback(WKStringRef privateClickMeasurementRepresentation, void* userData)
 {
-    auto* context = static_cast<AdClickAttributionStringResultCallbackContext*>(userData);
-    context->adClickAttributionRepresentation = adClickAttributionRepresentation;
+    auto* context = static_cast<PrivateClickMeasurementStringResultCallbackContext*>(userData);
+    context->privateClickMeasurementRepresentation = privateClickMeasurementRepresentation;
     context->done = true;
     context->testController.notifyDone();
 }
 
-String TestController::dumpAdClickAttribution()
+String TestController::dumpPrivateClickMeasurement()
 {
-    AdClickAttributionStringResultCallbackContext callbackContext(*this);
-    WKPageDumpAdClickAttribution(m_mainWebView->page(), adClickAttributionStringResultCallback, &callbackContext);
+    PrivateClickMeasurementStringResultCallbackContext callbackContext(*this);
+    WKPageDumpPrivateClickMeasurement(m_mainWebView->page(), privateClickMeasurementStringResultCallback, &callbackContext);
     runUntil(callbackContext.done, noTimeout);
-    return toWTFString(callbackContext.adClickAttributionRepresentation.get());
+    return toWTFString(callbackContext.privateClickMeasurementRepresentation.get());
 }
 
-struct AdClickAttributionVoidCallbackContext {
-    explicit AdClickAttributionVoidCallbackContext(TestController& controller)
+struct PrivateClickMeasurementVoidCallbackContext {
+    explicit PrivateClickMeasurementVoidCallbackContext(TestController& controller)
         : testController(controller)
     {
     }
@@ -3573,45 +3564,45 @@ struct AdClickAttributionVoidCallbackContext {
     bool done { false };
 };
 
-static void adClickAttributionVoidCallback(void* userData)
+static void privateClickMeasurementVoidCallback(void* userData)
 {
-    auto* context = static_cast<AdClickAttributionVoidCallbackContext*>(userData);
+    auto* context = static_cast<PrivateClickMeasurementVoidCallbackContext*>(userData);
     context->done = true;
     context->testController.notifyDone();
 }
 
-void TestController::clearAdClickAttribution()
+void TestController::clearPrivateClickMeasurement()
 {
-    AdClickAttributionVoidCallbackContext callbackContext(*this);
-    WKPageClearAdClickAttribution(m_mainWebView->page(), adClickAttributionVoidCallback, &callbackContext);
+    PrivateClickMeasurementVoidCallbackContext callbackContext(*this);
+    WKPageClearPrivateClickMeasurement(m_mainWebView->page(), privateClickMeasurementVoidCallback, &callbackContext);
     runUntil(callbackContext.done, noTimeout);
 }
 
-void TestController::clearAdClickAttributionsThroughWebsiteDataRemoval()
+void TestController::clearPrivateClickMeasurementsThroughWebsiteDataRemoval()
 {
-    AdClickAttributionVoidCallbackContext callbackContext(*this);
-    WKWebsiteDataStoreClearAdClickAttributionsThroughWebsiteDataRemoval(websiteDataStore(), &callbackContext, adClickAttributionVoidCallback);
+    PrivateClickMeasurementVoidCallbackContext callbackContext(*this);
+    WKWebsiteDataStoreClearPrivateClickMeasurementsThroughWebsiteDataRemoval(websiteDataStore(), &callbackContext, privateClickMeasurementVoidCallback);
     runUntil(callbackContext.done, noTimeout);
 }
 
-void TestController::setAdClickAttributionOverrideTimerForTesting(bool value)
+void TestController::setPrivateClickMeasurementOverrideTimerForTesting(bool value)
 {
-    AdClickAttributionVoidCallbackContext callbackContext(*this);
-    WKPageSetAdClickAttributionOverrideTimerForTesting(m_mainWebView->page(), value, adClickAttributionVoidCallback, &callbackContext);
+    PrivateClickMeasurementVoidCallbackContext callbackContext(*this);
+    WKPageSetPrivateClickMeasurementOverrideTimerForTesting(m_mainWebView->page(), value, privateClickMeasurementVoidCallback, &callbackContext);
     runUntil(callbackContext.done, noTimeout);
 }
 
-void TestController::setAdClickAttributionConversionURLForTesting(WKURLRef url)
+void TestController::setPrivateClickMeasurementConversionURLForTesting(WKURLRef url)
 {
-    AdClickAttributionVoidCallbackContext callbackContext(*this);
-    WKPageSetAdClickAttributionConversionURLForTesting(m_mainWebView->page(), url, adClickAttributionVoidCallback, &callbackContext);
+    PrivateClickMeasurementVoidCallbackContext callbackContext(*this);
+    WKPageSetPrivateClickMeasurementConversionURLForTesting(m_mainWebView->page(), url, privateClickMeasurementVoidCallback, &callbackContext);
     runUntil(callbackContext.done, noTimeout);
 }
 
-void TestController::markAdClickAttributionsAsExpiredForTesting()
+void TestController::markPrivateClickMeasurementsAsExpiredForTesting()
 {
-    AdClickAttributionVoidCallbackContext callbackContext(*this);
-    WKPageMarkAdClickAttributionsAsExpiredForTesting(m_mainWebView->page(), adClickAttributionVoidCallback, &callbackContext);
+    PrivateClickMeasurementVoidCallbackContext callbackContext(*this);
+    WKPageMarkPrivateClickMeasurementsAsExpiredForTesting(m_mainWebView->page(), privateClickMeasurementVoidCallback, &callbackContext);
     runUntil(callbackContext.done, noTimeout);
 }
 

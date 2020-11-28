@@ -129,13 +129,14 @@ namespace WebCore {
     macro(GPUTextureView) \
     macro(GPUUncapturedErrorEvent) \
     macro(GPUValidationError) \
-    macro(HighlightMap) \
-    macro(HighlightRangeGroup) \
+    macro(HighlightRegister) \
+    macro(Highlight) \
     macro(HTMLAttachmentElement) \
     macro(HTMLAudioElement) \
     macro(HTMLDialogElement) \
     macro(HTMLDataListElement) \
     macro(HTMLMenuItemElement) \
+    macro(HTMLModelElement) \
     macro(HTMLKeygenElement) \
     macro(HTMLSlotElement) \
     macro(Headers) \
@@ -174,6 +175,7 @@ namespace WebCore {
     macro(MediaStream) \
     macro(MediaStreamTrack) \
     macro(MerchantValidationEvent) \
+    macro(MockRTCRtpTransform) \
     macro(ModernMediaControls) \
     macro(NavigatorCredentials) \
     macro(NavigatorMediaDevices) \
@@ -218,8 +220,10 @@ namespace WebCore {
     macro(RTCPeerConnection) \
     macro(RTCPeerConnectionIceEvent) \
     macro(RTCRtpReceiver) \
+    macro(RTCRtpSFrameTransform) \
     macro(RTCRtpSender) \
     macro(RTCRtpTransceiver) \
+    macro(RTCRtpTransform) \
     macro(RTCSessionDescription) \
     macro(RTCStatsReport) \
     macro(RTCTrackEvent) \
@@ -238,6 +242,12 @@ namespace WebCore {
     macro(ServiceWorkerGlobalScope) \
     macro(ServiceWorkerRegistration) \
     macro(ShadowRoot) \
+    macro(SpeechRecognition) \
+    macro(SpeechRecognitionAlternative) \
+    macro(SpeechRecognitionErrorEvent) \
+    macro(SpeechRecognitionEvent) \
+    macro(SpeechRecognitionResult) \
+    macro(SpeechRecognitionResultList) \
     macro(StaticRange) \
     macro(StereoPannerNode) \
     macro(StylePropertyMapReadOnly) \

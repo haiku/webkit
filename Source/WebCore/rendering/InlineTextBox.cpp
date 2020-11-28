@@ -36,7 +36,7 @@
 #include "Frame.h"
 #include "GraphicsContext.h"
 #include "HighlightData.h"
-#include "HighlightMap.h"
+#include "HighlightRegister.h"
 #include "HitTestResult.h"
 #include "ImageBuffer.h"
 #include "InlineTextBoxStyle.h"
@@ -52,6 +52,7 @@
 #include "RenderView.h"
 #include "RenderedDocumentMarker.h"
 #include "RuntimeEnabledFeatures.h"
+#include "Settings.h"
 #include "Text.h"
 #include "TextDecorationPainter.h"
 #include "TextPaintStyle.h"
@@ -1051,7 +1052,7 @@ Vector<MarkedText> InlineTextBox::collectMarkedTextsForHighlights(TextPaintPhase
     auto& parentRenderer = parent()->renderer();
     auto& parentStyle = parentRenderer.style();
     HighlightData highlightData;
-    for (auto& highlight : renderer().document().highlightMap().map()) {
+    for (auto& highlight : renderer().document().highlightRegister().map()) {
         auto renderStyle = parentRenderer.getUncachedPseudoStyle({ PseudoId::Highlight, highlight.key }, &parentStyle);
         if (!renderStyle)
             continue;
@@ -1163,6 +1164,8 @@ void InlineTextBox::paintMarkedTextForeground(PaintInfo& paintInfo, const FloatR
             textPainter.setShadowColorFilter(&lineStyle.appleColorFilter());
     }
     textPainter.setEmphasisMark(emphasisMark, emphasisMarkOffset, combinedText());
+    if (auto* debugShadow = debugTextShadow())
+        textPainter.setShadow(debugShadow);
 
     TextRun textRun = createTextRun();
     textPainter.setGlyphDisplayListIfNeeded(*this, paintInfo, font, context, textRun);
@@ -1427,6 +1430,15 @@ String InlineTextBox::text(bool ignoreCombinedText, bool ignoreHyphen) const
 inline const RenderCombineText* InlineTextBox::combinedText() const
 {
     return lineStyle().hasTextCombine() && is<RenderCombineText>(renderer()) && downcast<RenderCombineText>(renderer()).isCombined() ? &downcast<RenderCombineText>(renderer()) : nullptr;
+}
+
+ShadowData* InlineTextBox::debugTextShadow()
+{
+    if (!renderer().settings().legacyLineLayoutVisualCoverageEnabled())
+        return nullptr;
+
+    static NeverDestroyed<ShadowData> debugTextShadow(IntPoint(0, 0), 10, 20, ShadowStyle::Normal, true, SRGBA<uint8_t> { 150, 0, 0, 190 });
+    return &debugTextShadow.get();
 }
 
 ExpansionBehavior InlineTextBox::expansionBehavior() const

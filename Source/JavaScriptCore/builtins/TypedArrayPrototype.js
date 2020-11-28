@@ -96,7 +96,7 @@ function fill(value /* [, start [, end]] */)
     var start = @typedArrayClampArgumentToStartOrEnd(@argument(1), length, 0);
     var end = @typedArrayClampArgumentToStartOrEnd(@argument(2), length, length);
 
-    if (@isNeutered(this))
+    if (@isDetached(this))
         @throwTypeError("Underlying ArrayBuffer has been detached from the view");
 
     for (var i = start; i < end; i++)
@@ -168,66 +168,68 @@ function some(callback /* [, thisArg] */)
     return false;
 }
 
-function sort(comparator)
+@globalPrivate
+function typedArrayElementCompare(array, a, b, comparator)
 {
-    // 22.2.3.25
     "use strict";
 
-    function min(a, b)
-    {
-        return a < b ? a : b;
-    }
+    var result = @toNumber(comparator(a, b));
 
-    var compare = (a, b) => {
-        var result = @toNumber(comparator(a, b));
+    if (@isDetached(array))
+        @throwTypeError("Underlying ArrayBuffer has been detached from the view");
 
-        if (@isNeutered(this))
-            @throwTypeError("Underlying ArrayBuffer has been detached from the view");
+    return result;
+}
 
-        return result;
-    };
+@globalPrivate
+function typedArrayMerge(array, dst, src, srcIndex, srcEnd, width, comparator)
+{
+    "use strict";
 
-    function merge(dst, src, srcIndex, srcEnd, width)
-    {
-        var left = srcIndex;
-        var leftEnd = min(left + width, srcEnd);
-        var right = leftEnd;
-        var rightEnd = min(right + width, srcEnd);
+    var left = srcIndex;
+    var leftEnd = @min(left + width, srcEnd);
+    var right = leftEnd;
+    var rightEnd = @min(right + width, srcEnd);
 
-        for (var dstIndex = left; dstIndex < rightEnd; ++dstIndex) {
-            if (right < rightEnd) {
-                if (left >= leftEnd || compare(src[right], src[left]) < 0) {
-                    dst[dstIndex] = src[right++];
-                    continue;
-                }
+    for (var dstIndex = left; dstIndex < rightEnd; ++dstIndex) {
+        if (right < rightEnd) {
+            if (left >= leftEnd || @typedArrayElementCompare(array, src[right], src[left], comparator) < 0) {
+                dst[dstIndex] = src[right++];
+                continue;
             }
-
-            dst[dstIndex] = src[left++];
         }
+
+        dst[dstIndex] = src[left++];
+    }
+}
+
+@globalPrivate
+function typedArrayMergeSort(array, valueCount, comparator)
+{
+    "use strict";
+
+    var buffer = @newArrayWithSize(valueCount);
+    var dst = buffer;
+    var src = array;
+
+    for (var width = 1; width < valueCount; width *= 2) {
+        for (var srcIndex = 0; srcIndex < valueCount; srcIndex += 2 * width)
+            @typedArrayMerge(array, dst, src, srcIndex, valueCount, width, comparator);
+
+        var tmp = src;
+        src = dst;
+        dst = tmp;
     }
 
-    function mergeSort(array, valueCount)
-    {
-        var buffer = [ ];
-        buffer.length = valueCount;
-
-        var dst = buffer;
-        var src = array;
-
-        for (var width = 1; width < valueCount; width *= 2) {
-            for (var srcIndex = 0; srcIndex < valueCount; srcIndex += 2 * width)
-                merge(dst, src, srcIndex, valueCount, width);
-
-            var tmp = src;
-            src = dst;
-            dst = tmp;
-        }
-
-        if (src != array) {
-            for(var i = 0; i < valueCount; i++)
-                array[i] = src[i];
-        }
+    if (src != array) {
+        for (var i = 0; i < valueCount; ++i)
+            array[i] = src[i];
     }
+}
+
+function sort(comparator)
+{
+    "use strict";
 
     if (comparator !== @undefined && !@isCallable(comparator))
         @throwTypeError("TypedArray.prototype.sort requires the comparator argument to be a function or undefined");
@@ -236,9 +238,13 @@ function sort(comparator)
     if (length < 2)
         return;
 
-    if (comparator !== @undefined)
-        mergeSort(this, length);
-    else
+    // typedArraySort is not safe when the other thread is modifying content. So if |this| is SharedArrayBuffer,
+    // use JS-implemented sorting.
+    if (comparator !== @undefined || @isSharedTypedArrayView(this)) {
+        if (comparator === @undefined)
+            comparator = @typedArrayDefaultComparator;
+        @typedArrayMergeSort(this, length, comparator);
+    } else
         @typedArraySort(this);
 
     return this;
@@ -383,7 +389,7 @@ function toLocaleString(/* locale, options */)
     return string;
 }
 
-function item(index)
+function at(index)
 {
     "use strict";
 

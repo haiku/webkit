@@ -28,8 +28,8 @@
 #if ENABLE(GPU_PROCESS) && ENABLE(WEB_AUDIO)
 
 #include "Connection.h"
+#include "GPUProcessConnection.h"
 #include "RemoteAudioDestinationIdentifier.h"
-#include "WebProcessSupplement.h"
 #include <WebCore/AudioIOCallback.h>
 #include <wtf/CrossThreadQueue.h>
 #include <wtf/MediaTime.h>
@@ -56,6 +56,7 @@ class RemoteAudioDestinationProxy
 #else
     : public WebCore::AudioDestination
 #endif
+    , public GPUProcessConnection::Client
     , public IPC::Connection::ThreadMessageReceiver {
     WTF_MAKE_NONCOPYABLE(RemoteAudioDestinationProxy);
 public:
@@ -71,23 +72,28 @@ public:
     void didReceiveMessageFromGPUProcess(IPC::Connection& connection, IPC::Decoder& decoder) { didReceiveMessage(connection, decoder); }
 
 #if PLATFORM(COCOA)
-    void requestBuffer(double sampleTime, uint64_t hostTime, uint64_t numberOfFrames, CompletionHandler<void(uint64_t startFrame, uint64_t numberOfFramesToRender, uint64_t boundsStartFrame, uint64_t boundsEndFrame)>&&);
+    void requestBuffer(double sampleTime, uint64_t hostTime, uint64_t numberOfFrames, CompletionHandler<void(uint64_t boundsStartFrame, uint64_t boundsEndFrame)>&&);
 #endif
 
 private:
-    void start(Function<void(Function<void()>&&)>&& dispatchToRenderThread) final;
-    void stop() final;
+    void start(Function<void(Function<void()>&&)>&& dispatchToRenderThread, CompletionHandler<void(bool)>&&) final;
+    void stop(CompletionHandler<void(bool)>&&) final;
+
+    void connectToGPUProcess();
+
+    // GPUProcessConnection::Client.
+    void gpuProcessConnectionDidClose(GPUProcessConnection&) final;
 
 #if !PLATFORM(COCOA)
     bool isPlaying() final { return false; }
     void setIsPlaying(bool) { }
     float sampleRate() const final { return 0; }
     unsigned framesPerBuffer() const final { return 0; }
+    unsigned numberOfOutputChannels() const { return m_numberOfOutputChannels; }
 #endif
 
 #if PLATFORM(COCOA)
     void storageChanged(SharedMemory*) final;
-    void renderOnRenderingThead(size_t framesToRender) final;
 #endif
 
     // IPC::MessageReceiver
@@ -105,8 +111,12 @@ private:
     std::unique_ptr<WebCore::CARingBuffer> m_ringBuffer;
     std::unique_ptr<WebCore::WebAudioBufferList> m_audioBufferList;
     uint64_t m_currentFrame { 0 };
-    WTF::Function<void(uint64_t, uint64_t, uint64_t, uint64_t)> m_renderCompletionHandler;
+#else
+    unsigned m_numberOfOutputChannels;
 #endif
+
+    String m_inputDeviceId;
+    unsigned m_numberOfInputChannels;
 
     Function<void(Function<void()>&&)> m_dispatchToRenderThread;
     RefPtr<Thread> m_renderThread;

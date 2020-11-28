@@ -40,6 +40,9 @@ transitions/blendmode-transitions.html [ Skip ]
 fast/css/image-orientation [ Skip ]
 imported/blink/fast/css/image-orientation [ Skip ]
 
+# TODO EXIF-resolution is not supported
+imported/w3c/web-platform-tests/density-size-correction/ [ Skip ]
+
 # CSS_IMAGE_RESOLUTION is disabled
 fast/css/image-resolution [ Skip ]
 
@@ -369,9 +372,6 @@ security/contentSecurityPolicy/plugins-types-blocks-youtube-plugin-replacement.h
 # Opera-submitted tests to W3C for <track>, a lot of failures still.
 webkit.org/b/103926 media/track/opera [ Skip ]
 
-# Snapshotted plugins not enabled
-webkit.org/b/98696 plugins/snapshotting [ Skip ]
-
 # TODO Impossible to test text-only-zoom from DRT on Windows
 webkit.org/b/35013 svg/zoom/text/ [ Skip ]
 
@@ -475,9 +475,6 @@ fast/text/user-installed-fonts/shadow.html [ Skip ]
 
 # testRunner.dumpPolicyDelegateCallbacks is not a function
 loader/navigation-policy/should-open-external-urls [ Skip ]
-
-# testRunner.setBlockAllPlugins is not a function.
-plugins/unavailable-plugin-indicator-obscurity.html [ Skip ]
 
 # testRunner.setPluginSupportedMode is not a function
 plugins/unsupported-plugin.html [ Skip ]
@@ -1815,6 +1812,7 @@ workers/bomb.html [ Skip ]
 [ Debug ] storage/indexeddb/database-odd-names.html [ Failure Pass ]
 [ Debug ] storage/indexeddb/primary-key-unique-to-objectstore.html [ Timeout Pass ]
 animations/additive-transform-animations.html [ ImageOnlyFailure ]
+animations/needs-layout.html [ ImageOnlyFailure ]
 animations/steps-transform-rendering-updates.html [ ImageOnlyFailure ]
 animations/z-index-in-keyframe.html [ ImageOnlyFailure ]
 css1/font_properties/font_family.html [ Failure Pass ]
@@ -1912,11 +1910,11 @@ fast/events/shadow-event-path-2.html [ Failure ]
 fast/events/shadow-event-path.html [ Failure ]
 fast/events/special-key-events-in-input-text.html [ Failure ]
 fast/events/tabindex-focus-blur-all.html [ Timeout ]
-fast/events/wheel-event-destroys-overflow.html [ Skip ] # Crash
-fast/events/wheel-event-outside-body.html [ Skip ] # Crash
-fast/events/wheelevent-basic.html [ Failure ]
-fast/events/wheelevent-in-horizontal-scrollbar-in-rtl.html [ Failure ]
-fast/events/wheelevent-in-vertical-scrollbar-in-rtl.html [ Failure ]
+fast/events/wheel/wheel-event-destroys-overflow.html [ Skip ] # Crash
+fast/events/wheel/wheel-event-outside-body.html [ Skip ] # Crash
+fast/events/wheel/wheelevent-basic.html [ Failure ]
+fast/events/wheel/wheelevent-in-horizontal-scrollbar-in-rtl.html [ Failure ]
+fast/events/wheel/wheelevent-in-vertical-scrollbar-in-rtl.html [ Failure ]
 fast/filter-image/background-filter-image.html [ ImageOnlyFailure ]
 fast/filter-image/filter-image.html [ ImageOnlyFailure ]
 fast/harness/render-tree-as-text-options.html [ Failure ]

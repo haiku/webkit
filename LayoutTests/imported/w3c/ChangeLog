@@ -1,3 +1,1990 @@
+2020-11-16  Alex Christensen  <achristensen@webkit.org>
+
+        FileReaderLoader::convertToDataURL should use application/octet-stream if MIME type is empty
+        https://bugs.webkit.org/show_bug.cgi?id=218993
+
+        Reviewed by Geoffrey Garen.
+
+        * web-platform-tests/FileAPI/reading-data-section/filereader_readAsDataURL-expected.txt:
+
+2020-11-16  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Import latest wpt/wasm tests
+        https://bugs.webkit.org/show_bug.cgi?id=218953
+
+        Reviewed by Saam Barati.
+
+        This patch just imports and rebaselines wpt/wasm tests.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/wasm/META.yml: Added.
+        * web-platform-tests/wasm/compile_worker.js: Added.
+        (onmessage):
+        * web-platform-tests/wasm/create_multiple_memory.worker-expected.txt: Added.
+        * web-platform-tests/wasm/create_multiple_memory.worker.html: Added.
+        * web-platform-tests/wasm/create_multiple_memory.worker.js: Added.
+        (test):
+        * web-platform-tests/wasm/incrementer.wasm: Added.
+        * web-platform-tests/wasm/jsapi/bad-imports.js:
+        (test_bad_imports.value_type):
+        (test_bad_imports):
+        * web-platform-tests/wasm/jsapi/constructor/instantiate-bad-imports.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/constructor/instantiate-bad-imports.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/constructor/instantiate.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/constructor/instantiate.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/constructor/toStringTag.any-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/constructor/toStringTag.any.html: Added.
+        * web-platform-tests/wasm/jsapi/constructor/toStringTag.any.js: Added.
+        (test):
+        (test.t.t.add_cleanup):
+        * web-platform-tests/wasm/jsapi/constructor/toStringTag.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/constructor/toStringTag.any.worker.html: Added.
+        * web-platform-tests/wasm/jsapi/constructor/w3c-import.log:
+        * web-platform-tests/wasm/jsapi/functions/entry-different-function-realm-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/functions/entry-different-function-realm.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/entry-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/functions/entry.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/helper.js: Added.
+        (call_later):
+        * web-platform-tests/wasm/jsapi/functions/incumbent-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/functions/incumbent.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/resources/README.md: Added.
+        * web-platform-tests/wasm/jsapi/functions/resources/current/current.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/resources/current/resources/w3c-import.log: Copied from LayoutTests/imported/w3c/web-platform-tests/wasm/jsapi/memory/w3c-import.log.
+        * web-platform-tests/wasm/jsapi/functions/resources/current/resources/window-to-open.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/resources/current/w3c-import.log: Copied from LayoutTests/imported/w3c/web-platform-tests/wasm/jsapi/memory/w3c-import.log.
+        * web-platform-tests/wasm/jsapi/functions/resources/entry-incumbent.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/resources/function/function.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/resources/function/resources/w3c-import.log: Copied from LayoutTests/imported/w3c/web-platform-tests/wasm/jsapi/memory/w3c-import.log.
+        * web-platform-tests/wasm/jsapi/functions/resources/function/resources/window-to-open.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/resources/function/w3c-import.log: Copied from LayoutTests/imported/w3c/web-platform-tests/wasm/jsapi/memory/w3c-import.log.
+        * web-platform-tests/wasm/jsapi/functions/resources/incumbent-incumbent.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/resources/relevant/relevant.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/resources/relevant/resources/w3c-import.log: Copied from LayoutTests/imported/w3c/web-platform-tests/wasm/jsapi/memory/w3c-import.log.
+        * web-platform-tests/wasm/jsapi/functions/resources/relevant/resources/window-to-open.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/resources/relevant/w3c-import.log: Copied from LayoutTests/imported/w3c/web-platform-tests/wasm/jsapi/memory/w3c-import.log.
+        * web-platform-tests/wasm/jsapi/functions/resources/resources/w3c-import.log: Copied from LayoutTests/imported/w3c/web-platform-tests/wasm/jsapi/memory/w3c-import.log.
+        * web-platform-tests/wasm/jsapi/functions/resources/resources/window-to-open.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/resources/w3c-import.log: Copied from LayoutTests/imported/w3c/web-platform-tests/wasm/jsapi/memory/w3c-import.log.
+        * web-platform-tests/wasm/jsapi/functions/resources/window-to-open.html: Added.
+        * web-platform-tests/wasm/jsapi/functions/w3c-import.log: Copied from LayoutTests/imported/w3c/web-platform-tests/wasm/jsapi/memory/w3c-import.log.
+        * web-platform-tests/wasm/jsapi/global/constructor.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/global/constructor.any.js:
+        (test):
+        (string_appeared_here.toString):
+        (string_appeared_here.valueOf):
+        (string_appeared_here.test):
+        (toString):
+        (valueOf):
+        (name.format_value):
+        (const.invalidBigint.of.invalidBigints.test):
+        * web-platform-tests/wasm/jsapi/global/constructor.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/global/value-get-set.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/global/value-get-set.any.js:
+        (string_appeared_here.name.of.immutableOptions.test):
+        (string_appeared_here.name.of.mutableOptions.test):
+        (test):
+        * web-platform-tests/wasm/jsapi/global/value-get-set.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/idlharness.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/idlharness.any.js:
+        (async idl_array):
+        (promise_test.async const): Deleted.
+        (promise_test): Deleted.
+        * web-platform-tests/wasm/jsapi/idlharness.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/instance/constructor-bad-imports.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/instance/constructor-bad-imports.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/instance/constructor.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/instance/constructor.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/instanceTestFactory.js:
+        (const.imports.string_appeared_here.string_appeared_here):
+        * web-platform-tests/wasm/jsapi/memory/assertions.js: Added.
+        (assert_ArrayBuffer):
+        * web-platform-tests/wasm/jsapi/memory/constructor-shared.tentative.any-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/memory/constructor-shared.tentative.any.html: Added.
+        * web-platform-tests/wasm/jsapi/memory/constructor-shared.tentative.any.js: Added.
+        (test):
+        (test.t.new.WebAssembly.Memory.get maximum):
+        (test.t.new.WebAssembly.Memory.get initial):
+        (test.t.new.WebAssembly.Memory.get shared):
+        * web-platform-tests/wasm/jsapi/memory/constructor-shared.tentative.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/memory/constructor-shared.tentative.any.worker.html: Added.
+        * web-platform-tests/wasm/jsapi/memory/constructor-types.tentative.any-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/memory/constructor-types.tentative.any.html: Added.
+        * web-platform-tests/wasm/jsapi/memory/constructor-types.tentative.any.js: Added.
+        (test):
+        * web-platform-tests/wasm/jsapi/memory/constructor-types.tentative.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/memory/constructor-types.tentative.any.worker.html: Added.
+        * web-platform-tests/wasm/jsapi/memory/constructor.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/constructor.any.js:
+        (test.get assert_array_equals):
+        (test):
+        (assert_Memory): Deleted.
+        (test.t.get assert_array_equals): Deleted.
+        * web-platform-tests/wasm/jsapi/memory/constructor.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/grow.any.js:
+        (assert_ArrayBuffer): Deleted.
+        * web-platform-tests/wasm/jsapi/memory/w3c-import.log:
+        * web-platform-tests/wasm/jsapi/prototypes.any-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/prototypes.any.html: Added.
+        * web-platform-tests/wasm/jsapi/prototypes.any.js: Added.
+        (setup):
+        (test):
+        * web-platform-tests/wasm/jsapi/prototypes.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/prototypes.any.worker.html: Added.
+        * web-platform-tests/wasm/jsapi/table/assertions.js:
+        * web-platform-tests/wasm/jsapi/table/constructor-types.tentative.any-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/table/constructor-types.tentative.any.html: Added.
+        * web-platform-tests/wasm/jsapi/table/constructor-types.tentative.any.js: Added.
+        (test):
+        * web-platform-tests/wasm/jsapi/table/constructor-types.tentative.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/jsapi/table/constructor-types.tentative.any.worker.html: Added.
+        * web-platform-tests/wasm/jsapi/table/constructor.any.js:
+        (assert_Table): Deleted.
+        * web-platform-tests/wasm/jsapi/table/w3c-import.log:
+        * web-platform-tests/wasm/jsapi/w3c-import.log:
+        * web-platform-tests/wasm/jsapi/wasm-module-builder.js:
+        (WasmModuleBuilder.prototype.addTable):
+        (WasmModuleBuilder.prototype.toBuffer):
+        (wasmF32Const):
+        (wasmF64Const):
+        * web-platform-tests/wasm/resources/load_wasm.js: Added.
+        (createWasmModule):
+        * web-platform-tests/wasm/resources/w3c-import.log: Copied from LayoutTests/imported/w3c/web-platform-tests/wasm/jsapi/memory/w3c-import.log.
+        * web-platform-tests/wasm/serialization/arraybuffer/transfer.window-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/arraybuffer/transfer.window.html: Added.
+        * web-platform-tests/wasm/serialization/arraybuffer/transfer.window.js: Added.
+        (test):
+        * web-platform-tests/wasm/serialization/arraybuffer/w3c-import.log: Copied from LayoutTests/imported/w3c/web-platform-tests/wasm/jsapi/memory/w3c-import.log.
+        * web-platform-tests/wasm/serialization/module/broadcastchannel-success-and-failure-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/broadcastchannel-success-and-failure.html: Added.
+        * web-platform-tests/wasm/serialization/module/broadcastchannel-success-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/broadcastchannel-success.html: Added.
+        * web-platform-tests/wasm/serialization/module/identity-not-preserved-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/identity-not-preserved.html: Added.
+        * web-platform-tests/wasm/serialization/module/incrementer.wasm: Added.
+        * web-platform-tests/wasm/serialization/module/nested-worker-success.any.js: Added.
+        * web-platform-tests/wasm/serialization/module/nested-worker-success.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/nested-worker-success.any.worker.html: Added.
+        * web-platform-tests/wasm/serialization/module/no-transferring-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/no-transferring.html: Added.
+        * web-platform-tests/wasm/serialization/module/resources/blank.html: Added.
+        * web-platform-tests/wasm/serialization/module/resources/broadcastchannel-iframe.html: Added.
+        * web-platform-tests/wasm/serialization/module/resources/broadcastchannel-sharedworker.js: Added.
+        (channel.onmessageerror):
+        * web-platform-tests/wasm/serialization/module/resources/broadcastchannel-worker.js: Added.
+        (channel.onmessage):
+        * web-platform-tests/wasm/serialization/module/resources/create-empty-wasm-module.js: Added.
+        (createEmptyWasmModule):
+        * web-platform-tests/wasm/serialization/module/resources/echo-iframe.html: Added.
+        * web-platform-tests/wasm/serialization/module/resources/echo-worker.js: Added.
+        (self.onmessage):
+        * web-platform-tests/wasm/serialization/module/resources/incrementer-iframe-domain.sub.html: Added.
+        * web-platform-tests/wasm/serialization/module/resources/incrementer-iframe.html: Added.
+        * web-platform-tests/wasm/serialization/module/resources/incrementer-popup.html: Added.
+        * web-platform-tests/wasm/serialization/module/resources/incrementer-worker-with-channel.js: Added.
+        (self.onmessage):
+        * web-platform-tests/wasm/serialization/module/resources/incrementer-worker.js: Added.
+        * web-platform-tests/wasm/serialization/module/resources/incrementer.wasm: Added.
+        * web-platform-tests/wasm/serialization/module/resources/nested-iframe-1.html: Added.
+        * web-platform-tests/wasm/serialization/module/resources/nested-iframe-2.html: Added.
+        * web-platform-tests/wasm/serialization/module/resources/nested-iframe-3.html: Added.
+        * web-platform-tests/wasm/serialization/module/resources/nested-iframe-4-incrementer.html: Added.
+        * web-platform-tests/wasm/serialization/module/resources/serviceworker-failure.js: Added.
+        (self.onmessage.e.else):
+        * web-platform-tests/wasm/serialization/module/resources/sharedworker-failure.js: Added.
+        * web-platform-tests/wasm/serialization/module/resources/test-incrementer.js: Added.
+        (createWasmModule):
+        (testModule):
+        (self.testSharingViaIncrementerScript):
+        (self.setupDestinationIncrementer):
+        * web-platform-tests/wasm/serialization/module/resources/w3c-import.log: Added.
+        * web-platform-tests/wasm/serialization/module/serialization-via-history-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/serialization-via-history.html: Added.
+        * web-platform-tests/wasm/serialization/module/serialization-via-idb.any-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/serialization-via-idb.any.html: Added.
+        * web-platform-tests/wasm/serialization/module/serialization-via-idb.any.js: Added.
+        (createEmptyWasmModule):
+        (async_test.t.openReq.onupgradeneeded.e.store.put.property.get x):
+        (async_test.t.openReq.onupgradeneeded.e.store.put.createEmptyWasmModule.get x):
+        (async_test.t.openReq.onupgradeneeded.e.store.put.createEmptyWasmModule):
+        * web-platform-tests/wasm/serialization/module/serialization-via-idb.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/serialization-via-idb.any.worker.html: Added.
+        * web-platform-tests/wasm/serialization/module/serialization-via-notifications-api.any-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/serialization-via-notifications-api.any.html: Added.
+        * web-platform-tests/wasm/serialization/module/serialization-via-notifications-api.any.js: Added.
+        (createEmptyWasmModule):
+        (test):
+        * web-platform-tests/wasm/serialization/module/serialization-via-notifications-api.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/serialization-via-notifications-api.any.worker.html: Added.
+        * web-platform-tests/wasm/serialization/module/w3c-import.log: Added.
+        * web-platform-tests/wasm/serialization/module/window-domain-success.sub-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/window-domain-success.sub.html: Added.
+        * web-platform-tests/wasm/serialization/module/window-messagechannel-success-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/window-messagechannel-success.html: Added.
+        * web-platform-tests/wasm/serialization/module/window-serviceworker-failure.https-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/window-serviceworker-failure.https.html: Added.
+        * web-platform-tests/wasm/serialization/module/window-sharedworker-failure-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/window-sharedworker-failure.html: Added.
+        * web-platform-tests/wasm/serialization/module/window-similar-but-cross-origin-success.sub-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/window-similar-but-cross-origin-success.sub.html: Added.
+        * web-platform-tests/wasm/serialization/module/window-simple-success-expected.txt: Added.
+        * web-platform-tests/wasm/serialization/module/window-simple-success.html: Added.
+        * web-platform-tests/wasm/w3c-import.log: Copied from LayoutTests/imported/w3c/web-platform-tests/wasm/jsapi/memory/w3c-import.log.
+        * web-platform-tests/wasm/webapi/abort.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/abort.any.html: Added.
+        * web-platform-tests/wasm/webapi/abort.any.js: Added.
+        (const.method.of.methods.promise_test.async t):
+        (const.method.of.methods.return.promise_rejects_dom):
+        * web-platform-tests/wasm/webapi/abort.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/abort.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/body.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/body.any.html: Added.
+        * web-platform-tests/wasm/webapi/body.any.js: Added.
+        (string_appeared_here.WebAssembly.method):
+        (string_appeared_here.return.promise_rejects_js):
+        * web-platform-tests/wasm/webapi/body.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/body.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/contenttype.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/contenttype.any.html: Added.
+        * web-platform-tests/wasm/webapi/contenttype.any.js: Added.
+        (const.contenttype.of.validContentTypes.promise_test.async t):
+        * web-platform-tests/wasm/webapi/contenttype.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/contenttype.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/empty-body.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/empty-body.any.html: Added.
+        * web-platform-tests/wasm/webapi/empty-body.any.js: Added.
+        (string_appeared_here.name.of.invalidArguments.WebAssembly.method):
+        * web-platform-tests/wasm/webapi/empty-body.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/empty-body.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/historical.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/historical.any.html: Added.
+        * web-platform-tests/wasm/webapi/historical.any.js: Added.
+        (promise_test.async t.):
+        (promise_test.async t):
+        * web-platform-tests/wasm/webapi/historical.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/historical.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/idlharness.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/idlharness.any.html: Added.
+        * web-platform-tests/wasm/webapi/idlharness.any.js: Added.
+        * web-platform-tests/wasm/webapi/idlharness.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/idlharness.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/instantiateStreaming-bad-imports.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/instantiateStreaming-bad-imports.any.html: Added.
+        * web-platform-tests/wasm/webapi/instantiateStreaming-bad-imports.any.js: Added.
+        (test_bad_imports):
+        * web-platform-tests/wasm/webapi/instantiateStreaming-bad-imports.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/instantiateStreaming-bad-imports.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/instantiateStreaming.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/instantiateStreaming.any.html: Added.
+        * web-platform-tests/wasm/webapi/instantiateStreaming.any.js: Added.
+        (setup):
+        (fn.of.instanceTestFactory.promise_test.async const):
+        (fn.of.instanceTestFactory.promise_test):
+        (promise_test.async const):
+        (promise_test.const.imports.get module.return.get global):
+        (promise_test.const.imports.get module):
+        (promise_test):
+        * web-platform-tests/wasm/webapi/instantiateStreaming.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/instantiateStreaming.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/invalid-args.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/invalid-args.any.html: Added.
+        * web-platform-tests/wasm/webapi/invalid-args.any.js: Added.
+        (string_appeared_here.name.format_value):
+        * web-platform-tests/wasm/webapi/invalid-args.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/invalid-args.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/invalid-code.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/invalid-code.any.html: Added.
+        * web-platform-tests/wasm/webapi/invalid-code.any.js: Added.
+        (setup):
+        * web-platform-tests/wasm/webapi/invalid-code.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/invalid-code.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/origin.sub.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/origin.sub.any.html: Added.
+        * web-platform-tests/wasm/webapi/origin.sub.any.js: Added.
+        * web-platform-tests/wasm/webapi/origin.sub.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/origin.sub.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/rejected-arg.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/rejected-arg.any.html: Added.
+        * web-platform-tests/wasm/webapi/rejected-arg.any.js: Added.
+        (string_appeared_here.WebAssembly.method):
+        * web-platform-tests/wasm/webapi/rejected-arg.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/rejected-arg.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/status.any-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/status.any.html: Added.
+        * web-platform-tests/wasm/webapi/status.any.js: Added.
+        * web-platform-tests/wasm/webapi/status.any.worker-expected.txt: Added.
+        * web-platform-tests/wasm/webapi/status.any.worker.html: Added.
+        * web-platform-tests/wasm/webapi/status.py: Added.
+        (main):
+        * web-platform-tests/wasm/webapi/w3c-import.log: Added.
+
+2020-11-16  Chris Dumez  <cdumez@apple.com>
+
+        WebAudio tests may give slightly different outputs on different platforms
+        https://bugs.webkit.org/show_bug.cgi?id=218929
+
+        Reviewed by Geoffrey Garen.
+
+        Rebaseline WPT tests now that their output has changed.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-audiobuffersource-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet-connections.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-biquad-connection-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-biquad-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-constant-source-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-delay-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-delay-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-gain-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-oscillator-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-stereo-panner-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-cascade-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-4-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-delaynode-interface/maxdelay-rounding-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/detune-limiting-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/automation-changes-expected.txt:
+
+2020-11-15  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Wasm should get byte length from source typed array
+        https://bugs.webkit.org/show_bug.cgi?id=218955
+
+        Reviewed by Sam Weinig.
+
+        * web-platform-tests/wasm/jsapi/constructor/validate.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/constructor/validate.any.worker-expected.txt:
+
+2020-11-14  Rob Buis  <rbuis@igalia.com>
+
+        Remove -webkit-aspect-ratio support
+        https://bugs.webkit.org/show_bug.cgi?id=218384
+
+        Reviewed by Simon Fraser.
+
+        Remove tests for -webkit-aspect-ratio.
+
+        * web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt:
+        * web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+
+2020-11-13  Antoine Quint  <graouts@webkit.org>
+
+        Support animations on more pseudo-elements
+        https://bugs.webkit.org/show_bug.cgi?id=218792
+        <rdar://problem/71274485>
+
+        Reviewed by Antti Koivisto.
+
+        Add PASS results for WPT tests running animations on ::marker pseudo-elements.
+
+        * web-platform-tests/css/css-animations/Document-getAnimations.tentative-expected.txt:
+        * web-platform-tests/css/css-animations/animationevent-marker-pseudoelement-expected.txt:
+        * web-platform-tests/css/css-animations/event-order.tentative-expected.txt:
+        * web-platform-tests/css/css-pseudo/marker-animate-expected.txt:
+        * web-platform-tests/css/css-pseudo/parsing/marker-supported-properties-in-animation-expected.txt:
+        * web-platform-tests/css/css-transitions/Document-getAnimations.tentative-expected.txt:
+
+2020-11-13  Antoine Quint  <graouts@webkit.org>
+
+        Add support for discrete animations of many CSS properties
+        https://bugs.webkit.org/show_bug.cgi?id=218902
+
+        Reviewed by Antti Koivisto.
+
+        By virtue of animation a host of new properties, we run an extra 551 tests and pass 518 of them.
+
+        * web-platform-tests/css/css-logical/animations/float-interpolation-expected.txt:
+        * web-platform-tests/css/css-position/animations/position-interpolation-expected.txt:
+        * web-platform-tests/css/css-transitions/properties-value-003-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/accumulation-per-property-001-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/accumulation-per-property-002-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/addition-per-property-001-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/addition-per-property-002-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/interpolation-per-property-001-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/interpolation-per-property-002-expected.txt:
+
+2020-11-12  Darin Adler  <darin@apple.com>
+
+        Remove unused advanced plug-in features: snapshotting and plug-in load policy
+        https://bugs.webkit.org/show_bug.cgi?id=218835
+
+        Reviewed by Tim Horton.
+
+        * LayoutTests/imported/w3c/web-platform-tests/css/css-ui/appearance-cssom-001-expected.txt:
+        Updated for progression.
+
+2020-11-13  Antoine Quint  <graouts@webkit.org>
+
+        Support more properties on ::marker
+        https://bugs.webkit.org/show_bug.cgi?id=218894
+        <rdar://problem/71368343>
+
+        Reviewed by Antti Koivisto.
+
+        Mark some WPT progressions.
+
+        * web-platform-tests/css/css-pseudo/parsing/marker-supported-properties-expected.txt:
+
+2020-11-12  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][Integration] Enable inline replaced support
+        https://bugs.webkit.org/show_bug.cgi?id=218514
+        <rdar://problem/71239028>
+
+        Reviewed by Antti Koivisto.
+
+        * web-platform-tests/html/browsers/sandboxing/sandbox-parse-noscript-expected.txt:
+
+2020-11-11  Rob Buis  <rbuis@igalia.com>
+
+        Resync web-platform-tests/css/css-sizing/aspect-ratio from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=218796
+
+        Reviewed by Frédéric Wang.
+
+        Resync web-platform-tests/css/css-sizing/aspect-ratio from upstream fe67f0b56f.
+
+        * resources/import-expectations.json:
+        * resources/resource-files.json:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-002.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-003.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-004.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-005.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-006.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-007.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-008.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-009.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-010.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-011.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-012.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-013.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-014.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/auto-margins-001.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-001.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-002.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-003.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-004.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-005.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-006.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-007.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-008.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-009.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-010.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-011.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-012.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-013.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-014.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-015.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-016.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-017.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-018.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-019.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-020.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-021.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-022.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-023.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-024.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-025.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-026.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-027.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-028.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-with-margin-collapsing-001.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-with-margin-collapsing-002.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-001.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-002.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-003.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-004.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-005.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-006.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-007.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-008.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-009.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-010.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-011.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-012.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-013.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-014.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-015.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-016.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-017.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-018.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-019.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-020.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-021.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-022.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-023.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-024.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-001.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-002.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-003.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-004.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-005.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-006.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-007.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-008.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/parsing/contain-intrinsic-size-computed.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/parsing/contain-intrinsic-size-valid-expected.txt:
+        * web-platform-tests/css/css-sizing/aspect-ratio/parsing/contain-intrinsic-size-valid.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-001.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-002.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-003.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-004.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-001.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-002.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-003.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-001.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-002.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-003.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-004.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-005.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-006.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-007.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-008.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-009.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-010.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-011.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-012.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-013.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-014.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-015.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-016.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-017.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-018.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-019.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-020.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-021.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-022.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-023.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-024.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-025.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-026.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-027.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/small-aspect-ratio-crash.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/support/w3c-import.log:
+        * web-platform-tests/css/css-sizing/aspect-ratio/w3c-import.log:
+
+2020-11-10  Youenn Fablet  <youenn@apple.com>
+
+        Update WebRTC liwebrtc to M87
+        https://bugs.webkit.org/show_bug.cgi?id=218436
+
+        Reviewed by Eric Carlson.
+
+        * web-platform-tests/webrtc/RTCPeerConnection-createDataChannel-expected.txt:
+        * web-platform-tests/webrtc/RTCPeerConnection-transceivers.https-expected.txt:
+        * web-platform-tests/webrtc/RTCRtpTransceiver-stop-expected.txt:
+
+2020-11-10  Rob Buis  <rbuis@igalia.com>
+
+        Parse aspect-ratio CSS property
+        https://bugs.webkit.org/show_bug.cgi?id=218437
+
+        Reviewed by Darin Adler.
+
+        Add improved test results.
+
+        * web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt:
+        * web-platform-tests/css/css-sizing/aspect-ratio/parsing/contain-intrinsic-size-computed-expected.txt:
+        * web-platform-tests/css/css-sizing/aspect-ratio/parsing/contain-intrinsic-size-valid-expected.txt:
+        * web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+
+2020-11-10  Sergio Villar Senin  <svillar@igalia.com>
+
+        [css-flex] Import image-as-flexitem-* WPT tests
+        https://bugs.webkit.org/show_bug.cgi?id=218746
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        Import the image-as-flexitem-size-* tests which are useful to test the handling of replaced elements as
+        flex items and more in general, flex items with aspect ratios. We're currently failing a bunch of subtests
+        but since we're passing most of them, I'm uploading them with failed expectations. Follow-up patches
+        will fix the failing subtests.
+
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-001-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-001.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-001v-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-001v.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-002-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-002.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-002v-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-002v.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-003-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-003.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-003v-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-003v.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-004-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-004.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-004v-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-004v.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-005-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-005.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-005v-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-005v.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-006-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-006.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-006v-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-006v.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-007-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-007.html: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-007v-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-007v.html: Added.
+        * web-platform-tests/css/css-flexbox/w3c-import.log:
+
+2020-11-10  Antoine Quint  <graouts@webkit.org>
+
+        align-self should be a discrete animatable property
+        https://bugs.webkit.org/show_bug.cgi?id=218742
+
+        Reviewed by Antti Koivisto.
+
+        * web-platform-tests/web-animations/animation-model/animation-types/accumulation-per-property-001-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/addition-per-property-001-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/interpolation-per-property-001-expected.txt:
+
+2020-11-10  Antoine Quint  <graouts@webkit.org>
+
+        [Web Animations] KeyframeEffect.pseudoElement does not return a valid string when targeting ::marker or ::first-letter
+        https://bugs.webkit.org/show_bug.cgi?id=218741
+        <rdar://problem/71229846>
+
+        Reviewed by Dean Jackson.
+
+        Mark two new PASS results showing that KeyframeEffect.pseudoElement shows the correct value
+        when targeting ::marker or ::first-letter.
+
+        * web-platform-tests/web-animations/interfaces/Animatable/animate-expected.txt:
+
+2020-11-09  Chris Dumez  <cdumez@apple.com>
+
+        Unexpose obsolete HTMLAppletElement interface
+        https://bugs.webkit.org/show_bug.cgi?id=218677
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/dom/nodes/getElementsByClassName-30-expected.txt:
+        * web-platform-tests/html/dom/documents/dom-tree-accessors/nameditem-03-expected.txt:
+        * web-platform-tests/html/dom/historical-expected.txt:
+        * web-platform-tests/html/semantics/interfaces-expected.txt:
+
+2020-11-09  Chris Dumez  <cdumez@apple.com>
+
+        Resync web-platform-tests/html tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=218670
+
+        Reviewed by Sam Weinig.
+
+        Resync web-platform-tests/html tests from upstream 7a287c9e26fbc12.
+
+        * resources/import-expectations.json:
+        * resources/resource-files.json:
+        * web-platform-tests/html/*: Updated.
+
+2020-11-09  Chris Dumez  <cdumez@apple.com>
+
+        Look at parents when event bubbles for input element activation behavior
+        https://bugs.webkit.org/show_bug.cgi?id=218660
+
+        Reviewed by Ryosuke Niwa.
+
+        Rebaseline WPT test that is now fully passing.
+
+        * web-platform-tests/dom/events/Event-dispatch-click-expected.txt:
+
+2020-11-06  Dmitry Bezhetskov  <dbezhetskov@igalia.com>
+
+        [WASM-References] Rename anyref to externref
+        https://bugs.webkit.org/show_bug.cgi?id=218331
+
+        Reviewed by Keith Miller.
+
+        * web-platform-tests/wasm/jsapi/wasm-module-builder.js:
+        (WasmModuleBuilder.prototype.addTable):
+        (WasmModuleBuilder.prototype.toBuffer):
+
+2020-11-06  Chris Dumez  <cdumez@apple.com>
+
+        Event targets should be cleared after dispatch if target pointed to a shadow tree
+        https://bugs.webkit.org/show_bug.cgi?id=218638
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/dom/events/relatedTarget.window-expected.txt:
+        * web-platform-tests/shadow-dom/event-post-dispatch-expected.txt:
+
+2020-11-06  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Re-enable SharedArrayBuffer for JSC shell and Testers
+        https://bugs.webkit.org/show_bug.cgi?id=212069
+
+        Reviewed by Keith Miller.
+
+        * web-platform-tests/html/webappapis/scripting/processing-model-2/integration-with-the-javascript-agent-formalism/requires-failure.https.any-expected.txt:
+        * web-platform-tests/html/webappapis/scripting/processing-model-2/integration-with-the-javascript-agent-formalism/requires-failure.https.any.serviceworker-expected.txt:
+        * web-platform-tests/html/webappapis/scripting/processing-model-2/integration-with-the-javascript-agent-formalism/requires-success.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/constructor.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/constructor.any.worker-expected.txt:
+        * web-platform-tests/workers/postMessage_block.https-expected.txt:
+
+2020-11-05  Chris Dumez  <cdumez@apple.com>
+
+        window.event should not be affected by nodes moving post-dispatch
+        https://bugs.webkit.org/show_bug.cgi?id=218635
+
+        Reviewed by Geoffrey Garen.
+
+        Rebaseline test now that it is fully passing.
+
+        * web-platform-tests/dom/events/event-global-extra.window-expected.txt:
+
+2020-11-05  Alex Christensen  <achristensen@webkit.org>
+
+        Align GBK and gb18030 encoder and decoder with specification and other browsers
+        https://bugs.webkit.org/show_bug.cgi?id=218380
+
+        Reviewed by David Kilzer.
+
+        * web-platform-tests/encoding/gb18030-encoder-expected.txt: Removed.
+        * web-platform-tests/encoding/gb18030-encoder.html: Removed.
+        * web-platform-tests/encoding/legacy-mb-schinese/gb18030/gb18030-decoder-expected.txt: Added.
+        * web-platform-tests/encoding/legacy-mb-schinese/gb18030/gb18030-decoder.html: Added.
+        * web-platform-tests/encoding/legacy-mb-schinese/gb18030/gb18030-encoder-expected.txt: Added.
+        * web-platform-tests/encoding/legacy-mb-schinese/gb18030/gb18030-encoder.html: Added.
+        * web-platform-tests/encoding/legacy-mb-schinese/gb18030/resources/ranges.js: Added.
+        * web-platform-tests/encoding/legacy-mb-schinese/gbk/gbk-encoder-expected.txt: Renamed from LayoutTests/imported/w3c/web-platform-tests/encoding/gbk-encoder-expected.txt.
+        * web-platform-tests/encoding/legacy-mb-schinese/gbk/gbk-encoder.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/encoding/gbk-encoder.html.
+        * web-platform-tests/encoding/legacy-mb-schinese/gbk/gbk-decoder-expected.txt: Added.
+        * web-platform-tests/encoding/legacy-mb-schinese/gbk/gbk-decoder.html: Added.
+
+2020-11-05  Chris Dumez  <cdumez@apple.com>
+
+        Add implementation for Object.getOwnPropertyNames() on HTMLDocument
+        https://bugs.webkit.org/show_bug.cgi?id=218625
+
+        Reviewed by Geoffrey Garen.
+
+        Rebaseline test now that more checks are passing. The checks we are failing are failing
+        in Blink & Gecko also. The checks are are now passing are also passing in Blink & Gecko.
+
+        * web-platform-tests/html/dom/documents/dom-tree-accessors/nameditem-names-expected.txt:
+
+2020-11-05  Chris Dumez  <cdumez@apple.com>
+
+        Expose referrerPolicy attribute on HTMLLinkElement and HTMLAreaElement
+        https://bugs.webkit.org/show_bug.cgi?id=218632
+
+        Reviewed by Geoffrey Garen.
+
+        Rebaseline existing web-platform tests now that more checks are passing.
+
+        * web-platform-tests/html/dom/reflection-embedded-expected.txt:
+        * web-platform-tests/html/dom/reflection-metadata-expected.txt:
+
+2020-11-05  Chris Dumez  <cdumez@apple.com>
+
+        DOMStringList, TextMetrics & ImageBitmapRenderingContext should be exposed to workers
+        https://bugs.webkit.org/show_bug.cgi?id=218631
+
+        Reviewed by Geoffrey Garen.
+
+        Rebaseline WPT test now that more checks are passing.
+
+        * web-platform-tests/html/dom/idlharness.worker-expected.txt:
+
+2020-11-05  Youenn Fablet  <youenn@apple.com>
+
+        WebSocket constructor should not throw in case port is blocked
+        https://bugs.webkit.org/show_bug.cgi?id=218617
+
+        Reviewed by Alex Christensen.
+
+        * web-platform-tests/websockets/Create-blocked-port.any-expected.txt:
+        * web-platform-tests/websockets/Create-blocked-port.any.worker-expected.txt:
+
+2020-11-05  Chris Dumez  <cdumez@apple.com>
+
+        <input disabled> does not fire click events after dispatchEvent
+        https://bugs.webkit.org/show_bug.cgi?id=215461
+        <rdar://problem/67030950>
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT tests that are now passing.
+
+        * web-platform-tests/dom/events/Event-dispatch-click-expected.txt:
+        * web-platform-tests/html/semantics/forms/the-input-element/radio-input-cancel-expected.txt:
+
+2020-11-05  Chris Dumez  <cdumez@apple.com>
+
+        Resync web-platform-tests/html/browsers & web-platform-tests/html/dom tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=218590
+
+        Reviewed by Darin Adler.
+
+        Resync web-platform-tests/html/browsers & web-platform-tests/html/dom tests from upstream 7a287c9e26fbc12c91e.
+
+        * web-platform-tests/html/browsers/*: Updated.
+        * web-platform-tests/html/dom/*: Updated.
+
+2020-11-05  Youenn Fablet  <youenn@apple.com>
+
+        Consider blocking ports 5060 and 5061
+        https://bugs.webkit.org/show_bug.cgi?id=218557
+        <rdar://problem/71031479>
+
+        Reviewed by Alex Christensen.
+
+        * web-platform-tests/fetch/api/request/request-bad-port.any-expected.txt: Added.
+        * web-platform-tests/fetch/api/request/request-bad-port.any.html: Added.
+        * web-platform-tests/fetch/api/request/request-bad-port.any.js: Added.
+        (BLOCKED_PORTS_LIST.map):
+        * web-platform-tests/fetch/api/request/request-bad-port.any.worker-expected.txt: Added.
+        * web-platform-tests/fetch/api/request/request-bad-port.any.worker.html: Added.
+        * web-platform-tests/fetch/api/request/request-bad-port.html: Removed.
+        * web-platform-tests/tools/wptserve/wptserve/utils.py:
+        (is_bad_port):
+        * web-platform-tests/websockets/Create-blocked-port.any-expected.txt:
+        * web-platform-tests/websockets/Create-blocked-port.any.js:
+        * web-platform-tests/websockets/Create-blocked-port.any.worker-expected.txt:
+
+2020-11-05  Ziran Sun  <zsun@igalia.com>
+
+        [css-grid] Move tests grid-columns-rows-get-set-multiple and grid-content-sized-columns-resolution to WPT folder
+        https://bugs.webkit.org/show_bug.cgi?id=218565
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        * web-platform-tests/css/css-grid/parsing/grid-columns-rows-get-set-multiple-expected.txt: Added.
+        * web-platform-tests/css/css-grid/parsing/grid-columns-rows-get-set-multiple.html: Added.
+        * web-platform-tests/css/css-grid/parsing/grid-content-sized-columns-resolution-expected.txt: Added.
+        * web-platform-tests/css/css-grid/parsing/grid-content-sized-columns-resolution.html: Renamed from LayoutTests/fast/css-grid-layout/grid-content-sized-columns-resolution.html.
+        * web-platform-tests/css/css-grid/parsing/w3c-import.log: Updated.
+
+2020-11-04  Chris Dumez  <cdumez@apple.com>
+
+        window.event may get set on wrong global when dispatching an event
+        https://bugs.webkit.org/show_bug.cgi?id=218546
+
+        Reviewed by Sam Weinig.
+
+        Rebaseline WPT test that is now passing.
+
+        * web-platform-tests/dom/events/event-global-extra.window-expected.txt:
+
+2020-11-04  Chris Dumez  <cdumez@apple.com>
+
+        Resync web-platform-tests/dom tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=218570
+
+        Reviewed by David Kilzer.
+
+        Resync web-platform-tests/dom tests from upstream 7a287c9e26fbc12c91.
+
+        * resources/resource-files.json:
+        * web-platform-tests/dom/*: Updated
+
+2020-11-04  Chris Dumez  <cdumez@apple.com>
+
+        imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-connections.html fails on some platforms
+        https://bugs.webkit.org/show_bug.cgi?id=218527
+        <rdar://problem/68947198>
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT tests now that floating point values are truncated to 6 decimals in the tests' output.
+
+        * web-platform-tests/webaudio/the-audio-api/the-analysernode-interface/realtimeanalyser-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffer-interface/audiobuffer-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-multi-channels-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/ctor-audiobuffersource-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/sub-sample-buffer-stitching-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/sub-sample-scheduling-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/audiocontextoptions-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/adding-events-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-close-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-exponentialRampToValueAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-linearRampToValueAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-method-chaining-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-setTargetAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-setValueCurve-exceptions-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-setValueCurveAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/event-insertion-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-biquad-connection-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/set-target-conv-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-audioparam.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletglobalscope-timing-info.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-automation-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-getFrequencyResponse-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-constantsourcenode-interface/constant-source-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-1-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-2-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-4-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-delaynode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-dynamicscompressornode-interface/ctor-dynamicscompressor-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-dynamicscompressornode-interface/dynamicscompressor-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-iirfilternode-interface/iirfilter-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-iirfilternode-interface/iirfilter-getFrequencyResponse-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/detune-limiting-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/osc-basic-waveform-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/ctor-panner-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/distance-exponential-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/distance-inverse-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/distance-linear-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-automation-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-automation-equalpower-stereo-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-automation-position-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-azimuth-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-equalpower-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-equalpower-stereo-expected.txt:
+
+2020-11-04  Sam Weinig  <weinig@apple.com>
+
+        Remove experimental: and internal: prefixes from test header commands
+        https://bugs.webkit.org/show_bug.cgi?id=218547
+
+        Reviewed by Wenson Hsieh.
+
+        They are no longer necessary.
+
+        * web-platform-tests/css/css-values/lh-rlh-on-root-001.html:
+        * web-platform-tests/css/css-values/lh-unit-001.html:
+        * web-platform-tests/css/css-values/lh-unit-002.html:
+        * web-platform-tests/css/cssom-view/inheritance.html:
+        * web-platform-tests/css/cssom-view/parsing/scroll-behavior-computed.html:
+        * web-platform-tests/css/cssom-view/parsing/scroll-behavior-valid.html:
+        * web-platform-tests/css/cssom-view/scroll-behavior-default-css.html:
+        * web-platform-tests/css/cssom-view/scroll-behavior-element.html:
+        * web-platform-tests/css/cssom-view/scroll-behavior-main-frame-root.html:
+        * web-platform-tests/css/cssom-view/scroll-behavior-main-frame-window.html:
+        * web-platform-tests/css/cssom-view/scroll-behavior-scrollintoview-nested.html:
+        * web-platform-tests/css/cssom-view/scroll-behavior-smooth-positions.html:
+        * web-platform-tests/css/cssom-view/scroll-behavior-subframe-root.html:
+        * web-platform-tests/css/cssom-view/scroll-behavior-subframe-window.html:
+        * web-platform-tests/html/rendering/replaced-elements/attributes-for-embedded-content-and-images/canvas-aspect-ratio.html:
+        * web-platform-tests/html/rendering/replaced-elements/attributes-for-embedded-content-and-images/content-aspect-ratio.html:
+        * web-platform-tests/html/rendering/replaced-elements/attributes-for-embedded-content-and-images/img-aspect-ratio.html:
+        * web-platform-tests/html/rendering/replaced-elements/attributes-for-embedded-content-and-images/video-aspect-ratio.html:
+        * web-platform-tests/mathml/presentation-markup/fractions/frac-linethickness-001.html:
+        * web-platform-tests/mathml/relations/css-styling/attribute-mapping-001.html:
+        * web-platform-tests/media-source/mediasource-changetype-play.html:
+        * web-platform-tests/media-source/mediasource-changetype.html:
+        * web-platform-tests/requestidlecallback/basic.html:
+        * web-platform-tests/requestidlecallback/callback-exception.html:
+        * web-platform-tests/requestidlecallback/callback-idle-periods.html:
+        * web-platform-tests/requestidlecallback/callback-iframe.html:
+        * web-platform-tests/requestidlecallback/callback-invoked.html:
+        * web-platform-tests/requestidlecallback/callback-multiple-calls.html:
+        * web-platform-tests/requestidlecallback/callback-removed-frame.html:
+        * web-platform-tests/requestidlecallback/callback-suspended.html:
+        * web-platform-tests/requestidlecallback/callback-timeout-when-busy.html:
+        * web-platform-tests/requestidlecallback/callback-timeout.html:
+        * web-platform-tests/requestidlecallback/callback-xhr-sync.html:
+        * web-platform-tests/requestidlecallback/cancel-invoked.html:
+        * web-platform-tests/requestidlecallback/idlharness.window.html:
+        * web-platform-tests/resize-observer/eventloop.html:
+        * web-platform-tests/resize-observer/idlharness.window.html:
+        * web-platform-tests/resize-observer/notify.html:
+        * web-platform-tests/resize-observer/observe.html:
+        * web-platform-tests/resize-observer/svg.html:
+
+2020-11-03  Antoine Quint  <graouts@webkit.org>
+
+        align-items should be a discrete animatable property
+        https://bugs.webkit.org/show_bug.cgi?id=218535
+        <rdar://problem/71012428>
+
+        Reviewed by Dean Jackson.
+
+        * web-platform-tests/web-animations/animation-model/animation-types/accumulation-per-property-001-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/addition-per-property-001-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/interpolation-per-property-001-expected.txt:
+
+2020-11-03  Tyler Wilcock  <twilco.o@protonmail.com>
+
+        Ignore order when parsing inset and color for box-shadow
+        https://bugs.webkit.org/show_bug.cgi?id=182677
+
+        Reviewed by Simon Fraser.
+
+        Update tests to pass now that we parse `inset`, a color, and the lengths
+        component of <shadow> values in any order.
+
+        https://drafts.csswg.org/css-backgrounds/#typedef-shadow
+
+        * web-platform-tests/css/css-backgrounds/parsing/box-shadow-valid-expected.txt:
+
+2020-11-03  Antoine Quint  <graouts@webkit.org>
+
+        align-content should be a discrete animatable property
+        https://bugs.webkit.org/show_bug.cgi?id=218530
+
+        Reviewed by Simon Fraser.
+
+        * web-platform-tests/web-animations/animation-model/animation-types/accumulation-per-property-001-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/addition-per-property-001-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/interpolation-per-property-001-expected.txt:
+        * web-platform-tests/web-animations/animation-model/keyframe-effects/effect-value-iteration-composite-operation-expected.txt:
+
+2020-11-03  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r268564, r268957, and r268962.
+        https://bugs.webkit.org/show_bug.cgi?id=218525
+
+        Caused 9% binary size increase in WebCore
+
+        Reverted changesets:
+
+        "CSSStyleDeclaration breaks JS spec (properties not showing up
+        in Object.getOwnPropertyNames)"
+        https://bugs.webkit.org/show_bug.cgi?id=217623
+        https://trac.webkit.org/changeset/268564
+
+        "Remove support for 'pixel' and 'pos' CSSOM prefixes"
+        https://bugs.webkit.org/show_bug.cgi?id=119712
+        https://trac.webkit.org/changeset/268957
+
+        "Remove non-standard 'css'/'Css' prefixed properties on
+        CSSStyleDeclaration"
+        https://bugs.webkit.org/show_bug.cgi?id=218158
+        https://trac.webkit.org/changeset/268962
+
+2020-11-02  Diego Pino Garcia  <dpino@igalia.com>
+
+        Update baselines of tests failing after WPT resync
+
+        Unreviewed test gardening.
+
+        These tests are failing in several platforms (iOS, Mac, GTK, WPE, ...) with the same diff. Thus, the general expectations file is updated.
+
+        * web-platform-tests/css/css-sizing/aspect-ratio/parsing/contain-intrinsic-size-invalid-expected.txt: Needs update after r269187.
+        * web-platform-tests/html/semantics/document-metadata/the-meta-element/pragma-directives/attr-meta-http-equiv-refresh/parsing-expected.txt: Needs update after r269235.
+
+2020-11-01  Diego Pino Garcia  <dpino@igalia.com>
+
+        Emit baselines for WPT css-sizing/aspect-ratio/quirks-mode* tests after resync in r269187
+
+        Unreviewed test gardening.
+
+        * web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-001-expected.txt: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-002-expected.txt: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-003-expected.txt: Added.
+
+2020-11-01  Zalan Bujtas  <zalan@apple.com>
+
+        [LegacyInlineLayout] Remove collapsible trailing whitespace when it is followed by a hard line break
+        https://bugs.webkit.org/show_bug.cgi?id=216902
+        <rdar://problem/69812136>
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/css/css-text/white-space/trailing-space-before-br-001-expected.txt:
+
+2020-11-01  Tyler Wilcock  <twilco.o@protonmail.com>
+
+        background-size should not accept negative values
+        https://bugs.webkit.org/show_bug.cgi?id=183990
+
+        Reviewed by Darin Adler.
+
+        We now reject negative values for background-size.  Update newly
+        passing test expectations to reflect this.
+
+        * web-platform-tests/css/css-backgrounds/parsing/background-size-computed-expected.txt:
+        * web-platform-tests/css/css-backgrounds/parsing/background-size-invalid-expected.txt:
+
+2020-11-01  Chris Dumez  <cdumez@apple.com>
+
+        Resync web-platform-tests/tools tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=218352
+
+        Reviewed by Sam Weinig.
+
+        Resync web-platform-tests/tools tests from upstream 5dbb0a3fa631ef73da0.
+
+        * web-platform-tests/tools/*: Updated.
+
+2020-10-31  Chris Dumez  <cdumez@apple.com>
+
+        Promises returned by our DOM API have the caller's global instead of the callee's
+        https://bugs.webkit.org/show_bug.cgi?id=218363
+
+        Reviewed by Darin Adler and Ryosuke Niwa.
+
+        * web-platform-tests/fetch/range/sw.https.window.js:
+        Re-import latest version of the test from upstream. Without those upstream changes, there would be a testharness error
+        when running this test.
+
+        * web-platform-tests/html/cross-origin-embedder-policy/coep-on-response-from-service-worker.https-expected.txt:
+        * web-platform-tests/service-workers/service-worker/controller-with-no-fetch-event-handler.https-expected.txt:
+        * web-platform-tests/service-workers/service-worker/fetch-event-redirect.https-expected.txt:
+        * web-platform-tests/service-workers/service-worker/fetch-request-resources.https-expected.txt:
+        * web-platform-tests/service-workers/service-worker/fetch-response-taint.https-expected.txt:
+        * web-platform-tests/service-workers/service-worker/redirected-response.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/promise-methods-after-discard-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/startrendering-after-discard-expected.txt:
+        Rebaseline WPT tests that are now passing.
+
+2020-10-30  Chris Dumez  <cdumez@apple.com>
+
+        Resync web-platform-tests/interfaces tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=218394
+
+        Reviewed by Sam Weinig.
+
+        Resync web-platform-tests/interfaces tests from upstream 5dbb0a3fa631ef73da06.
+
+        * web-platform-tests/audio-output/idlharness.https.window-expected.txt:
+        * web-platform-tests/encoding/idlharness.any-expected.txt:
+        * web-platform-tests/encoding/idlharness.any.js:
+        * web-platform-tests/encoding/idlharness.any.worker-expected.txt:
+        * web-platform-tests/html/dom/idlharness.https.html:
+        * web-platform-tests/html/dom/idlharness.worker.js:
+        * web-platform-tests/payment-request/idlharness.https.window-expected.txt:
+        * web-platform-tests/resize-observer/idlharness.window-expected.txt:
+        * web-platform-tests/streams/idlharness.any-expected.txt:
+        * web-platform-tests/streams/idlharness.any.worker-expected.txt:
+        * web-platform-tests/web-animations/idlharness.window-expected.txt:
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/idlharness.https.window.js:
+        Rebaseline some WPT tests whose output has changed. Some of the tests had
+        to be resync'd from upstream to keep running. 
+
+        * web-platform-tests/interfaces/*: Updated.
+
+2020-10-30  Chris Dumez  <cdumez@apple.com>
+
+        BaseAudioContext.decodeAudioData() should throw an InvalidStateError when document is not fully active
+        https://bugs.webkit.org/show_bug.cgi?id=218400
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT tests that are now passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/audiocontext-detached-execution-context-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/offlineaudiocontext-detached-execution-context-expected.txt:
+
+2020-10-30  Rob Buis  <rbuis@igalia.com>
+
+        Resync web-platform-tests/css/css-sizing/aspect-ratio from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=218377
+
+        Reviewed by Frédéric Wang.
+
+        Resync web-platform-tests/css/css-sizing/aspect-ratio from upstream f8941337b6.
+
+        * resources/import-expectations.json:
+        * resources/resource-files.json:
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-001-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-002-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-002.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-002.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-002.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-003-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-003.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-003.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-003.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-004-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-004.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-004.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-004.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-005-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-005.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-005.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-005.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-006-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-006.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-006.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-006.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-007-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-007.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-007.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-007.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-008-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-008.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-008.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-008.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-009-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/auto-margins-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-009.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-006.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-010-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-010.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-011-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-002.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-011.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-003.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-012-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-003.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-012.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-009.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-013-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-004.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-013.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-015.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-014-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-005.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/abspos-014.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/auto-margins-001-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-006.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/auto-margins-001.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/auto-margins-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-001-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-007.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-001.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-002-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-008.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-002.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-002.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-003-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-009.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-003.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-003.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-004-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-010.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-004.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-004.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-005-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-013.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-005.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-005.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-006-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-014.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-006.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-006.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-007-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-015.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-007.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-007.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-008-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-016.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-008.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-008.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-009-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-017.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-009.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-009.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-010-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-018.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-010.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-010.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-011-expected.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-011.tentative-expected.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-011.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-011.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-012-expected.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-012.tentative-expected.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-012.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-012.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-013-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-019.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-013.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-013.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-014-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-020.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-014.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-014.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-015-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-015.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-015.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-016-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-002.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-016.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-016.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-017-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-003.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-017.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-017.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-018-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-004.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-018.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-018.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-019-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-005.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-019.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-019.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-020-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-006.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-020.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-020.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-021-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-007.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-021.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-022-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-008.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-022.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-023-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-009.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-023.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-024-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-010.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-024.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-025-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-025.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-026-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-002.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-026.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-020.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-027-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-003.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-027.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-020.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-028-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-004.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-028.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-with-margin-collapsing-001-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-005.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-with-margin-collapsing-001.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-with-margin-collapsing-002-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-006.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/block-aspect-ratio-with-margin-collapsing-002.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-001-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-007.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-001.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-002-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-008.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-002.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-002.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-003-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-003.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-003.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-004-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-002.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-004.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-004.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-005-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-003.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-005.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-005.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-006-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-004.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-006.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-006.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-007-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-007.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-007.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-008-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-002.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-008.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-008.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-009-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-003.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-009.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-009.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-010-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-004.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-010.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-010.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-011-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-005.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-011.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-012-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-006.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-012.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-013-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-007.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-013.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-009.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-014-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-008.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-014.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-009.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-015-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-009.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-015.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-016-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-010.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-016.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-003.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-017-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-011.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-017.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-005.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-018-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-012.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-018.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-003.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-019-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-019.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-020-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-020.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-021-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-021.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-022-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-022.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-023-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-023.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-024-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/flex-aspect-ratio-024.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-001-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-001.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-002-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-002.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-002.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-003-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-003.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-003.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-004-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-004.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-004.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-005-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-005.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-005.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-006-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-006.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-006.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-007-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-007.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-007.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-008-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-008.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/intrinsic-size-008.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/parsing/contain-intrinsic-size-computed.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/parsing/contain-intrinsic-size-invalid.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/parsing/contain-intrinsic-size-valid.html:
+        * web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-001-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-001.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-002-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-002.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-002.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-003-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-003.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-003.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-004-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-004.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/percentage-resolution-004.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-001.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-001.tentative-expected.txt: Removed.
+        * web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-002.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-002.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-002.tentative-expected.txt: Removed.
+        * web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-003.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-003.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/quirks-mode-003.tentative-expected.txt: Removed.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-001-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-001.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-002-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-002.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-002.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-003-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-003.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-003.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-004-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-004.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-004.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-005-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-005.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-005.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-006-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-006.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-006.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-007-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-007.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-007.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-008-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-008.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-008.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-009-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-009.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-009.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-010-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-010.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-010.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-011-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-011.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-011.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-012-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-012.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-012.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-013-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-013.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-014-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-014.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-015-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-015.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-011.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-016-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-016.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-017-expected.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-017.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-018-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-018.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-001.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-019-expected.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-019.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-020-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-020.html: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-006.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-021-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-021.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-006.tentative.html.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-022-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-022.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-023-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-023.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-024-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-024.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-025-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-025.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-026-expected.xht: Copied from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-026.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-027-expected.xht: Renamed from LayoutTests/imported/w3c/web-platform-tests/css/css-sizing/aspect-ratio/abspos-001.tentative-expected.xht.
+        * web-platform-tests/css/css-sizing/aspect-ratio/replaced-element-027.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/small-aspect-ratio-crash.html: Added.
+        * web-platform-tests/css/css-sizing/aspect-ratio/w3c-import.log:
+
+2020-10-30  Chris Dumez  <cdumez@apple.com>
+
+        Resync web-platform-tests/resources tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=218351
+
+        Reviewed by Sam Weinig.
+
+        Resync web-platform-tests/resources tests from upstream 5dbb0a3fa631ef73da0.
+
+        * web-platform-tests/resources/*: Updated.
+
+        * web-platform-tests/console/idlharness.any-expected.txt:
+        * web-platform-tests/console/idlharness.any.worker-expected.txt:
+        * web-platform-tests/content-security-policy/frame-src/frame-src-same-document-meta.sub.html:
+        * web-platform-tests/css/css-text/overflow-wrap/overflow-wrap-break-word-long-crash-expected.txt:
+        * web-platform-tests/css/css-text/text-indent/text-indent-long-line-crash-expected.txt:
+        * web-platform-tests/css/cssom/idlharness-expected.txt:
+        * web-platform-tests/html/browsers/browsing-the-web/navigating-across-documents/anchor-fragment-form-submit-withpath.html:
+        * web-platform-tests/html/cross-origin-embedder-policy/reporting-navigation.https.html:
+        * web-platform-tests/html/cross-origin-embedder-policy/require-corp-about-blank.https-expected.txt:
+        * web-platform-tests/html/cross-origin-embedder-policy/require-corp-about-srcdoc.https-expected.txt:
+        * web-platform-tests/html/cross-origin-embedder-policy/require-corp.https-expected.txt:
+        * web-platform-tests/wasm/jsapi/idlharness.any-expected.txt:
+        * web-platform-tests/web-share/share-url-invalid.https.html:
+        * web-platform-tests/webrtc/RTCPeerConnection-getStats.https.html:
+        * web-platform-tests/webrtc/RTCPeerConnection-setRemoteDescription-replaceTrack.https.html:
+        * web-platform-tests/webrtc/RTCPeerConnection-track-stats.https-expected.txt:
+        * web-platform-tests/webrtc/RTCPeerConnection-track-stats.https.html:
+        * web-platform-tests/webrtc/legacy/RTCPeerConnection-addStream.https.html:
+        - Rebaseline a few tests that have different output.
+        - I resync'd from upstream a few tests that would have stopped running properly after the
+          resources/ folder resync.
+
+2020-10-29  Chris Dumez  <cdumez@apple.com>
+
+        Resync web-platform-tests/payment-request tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=218308
+
+        Reviewed by Geoff Garen.
+
+        Resync web-platform-tests/payment-request tests from upstream 326f137f2c3d23c.
+
+        It drops a lot of manual tests too, now that our test importer is smart enough not to
+        import them.
+
+        * resources/resource-files.json:
+        * web-platform-tests/payment-request/*: Updated.
+
+2020-10-29  Martin Robinson  <mrobinson@igalia.com>
+
+        Make scroll-margin independent of scroll snapping and have it apply when scrolling to anchors
+        https://bugs.webkit.org/show_bug.cgi?id=218076
+
+        Reviewed by Simon Fraser.
+
+        * web-platform-tests/css/cssom-view/scrollIntoView-scrollMargin-expected.txt: Updated expectation to note new pass.
+
+2020-10-28  Chris Dumez  <cdumez@apple.com>
+
+        Resync web-platform-tests/webaudio tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=218313
+
+        Reviewed by Alex Christensen.
+
+        Resync web-platform-tests/webaudio tests from upstream 5fe9553936ab4d7ba2b4.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/audiocontext-detached-execution-context-expected.txt: Added.
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/audiocontext-detached-execution-context.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/audiocontext-detached-execution-context.tentative.html.
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/audiocontext-detached-execution-context.tentative-expected.txt: Removed.
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/promise-methods-after-discard-expected.txt: Added.
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/promise-methods-after-discard.html: Added.
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/w3c-import.log:
+        * web-platform-tests/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/mediaElementAudioSourceToScriptProcessorTest.html:
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/offlineaudiocontext-detached-execution-context-expected.txt: Added.
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/offlineaudiocontext-detached-execution-context.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/offlineaudiocontext-detached-execution-context.tentative.html.
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/offlineaudiocontext-detached-execution-context.tentative-expected.txt: Removed.
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/startrendering-after-discard-expected.txt: Added.
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/startrendering-after-discard.html: Added.
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/w3c-import.log:
+
+2020-10-28  Chris Dumez  <cdumez@apple.com>
+
+        AudioBuffer channels should be neuterable / detachable
+        https://bugs.webkit.org/show_bug.cgi?id=218286
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT test that is now passing. This test is also passing in Firefox. It is crashing in Blink.
+
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/transferred-buffer-output-expected.txt:
+
+2020-10-27  Chris Dumez  <cdumez@apple.com>
+
+        AudioBuffer.getChannelData(x) should keep returning the same JS wrapper for a given channel
+        https://bugs.webkit.org/show_bug.cgi?id=218265
+
+        Reviewed by Geoff Garen.
+
+        Rebaseline WPT test that is now fully passing. I have verified that this test passes in Chrome and Firefox
+        as well.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffer-interface/audiobuffer-getChannelData-expected.txt:
+
+2020-10-27  Noam Rosenthal  <noam@webkit.org>
+
+        compositing/iframes/layout-on-compositing-change.html can assert under ContentfulPaintChecker
+        https://bugs.webkit.org/show_bug.cgi?id=218204
+        <rdar://problem/70694218>
+
+        Reviewed by Simon Fraser.
+
+        * web-platform-tests/paint-timing/resources/subframe-painting.html:
+        * web-platform-tests/paint-timing/fcp-only/fcp-ignore-from-subframe.html:
+        * web-platform-tests/paint-timing/fcp-only/fcp-ignore-from-subframe-expected.txt:
+                Added a new test to assert that painting inside iframes is not automatically considered by the parent.
+                Upstreamed: https://github.com/web-platform-tests/wpt/pull/26303
+
+2020-10-26  Emilio Cobos Álvarez  <emilio@crisal.io>
+
+        Drop sorting and deduplication of media queries.
+        https://bugs.webkit.org/show_bug.cgi?id=217751
+
+        Reviewed by Simon Fraser.
+
+        * web-platform-tests/css/cssom/mediaquery-sort-dedup-expected.txt: annotate progression
+
+2020-10-25  Emilio Cobos Álvarez  <emilio@crisal.io>
+
+        Update CSSOM WPT tests.
+        https://bugs.webkit.org/show_bug.cgi?id=218157
+
+        Reviewed by Simon Fraser.
+
+        * resources/resource-files.json:
+        * web-platform-tests/css/cssom/CSS.html: Removed.
+        * web-platform-tests/css/cssom/CSSCounterStyleRule-expected.txt: Added.
+        * web-platform-tests/css/cssom/CSSCounterStyleRule.html: Added.
+        * web-platform-tests/css/cssom/CSSFontFaceRule-expected.txt: Added.
+        * web-platform-tests/css/cssom/CSSFontFaceRule.html: Added.
+        * web-platform-tests/css/cssom/CSSStyleSheet-constructable-disallow-import.tentative-expected.txt:
+        * web-platform-tests/css/cssom/CSSStyleSheet-constructable-disallow-import.tentative.html:
+        * web-platform-tests/css/cssom/css-style-attr-decl-block.html:
+        * web-platform-tests/css/cssom/cssimportrule.html:
+        * web-platform-tests/css/cssom/escape.html:
+        * web-platform-tests/css/cssom/getComputedStyle-detached-subtree-expected.txt:
+        * web-platform-tests/css/cssom/getComputedStyle-detached-subtree.html:
+        * web-platform-tests/css/cssom/getComputedStyle-resolved-colors-expected.txt: Added.
+        * web-platform-tests/css/cssom/getComputedStyle-resolved-colors.html: Added.
+        * web-platform-tests/css/cssom/medialist-interfaces-003-expected.txt: Removed.
+        * web-platform-tests/css/cssom/medialist-interfaces-003.html: Removed.
+        * web-platform-tests/css/cssom/mediaquery-sort-dedup-expected.txt: Added.
+        * web-platform-tests/css/cssom/mediaquery-sort-dedup.html: Added.
+        * web-platform-tests/css/cssom/removerule-invalidation-crash.html: Added.
+        * web-platform-tests/css/cssom/rule-restrictions-expected.txt: Added.
+        * web-platform-tests/css/cssom/rule-restrictions.html: Added.
+        * web-platform-tests/css/cssom/serialize-media-rule-expected.txt:
+        * web-platform-tests/css/cssom/serialize-media-rule.html:
+        * web-platform-tests/css/cssom/w3c-import.log:
+
+2020-10-23  Diego Pino Garcia  <dpino@igalia.com>
+
+        REGRESSION (r267402): [ iOS Mojave+ Release ] imported/w3c/web-platform-tests/user-timing/measure-l3.any.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217414
+
+        Reviewed by Alex Christensen.
+
+        Sometimes lhs of comparison is higher by an infinitisimal margin.
+        Round number to two-digit precision to prevent such scenarios.
+
+        * web-platform-tests/user-timing/measure-l3.any.js:
+        (test):
+
+2020-10-23  Chris Dumez  <cdumez@apple.com>
+
+        AnalyserNode's output should only have one channel
+        https://bugs.webkit.org/show_bug.cgi?id=218125
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT test that is now passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-analysernode-interface/test-analyser-output-expected.txt:
+
+2020-10-22  Martin Robinson  <mrobinson@igalia.com>
+
+        Rename scroll-snap-margin to scroll-margin
+        https://bugs.webkit.org/show_bug.cgi?id=218075
+
+        Reviewed by Simon Fraser.
+
+        * web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt: Update result for newly passing test.
+        * web-platform-tests/css/css-scroll-snap/inheritance-expected.txt: Ditto
+        * web-platform-tests/css/css-scroll-snap/parsing/scroll-margin-computed-expected.txt: Ditto.
+        * web-platform-tests/css/css-scroll-snap/parsing/scroll-margin-shorthand-expected.txt: Ditto.
+        * web-platform-tests/css/css-scroll-snap/parsing/scroll-margin-valid-expected.txt: Ditto.
+        * web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt: Ditto.
+
+2020-10-22  Noam Rosenthal  <noam@webkit.org>
+
+        Support EXIF image resolution in CoreGraphics (macOS/iOS)
+        https://bugs.webkit.org/show_bug.cgi?id=217820
+
+        Reviewed by Darin Adler.
+
+        Imported density-size-correction tests
+
+        * resources/import-expectations.json:
+        * web-platform-tests/density-size-correction: Added.
+        * web-platform-tests/density-size-correction/density-corrected-image-in-canvas-expected.txt: Added.
+        * web-platform-tests/density-size-correction/density-corrected-image-in-canvas.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-image-svg-aspect-ratio-expected.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-image-svg-aspect-ratio.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-image-svg-expected.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-image-svg.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-natural-size-expected.txt: Added.
+        * web-platform-tests/density-size-correction/density-corrected-natural-size.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-size-bg-expected.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-size-bg.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-size-img-expected.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-size-img.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-size-pseudo-elements-expected.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-size-pseudo-elements.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-various-elements-expected.html: Added.
+        * web-platform-tests/density-size-correction/density-corrected-various-elements.html: Added.
+        * web-platform-tests/density-size-correction/resources: Added.
+        * web-platform-tests/density-size-correction/resources/exif-resolution-no-change.jpg: Added.
+        * web-platform-tests/density-size-correction/resources/exif-resolution-none.jpg: Added.
+        * web-platform-tests/density-size-correction/resources/exif-resolution-preapplied-hires.jpg: Added.
+        * web-platform-tests/density-size-correction/resources/exif-resolution-preapplied-lores.jpg: Added.
+        * web-platform-tests/density-size-correction/resources/exif-resolution-preapplied-non-uniform.jpg: Added.
+        * web-platform-tests/density-size-correction/resources/exif-resolution-valid-hires.jpg: Added.
+        * web-platform-tests/density-size-correction/resources/exif-resolution-valid-lores.jpg: Added.
+        * web-platform-tests/density-size-correction/resources/exif-resolution-valid-non-uniform.jpg: Added.
+        * web-platform-tests/density-size-correction/resources/exif-resolution-with-orientation.jpg: Added.
+        * web-platform-tests/density-size-correction/resources/exify.js: Added.
+        (createImageWithMetadata):
+        * web-platform-tests/density-size-correction/resources/w3c-import.log: Added.
+        * web-platform-tests/density-size-correction/third_party: Added.
+        * web-platform-tests/density-size-correction/third_party/piexif: Added.
+        * web-platform-tests/density-size-correction/third_party/piexif/LICENSE.txt: Added.
+        * web-platform-tests/density-size-correction/third_party/piexif/piexif.js: Added.
+        (that.remove):
+        (that.insert):
+        (that.load):
+        (that.dump):
+        (copy):
+        (_get_thumbnail):
+        (_pack_byte):
+        (_pack_short):
+        (_pack_long):
+        (_value_to_bytes):
+        (_dict_to_bytes):
+        (ExifReader):
+        (ExifReader.prototype.get_ifd):
+        (ExifReader.prototype.convert_value):
+        (typeof.btoa.string_appeared_here.btoa):
+        (typeof.atob.string_appeared_here.atob):
+        (getImageSize):
+        (pack):
+        (unpack):
+        (nStr):
+        (splitIntoSegments):
+        (getExifSeg):
+        (mergeSegments):
+        (toHex):
+        (that.GPSHelper.degToDmsRational):
+        (that.GPSHelper.dmsRationalToDeg):
+        * web-platform-tests/density-size-correction/third_party/piexif/w3c-import.log: Added.
+        * web-platform-tests/density-size-correction/w3c-import.log: Added.
+
+2020-10-22  Martin Robinson  <mrobinson@igalia.com>
+
+        Scroll snap: don't create implicit snap points at scrollmin/scrollmax
+        https://bugs.webkit.org/show_bug.cgi?id=216882
+        <rdar://problem/69443288>
+
+        Reviewed by Simon Fraser.
+
+        Update expectations for these tests.
+
+        * web-platform-tests/css/css-scroll-snap/nested-scrollIntoView-snaps-expected.txt:
+        * web-platform-tests/css/css-scroll-snap/snap-after-relayout/adding-only-snap-area-expected.txt:
+        * web-platform-tests/css/css-scroll-snap/snap-after-relayout/changing-scroll-snap-align-expected.txt:
+        * web-platform-tests/css/css-scroll-snap/snap-after-relayout/snap-to-different-targets-expected.txt:
+        * web-platform-tests/css/css-scroll-snap/snap-area-capturing-remove-scroll-container-expected.txt:
+
+2020-10-21  Alex Christensen  <achristensen@webkit.org>
+
+        Update and pass new URL web platform tests
+        https://bugs.webkit.org/show_bug.cgi?id=218056
+
+        Reviewed by Tim Horton.
+
+        * web-platform-tests/url/a-element-expected.txt:
+        * web-platform-tests/url/a-element-xhtml-expected.txt:
+        * web-platform-tests/url/resources/setters_tests.json:
+        * web-platform-tests/url/resources/urltestdata.json:
+        * web-platform-tests/url/url-constructor-expected.txt:
+        * web-platform-tests/url/url-searchparams.any.js:
+        * web-platform-tests/url/url-setters-expected.txt:
+
+2020-10-21  Alex Christensen  <achristensen@webkit.org>
+
+        Implement ISO-2022-JP encoder step 3
+        https://bugs.webkit.org/show_bug.cgi?id=218046
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/encoding/iso-2022-jp-encoder-expected.txt:
+        * web-platform-tests/encoding/iso-2022-jp-encoder.html:
+
+2020-10-21  Chris Dumez  <cdumez@apple.com>
+
+        Make sure WebAudio API throws exceptions with useful error messages
+        https://bugs.webkit.org/show_bug.cgi?id=218033
+
+        Reviewed by Darin Adler.
+
+        Rebaseline existing tests now that exception messages have been improved.
+
+        * web-platform-tests/webaudio/the-audio-api/the-constantsourcenode-interface/constant-source-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-channels-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/ctor-convolver-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-delaynode-interface/delaynode-maxdelaylimit-expected.txt:
+
+2020-10-20  Sergio Villar Senin  <svillar@igalia.com>
+
+        [css-flexbox] flex-basis not animatable
+        https://bugs.webkit.org/show_bug.cgi?id=180435
+        <rdar://problem/59363784>
+
+        Reviewed by Antoine Quint.
+
+        * web-platform-tests/css/css-flexbox/animation/flex-basis-composition-expected.txt: Replaced FAIL expectations with PASS.
+        * web-platform-tests/css/css-flexbox/animation/flex-basis-interpolation-expected.txt: Ditto.
+        * web-platform-tests/web-animations/animation-model/animation-types/accumulation-per-property-001-expected.txt: Ditto.
+        * web-platform-tests/web-animations/animation-model/animation-types/addition-per-property-001-expected.txt: Ditto.
+        * web-platform-tests/web-animations/animation-model/animation-types/interpolation-per-property-001-expected.txt: Ditto.
+
+2020-10-21  Antti Koivisto  <antti@apple.com>
+
+        Import web-platform-tests/css/selectors/is-where-basic.html
+        https://bugs.webkit.org/show_bug.cgi?id=218009
+
+        Reviewed by Tim Horton.
+
+        One more :is/:where test.
+
+        * web-platform-tests/css/selectors/is-where-basic-expected.txt: Added.
+        * web-platform-tests/css/selectors/is-where-basic.html: Added.
+        * web-platform-tests/css/selectors/w3c-import.log:
+
+2020-10-20  Sihui Liu  <sihui_liu@apple.com>
+
+        Add stubs for SpeechRecognition
+        https://bugs.webkit.org/show_bug.cgi?id=217780
+        <rdar://problem/70350727>
+
+        Reviewed by Youenn Fablet.
+
+        * web-platform-tests/speech-api/SpeechRecognition-basics.https-expected.txt:
+        * web-platform-tests/speech-api/idlharness.window-expected.txt:
+
+2020-10-20  Antti Koivisto  <antti@apple.com>
+
+        Implement <forgiving-selector-list> for :is/:where
+        https://bugs.webkit.org/show_bug.cgi?id=217814
+        <rdar://problem/70384483>
+
+        Reviewed by Sam Weinig.
+
+        * web-platform-tests/css/selectors/is-where-error-recovery-expected.txt:
+        * web-platform-tests/css/selectors/is-where-not-expected.txt:
+
+2020-10-15  Jer Noble  <jer.noble@apple.com>
+
+        Add skeleton implementation of Media Session API
+        https://bugs.webkit.org/show_bug.cgi?id=217797
+
+        Reviewed by Darin Adler.
+
+        * resources/import-expectations.json:
+        * resources/resource-files.json:
+        * web-platform-tests/mediasession/META.yml: Added.
+        * web-platform-tests/mediasession/README.md: Added.
+        * web-platform-tests/mediasession/helper/artwork-generator.html: Added.
+        * web-platform-tests/mediasession/helper/w3c-import.log: Added.
+        * web-platform-tests/mediasession/idlharness.window-expected.txt: Added.
+        * web-platform-tests/mediasession/idlharness.window.html: Added.
+        * web-platform-tests/mediasession/idlharness.window.js: Added.
+        * web-platform-tests/mediasession/mediametadata-expected.txt: Added.
+        * web-platform-tests/mediasession/mediametadata.html: Added.
+        * web-platform-tests/mediasession/playbackstate-expected.txt: Added.
+        * web-platform-tests/mediasession/playbackstate.html: Added.
+        * web-platform-tests/mediasession/positionstate-expected.txt: Added.
+        * web-platform-tests/mediasession/positionstate.html: Added.
+        * web-platform-tests/mediasession/setactionhandler-expected.txt: Added.
+        * web-platform-tests/mediasession/setactionhandler.html: Added.
+        * web-platform-tests/mediasession/w3c-import.log: Added.
+
+2020-10-20  Sergio Villar Senin  <svillar@igalia.com>
+
+        [css-flexbox] order property should be animatable
+        https://bugs.webkit.org/show_bug.cgi?id=209876
+
+        Reviewed by Antoine Quint.
+
+        Updated ~150 FAIL expectations to PASS.
+
+        * web-platform-tests/css/css-flexbox/animation/order-interpolation-expected.txt: Updated expectations.
+        * web-platform-tests/web-animations/animation-model/animation-types/accumulation-per-property-002-expected.txt: Ditto.
+        * web-platform-tests/web-animations/animation-model/animation-types/addition-per-property-002-expected.txt: Ditto.
+        * web-platform-tests/web-animations/animation-model/animation-types/interpolation-per-property-002-expected.txt: Ditto.
+
+2020-10-19  Sergio Villar Senin  <svillar@igalia.com>
+
+        [css-flexbox] flex-shrink property should be animatable
+        https://bugs.webkit.org/show_bug.cgi?id=209874
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        Added new expectations. Replaced ~100 FAIL subtests with PASS expectations.
+
+        * web-platform-tests/css/css-flexbox/animation/flex-shrink-interpolation-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/accumulation-per-property-001-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/addition-per-property-001-expected.txt:
+        * web-platform-tests/web-animations/animation-model/animation-types/interpolation-per-property-001-expected.txt:
+
+2020-10-19  Sihui Liu  <sihui_liu@apple.com>
+
+        Import speech tests from WPT
+        https://bugs.webkit.org/show_bug.cgi?id=217910
+
+        Reviewed by Youenn Fablet.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/speech-api/META.yml: Added.
+        * web-platform-tests/speech-api/SpeechRecognition-basics.https-expected.txt: Added.
+        * web-platform-tests/speech-api/SpeechRecognition-basics.https.html: Added.
+        * web-platform-tests/speech-api/SpeechSynthesis-speak-ownership-expected.txt: Added.
+        * web-platform-tests/speech-api/SpeechSynthesis-speak-ownership.html: Added.
+        * web-platform-tests/speech-api/SpeechSynthesis-speak-twice-expected.txt: Added.
+        * web-platform-tests/speech-api/SpeechSynthesis-speak-twice.html: Added.
+        * web-platform-tests/speech-api/SpeechSynthesis-speak-with-activation-succeeds-expected.txt: Added.
+        * web-platform-tests/speech-api/SpeechSynthesis-speak-with-activation-succeeds.html: Added.
+        * web-platform-tests/speech-api/SpeechSynthesis-speak-without-activation-fails.tentative-expected.txt: Added.
+        * web-platform-tests/speech-api/SpeechSynthesis-speak-without-activation-fails.tentative.html: Added.
+        * web-platform-tests/speech-api/SpeechSynthesisUtterance-basics.https-expected.txt: Added.
+        * web-platform-tests/speech-api/SpeechSynthesisUtterance-basics.https.html: Added.
+        * web-platform-tests/speech-api/historical-expected.txt: Added.
+        * web-platform-tests/speech-api/historical.html: Added.
+        * web-platform-tests/speech-api/idlharness.window-expected.txt: Added.
+        * web-platform-tests/speech-api/idlharness.window.html: Added.
+        * web-platform-tests/speech-api/idlharness.window.js: Added.
+        * web-platform-tests/speech-api/w3c-import.log: Added.
+        * web-platform-tests/speech-api/webspeech.js: Added.
+        (typeof):
+        (reco.onstart.onstartTest.step_func):
+        (reco.onend):
+        (neverFireEvent):
+        (this.count):
+        (this.test):
+        (this.done):
+        (CycleTest.this.startEvent):
+        (CycleTest.this.endEvent):
+        (CycleTest.this.done):
+        (CycleTest):
+
+2020-10-19  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        [WebIDL] %Interface%.prototype.constructor should be defined on [[Set]] receiver
+        https://bugs.webkit.org/show_bug.cgi?id=216533
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/WebIDL/ecmascript-binding/interface-prototype-constructor-set-receiver-expected.txt: Added.
+        * web-platform-tests/WebIDL/ecmascript-binding/interface-prototype-constructor-set-receiver.html: Added.
+
+2020-10-19  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        [WebIDL] convertRecord() should handle duplicate keys for USVString records
+        https://bugs.webkit.org/show_bug.cgi?id=217612
+
+        Reviewed by Sam Weinig.
+
+        * web-platform-tests/url/urlsearchparams-constructor.any-expected.txt:
+        * web-platform-tests/url/urlsearchparams-constructor.any.js:
+        * web-platform-tests/url/urlsearchparams-constructor.any.worker-expected.txt:
+
+2020-10-19  Antti Koivisto  <antti@apple.com>
+
+        Update imported/w3c/web-platform-tests/css/selectors/
+        https://bugs.webkit.org/show_bug.cgi?id=217905
+
+        Reviewed by Simon Fraser.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/css/selectors/first-line-bidi-001-expected.html: Added.
+        * web-platform-tests/css/selectors/first-line-bidi-001.html: Added.
+        * web-platform-tests/css/selectors/first-line-bidi-002-expected.html: Added.
+        * web-platform-tests/css/selectors/first-line-bidi-002.html: Added.
+        * web-platform-tests/css/selectors/focus-visible-007.html:
+        * web-platform-tests/css/selectors/focus-visible-011.html:
+        * web-platform-tests/css/selectors/is-where-error-recovery-expected.txt: Added.
+        * web-platform-tests/css/selectors/is-where-error-recovery.html: Added.
+        * web-platform-tests/css/selectors/is-where-not-expected.txt: Added.
+        * web-platform-tests/css/selectors/is-where-not.html: Added.
+        * web-platform-tests/css/selectors/is-where-parsing-expected.txt:
+        * web-platform-tests/css/selectors/is-where-parsing.html:
+        * web-platform-tests/css/selectors/is-where-pseudo-classes-expected.txt: Added.
+        * web-platform-tests/css/selectors/is-where-pseudo-classes.html: Added.
+        * web-platform-tests/css/selectors/is-where-pseudo-elements-expected.html: Added.
+        * web-platform-tests/css/selectors/is-where-pseudo-elements.html: Added.
+        * web-platform-tests/css/selectors/is-where-shadow-expected.txt: Added.
+        * web-platform-tests/css/selectors/is-where-shadow.html: Added.
+        * web-platform-tests/css/selectors/is-where-visited-expected.html: Added.
+        * web-platform-tests/css/selectors/is-where-visited.html: Added.
+        * web-platform-tests/css/selectors/not-links-expected.html:
+        * web-platform-tests/css/selectors/not-links.html:
+        * web-platform-tests/css/selectors/old-tests/css3-modsel-23.xml: Removed.
+        * web-platform-tests/css/selectors/old-tests/css3-modsel-24.xml: Removed.
+        * web-platform-tests/css/selectors/old-tests/css3-modsel-68.xml: Removed.
+        * web-platform-tests/css/selectors/old-tests/css3-modsel-69.xml: Removed.
+        * web-platform-tests/css/selectors/old-tests/w3c-import.log:
+        * web-platform-tests/css/selectors/parsing/parse-attribute-expected.txt: Added.
+        * web-platform-tests/css/selectors/parsing/parse-attribute.html: Added.
+        * web-platform-tests/css/selectors/parsing/parse-child-expected.txt: Added.
+        * web-platform-tests/css/selectors/parsing/parse-child.html: Added.
+        * web-platform-tests/css/selectors/parsing/parse-class-expected.txt: Added.
+        * web-platform-tests/css/selectors/parsing/parse-class.html: Added.
+        * web-platform-tests/css/selectors/parsing/parse-descendant-expected.txt: Added.
+        * web-platform-tests/css/selectors/parsing/parse-descendant.html: Added.
+        * web-platform-tests/css/selectors/parsing/parse-id-expected.txt: Added.
+        * web-platform-tests/css/selectors/parsing/parse-id.html: Added.
+        * web-platform-tests/css/selectors/parsing/parse-is-expected.txt: Added.
+        * web-platform-tests/css/selectors/parsing/parse-is.html: Added.
+        * web-platform-tests/css/selectors/parsing/parse-not-expected.txt: Added.
+        * web-platform-tests/css/selectors/parsing/parse-not.html: Added.
+        * web-platform-tests/css/selectors/parsing/parse-sibling-expected.txt: Added.
+        * web-platform-tests/css/selectors/parsing/parse-sibling.html: Added.
+        * web-platform-tests/css/selectors/parsing/parse-universal-expected.txt: Added.
+        * web-platform-tests/css/selectors/parsing/parse-universal.html: Added.
+        * web-platform-tests/css/selectors/parsing/parse-where-expected.txt: Added.
+        * web-platform-tests/css/selectors/parsing/parse-where.html: Added.
+        * web-platform-tests/css/selectors/parsing/w3c-import.log: Added.
+        * web-platform-tests/css/selectors/pseudo-enabled-disabled-expected.txt: Added.
+        * web-platform-tests/css/selectors/pseudo-enabled-disabled.html: Added.
+        * web-platform-tests/css/selectors/query/query-is-expected.txt: Added.
+        * web-platform-tests/css/selectors/query/query-is.html: Added.
+        * web-platform-tests/css/selectors/query/query-where-expected.txt: Added.
+        * web-platform-tests/css/selectors/query/query-where.html: Added.
+        * web-platform-tests/css/selectors/query/w3c-import.log: Added.
+        * web-platform-tests/css/selectors/w3c-import.log:
+        * web-platform-tests/css/support/query-testcommon.js: Added.
+        (test_query_selector):
+        * web-platform-tests/css/support/w3c-import.log:
+
+2020-10-19  Chris Dumez  <cdumez@apple.com>
+
+        Resync web-platform-tests/webaudio from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=217909
+
+        Reviewed by Eric Carlson.
+
+        Resync web-platform-tests/webaudio from upstream 357b8f6365d9080a06.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-constructor-options.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-constructor-options.https.html:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-promises.https.html:
+        * web-platform-tests/webaudio/the-audio-api/the-constantsourcenode-interface/test-constantsourcenode.html:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/transferred-buffer-output-expected.txt: Added.
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/transferred-buffer-output.html: Added.
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/w3c-import.log:
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/offlineaudiocontext-detached-execution-context.tentative.html:
+
 2020-10-19  Martin Robinson  <mrobinson@igalia.com>
 
         axis in scroll-snap-type should be required

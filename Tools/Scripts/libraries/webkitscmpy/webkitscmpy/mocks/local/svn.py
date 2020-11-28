@@ -45,14 +45,17 @@ class Svn(mocks.Subprocess):
             date=datetime.fromtimestamp(commit.timestamp).strftime('%Y-%m-%d %H:%M:%S {} (%a, %d %b %Y)'.format(cls.UTC_OFFSET)),
         )
 
-    def __init__(self, path='/.invalid-svn', branch=None, remote=None, branches=None, tags=None):
+    def __init__(self, path='/.invalid-svn', remote=None, branches=None):
         self.path = path
-        self.branch = branch or 'trunk'
         self.remote = remote or 'https://svn.mock.org/repository/{}'.format(os.path.basename(path))
 
         self.branches = branches or []
-        self.tags = tags or []
         self.connected = True
+
+        try:
+            self.executable = local.Svn.executable()
+        except (OSError, AssertionError):
+            self.executable = '/usr/bin/svn'
 
         # Provide a reasonable set of commits to test against
         contributor = Contributor(name='Jonathan Bedard', emails=['jbedard@apple.com'])
@@ -115,31 +118,60 @@ class Svn(mocks.Subprocess):
             ),
         ]
 
+        self.commits['tags/tag-1'] = [
+            self.commits['branch-a'][0],
+            self.commits['branch-a'][1], Commit(
+                identifier='2.3@tags/tag-1',
+                revision=9,
+                author=contributor,
+                timestamp=1601668100,
+                message='9th commit\n',
+            ),
+        ]
+        self.commits['tags/tag-2'] = [
+            self.commits['branch-b'][0],
+            self.commits['branch-b'][1],
+            self.commits['branch-b'][2], Commit(
+                identifier='2.4@tags/tag-2',
+                revision=10,
+                author=contributor,
+                timestamp=1601669100,
+                message='10th commit\n',
+            ),
+        ]
+        self.head = self.commits['trunk'][3]
+
         super(Svn, self).__init__(
             mocks.Subprocess.Route(
-                local.Svn.executable, 'info',
-                cwd=self.path,
-                generator=lambda *args, **kwargs: self._info(cwd=kwargs.get('cwd',''))
+                '/usr/bin/which', 'svn',
+                completion=mocks.ProcessCompletion(
+                    returncode=0,
+                    stdout='{}\n'.format(self.executable),
+                ),
             ), mocks.Subprocess.Route(
-                local.Svn.executable, 'info', self.BRANCH_RE,
+                self.executable, 'info',
+                cwd=self.path,
+                generator=lambda *args, **kwargs: self._info(cwd=kwargs.get('cwd', ''))
+            ), mocks.Subprocess.Route(
+                self.executable, 'info', self.BRANCH_RE,
                 cwd=self.path,
                 generator=lambda *args, **kwargs: self._info(branch=self.BRANCH_RE.match(args[2]).group('branch'), cwd=kwargs.get('cwd', ''))
             ), mocks.Subprocess.Route(
-                local.Svn.executable, 'list', '^/branches',
+                self.executable, 'list', '^/branches',
                 cwd=self.path,
                 generator=lambda *args, **kwargs: mocks.ProcessCompletion(
                     returncode=0,
-                    stdout='/\n'.join(sorted(set(self.branches) | set(self.commits.keys()) - {'trunk'})) + '/\n',
+                    stdout='/\n'.join(sorted(set(self.branches) | set(self.commits.keys()) - {'trunk'} - self.tags)) + '/\n',
                 ) if self.connected else mocks.ProcessCompletion(returncode=1),
             ), mocks.Subprocess.Route(
-                local.Svn.executable, 'list', '^/tags',
+                self.executable, 'list', '^/tags',
                 cwd=self.path,
                 generator=lambda *args, **kwargs: mocks.ProcessCompletion(
                     returncode=0,
-                    stdout='/\n'.join(self.tags) + '/\n',
+                    stdout='/\n'.join([tag[len('tags/'):] for tag in sorted(self.tags)]) + '/\n',
                 ) if self.connected else mocks.ProcessCompletion(returncode=1),
             ), mocks.Subprocess.Route(
-                local.Svn.executable, 'log', '-v', '-q', self.remote, '-r', re.compile(r'\d+'),
+                self.executable, 'log', '-v', '-q', self.remote, '-r', re.compile(r'\d+'),
                 cwd=self.path,
                 generator=lambda *args, **kwargs: mocks.ProcessCompletion(
                     returncode=0,
@@ -149,11 +181,11 @@ class Svn(mocks.Subprocess):
                         '    M /{branch}/ChangeLog\n'
                         '    M /{branch}/file.cpp\n'.format(
                             line=self.log_line(self.find(revision=args[6])),
-                            branch='trunk' if self.find(revision=args[6]).branch == 'trunk' else 'branches/{}'.format(self.find(revision=args[6]).branch)
+                            branch=self.find(revision=args[6]).branch if self.find(revision=args[6]).branch.split('/')[0] in ['trunk', 'tags'] else 'branches/{}'.format(self.find(revision=args[6]).branch)
                         ),
                 ) if self.connected and self.find(revision=args[6]) else mocks.ProcessCompletion(returncode=1),
             ), mocks.Subprocess.Route(
-                local.Svn.executable, 'log', '-q', self.BRANCH_RE,
+                self.executable, 'log', '-q', self.BRANCH_RE,
                 cwd=self.path,
                 generator=lambda *args, **kwargs: mocks.ProcessCompletion(
                     returncode=0,
@@ -162,27 +194,40 @@ class Svn(mocks.Subprocess):
                     ]),
                 ) if self.connected and self.BRANCH_RE.match(args[3]).group('branch') in self.commits else mocks.ProcessCompletion(returncode=1)
             ), mocks.Subprocess.Route(
-                local.Svn.executable, 'log', '-l', '1', '-r', re.compile(r'\d+'), self.BRANCH_RE,
+                self.executable, 'log', '-l', '1', '-r', re.compile(r'\d+'), self.BRANCH_RE,
                 cwd=self.path,
                 generator=lambda *args, **kwargs: self._log_for(
                     branch=self.BRANCH_RE.match(args[6]).group('branch'),
                     revision=args[5],
                 ) if self.connected else mocks.ProcessCompletion(returncode=1)
             ), mocks.Subprocess.Route(
-                local.Svn.executable,
+                self.executable, 'up', '-r', re.compile(r'\d+'),
+                cwd=self.path,
+                generator=lambda *args, **kwargs:
+                    mocks.ProcessCompletion(returncode=0) if self.up(args[3]) else mocks.ProcessCompletion(returncode=1)
+            ), mocks.Subprocess.Route(
+                self.executable,
                 cwd=self.path,
                 completion=mocks.ProcessCompletion(
                     returncode=1,
                     stderr="Type 'svn help' for usage.\n",
                 )
             ), mocks.Subprocess.Route(
-                local.Svn.executable,
+                self.executable,
                 generator=lambda *args, **kwargs: mocks.ProcessCompletion(
                     returncode=1,
                     stderr="svn: E155007: '{}' is not a working copy\n".format(kwargs.get('cwd')),
                 )
             ),
         )
+
+    @property
+    def branch(self):
+        return self.head.branch
+
+    @property
+    def tags(self):
+        return set(branch for branch in self.commits.keys() if branch.startswith('tags'))
 
     def _info(self, branch=None, revision=None, cwd=''):
         commit = self.find(branch=branch, revision=revision)
@@ -239,11 +284,19 @@ class Svn(mocks.Subprocess):
 
     def find(self, branch=None, revision=None):
         if not branch and not revision:
-            return self.commits['trunk'][-1]
+            return self.head
         for candidate in [branch] if branch else sorted(self.commits.keys()):
             if not revision:
+                if self.head.branch == candidate:
+                    return self.head
                 return self.commits[candidate][-1]
             for commit in self.commits[candidate]:
                 if str(commit.revision) == str(revision):
                     return commit
         return None
+
+    def up(self, revision):
+        commit = self.find(revision=revision)
+        if commit:
+            self.head = commit
+        return True if commit else False

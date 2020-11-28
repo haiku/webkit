@@ -56,6 +56,7 @@
 #include "Pasteboard.h"
 #include "ScriptState.h"
 #include "Settings.h"
+#include "SystemSoundManager.h"
 #include "UserGestureIndicator.h"
 #include <JavaScriptCore/ScriptFunctionCall.h>
 #include <pal/system/Sound.h>
@@ -156,7 +157,7 @@ void InspectorFrontendHost::disconnectClient()
 
 void InspectorFrontendHost::addSelfToGlobalObjectInWorld(DOMWrapperWorld& world)
 {
-    auto& lexicalGlobalObject = *execStateFromPage(world, m_frontendPage);
+    auto& lexicalGlobalObject = *globalObject(world, m_frontendPage);
     auto& vm = lexicalGlobalObject.vm();
     JSC::JSLockHolder lock(vm);
     auto scope = DECLARE_CATCH_SCOPE(vm);
@@ -500,7 +501,7 @@ void InspectorFrontendHost::showContextMenu(Event& event, Vector<ContextMenuItem
 #if ENABLE(CONTEXT_MENUS)
     ASSERT(m_frontendPage);
 
-    auto& lexicalGlobalObject = *execStateFromPage(debuggerWorld(), m_frontendPage);
+    auto& lexicalGlobalObject = *globalObject(debuggerWorld(), m_frontendPage);
     auto& vm = lexicalGlobalObject.vm();
     auto value = lexicalGlobalObject.get(&lexicalGlobalObject, JSC::Identifier::fromString(vm, "InspectorFrontendAPI"));
     ASSERT(value);
@@ -555,7 +556,7 @@ void InspectorFrontendHost::unbufferedLog(const String& message)
 
 void InspectorFrontendHost::beep()
 {
-    PAL::systemBeep();
+    SystemSoundManager::singleton().systemBeep();
 }
 
 void InspectorFrontendHost::inspectInspector()

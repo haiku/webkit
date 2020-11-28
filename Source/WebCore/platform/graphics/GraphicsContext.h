@@ -98,7 +98,7 @@ class ImageBuffer;
 class IntRect;
 class MediaPlayer;
 class RoundedRect;
-class GraphicsContextGLOpenGL;
+class GraphicsContextGL;
 class Path;
 class TextRun;
 class TransformationMatrix;
@@ -167,10 +167,10 @@ struct GraphicsContextState {
     WEBCORE_EXPORT ~GraphicsContextState();
 
     GraphicsContextState(const GraphicsContextState&);
-    GraphicsContextState(GraphicsContextState&&);
+    WEBCORE_EXPORT GraphicsContextState(GraphicsContextState&&);
 
     GraphicsContextState& operator=(const GraphicsContextState&);
-    GraphicsContextState& operator=(GraphicsContextState&&);
+    WEBCORE_EXPORT GraphicsContextState& operator=(GraphicsContextState&&);
 
     enum Change : uint32_t {
         StrokeGradientChange                    = 1 << 0,
@@ -383,7 +383,7 @@ public:
 
     WEBCORE_EXPORT void strokeRect(const FloatRect&, float lineWidth);
 
-    WEBCORE_EXPORT void drawNativeImage(const NativeImagePtr&, const FloatSize& selfSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& = { });
+    WEBCORE_EXPORT void drawNativeImage(NativeImage&, const FloatSize& selfSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& = { });
 
     WEBCORE_EXPORT ImageDrawResult drawImage(Image&, const FloatPoint& destination, const ImagePaintingOptions& = { ImageOrientation::FromImage });
     WEBCORE_EXPORT ImageDrawResult drawImage(Image&, const FloatRect& destination, const ImagePaintingOptions& = { ImageOrientation::FromImage });
@@ -396,11 +396,11 @@ public:
     void drawImageBuffer(ImageBuffer&, const FloatRect& destination, const ImagePaintingOptions& = { });
     void drawImageBuffer(ImageBuffer&, const FloatRect& destination, const FloatRect& source, const ImagePaintingOptions& = { });
 
-    void drawPattern(Image&, const FloatRect& destRect, const FloatRect& srcRect, const AffineTransform&, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions& = { });
+    WEBCORE_EXPORT void drawConsumingImageBuffer(RefPtr<ImageBuffer>, const FloatPoint& destination, const ImagePaintingOptions& = { });
+    void drawConsumingImageBuffer(RefPtr<ImageBuffer>, const FloatRect& destination, const ImagePaintingOptions& = { });
+    void drawConsumingImageBuffer(RefPtr<ImageBuffer>, const FloatRect& destination, const FloatRect& source, const ImagePaintingOptions& = { });
 
-    WEBCORE_EXPORT void drawConsumingImageBuffer(std::unique_ptr<ImageBuffer>, const FloatPoint& destination, const ImagePaintingOptions& = { });
-    void drawConsumingImageBuffer(std::unique_ptr<ImageBuffer>, const FloatRect& destination, const ImagePaintingOptions& = { });
-    void drawConsumingImageBuffer(std::unique_ptr<ImageBuffer>, const FloatRect& destination, const FloatRect& source, const ImagePaintingOptions& = { });
+    void drawPattern(NativeImage&, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& tileRect, const AffineTransform& patternTransform, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions& = { });
 
     WEBCORE_EXPORT void setImageInterpolationQuality(InterpolationQuality);
     InterpolationQuality imageInterpolationQuality() const { return m_state.imageInterpolationQuality; }
@@ -410,7 +410,7 @@ public:
 
     void clipOut(const FloatRect&);
     void clipOutRoundedRect(const FloatRoundedRect&);
-    void clipPath(const Path&, WindRule = WindRule::EvenOdd);
+    WEBCORE_EXPORT void clipPath(const Path&, WindRule = WindRule::EvenOdd);
     void clipToImageBuffer(ImageBuffer&, const FloatRect&);
 
     enum class ClipToDrawingCommandsResult : bool { Success, FailedToCreateImageBuffer };
@@ -654,7 +654,8 @@ private:
 
     void platformFillRoundedRect(const FloatRoundedRect&, const Color&);
 
-    void platformDrawNativeImage(const NativeImagePtr&, const FloatSize& selfSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions&);
+    void drawPlatformImage(const PlatformImagePtr&, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions&);
+    void drawPlatformPattern(const PlatformImagePtr&, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& tileRect, const AffineTransform& patternTransform, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions&);
 
     FloatRect computeLineBoundsAndAntialiasingModeForText(const FloatRect&, bool printing, Color&);
 

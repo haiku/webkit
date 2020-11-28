@@ -28,6 +28,7 @@
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
 #include "LayoutIntegrationBoxTree.h"
+#include "LayoutIntegrationLineIterator.h"
 #include "LayoutIntegrationRunIterator.h"
 #include "LayoutPoint.h"
 #include "LayoutState.h"
@@ -42,6 +43,7 @@ class HitTestRequest;
 class HitTestResult;
 class RenderBlockFlow;
 class RenderBox;
+class RenderBoxModelObject;
 struct PaintInfo;
 
 namespace LayoutIntegration {
@@ -51,15 +53,19 @@ struct InlineContent;
 class LineLayout : public CanMakeWeakPtr<LineLayout> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    LineLayout(const RenderBlockFlow&);
+    LineLayout(RenderBlockFlow&);
     ~LineLayout();
+
+    static LineLayout* containing(RenderObject&);
+    static const LineLayout* containing(const RenderObject&);
 
     static bool isEnabled();
     static bool canUseFor(const RenderBlockFlow&);
     static bool canUseForAfterStyleChange(const RenderBlockFlow&, StyleDifference);
 
     void updateReplacedDimensions(const RenderBox&);
-    void updateStyle();
+    void updateInlineBlockDimensions(const RenderBlock&);
+    void updateStyle(const RenderBoxModelObject&);
     void layout();
 
     LayoutUnit contentLogicalHeight() const;
@@ -68,8 +74,8 @@ public:
     LayoutUnit firstLineBaseline() const;
     LayoutUnit lastLineBaseline() const;
 
-    void adjustForPagination(RenderBlockFlow&);
-    void collectOverflow(RenderBlockFlow&);
+    void adjustForPagination();
+    void collectOverflow();
 
     const InlineContent* inlineContent() const { return m_inlineContent.get(); }
     bool isPaginated() const { return !!m_paginatedHeight; }
@@ -79,23 +85,31 @@ public:
 
     TextRunIterator textRunsFor(const RenderText&) const;
     RunIterator runFor(const RenderElement&) const;
+    LineIterator firstLine() const;
+    LineIterator lastLine() const;
 
-    const RenderObject* rendererForLayoutBox(const Layout::Box&) const;
+    const RenderObject& rendererForLayoutBox(const Layout::Box&) const;
+    const RenderBlockFlow& flow() const { return m_boxTree.flow(); }
 
     static void releaseCaches(RenderView&);
+
+#if ENABLE(TREE_DEBUGGING)
+    void outputLineTree(WTF::TextStream&, size_t depth) const;
+#endif
 
 private:
     void prepareLayoutState();
     void prepareFloatingState();
     void constructContent();
     InlineContent& ensureInlineContent();
+    void updateLayoutBoxDimensions(const RenderBox&);
+
+    RenderBlockFlow& flow() { return m_boxTree.flow(); }
 
     const Layout::ContainerBox& rootLayoutBox() const;
     Layout::ContainerBox& rootLayoutBox();
-    ShadowData* debugTextShadow();
     void releaseInlineItemCache();
 
-    const RenderBlockFlow& m_flow;
     BoxTree m_boxTree;
     Layout::LayoutState m_layoutState;
     Layout::InlineFormattingState& m_inlineFormattingState;

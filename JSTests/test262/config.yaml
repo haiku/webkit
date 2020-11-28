@@ -6,10 +6,10 @@ flags:
   class-fields-public: usePublicClassFields
   class-fields-private: usePrivateClassFields
   Intl.DateTimeFormat-dayPeriod: useIntlDateTimeFormatDayPeriod
+  SharedArrayBuffer: useSharedArrayBuffer
+  Atomics: useSharedArrayBuffer
 skip:
   features:
-    - SharedArrayBuffer
-    - Atomics
     - Atomics.waitAsync
     # https://bugs.webkit.org/show_bug.cgi?id=174931
     - regexp-lookbehind
@@ -26,6 +26,10 @@ skip:
     - regexp-match-indices
     - top-level-await
     - Intl.ListFormat
+
+    # remove once it's been renamed in test262
+    - Array.prototype.item
+    - TypedArray.prototype.item
 
     # remove once it's no longer in test262
     - String.prototype.item
@@ -78,8 +82,21 @@ skip:
     - test/built-ins/TypedArrayConstructors/internals/Set/BigInt
     - test/built-ins/TypedArrayConstructors/of/BigInt
 
-    # requires ICU APIs implementation
-    # https://bugs.webkit.org/show_bug.cgi?id=213822
+    - test/built-ins/Atomics/add/bigint
+    - test/built-ins/Atomics/and/bigint
+    - test/built-ins/Atomics/compareExchange/bigint
+    - test/built-ins/Atomics/exchange/bigint
+    - test/built-ins/Atomics/isLockFree/bigint
+    - test/built-ins/Atomics/load/bigint
+    - test/built-ins/Atomics/notify/bigint
+    - test/built-ins/Atomics/or/bigint
+    - test/built-ins/Atomics/store/bigint
+    - test/built-ins/Atomics/sub/bigint
+    - test/built-ins/Atomics/wait/bigint
+    - test/built-ins/Atomics/xor/bigint
+
+    # test262 bot is using Catalina's ICU 64, upgrading to Big Sur is required
+    # https://bugs.webkit.org/show_bug.cgi?id=218844
     - test/intl402/DateTimeFormat/prototype/formatRangeToParts
   files:
     # https://bugs.webkit.org/show_bug.cgi?id=190800

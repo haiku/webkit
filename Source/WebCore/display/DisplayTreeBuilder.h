@@ -27,7 +27,12 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
+#include "DisplayBoxFactory.h"
 #include <wtf/IsoMalloc.h>
+
+#if ENABLE(TREE_DEBUGGING)
+#include <wtf/Forward.h>
+#endif
 
 namespace WebCore {
 
@@ -50,17 +55,22 @@ class TreeBuilder {
 public:
     explicit TreeBuilder(float pixelSnappingFactor);
 
-    std::unique_ptr<Tree> build(const Layout::LayoutState&) const;
+    std::unique_ptr<Tree> build(const Layout::LayoutState&);
 
 private:
-    std::unique_ptr<Box> displayBoxForRootBox(const Layout::BoxGeometry&, const Layout::ContainerBox&) const;
-    std::unique_ptr<Box> displayBoxForLayoutBox(const Layout::BoxGeometry&, const Layout::Box&, LayoutSize offsetFromRoot) const;
+    struct InsertionPosition {
+        Display::ContainerBox& container;
+        Display::Box* currentChild { nullptr };
+    };
 
-    Box* recursiveBuildDisplayTree(const Layout::LayoutState&, LayoutSize offsetFromRoot, const Layout::Box&, Display::ContainerBox& parentDisplayBox, Display::Box* previousSiblingBox = nullptr) const;
+    void recursiveBuildDisplayTree(const Layout::LayoutState&, LayoutSize offsetFromRoot, const Layout::Box&, InsertionPosition&) const;
 
-    void buildInlineDisplayTree(const Layout::LayoutState&, LayoutSize offsetFromRoot, const Layout::ContainerBox&, Display::ContainerBox& parentDisplayBox) const;
+    void buildInlineDisplayTree(const Layout::LayoutState&, LayoutSize offsetFromRoot, const Layout::ContainerBox&, InsertionPosition&) const;
+    
+    void insert(std::unique_ptr<Box>&&, InsertionPosition&) const;
 
-    float m_pixelSnappingFactor { 1 };
+    BoxFactory m_boxFactory;
+    RootBackgroundPropagation m_rootBackgroundPropgation { RootBackgroundPropagation::None };
 };
 
 #if ENABLE(TREE_DEBUGGING)

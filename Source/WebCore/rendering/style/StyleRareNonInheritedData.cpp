@@ -31,7 +31,6 @@
 #include "StyleTransformData.h"
 #include "StyleImage.h"
 #include "StyleResolver.h"
-#include "StyleScrollSnapPoints.h"
 #include <wtf/PointerComparison.h>
 #include <wtf/RefPtr.h>
 #include <wtf/text/TextStream.h>
@@ -42,8 +41,8 @@ DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(StyleRareNonInheritedData);
 
 StyleRareNonInheritedData::StyleRareNonInheritedData()
     : opacity(RenderStyle::initialOpacity())
-    , aspectRatioDenominator(RenderStyle::initialAspectRatioDenominator())
-    , aspectRatioNumerator(RenderStyle::initialAspectRatioNumerator())
+    , aspectRatioWidth(RenderStyle::initialAspectRatioWidth())
+    , aspectRatioHeight(RenderStyle::initialAspectRatioHeight())
     , perspective(RenderStyle::initialPerspective())
     , perspectiveOriginX(RenderStyle::initialPerspectiveOriginX())
     , perspectiveOriginY(RenderStyle::initialPerspectiveOriginY())
@@ -62,7 +61,6 @@ StyleRareNonInheritedData::StyleRareNonInheritedData()
     , gridItem(StyleGridItemData::create())
 #if ENABLE(CSS_SCROLL_SNAP)
     , scrollSnapPort(StyleScrollSnapPort::create())
-    , scrollSnapArea(StyleScrollSnapArea::create())
 #endif
     , willChange(RenderStyle::initialWillChange())
     , mask(FillLayer::create(FillLayerType::Mask))
@@ -121,8 +119,8 @@ StyleRareNonInheritedData::StyleRareNonInheritedData()
 inline StyleRareNonInheritedData::StyleRareNonInheritedData(const StyleRareNonInheritedData& o)
     : RefCounted<StyleRareNonInheritedData>()
     , opacity(o.opacity)
-    , aspectRatioDenominator(o.aspectRatioDenominator)
-    , aspectRatioNumerator(o.aspectRatioNumerator)
+    , aspectRatioWidth(o.aspectRatioWidth)
+    , aspectRatioHeight(o.aspectRatioHeight)
     , perspective(o.perspective)
     , perspectiveOriginX(o.perspectiveOriginX)
     , perspectiveOriginY(o.perspectiveOriginY)
@@ -139,9 +137,10 @@ inline StyleRareNonInheritedData::StyleRareNonInheritedData(const StyleRareNonIn
 #endif
     , grid(o.grid)
     , gridItem(o.gridItem)
+    , scrollMargin(o.scrollMargin)
 #if ENABLE(CSS_SCROLL_SNAP)
     , scrollSnapPort(o.scrollSnapPort)
-    , scrollSnapArea(o.scrollSnapArea)
+    , scrollSnapAlign(o.scrollSnapAlign)
 #endif
     , content(o.content ? o.content->clone() : nullptr)
     , counterDirectives(o.counterDirectives ? makeUnique<CounterDirectiveMap>(*o.counterDirectives) : nullptr)
@@ -223,8 +222,8 @@ StyleRareNonInheritedData::~StyleRareNonInheritedData() = default;
 bool StyleRareNonInheritedData::operator==(const StyleRareNonInheritedData& o) const
 {
     return opacity == o.opacity
-        && aspectRatioDenominator == o.aspectRatioDenominator
-        && aspectRatioNumerator == o.aspectRatioNumerator
+        && aspectRatioWidth == o.aspectRatioWidth
+        && aspectRatioHeight == o.aspectRatioHeight
         && perspective == o.perspective
         && perspectiveOriginX == o.perspectiveOriginX
         && perspectiveOriginY == o.perspectiveOriginY
@@ -241,9 +240,10 @@ bool StyleRareNonInheritedData::operator==(const StyleRareNonInheritedData& o) c
 #endif
         && grid == o.grid
         && gridItem == o.gridItem
+        && scrollMargin == o.scrollMargin
 #if ENABLE(CSS_SCROLL_SNAP)
         && scrollSnapPort == o.scrollSnapPort
-        && scrollSnapArea == o.scrollSnapArea
+        && scrollSnapAlign == o.scrollSnapAlign
 #endif
         && contentDataEquivalent(o)
         && arePointingToEqualData(counterDirectives, o.counterDirectives)

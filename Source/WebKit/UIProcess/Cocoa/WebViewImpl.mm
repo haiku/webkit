@@ -1648,7 +1648,7 @@ void WebViewImpl::takeFocus(WebCore::FocusDirection direction)
 {
     NSView *webView = m_view.getAutoreleased();
 
-    if (direction == WebCore::FocusDirectionForward) {
+    if (direction == WebCore::FocusDirection::Forward) {
         // Since we're trying to move focus out of m_webView, and because
         // m_webView may contain subviews within it, we ask it for the next key
         // view of the last view in its key view loop. This makes m_webView
@@ -4356,7 +4356,9 @@ void WebViewImpl::setPromisedDataForImage(WebCore::Image* image, NSString *filen
 
     if (archiveBuffer) {
         auto nsData = archiveBuffer->createNSData();
+ALLOW_DEPRECATED_DECLARATIONS_BEGIN
         [pasteboard setData:nsData.get() forType:(__bridge NSString *)kUTTypeWebArchive];
+ALLOW_DEPRECATED_DECLARATIONS_END
         [pasteboard setData:nsData.get() forType:PasteboardTypes::WebArchivePboardType];
     }
 

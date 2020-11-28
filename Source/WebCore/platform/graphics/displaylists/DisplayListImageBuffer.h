@@ -32,13 +32,13 @@ namespace WebCore {
 namespace DisplayList {
 
 template<typename BackendType>
-class ImageBuffer : public ConcreteImageBuffer<BackendType>, public Recorder::Observer {
+class ImageBuffer : public ConcreteImageBuffer<BackendType> {
     using BaseConcreteImageBuffer = ConcreteImageBuffer<BackendType>;
 
 public:
-    static auto create(const FloatSize& size, float resolutionScale, ColorSpace colorSpace, const HostWindow* hostWindow)
+    static auto create(const FloatSize& size, float resolutionScale, ColorSpace colorSpace, PixelFormat pixelFormat, const HostWindow* hostWindow)
     {
-        return BaseConcreteImageBuffer::template create<ImageBuffer>(size, resolutionScale, colorSpace, hostWindow, size);
+        return BaseConcreteImageBuffer::template create<ImageBuffer>(size, resolutionScale, colorSpace, pixelFormat, hostWindow, size);
     }
 
     static auto create(const FloatSize& size, const GraphicsContext& context)
@@ -48,12 +48,12 @@ public:
 
     ImageBuffer(std::unique_ptr<BackendType>&& dataBackend, const FloatSize& size)
         : BaseConcreteImageBuffer(WTFMove(dataBackend))
-        , m_drawingContext(size, initialDrawingContextCTM(size), this)
+        , m_drawingContext(size, initialDrawingContextCTM(size))
     {
     }
 
-    ImageBuffer(const FloatSize& size)
-        : m_drawingContext(size, initialDrawingContextCTM(size), this)
+    ImageBuffer(const FloatSize& size, Recorder::Delegate* delegate = nullptr)
+        : m_drawingContext(size, initialDrawingContextCTM(size), delegate)
     {
     }
 
@@ -71,7 +71,7 @@ public:
 
     void flushDrawingContext() override
     {
-        if (m_drawingContext.displayList().itemCount())
+        if (!m_drawingContext.displayList().isEmpty())
             m_drawingContext.replayDisplayList(BaseConcreteImageBuffer::context());
     }
 

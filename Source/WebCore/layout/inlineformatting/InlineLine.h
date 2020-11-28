@@ -46,7 +46,11 @@ public:
 
     void append(const InlineItem&, InlineLayoutUnit logicalWidth);
 
-    bool isVisuallyEmpty() const { return m_isVisuallyEmpty; }
+    // <span></span> considered empty.
+    // <span><br></span> is considered empty.
+    // <span>text</span> is not considered empty.
+    // <span style="padding: 10px"></span> is not considered empty. 
+    bool isConsideredEmpty() const { return m_isConsideredEmpty; }
 
     InlineLayoutUnit horizontalConstraint() const { return m_horizontalConstraint; }
     InlineLayoutUnit contentLogicalWidth() const { return m_contentLogicalWidth; }
@@ -71,8 +75,8 @@ public:
         bool isSoftLineBreak() const  { return m_type == InlineItem::Type::SoftLineBreak; }
         bool isHardLineBreak() const { return m_type == InlineItem::Type::HardLineBreak; }
         bool isWordBreakOpportunity() const { return m_type == InlineItem::Type::WordBreakOpportunity; }
-        bool isContainerStart() const { return m_type == InlineItem::Type::ContainerStart; }
-        bool isContainerEnd() const { return m_type == InlineItem::Type::ContainerEnd; }
+        bool isInlineBoxStart() const { return m_type == InlineItem::Type::InlineBoxStart; }
+        bool isInlineBoxEnd() const { return m_type == InlineItem::Type::InlineBoxEnd; }
 
         const Box& layoutBox() const { return *m_layoutBox; }
         const RenderStyle& style() const { return m_layoutBox->style(); }
@@ -140,15 +144,15 @@ private:
     void appendTextContent(const InlineTextItem&, InlineLayoutUnit logicalWidth);
     void appendNonReplacedInlineBox(const InlineItem&, InlineLayoutUnit logicalWidth);
     void appendReplacedInlineBox(const InlineItem&, InlineLayoutUnit logicalWidth);
-    void appendInlineContainerStart(const InlineItem&, InlineLayoutUnit logicalWidth);
-    void appendInlineContainerEnd(const InlineItem&, InlineLayoutUnit logicalWidth);
+    void appendInlineBoxStart(const InlineItem&, InlineLayoutUnit logicalWidth);
+    void appendInlineBoxEnd(const InlineItem&, InlineLayoutUnit logicalWidth);
     void appendLineBreak(const InlineItem&);
     void appendWordBreakOpportunity(const InlineItem&);
 
     void removeTrailingTrimmableContent();
     void visuallyCollapsePreWrapOverflowContent();
 
-    bool isRunVisuallyNonEmpty(const Run&) const;
+    bool isRunConsideredEmpty(const Run&) const;
     const InlineFormattingContext& formattingContext() const;
 
     struct TrimmableTrailingContent {
@@ -181,8 +185,8 @@ private:
     InlineLayoutUnit m_horizontalConstraint { 0 };
     InlineLayoutUnit m_contentLogicalWidth { 0 };
     Optional<InlineLayoutUnit> m_trailingSoftHyphenWidth { 0 };
-    bool m_isVisuallyEmpty { true };
-    Optional<bool> m_lineIsVisuallyEmptyBeforeTrimmableTrailingContent;
+    bool m_isConsideredEmpty { true };
+    Optional<bool> m_isConsideredEmptyBeforeTrimmableTrailingContent;
 };
 
 inline void Line::TrimmableTrailingContent::reset()

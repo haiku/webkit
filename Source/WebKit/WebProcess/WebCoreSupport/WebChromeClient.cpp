@@ -80,6 +80,7 @@
 #include <WebCore/Icon.h>
 #include <WebCore/NotImplemented.h>
 #include <WebCore/RegistrableDomain.h>
+#include <WebCore/RuntimeEnabledFeatures.h>
 #include <WebCore/ScriptController.h>
 #include <WebCore/SecurityOrigin.h>
 #include <WebCore/SecurityOriginData.h>
@@ -102,6 +103,8 @@
 #endif
 
 #if ENABLE(WEB_AUTHN)
+#include "WebAuthnConnectionToWebProcessMessages.h"
+#include "WebAuthnProcessConnection.h"
 #include <WebCore/MockWebAuthenticationConfiguration.h>
 #endif
 
@@ -224,7 +227,7 @@ bool WebChromeClient::canTakeFocus(FocusDirection)
 
 void WebChromeClient::takeFocus(FocusDirection direction)
 {
-    m_page.send(Messages::WebPageProxy::TakeFocus(direction));
+    m_page.send(Messages::WebPageProxy::TakeFocus(static_cast<uint8_t>(direction)));
 }
 
 void WebChromeClient::focusedElementChanged(Element* element)
@@ -267,6 +270,7 @@ Page* WebChromeClient::createWindow(Frame& frame, const WindowFeatures& windowFe
     navigationActionData.canHandleRequest = m_page.canHandleRequest(navigationAction.resourceRequest());
     navigationActionData.shouldOpenExternalURLsPolicy = navigationAction.shouldOpenExternalURLsPolicy();
     navigationActionData.downloadAttribute = navigationAction.downloadAttribute();
+    navigationActionData.privateClickMeasurement = navigationAction.privateClickMeasurement();
 
     WebFrame* webFrame = WebFrame::fromCoreFrame(frame);
 
@@ -822,6 +826,11 @@ void WebChromeClient::showShareSheet(ShareDataWithParsedURL& shareData, Completi
     m_page.showShareSheet(shareData, WTFMove(callback));
 }
 
+void WebChromeClient::showContactPicker(const WebCore::ContactsRequestData& requestData, WTF::CompletionHandler<void(Optional<Vector<WebCore::ContactInfo>>&&)>&& callback)
+{
+    m_page.showContactPicker(requestData, WTFMove(callback));
+}
+
 void WebChromeClient::loadIconForFiles(const Vector<String>& filenames, FileIconLoader& loader)
 {
     loader.iconLoaded(createIconForFiles(filenames));
@@ -894,19 +903,13 @@ RefPtr<DisplayRefreshMonitor> WebChromeClient::createDisplayRefreshMonitor(Platf
 
 #if ENABLE(GPU_PROCESS)
 
-RemoteRenderingBackendProxy& WebChromeClient::ensureRemoteRenderingBackendProxy() const
-{
-    if (!m_remoteRenderingBackendProxy)
-        m_remoteRenderingBackendProxy = RemoteRenderingBackendProxy::create();
-    return *m_remoteRenderingBackendProxy;
-}
 
-std::unique_ptr<ImageBuffer> WebChromeClient::createImageBuffer(const FloatSize& size, ShouldAccelerate shouldAccelerate, ShouldUseDisplayList shouldUseDisplayList, RenderingPurpose purpose, float resolutionScale, ColorSpace colorSpace) const
+RefPtr<ImageBuffer> WebChromeClient::createImageBuffer(const FloatSize& size, RenderingMode renderingMode, RenderingPurpose purpose, float resolutionScale, ColorSpace colorSpace, PixelFormat pixelFormat) const
 {
-    if (!m_page.shouldUseRemoteRenderingFor(purpose))
+    if (!WebProcess::singleton().shouldUseRemoteRenderingFor(purpose))
         return nullptr;
 
-    return ensureRemoteRenderingBackendProxy().createImageBuffer(size, shouldAccelerate, resolutionScale, colorSpace);
+    return m_page.ensureRemoteRenderingBackendProxy().createImageBuffer(size, renderingMode, resolutionScale, colorSpace, pixelFormat);
 }
 
 #endif // ENABLE(GPU_PROCESS)
@@ -1000,9 +1003,9 @@ void WebChromeClient::enterVideoFullscreenForVideoElement(HTMLVideoElement& vide
     m_page.videoFullscreenManager().enterVideoFullscreenForVideoElement(videoElement, mode, standby);
 }
 
-void WebChromeClient::exitVideoFullscreenForVideoElement(HTMLVideoElement& videoElement)
+void WebChromeClient::exitVideoFullscreenForVideoElement(HTMLVideoElement& videoElement, CompletionHandler<void(bool)>&& completionHandler)
 {
-    m_page.videoFullscreenManager().exitVideoFullscreenForVideoElement(videoElement);
+    m_page.videoFullscreenManager().exitVideoFullscreenForVideoElement(videoElement, WTFMove(completionHandler));
 }
 
 void WebChromeClient::setUpPlaybackControlsManager(HTMLMediaElement& mediaElement)
@@ -1377,7 +1380,12 @@ void WebChromeClient::setUserIsInteracting(bool userIsInteracting)
 #if ENABLE(WEB_AUTHN)
 void WebChromeClient::setMockWebAuthenticationConfiguration(const MockWebAuthenticationConfiguration& configuration)
 {
-    m_page.send(Messages::WebPageProxy::SetMockWebAuthenticationConfiguration(configuration));
+    if (!RuntimeEnabledFeatures::sharedFeatures().webAuthenticationModernEnabled()) {
+        m_page.send(Messages::WebPageProxy::SetMockWebAuthenticationConfiguration(configuration));
+        return;
+    }
+
+    WebProcess::singleton().ensureWebAuthnProcessConnection().connection().send(Messages::WebAuthnConnectionToWebProcess::SetMockWebAuthenticationConfiguration(configuration), { });
 }
 #endif
 

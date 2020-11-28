@@ -27,15 +27,13 @@
 #pragma once
 
 #include "Document.h"
-#include "EventTarget.h"
 #include "ExceptionOr.h"
 #include "FetchRequestCredentials.h"
 #include "ScriptExecutionContext.h"
 #include "ScriptSourceCode.h"
-#include "WorkerEventLoop.h"
 #include "WorkerOrWorkletGlobalScope.h"
+#include "WorkerOrWorkletScriptController.h"
 #include "WorkerScriptLoaderClient.h"
-#include "WorkletScriptController.h"
 #include <JavaScriptCore/ConsoleMessage.h>
 #include <JavaScriptCore/RuntimeFlags.h>
 #include <wtf/CompletionHandler.h>
@@ -47,9 +45,7 @@
 
 namespace WebCore {
 
-class EventLoopTaskGroup;
 class MessagePortChannelProvider;
-class WorkerEventLoop;
 class WorkerMessagePortChannelProvider;
 class WorkerScriptLoader;
 
@@ -58,13 +54,10 @@ struct WorkletParameters;
 enum WorkletGlobalScopeIdentifierType { };
 using WorkletGlobalScopeIdentifier = ObjectIdentifier<WorkletGlobalScopeIdentifierType>;
 
-class WorkletGlobalScope : public RefCounted<WorkletGlobalScope>, public EventTargetWithInlineData, public WorkerOrWorkletGlobalScope, public WorkerScriptLoaderClient {
+class WorkletGlobalScope : public WorkerOrWorkletGlobalScope, public WorkerScriptLoaderClient {
     WTF_MAKE_ISO_ALLOCATED(WorkletGlobalScope);
 public:
     virtual ~WorkletGlobalScope();
-
-    using WorkletGlobalScopesSet = HashSet<const WorkletGlobalScope*>;
-    WEBCORE_EXPORT static WorkletGlobalScopesSet& allWorkletGlobalScopesSet();
 
 #if ENABLE(CSS_PAINTING_API)
     virtual bool isPaintWorkletGlobalScope() const { return false; }
@@ -73,9 +66,9 @@ public:
     virtual bool isAudioWorkletGlobalScope() const { return false; }
 #endif
 
-    MessagePortChannelProvider& messagePortChannelProvider();
+    WEBCORE_EXPORT static unsigned numberOfWorkletGlobalScopes();
 
-    EventLoopTaskGroup& eventLoop() final;
+    MessagePortChannelProvider& messagePortChannelProvider();
 
     const URL& url() const final { return m_url; }
 
@@ -83,29 +76,17 @@ public:
 
     ReferrerPolicy referrerPolicy() const final;
 
-    using RefCounted::ref;
-    using RefCounted::deref;
-
-    WorkletScriptController* script() final { return m_script.get(); }
-    void clearScript() { m_script = nullptr; }
-    WorkerOrWorkletThread* workerOrWorkletThread() const final { return m_thread.get(); }
-
     void addConsoleMessage(std::unique_ptr<Inspector::ConsoleMessage>&&) final;
 
-    bool isJSExecutionForbidden() const final;
     SecurityOrigin& topOrigin() const final { return m_topOrigin.get(); }
 
     SocketProvider* socketProvider() final { return nullptr; }
 
-    // WorkerOrWorkletGlobalScope.
-    bool isClosing() const final { return m_isClosing; }
-
-    bool isContextThread() const final;
     bool isSecureContext() const final { return false; }
 
     JSC::RuntimeFlags jsRuntimeFlags() const { return m_jsRuntimeFlags; }
 
-    virtual void prepareForDestruction();
+    void prepareForDestruction() override;
 
     void fetchAndInvokeScript(const URL&, FetchRequestCredentials, CompletionHandler<void(Optional<Exception>&&)>&&);
 
@@ -115,26 +96,13 @@ public:
 protected:
     WorkletGlobalScope(WorkerOrWorkletThread&, const WorkletParameters&);
     WorkletGlobalScope(Document&, Ref<JSC::VM>&&, ScriptSourceCode&&);
-    WorkletGlobalScope(const WorkletGlobalScope&) = delete;
-    WorkletGlobalScope(WorkletGlobalScope&&) = delete;
-
-    WorkerEventLoop* existingEventLoop() const { return m_eventLoop.get(); }
-    EventLoopTaskGroup* defaultTaskGroup() const { return m_defaultTaskGroup.get(); }
 
 private:
 #if ENABLE(INDEXED_DATABASE)
     IDBClient::IDBConnectionProxy* idbConnectionProxy() final { ASSERT_NOT_REACHED(); return nullptr; }
 #endif
 
-    void postTask(Task&&) override { ASSERT_NOT_REACHED(); }
-
-    void refScriptExecutionContext() final { ref(); }
-    void derefScriptExecutionContext() final { deref(); }
-
-    void refEventTarget() final { ref(); }
-    void derefEventTarget() final { deref(); }
-
-    ScriptExecutionContext* scriptExecutionContext() const final { return const_cast<WorkletGlobalScope*>(this); }
+    // EventTarget.
     EventTargetInterface eventTargetInterface() const final { return WorkletGlobalScopeEventTargetInterfaceType; }
 
     bool isWorkletGlobalScope() const final { return true; }
@@ -155,8 +123,6 @@ private:
 #endif
     URL completeURL(const String&, ForceUTF8 = ForceUTF8::No) const final;
     String userAgent(const URL&) const final;
-    void disableEval(const String&) final;
-    void disableWebAssembly(const String&) final;
 
     struct ScriptFetchJob {
         URL moduleURL;
@@ -168,14 +134,8 @@ private:
     void didCompleteScriptFetchJob(ScriptFetchJob&&, Optional<Exception>);
 
     WeakPtr<Document> m_document;
-    RefPtr<WorkerOrWorkletThread> m_thread;
-
-    std::unique_ptr<WorkletScriptController> m_script;
 
     Ref<SecurityOrigin> m_topOrigin;
-
-    RefPtr<WorkerEventLoop> m_eventLoop;
-    std::unique_ptr<EventLoopTaskGroup> m_defaultTaskGroup;
 
     URL m_url;
     JSC::RuntimeFlags m_jsRuntimeFlags;
@@ -186,8 +146,6 @@ private:
     RefPtr<WorkerScriptLoader> m_scriptLoader;
     Deque<ScriptFetchJob> m_scriptFetchJobs;
     HashSet<URL> m_evaluatedModules;
-
-    bool m_isClosing { false };
 };
 
 } // namespace WebCore

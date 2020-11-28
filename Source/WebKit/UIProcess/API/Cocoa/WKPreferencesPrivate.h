@@ -69,7 +69,7 @@ typedef NS_ENUM(NSInteger, _WKEditableLinkBehavior) {
 @property (nonatomic, setter=_setResourceUsageOverlayVisible:) BOOL _resourceUsageOverlayVisible WK_API_AVAILABLE(macos(10.12), ios(10.0));
 @property (nonatomic, setter=_setVisibleDebugOverlayRegions:) _WKDebugOverlayRegions _visibleDebugOverlayRegions WK_API_AVAILABLE(macos(10.11), ios(9.0));
 @property (nonatomic, setter=_setSimpleLineLayoutEnabled:) BOOL _simpleLineLayoutEnabled WK_API_AVAILABLE(macos(10.12), ios(10.0));
-@property (nonatomic, setter=_setSimpleLineLayoutDebugBordersEnabled:) BOOL _simpleLineLayoutDebugBordersEnabled WK_API_AVAILABLE(macos(10.11), ios(9.0));
+@property (nonatomic, setter=_setLegacyLineLayoutVisualCoverageEnabled:) BOOL _legacyLineLayoutVisualCoverageEnabled WK_API_AVAILABLE(macos(10.11), ios(9.0));
 @property (nonatomic, setter=_setContentChangeObserverEnabled:) BOOL _contentChangeObserverEnabled WK_API_AVAILABLE(macos(10.15), ios(13.0));
 @property (nonatomic, setter=_setAcceleratedDrawingEnabled:) BOOL _acceleratedDrawingEnabled WK_API_AVAILABLE(macos(10.12), ios(10.0));
 @property (nonatomic, setter=_setDisplayListDrawingEnabled:) BOOL _displayListDrawingEnabled WK_API_AVAILABLE(macos(10.12), ios(10.0));
@@ -161,6 +161,7 @@ typedef NS_ENUM(NSInteger, _WKEditableLinkBehavior) {
 @property (nonatomic, setter=_setRequestAnimationFrameEnabled:) BOOL _requestAnimationFrameEnabled WK_API_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA));
 @property (nonatomic, setter=_setServiceWorkerEntitlementDisabledForTesting:) BOOL _serviceWorkerEntitlementDisabledForTesting WK_API_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA));
 @property (nonatomic, setter=_setAccessibilityIsolatedTreeEnabled:) BOOL _accessibilityIsolatedTreeEnabled WK_API_AVAILABLE(macos(10.16));
+@property (nonatomic, setter=_setSpeechRecognitionEnabled:) BOOL _speechRecognitionEnabled WK_API_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA));
 
 #if !TARGET_OS_IPHONE
 @property (nonatomic, setter=_setWebGLEnabled:) BOOL _webGLEnabled WK_API_AVAILABLE(macos(10.13.4));

@@ -49,16 +49,14 @@ using namespace JSC;
 
 // Functions
 
-JSC_DECLARE_HOST_FUNCTION(jsTestIterablePrototypeFunction_SymbolIterator);
-JSC_DECLARE_HOST_FUNCTION(jsTestIterablePrototypeFunction_entries);
-JSC_DECLARE_HOST_FUNCTION(jsTestIterablePrototypeFunction_keys);
-JSC_DECLARE_HOST_FUNCTION(jsTestIterablePrototypeFunction_values);
-JSC_DECLARE_HOST_FUNCTION(jsTestIterablePrototypeFunction_forEach);
+static JSC_DECLARE_HOST_FUNCTION(jsTestIterablePrototypeFunction_entries);
+static JSC_DECLARE_HOST_FUNCTION(jsTestIterablePrototypeFunction_keys);
+static JSC_DECLARE_HOST_FUNCTION(jsTestIterablePrototypeFunction_values);
+static JSC_DECLARE_HOST_FUNCTION(jsTestIterablePrototypeFunction_forEach);
 
 // Attributes
 
-JSC_DECLARE_CUSTOM_GETTER(jsTestIterableConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestIterableConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestIterableConstructor);
 
 class JSTestIterablePrototype final : public JSC::JSNonFinalObject {
 public:
@@ -113,7 +111,7 @@ template<> const ClassInfo JSTestIterableDOMConstructor::s_info = { "TestIterabl
 
 static const HashTableValue JSTestIterablePrototypeTableValues[] =
 {
-    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestIterableConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestIterableConstructor) } },
+    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestIterableConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
     { "entries", static_cast<unsigned>(JSC::PropertyAttribute::Function), NoIntrinsic, { (intptr_t)static_cast<RawNativeFunction>(jsTestIterablePrototypeFunction_entries), (intptr_t) (0) } },
     { "keys", static_cast<unsigned>(JSC::PropertyAttribute::Function), NoIntrinsic, { (intptr_t)static_cast<RawNativeFunction>(jsTestIterablePrototypeFunction_keys), (intptr_t) (0) } },
     { "values", static_cast<unsigned>(JSC::PropertyAttribute::Function), NoIntrinsic, { (intptr_t)static_cast<RawNativeFunction>(jsTestIterablePrototypeFunction_values), (intptr_t) (0) } },
@@ -180,19 +178,6 @@ JSC_DEFINE_CUSTOM_GETTER(jsTestIterableConstructor, (JSGlobalObject* lexicalGlob
     if (UNLIKELY(!prototype))
         return throwVMTypeError(lexicalGlobalObject, throwScope);
     return JSValue::encode(JSTestIterable::getConstructor(JSC::getVM(lexicalGlobalObject), prototype->globalObject()));
-}
-
-JSC_DEFINE_CUSTOM_SETTER(setJSTestIterableConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
-{
-    VM& vm = JSC::getVM(lexicalGlobalObject);
-    auto throwScope = DECLARE_THROW_SCOPE(vm);
-    auto* prototype = jsDynamicCast<JSTestIterablePrototype*>(vm, JSValue::decode(thisValue));
-    if (UNLIKELY(!prototype)) {
-        throwVMTypeError(lexicalGlobalObject, throwScope);
-        return false;
-    }
-    // Shadowing a built-in constructor
-    return prototype->putDirect(vm, vm.propertyNames->constructor, JSValue::decode(encodedValue));
 }
 
 struct TestIterableIteratorTraits {

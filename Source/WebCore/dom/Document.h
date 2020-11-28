@@ -156,7 +156,7 @@ class HTMLImageElement;
 class HTMLMapElement;
 class HTMLMediaElement;
 class HTMLVideoElement;
-class HighlightMap;
+class HighlightRegister;
 class HitTestLocation;
 class HitTestRequest;
 class HitTestResult;
@@ -288,7 +288,11 @@ enum class DocumentCompatibilityMode : unsigned char {
 
 enum DimensionsCheck { WidthDimensionsCheck = 1 << 0, HeightDimensionsCheck = 1 << 1, AllDimensionsCheck = 1 << 2 };
 
-enum class SelectionRestorationMode { Restore, SetDefault };
+enum class SelectionRestorationMode : uint8_t {
+    RestoreOrSelectAll,
+    SelectAll,
+    PlaceCaretAtStart,
+};
 
 enum class HttpEquivPolicy {
     Enabled,
@@ -749,7 +753,7 @@ public:
     enum class FocusRemovalEventsMode { Dispatch, DoNotDispatch };
     // Returns whether focus was blocked. A true value does not necessarily mean the element was focused.
     // The element could have already been focused or may not be focusable (e.g. <input disabled>).
-    WEBCORE_EXPORT bool setFocusedElement(Element*, FocusDirection = FocusDirectionNone,
+    WEBCORE_EXPORT bool setFocusedElement(Element*, FocusDirection = FocusDirection::None,
         FocusRemovalEventsMode = FocusRemovalEventsMode::Dispatch);
     Element* focusedElement() const { return m_focusedElement.get(); }
     UserActionElementSet& userActionElements()  { return m_userActionElements; }
@@ -1007,7 +1011,6 @@ public:
     // designMode support
     enum InheritedBool { off = false, on = true, inherit };    
     void setDesignMode(InheritedBool value);
-    InheritedBool getDesignMode() const;
     bool inDesignMode() const;
     WEBCORE_EXPORT String designMode() const;
     WEBCORE_EXPORT void setDesignMode(const String&);
@@ -1370,6 +1373,8 @@ public:
     void setNeedsVisualViewportScrollEvent();
     void runScrollSteps();
 
+    void invalidateScrollbars();
+
     WEBCORE_EXPORT void addAudioProducer(MediaProducer&);
     WEBCORE_EXPORT void removeAudioProducer(MediaProducer&);
     MediaProducer::MediaStateFlags mediaState() const { return m_mediaState; }
@@ -1412,6 +1417,7 @@ public:
 #if ENABLE(RESIZE_OBSERVER)
     void addResizeObserver(ResizeObserver&);
     void removeResizeObserver(ResizeObserver&);
+    unsigned numberOfResizeObservers() const { return m_resizeObservers.size(); }
     bool hasResizeObservers();
     // Return the minDepth of the active observations.
     size_t gatherResizeObservations(size_t deeperThan);
@@ -1424,8 +1430,6 @@ public:
 #if ENABLE(MEDIA_STREAM)
     void setHasCaptureMediaStreamTrack() { m_hasHadCaptureMediaStreamTrack = true; }
     bool hasHadCaptureMediaStreamTrack() const { return m_hasHadCaptureMediaStreamTrack; }
-    void setDeviceIDHashSalt(const String&);
-    String deviceIDHashSalt() const { return m_idHashSalt; }
     void stopMediaCapture();
     void mediaStreamCaptureStateChanged();
 #endif
@@ -1569,7 +1573,7 @@ public:
     WEBCORE_EXPORT TextManipulationController& textManipulationController();
     TextManipulationController* textManipulationControllerIfExists() { return m_textManipulationController.get(); }
         
-    HighlightMap& highlightMap();
+    HighlightRegister& highlightRegister();
     void updateHighlightPositions();
 
     bool allowsContentJavaScript() const;
@@ -1593,6 +1597,8 @@ public:
 
     bool contains(const Node& node) const { return this == &node.treeScope() && node.isConnected(); }
     bool contains(const Node* node) const { return node && contains(*node); }
+
+    WEBCORE_EXPORT JSC::VM& vm() final;
 
 protected:
     enum ConstructionFlags { Synthesized = 1, NonRenderedPlaceholder = 1 << 1 };
@@ -1671,7 +1677,7 @@ private:
 
     void didAssociateFormControlsTimerFired();
 
-    void wheelEventHandlersChanged();
+    void wheelEventHandlersChanged(Node* = nullptr);
 
     HttpEquivPolicy httpEquivPolicy() const;
     AXObjectCache* existingAXObjectCacheSlow() const;
@@ -1833,7 +1839,7 @@ private:
 #endif
 
 #if ENABLE(VIDEO)
-    HashSet<HTMLMediaElement*> m_captionPreferencesChangedElements;
+    WeakHashSet<HTMLMediaElement> m_captionPreferencesChangedElements;
     WeakPtr<HTMLMediaElement> m_mediaElementShowingTextTrack;
 #endif
 
@@ -1924,7 +1930,7 @@ private:
     std::unique_ptr<TextAutoSizing> m_textAutoSizing;
 #endif
         
-    RefPtr<HighlightMap> m_highlightMap;
+    RefPtr<HighlightRegister> m_highlightRegister;
 
     Timer m_visualUpdatesSuppressionTimer;
 

@@ -52,10 +52,16 @@ WI.BreakpointPopover = class BreakpointPopover extends WI.Popover
 
     static appendContextMenuItems(contextMenu, breakpoint, targetElement)
     {
-        if (breakpoint.editable) {
+        if (breakpoint.editable && targetElement) {
             contextMenu.appendItem(WI.UIString("Edit Breakpoint\u2026"), () => {
                 const delegate = null;
-                let popover = new WI.BreakpointPopover(delegate, breakpoint);
+                let popover;
+                if (breakpoint instanceof WI.EventBreakpoint)
+                    popover = new WI.EventBreakpointPopover(delegate, breakpoint);
+                else if (breakpoint instanceof WI.URLBreakpoint)
+                    popover = new WI.URLBreakpointPopover(delegate, breakpoint);
+                else
+                    popover = new WI.BreakpointPopover(delegate, breakpoint);
                 popover.show(targetElement);
             });
         }
@@ -164,7 +170,7 @@ WI.BreakpointPopover = class BreakpointPopover extends WI.Popover
             if (this._breakpoint)
                 this._conditionCodeMirror.on("change", this._handleConditionCodeMirrorChange.bind(this));
 
-            let completionController = new WI.CodeMirrorCompletionController(this._conditionCodeMirror, this);
+            let completionController = new WI.CodeMirrorCompletionController(this.codeMirrorCompletionControllerMode, this._conditionCodeMirror, this);
             completionController.addExtendedCompletionProvider("javascript", WI.javaScriptRuntimeCompletionProvider);
 
             let ignoreCountLabelElement = document.createElement("label");
@@ -273,6 +279,11 @@ WI.BreakpointPopover = class BreakpointPopover extends WI.Popover
 
     // BreakpointActionView delegate
 
+    breakpointActionViewCodeMirrorCompletionControllerMode(breakpointActionView, codeMirror)
+    {
+        return this.codeMirrorCompletionControllerMode;
+    }
+
     breakpointActionViewAppendActionView(breakpointActionView, newBreakpointAction)
     {
         this._breakpoint?.addAction(newBreakpointAction, {precedingAction: breakpointActionView.action});
@@ -308,6 +319,16 @@ WI.BreakpointPopover = class BreakpointPopover extends WI.Popover
     }
 
     // Protected
+
+    get codeMirrorCompletionControllerMode()
+    {
+        // Overridden by subclasses if needed.
+
+        if (this._breakpoint === WI.debuggerManager.allExceptionsBreakpoint || this._breakpoint === WI.debuggerManager.uncaughtExceptionsBreakpoint)
+            return WI.CodeMirrorCompletionController.Mode.ExceptionBreakpoint;
+
+        return WI.CodeMirrorCompletionController.Mode.Basic;
+    }
 
     populateContent()
     {
@@ -421,7 +442,7 @@ WI.BreakpointPopover = class BreakpointPopover extends WI.Popover
 
         this._actionsContainerElement.removeChildren();
 
-        let action = new WI.BreakpointAction(WI.BreakpointAction.Type.Log);
+        let action = new WI.BreakpointAction(WI.BreakpointAction.Type.Evaluate);
         this._breakpoint?.addAction(action);
 
         let breakpointActionView = new WI.BreakpointActionView(action, this);

@@ -185,6 +185,7 @@ set(WebKit_MESSAGES_IN_FILES
     Shared/Plugins/NPObjectMessageReceiver
 
     UIProcess/DrawingAreaProxy
+    UIProcess/SpeechRecognitionServer
     UIProcess/VisitedLinkStore
     UIProcess/WebCookieManagerProxy
     UIProcess/WebFullScreenManagerProxy
@@ -258,6 +259,8 @@ set(WebKit_MESSAGES_IN_FILES
     WebProcess/Storage/WebSWContextManagerConnection
 
     WebProcess/UserContent/WebUserContentController
+
+    WebProcess/WebCoreSupport/WebSpeechRecognitionConnection
 
     WebProcess/WebPage/DrawingArea
     WebProcess/WebPage/EventDispatcher

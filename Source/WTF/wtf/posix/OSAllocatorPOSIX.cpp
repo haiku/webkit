@@ -31,22 +31,27 @@
 #include <wtf/Assertions.h>
 #include <wtf/PageBlock.h>
 
-#if OS(HAIKU) && !defined(MADV_DONTNEED)
-// For old versions of Haiku (before R1 beta3), only posix_madvise is available
-#define MADV_DONTNEED POSIX_MADV_DONTNEED
-#define MADV_FREE POSIX_MADV_FREE
-#define MADV_WILLNEED POSIX_MADV_WILLNEED
-#define madvise posix_madvise
-#endif
+#if ENABLE(JIT_CAGE)
+#include <WebKitAdditions/JITCageAdditions.h>
+#else // ENABLE(JIT_CAGE)
+#if OS(DARWIN)
+#define MAP_EXECUTABLE_FOR_JIT MAP_JIT
+#define MAP_EXECUTABLE_FOR_JIT_WITH_JIT_CAGE MAP_JIT
+#else // OS(DARWIN)
+#define MAP_EXECUTABLE_FOR_JIT 0
+#define MAP_EXECUTABLE_FOR_JIT_WITH_JIT_CAGE 0
+#endif // OS(DARWIN)
+#endif // ENABLE(JIT_CAGE)
 
 namespace WTF {
 
-void* OSAllocator::reserveUncommitted(size_t bytes, Usage usage, bool writable, bool executable, bool includesGuardPages)
+void* OSAllocator::reserveUncommitted(size_t bytes, Usage usage, bool writable, bool executable, bool jitCageEnabled, bool includesGuardPages)
 {
 #if OS(LINUX) || OS(HAIKU)
     UNUSED_PARAM(usage);
     UNUSED_PARAM(writable);
     UNUSED_PARAM(executable);
+    UNUSED_PARAM(jitCageEnabled);
     UNUSED_PARAM(includesGuardPages);
 
     void* result = mmap(0, bytes, PROT_NONE, MAP_NORESERVE | MAP_PRIVATE | MAP_ANON, -1, 0);
@@ -54,7 +59,7 @@ void* OSAllocator::reserveUncommitted(size_t bytes, Usage usage, bool writable, 
         CRASH();
     madvise(result, bytes, MADV_DONTNEED);
 #else
-    void* result = reserveAndCommit(bytes, usage, writable, executable, includesGuardPages);
+    void* result = reserveAndCommit(bytes, usage, writable, executable, jitCageEnabled, includesGuardPages);
 #if HAVE(MADV_FREE_REUSE)
     if (result) {
         // To support the "reserve then commit" model, we have to initially decommit.
@@ -67,7 +72,7 @@ void* OSAllocator::reserveUncommitted(size_t bytes, Usage usage, bool writable, 
     return result;
 }
 
-void* OSAllocator::reserveAndCommit(size_t bytes, Usage usage, bool writable, bool executable, bool includesGuardPages)
+void* OSAllocator::reserveAndCommit(size_t bytes, Usage usage, bool writable, bool executable, bool jitCageEnabled, bool includesGuardPages)
 {
     // All POSIX reservations start out logically committed.
     int protection = PROT_READ;
@@ -78,8 +83,14 @@ void* OSAllocator::reserveAndCommit(size_t bytes, Usage usage, bool writable, bo
 
     int flags = MAP_PRIVATE | MAP_ANON;
 #if OS(DARWIN)
-    if (executable)
-        flags |= MAP_JIT;
+    if (executable) {
+        if (jitCageEnabled)
+            flags |= MAP_EXECUTABLE_FOR_JIT_WITH_JIT_CAGE;
+        else
+            flags |= MAP_EXECUTABLE_FOR_JIT;
+    }
+#else
+    UNUSED_PARAM(jitCageEnabled);
 #endif
 
 #if OS(DARWIN)

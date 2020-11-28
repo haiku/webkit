@@ -684,10 +684,7 @@ bool DragController::canProcessDrag(const DragData& dragData)
         return true;
 #endif
 
-    if (is<HTMLPlugInElement>(*dragNode)) {
-        if (!downcast<HTMLPlugInElement>(*dragNode).canProcessDrag() && !dragNode->hasEditableStyle())
-            return false;
-    } else if (!dragNode->hasEditableStyle())
+    if (!dragNode->hasEditableStyle())
         return false;
 
     if (m_didInitiateDrag && m_documentUnderMouse == m_dragInitiator && result.isSelected())
@@ -781,7 +778,7 @@ Element* DragController::draggableElement(const Frame* sourceFrame, Element* sta
         auto& selection = sourceFrame->selection().selection();
         bool isSingleAttachmentSelection = selection.start() == Position(attachment.get(), Position::PositionIsBeforeAnchor) && selection.end() == Position(attachment.get(), Position::PositionIsAfterAnchor);
         auto selectedRange = selection.firstRange();
-        if (isSingleAttachmentSelection || !selectedRange || !contains(*selectedRange, *attachment)) {
+        if (isSingleAttachmentSelection || !selectedRange || !contains<ComposedTree>(*selectedRange, *attachment)) {
             state.type = DragSourceAction::Attachment;
             return attachment.get();
         }
@@ -1460,7 +1457,7 @@ void DragController::insertDroppedImagePlaceholdersAtCaret(const Vector<IntSize>
         return;
     }
 
-    auto container = commonInclusiveAncestor(*insertedContentRange);
+    auto container = commonInclusiveAncestor<ComposedTree>(*insertedContentRange);
     if (!is<ContainerNode>(container)) {
         ASSERT_NOT_REACHED();
         return;
@@ -1468,7 +1465,7 @@ void DragController::insertDroppedImagePlaceholdersAtCaret(const Vector<IntSize>
 
     Vector<Ref<HTMLImageElement>> placeholders;
     for (auto& placeholder : descendantsOfType<HTMLImageElement>(downcast<ContainerNode>(*container))) {
-        if (intersects(*insertedContentRange, placeholder))
+        if (intersects<ComposedTree>(*insertedContentRange, placeholder))
             placeholders.append(placeholder);
     }
 

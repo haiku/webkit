@@ -852,7 +852,6 @@ searchfield-decoration
 searchfield-results-decoration
 searchfield-results-button
 searchfield-cancel-button
-snapshotted-plugin-overlay
 textfield
 relevancy-level-indicator
 continuous-capacity-level-indicator
@@ -1339,10 +1338,6 @@ dense
 
 // -webkit-column-fill
 balance
-
-// -webkit-aspect-ratio
-from-dimensions
-from-intrinsic
 
 #if defined(ENABLE_CSS_TRAILING_WORD) && ENABLE_CSS_TRAILING_WORD
 // -apple-trailing-word

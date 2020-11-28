@@ -73,7 +73,6 @@
 #include <WebCore/Frame.h>
 #include <WebCore/FrameLoader.h>
 #include <WebCore/FrameView.h>
-#include <WebCore/HTMLAppletElement.h>
 #include <WebCore/HTMLFormElement.h>
 #include <WebCore/HistoryController.h>
 #include <WebCore/HistoryItem.h>
@@ -887,6 +886,7 @@ void WebFrameLoaderClient::dispatchDecidePolicyForNewWindowAction(const Navigati
     navigationActionData.canHandleRequest = webPage->canHandleRequest(request);
     navigationActionData.shouldOpenExternalURLsPolicy = navigationAction.shouldOpenExternalURLsPolicy();
     navigationActionData.downloadAttribute = navigationAction.downloadAttribute();
+    navigationActionData.privateClickMeasurement = navigationAction.privateClickMeasurement();
 
     webPage->send(Messages::WebPageProxy::DecidePolicyForNewWindowAction(m_frame->frameID(), m_frame->info(), identifier, navigationActionData, request,
         frameName, listenerID, UserData(WebProcess::singleton().transformObjectsToHandles(userData.get()).get())));
@@ -993,7 +993,7 @@ void WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const Navigat
     navigationActionData.sourceBackForwardItemIdentifier = navigationAction.sourceBackForwardItemIdentifier();
     navigationActionData.lockHistory = navigationAction.lockHistory();
     navigationActionData.lockBackForwardList = navigationAction.lockBackForwardList();
-    navigationActionData.adClickAttribution = navigationAction.adClickAttribution();
+    navigationActionData.privateClickMeasurement = navigationAction.privateClickMeasurement();
 
     auto* coreFrame = m_frame->coreFrame();
     if (!coreFrame)
@@ -1660,27 +1660,6 @@ WebCore::WebGLLoadPolicy WebFrameLoaderClient::resolveWebGLPolicyForURL(const UR
 }
 
 #endif
-
-RefPtr<Widget> WebFrameLoaderClient::createJavaAppletWidget(const IntSize& pluginSize, HTMLAppletElement& appletElement, const URL&, const Vector<String>& paramNames, const Vector<String>& paramValues)
-{
-#if ENABLE(NETSCAPE_PLUGIN_API)
-    auto plugin = createPlugin(pluginSize, appletElement, URL(), paramNames, paramValues, appletElement.serviceType(), false);
-    if (!plugin) {
-        if (auto* webPage = m_frame->page()) {
-            auto frameURLString = m_frame->coreFrame()->loader().documentLoader()->responseURL().string();
-            auto pageURLString = webPage->corePage()->mainFrame().loader().documentLoader()->responseURL().string();
-            webPage->send(Messages::WebPageProxy::DidFailToInitializePlugin(appletElement.serviceType(), frameURLString, pageURLString));
-        }
-    }
-    return plugin;
-#else
-    UNUSED_PARAM(pluginSize);
-    UNUSED_PARAM(appletElement);
-    UNUSED_PARAM(paramNames);
-    UNUSED_PARAM(paramValues);
-    return nullptr;
-#endif
-}
 
 static bool pluginSupportsExtension(const PluginData& pluginData, const String& extension)
 {

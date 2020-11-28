@@ -66,7 +66,7 @@ namespace WebCore {
 class AudioSourceProvider;
 class CDMInstance;
 class CachedResourceLoader;
-class GraphicsContextGLOpenGL;
+class GraphicsContextGL;
 class GraphicsContext;
 class InbandTextTrackPrivate;
 class LegacyCDM;
@@ -307,6 +307,8 @@ public:
     bool doesHaveAttribute(const AtomString&, AtomString* value = nullptr) const;
     PlatformLayer* platformLayer() const;
 
+    void reloadAndResumePlaybackIfNeeded();
+
 #if ENABLE(VIDEO_PRESENTATION_MODE)
     RetainPtr<PlatformLayer> createVideoFullscreenLayer();
     void setVideoFullscreenLayer(PlatformLayer*, WTF::Function<void()>&& completionHandler = [] { });
@@ -342,7 +344,6 @@ public:
 #endif
     void cancelLoad();
 
-    bool visible() const;
     void setVisible(bool);
     void setVisibleForCanvas(bool);
 
@@ -382,6 +383,7 @@ public:
     MediaTime duration() const;
     MediaTime currentTime() const;
     void seek(const MediaTime&);
+    void seekWhenPossible(const MediaTime&);
     void seekWithTolerance(const MediaTime&, const MediaTime& negativeTolerance, const MediaTime& positiveTolerance);
 
     MediaTime startTime() const;
@@ -429,9 +431,9 @@ public:
     // The destination texture may need to be resized to to the dimensions of the source texture or re-defined to the required internalFormat.
     // The current restrictions require that format shoud be RGB or RGBA, type should be UNSIGNED_BYTE and level should be 0. It may be lifted in the future.
 
-    bool copyVideoTextureToPlatformTexture(GraphicsContextGLOpenGL*, PlatformGLObject texture, GCGLenum target, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY);
+    bool copyVideoTextureToPlatformTexture(GraphicsContextGL*, PlatformGLObject texture, GCGLenum target, GCGLint level, GCGLenum internalFormat, GCGLenum format, GCGLenum type, bool premultiplyAlpha, bool flipY);
 
-    NativeImagePtr nativeImageForCurrentTime();
+    RefPtr<NativeImage> nativeImageForCurrentTime();
 
     using MediaPlayerEnums::NetworkState;
     NetworkState networkState();
@@ -657,6 +659,7 @@ private:
     ContentType m_contentType;
     String m_keySystem;
     Optional<MediaPlayerEnums::MediaEngineIdentifier> m_activeEngineIdentifier;
+    Optional<MediaTime> m_pendingSeekRequest;
     IntSize m_size;
     Preload m_preload { Preload::Auto };
     double m_volume { 1 };
@@ -710,7 +713,6 @@ public:
     using RegisterRemotePlayerCallback = WTF::Function<void(MediaEngineRegistrar, MediaPlayerEnums::MediaEngineIdentifier)>;
     WEBCORE_EXPORT static void setRegisterRemotePlayerCallback(RegisterRemotePlayerCallback&&);
 };
-
 
 inline String MediaPlayer::audioOutputDeviceId() const
 {

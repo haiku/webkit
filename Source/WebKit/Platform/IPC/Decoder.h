@@ -30,6 +30,7 @@
 #include "MessageNames.h"
 #include "StringReference.h"
 #include <WebCore/ContextMenuItem.h>
+#include <WebCore/SharedBuffer.h>
 #include <wtf/OptionSet.h>
 #include <wtf/Vector.h>
 
@@ -73,6 +74,7 @@ public:
     static std::unique_ptr<Decoder> unwrapForTesting(Decoder&);
 
     const uint8_t* buffer() const { return m_buffer; }
+    size_t currentBufferPosition() const { return m_bufferPos - m_buffer; }
     size_t length() const { return m_bufferEnd - m_buffer; }
 
     WARN_UNUSED_RETURN bool isValid() const { return m_bufferPos != nullptr; }
@@ -172,7 +174,22 @@ public:
 
     static const bool isIPCDecoder = true;
 
+    template <typename T>
+    static Optional<T> decodeSingleObject(const uint8_t* source, size_t numberOfBytes)
+    {
+        Optional<T> result;
+        Decoder decoder(source, numberOfBytes, ConstructWithoutHeader);
+        if (!decoder.isValid())
+            return WTF::nullopt;
+
+        decoder >> result;
+        return result;
+    }
+
 private:
+    enum ConstructWithoutHeaderTag { ConstructWithoutHeader };
+    Decoder(const uint8_t* buffer, size_t bufferSize, ConstructWithoutHeaderTag);
+
     bool alignBufferPosition(size_t alignment, size_t);
     bool bufferIsLargeEnoughToContain(size_t alignment, size_t) const;
 

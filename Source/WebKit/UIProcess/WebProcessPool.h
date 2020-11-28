@@ -34,7 +34,6 @@
 #include "MessageReceiver.h"
 #include "MessageReceiverMap.h"
 #include "NetworkProcessProxy.h"
-#include "PlugInAutoStartProvider.h"
 #include "PluginInfoStore.h"
 #include "ProcessThrottler.h"
 #include "VisitedLinkStore.h"
@@ -225,11 +224,6 @@ public:
     void refreshPlugins();
 
     PluginInfoStore& pluginInfoStore() { return m_pluginInfoStore; }
-
-    void setPluginLoadClientPolicy(WebCore::PluginLoadClientPolicy, const String& host, const String& bundleIdentifier, const String& versionString);
-    void resetPluginLoadClientPolicies(HashMap<String, HashMap<String, HashMap<String, WebCore::PluginLoadClientPolicy>>>&&);
-    void clearPluginClientPolicies();
-    const HashMap<String, HashMap<String, HashMap<String, WebCore::PluginLoadClientPolicy>>>& pluginLoadClientPolicies() const { return m_pluginLoadClientPolicies; }
 #endif
 
 #if PLATFORM(MAC) && ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
@@ -348,14 +342,13 @@ public:
 #endif
     void textCheckerStateChanged();
 
-    Ref<API::Dictionary> plugInAutoStartOriginHashes() const;
-    void setPlugInAutoStartOriginHashes(API::Dictionary&);
-    void setPlugInAutoStartOrigins(API::Array&);
-    void setPlugInAutoStartOriginsFilteringOutEntriesAddedAfterTime(API::Dictionary&, WallTime);
-
 #if ENABLE(GPU_PROCESS)
     void gpuProcessCrashed(ProcessID);
+
     void getGPUProcessConnection(WebProcessProxy&, Messages::WebProcessProxy::GetGPUProcessConnectionDelayedReply&&);
+
+    GPUProcessProxy& ensureGPUProcess();
+    GPUProcessProxy* gpuProcess() const { return m_gpuProcess.get(); }
 #endif
 
 #if ENABLE(WEB_AUTHN)
@@ -461,6 +454,7 @@ public:
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     void setDomainsWithUserInteraction(HashSet<WebCore::RegistrableDomain>&&);
+    void setDomainsWithCrossPageStorageAccess(HashMap<TopFrameDomain, SubResourceDomain>&&, CompletionHandler<void()>&&);
     void seedResourceLoadStatisticsForTesting(const WebCore::RegistrableDomain& firstPartyDomain, const WebCore::RegistrableDomain& thirdPartyDomain, bool shouldScheduleNotification, CompletionHandler<void()>&&);
     void sendResourceLoadStatisticsDataImmediately(CompletionHandler<void()>&&);
 #endif
@@ -484,8 +478,6 @@ public:
     
     WebProcessDataStoreParameters webProcessDataStoreParameters(WebProcessProxy&, WebsiteDataStore&);
     
-    PlugInAutoStartProvider& plugInAutoStartProvider() { return m_plugInAutoStartProvider; }
-
     static void setUseSeparateServiceWorkerProcess(bool);
     static bool useSeparateServiceWorkerProcess() { return s_useSeparateServiceWorkerProcess; }
 
@@ -594,6 +586,10 @@ private:
     Optional<UserContentControllerIdentifier> m_userContentControllerIDForServiceWorker;
 #endif
 
+#if ENABLE(GPU_PROCESS)
+    RefPtr<GPUProcessProxy> m_gpuProcess;
+#endif
+
     Ref<WebPageGroup> m_defaultPageGroup;
 
     RefPtr<API::Object> m_injectedBundleInitializationUserData;
@@ -613,8 +609,6 @@ private:
     Ref<VisitedLinkStore> m_visitedLinkStore;
     bool m_visitedLinksPopulated { false };
 
-    PlugInAutoStartProvider m_plugInAutoStartProvider { this };
-        
     HashSet<String> m_schemesToRegisterAsEmptyDocument;
     HashSet<String> m_schemesToSetDomainRelaxationForbiddenFor;
     HashSet<String> m_schemesToRegisterAsDisplayIsolated;
@@ -681,6 +675,11 @@ private:
     HiddenPageThrottlingAutoIncreasesCounter m_hiddenPageThrottlingAutoIncreasesCounter;
     RunLoop::Timer<WebProcessPool> m_hiddenPageThrottlingTimer;
 
+#if ENABLE(GPU_PROCESS)
+    RunLoop::Timer<WebProcessPool> m_resetGPUProcessCrashCountTimer;
+    unsigned m_recentGPUProcessCrashCount { 0 };
+#endif
+
 #if PLATFORM(COCOA)
     RetainPtr<NSMutableDictionary> m_bundleParameters;
     ProcessSuppressionDisabledToken m_pluginProcessManagerProcessSuppressionDisabledToken;
@@ -689,10 +688,6 @@ private:
 
 #if ENABLE(CONTENT_EXTENSIONS)
     HashMap<String, String> m_encodedContentExtensions;
-#endif
-
-#if ENABLE(NETSCAPE_PLUGIN_API)
-    HashMap<String, HashMap<String, HashMap<String, WebCore::PluginLoadClientPolicy>>> m_pluginLoadClientPolicies;
 #endif
 
 #if ENABLE(GAMEPAD)
@@ -769,6 +764,7 @@ private:
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     HashSet<WebCore::RegistrableDomain> m_domainsWithUserInteraction;
+    HashMap<TopFrameDomain, SubResourceDomain> m_domainsWithCrossPageStorageAccessQuirk;
 #endif
 };
 

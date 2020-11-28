@@ -39,7 +39,6 @@ class RenderText;
 namespace LayoutIntegration {
 
 class LineIterator;
-class LineRunIterator;
 class TextRunIterator;
 
 struct EndIterator { };
@@ -84,7 +83,6 @@ public:
 
 protected:
     friend class RunIterator;
-    friend class LineRunIterator;
     friend class TextRunIterator;
 
     // To help with debugging.
@@ -103,15 +101,15 @@ public:
     bool hasHyphen() const;
     StringView text() const;
 
-    // These offsets are relative to the text renderer (not flow).
-    unsigned localStartOffset() const;
-    unsigned localEndOffset() const;
+    unsigned start() const;
+    unsigned end() const;
     unsigned length() const;
 
     unsigned offsetForPosition(float x) const;
+    float positionForOffset(unsigned) const;
 
-    bool isLastTextRunOnLine() const;
-    bool isLastTextRun() const;
+    bool isSelectable(unsigned start, unsigned end) const;
+    LayoutRect selectionRect(unsigned start, unsigned end) const;
 
     InlineTextBox* legacyInlineBox() const { return downcast<InlineTextBox>(PathRun::legacyInlineBox()); }
 };
@@ -134,10 +132,15 @@ public:
 
     bool atEnd() const;
 
-    LineRunIterator nextOnLine() const;
-    LineRunIterator previousOnLine() const;
-    LineRunIterator nextOnLineIgnoringLineBreak() const;
-    LineRunIterator previousOnLineIgnoringLineBreak() const;
+    RunIterator nextOnLine() const;
+    RunIterator previousOnLine() const;
+    RunIterator nextOnLineIgnoringLineBreak() const;
+    RunIterator previousOnLineIgnoringLineBreak() const;
+
+    RunIterator& traverseNextOnLine();
+    RunIterator& traversePreviousOnLine();
+    RunIterator& traverseNextOnLineIgnoringLineBreak();
+    RunIterator& traversePreviousOnLineIgnoringLineBreak();
 
     LineIterator line() const;
 
@@ -164,21 +167,12 @@ public:
     TextRunIterator nextTextRunInTextOrder() const { return TextRunIterator(*this).traverseNextTextRunInTextOrder(); }
 
 private:
+    RunIterator& traverseNextOnLine() = delete;
+    RunIterator& traversePreviousOnLine() = delete;
+    RunIterator& traverseNextOnLineIgnoringLineBreak() = delete;
+    RunIterator& traversePreviousOnLineIgnoringLineBreak() = delete;
+
     const PathTextRun& get() const { return downcast<PathTextRun>(m_run); }
-};
-
-class LineRunIterator : public RunIterator {
-public:
-    LineRunIterator() { }
-    LineRunIterator(const RunIterator&);
-    LineRunIterator(PathRun::PathVariant&&);
-
-    LineRunIterator& operator++() { return traverseNextOnLine(); }
-
-    LineRunIterator& traverseNextOnLine();
-    LineRunIterator& traversePreviousOnLine();
-    LineRunIterator& traverseNextOnLineIgnoringLineBreak();
-    LineRunIterator& traversePreviousOnLineIgnoringLineBreak();
 };
 
 class TextRunRange {
@@ -200,7 +194,6 @@ TextRunIterator firstTextRunInTextOrderFor(const RenderText&);
 TextRunRange textRunsFor(const RenderText&);
 RunIterator runFor(const RenderLineBreak&);
 RunIterator runFor(const RenderBox&);
-LineRunIterator lineRun(const RunIterator&);
 
 // -----------------------------------------------
 
@@ -298,17 +291,17 @@ inline StringView PathTextRun::text() const
     });
 }
 
-inline unsigned PathTextRun::localStartOffset() const
+inline unsigned PathTextRun::start() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
-        return path.localStartOffset();
+        return path.start();
     });
 }
 
-inline unsigned PathTextRun::localEndOffset() const
+inline unsigned PathTextRun::end() const
 {
     return WTF::switchOn(m_pathVariant, [](auto& path) {
-        return path.localEndOffset();
+        return path.end();
     });
 }
 
@@ -326,17 +319,24 @@ inline unsigned PathTextRun::offsetForPosition(float x) const
     });
 }
 
-inline bool PathTextRun::isLastTextRunOnLine() const
+inline float PathTextRun::positionForOffset(unsigned offset) const
 {
-    return WTF::switchOn(m_pathVariant, [](auto& path) {
-        return path.isLastTextRunOnLine();
+    return WTF::switchOn(m_pathVariant, [&](auto& path) {
+        return path.positionForOffset(offset);
     });
 }
 
-inline bool PathTextRun::isLastTextRun() const
+inline bool PathTextRun::isSelectable(unsigned start, unsigned end) const
 {
-    return WTF::switchOn(m_pathVariant, [](auto& path) {
-        return path.isLastTextRun();
+    return WTF::switchOn(m_pathVariant, [&](auto& path) {
+        return path.isSelectable(start, end);
+    });
+}
+
+inline LayoutRect PathTextRun::selectionRect(unsigned start, unsigned end) const
+{
+    return WTF::switchOn(m_pathVariant, [&](auto& path) {
+        return path.selectionRect(start, end);
     });
 }
 

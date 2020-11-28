@@ -1,3 +1,805 @@
+2020-11-16  Antoine Quint  <graouts@webkit.org>
+
+        Add an experimental <model> element
+        https://bugs.webkit.org/show_bug.cgi?id=218991
+
+        Reviewed by Dean Jackson.
+
+        Add a new build ENABLE(MODEL_ELEMENT) flag, enabled only on Cocoa platforms, and a new experimental feature
+        backed by a setting, currently disabled on all platforms except engineering builds and Safari Technology Preview.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+        * wtf/PlatformEnableCocoa.h:
+
+2020-11-16  Per Arne Vollan  <pvollan@apple.com>
+
+        [macOS] The WebContent sandbox does not apply for open source builds
+        https://bugs.webkit.org/show_bug.cgi?id=218982
+
+        Reviewed by Alexey Proskuryakov.
+
+        Add HAVE define for sandbox message filtering.
+
+        * wtf/PlatformHave.h:
+
+2020-11-16  Megan Gardner  <megan_gardner@apple.com>
+
+        Add menu support for app highlights for books
+        https://bugs.webkit.org/show_bug.cgi?id=218879
+        <rdar://problem/71352113>
+
+        Reviewed by Alex Christensen.
+
+        * Scripts/Preferences/WebPreferencesInternal.yaml:
+
+2020-11-16  Zan Dobersek  <zdobersek@igalia.com>
+
+        Re-disable async overflow scrolling for USE(NICOSIA)
+        https://bugs.webkit.org/show_bug.cgi?id=218974
+
+        Async overflow scrolling was accidentally enabled for ports using the
+        Nicosia platform layering infrastructure during the preference migration
+        done in r267775. This patch again disables it until it can be properly
+        supported.
+
+        * Scripts/Preferences/WebPreferencesInternal.yaml:
+
+2020-11-14  Don Olmstead  <don.olmstead@sony.com>
+
+        [clang-tidy] Run modernize-use-override through JSC
+        https://bugs.webkit.org/show_bug.cgi?id=218916
+
+        Reviewed by Yusuke Suzuki.
+
+        * wtf/RunLoop.h:
+
+2020-11-13  Sihui Liu  <sihui_liu@apple.com>
+
+        Implement basic permission check for SpeechRecognition
+        https://bugs.webkit.org/show_bug.cgi?id=218476
+        <rdar://problem/71222638>
+
+        Reviewed by Youenn Fablet.
+
+        * wtf/PlatformHave.h:
+
+2020-11-13  Sam Weinig  <weinig@apple.com>
+
+        Move some more WebKit and WebKitLegacy preferences bound to Settings to WebPreferences.yaml
+        https://bugs.webkit.org/show_bug.cgi?id=218914
+
+        Reviewed by Tim Horton.
+
+        Moves AppleMailPaginationQuirkEnabled, ContentDispositionAttachmentSandboxEnabled and
+        UseImageDocumentForSubframePDF from Settings.yaml to WebPreferences.yaml. Merges in
+        WebCore values from ScrollingPerformanceLoggingEnabled and removes binding override
+        since it can now be fully generated. 
+
+        * Scripts/Preferences/WebPreferences.yaml:
+
+2020-11-13  Xan López  <xan@igalia.com>
+
+        [JSC] Use symbols as identifiers for class fields computed names storage
+        https://bugs.webkit.org/show_bug.cgi?id=216172
+
+        Reviewed by Yusuke Suzuki.
+
+        Use private symbols for the property keys of the class fields with
+        computed names. This is cleaner than using raw numeric identifiers and
+        will be less cumbersome when we add static fields. It also prevents
+        potential collisions if other features want to store data in the class
+        scope.
+
+        * wtf/text/SymbolImpl.cpp:
+        (WTF::RegisteredSymbolImpl::createPrivate): add a method to create a registered private symbol from a string key.
+        * wtf/text/SymbolImpl.h:
+        * wtf/text/SymbolRegistry.cpp:
+        (WTF::SymbolRegistry::symbolForKey): consider that we can hold private symbols now too.
+        * wtf/text/SymbolRegistry.h:
+        (WTF::SymbolRegistry::SymbolRegistry): new enum type for public/private symbols.
+
+2020-11-12  Darin Adler  <darin@apple.com>
+
+        Remove unused advanced plug-in features: snapshotting and plug-in load policy
+        https://bugs.webkit.org/show_bug.cgi?id=218835
+
+        Reviewed by Tim Horton.
+
+        * Scripts/Preferences/WebPreferences.yaml: Removed
+        AutostartOriginPlugInSnapshottingEnabled, PlugInSnapshottingEnabled,
+        PrimaryPlugInSnapshotDetectionEnabled, and SnapshotAllPlugIns.
+
+2020-11-12  Simon Fraser  <simon.fraser@apple.com>
+
+        Force wheel event listeners on the root to be passive
+        https://bugs.webkit.org/show_bug.cgi?id=218842
+        <rdar://problem/71312668>
+
+        Reviewed by Chris Dumez.
+
+        Following Blink (https://www.chromestatus.com/feature/6662647093133312) force 'wheel' and
+        'mousewheel' event listeners on root objects (window, document and body) to be passive if
+        they were not explicitly registered as non-passive.
+
+        This behavior is controlled by an experimental feature flag, and a linked-on-or-after check
+        to avoid changing behavior for apps that embed WebKit until they link against new SDKs.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-11-13  Aditya Keerthi  <akeerthi@apple.com>
+
+        [iOS][FCR] Add an internal feature flag to enable the new appearance
+        https://bugs.webkit.org/show_bug.cgi?id=218873
+        <rdar://problem/71345270>
+
+        Reviewed by Tim Horton.
+
+        Enable the feature at build time on PLATFORM(IOS_FAMILY) and disable
+        the feature at runtime.
+
+        * Scripts/Preferences/WebPreferencesInternal.yaml:
+        * wtf/PlatformEnable.h:
+        * wtf/PlatformEnableCocoa.h:
+
+2020-11-12  Youenn Fablet  <youenn@apple.com>
+
+        Add infrastructure for WebRTC transforms
+        https://bugs.webkit.org/show_bug.cgi?id=218750
+
+        Reviewed by Eric Carlson.
+
+        Add an experimental preference for WebRTC transforms.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-11-12  Sam Weinig  <weinig@apple.com>
+
+        Move more WebKitLegacy specific settings usage to WebPreferences.yaml
+        https://bugs.webkit.org/show_bug.cgi?id=218852
+
+        Reviewed by Tim Horton.
+
+        This batch focuses on settings with defaults based on SDK/host app conditions.
+
+        * Scripts/Preferences/WebPreferences.yaml:
+
+2020-11-12  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: ensure that `JSON::ArrayOf<T>` doesn't allow `addItem` to be called with a type other than `T`
+        https://bugs.webkit.org/show_bug.cgi?id=218686
+
+        Reviewed by Brian Burg.
+
+        * wtf/JSONValues.h:
+        (WTF::JSONImpl::Value::Value):
+        (WTF::JSONImpl::Value::Value):
+        (WTF::JSONImpl::ArrayOf::addItem):
+        * wtf/JSONValues.cpp:
+        (WTF::JSONImpl::Value::create):
+        Right now, `JSON::ArrayOf<T>` always has `addItem` overloads for `int`, `double`, `String`,
+        and `Ref<T>` (even when `T` is not a `JSON::Value`). This means that a `JSON::ArrayOf<int>`
+        can call `addItem(42.0)` or `addItem("foo"_s)` and it would work. This doesn't really match
+        the intention of `JSON::ArrayOf<T>`, so add some template `std::enable_if` to ensure that
+        the only `addItem` overload that exists is the one that matches `T`.
+
+2020-11-12  Zalan Bujtas  <zalan@apple.com>
+
+        Show legacy line layout visual coverage instead of "simple line" layout.
+        https://bugs.webkit.org/show_bug.cgi?id=218695
+
+        Reviewed by Antti Koivisto.
+
+        * Scripts/Preferences/WebPreferencesDebug.yaml:
+
+2020-11-11  Chris Dumez  <cdumez@apple.com>
+
+        Add RunLoop::Timer constructor taking in a WTF::Function
+        https://bugs.webkit.org/show_bug.cgi?id=218828
+
+        Reviewed by Darin Adler.
+
+        Add RunLoop::Timer constructor taking in a WTF::Function instead of a function pointer.
+        This is similar to what was done for WebCore::Timer.
+
+        * wtf/RunLoop.h:
+
+2020-11-11  Sam Weinig  <weinig@apple.com>
+
+        Move more WebKitLegacy preferences bound to Settings to WebPreferences.yaml
+        https://bugs.webkit.org/show_bug.cgi?id=218826
+
+        Reviewed by Tim Horton.
+
+        * Scripts/Preferences/WebPreferences.yaml:
+        Move AcceleratedCompositingForFixedPositionEnabled, ForceWebGLUsesLowPower, 
+        RubberBandingForSubScrollableRegionsEnabled, ShrinksStandaloneImagesToFit and
+        VisualViewportEnabled to WebPreferences.yaml
+
+2020-11-11  John Wilander  <wilander@apple.com>
+
+        PCM: Change from ad-click-attribution to private-click-measurement (in all forms, including .well-known URL)
+        https://bugs.webkit.org/show_bug.cgi?id=218730
+        <rdar://problem/71094296>
+
+        Reviewed by Alex Christensen.
+
+        Change to the official name of the proposed standard Private Click Measurement
+        https://github.com/privacycg/private-click-measurement.
+
+        This includes a change of the reporting URL from 
+        "/.well-known/ad-click-attribution/" to
+        "/.well-known/private-click-measurement/".
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-11-11  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Add system trace points for the GPU process display list processing loop
+        https://bugs.webkit.org/show_bug.cgi?id=218824
+
+        Reviewed by Simon Fraser.
+
+        * wtf/SystemTracing.h:
+
+2020-11-11  Alex Christensen  <achristensen@webkit.org>
+
+        Define USE(LEGACY_CFNETWORK_DOWNLOADS)
+        https://bugs.webkit.org/show_bug.cgi?id=218814
+
+        Reviewed by Geoffrey Garen.
+
+        * wtf/PlatformUse.h:
+
+2020-11-11  Alex Christensen  <achristensen@webkit.org>
+
+        Don't look in keychain for SecKeyRef after deserializing SecIdentityRef
+        https://bugs.webkit.org/show_bug.cgi?id=218809
+        <rdar://problem/69394018>
+
+        Reviewed by Geoffrey Garen.
+
+        * wtf/spi/cocoa/SecuritySPI.h:
+
+2020-11-10  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, reverting r269403
+        https://bugs.webkit.org/show_bug.cgi?id=218143
+
+        Now, bytecode list is moved out of JSCConfig. So it is not large size now.
+
+        * wtf/WTFConfig.h:
+
+2020-11-10  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r269660.
+        https://bugs.webkit.org/show_bug.cgi?id=218786
+
+        Crashing in EWS iOS simulator bots
+
+        Reverted changeset:
+
+        "PCM: Change from ad-click-attribution to private-click-
+        measurement (in all forms, including .well-known URL)"
+        https://bugs.webkit.org/show_bug.cgi?id=218730
+        https://trac.webkit.org/changeset/269660
+
+2020-11-10  John Wilander  <wilander@apple.com>
+
+        PCM: Change from ad-click-attribution to private-click-measurement (in all forms, including .well-known URL)
+        https://bugs.webkit.org/show_bug.cgi?id=218730
+        <rdar://problem/71094296>
+
+        Reviewed by Devin Rousso.
+
+        Change to the official name of the proposed standard Private Click Measurement
+        https://github.com/privacycg/private-click-measurement.
+
+        This includes a change of the reporting URL from 
+        "/.well-known/ad-click-attribution/" to
+        "/.well-known/private-click-measurement/".
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-11-10  Jer Noble  <jer.noble@apple.com>
+
+        Unreviewed internal macOS build-fix.
+
+        * wtf/PlatformHave.h:
+
+2020-11-10  Rob Buis  <rbuis@igalia.com>
+
+        Parse aspect-ratio CSS property
+        https://bugs.webkit.org/show_bug.cgi?id=218437
+
+        Reviewed by Darin Adler.
+
+        Add an experimental preference for aspect-ratio.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-11-09  Alan Bujtas  <zalan@apple.com>
+
+        Unreviewed, reverting r269603.
+
+        Needs Safari patch
+
+        Reverted changeset:
+
+        "Show legacy line layout visual coverage instead of "simple
+        line" layout."
+        https://bugs.webkit.org/show_bug.cgi?id=218695
+        https://trac.webkit.org/changeset/269603
+
+2020-11-09  Zalan Bujtas  <zalan@apple.com>
+
+        Show legacy line layout visual coverage instead of "simple line" layout.
+        https://bugs.webkit.org/show_bug.cgi?id=218695
+
+        Reviewed by Antti Koivisto.
+
+        * Scripts/Preferences/WebPreferencesDebug.yaml:
+
+2020-11-09  Per Arne Vollan  <pvollan@apple.com>
+
+        [macOS] Set preference for overridden languages in the WebContent process after entering the sandbox.
+        https://bugs.webkit.org/show_bug.cgi?id=218097
+
+        Reviewed by Alexey Proskuryakov.
+
+        Disable CFPrefs direct mode for older versions of macOS. In practice, it was already disabled since a mach connection to cfprefsd
+        was established before entering the sandbox on older versions on macOS, but that is fixed in this patch.
+
+        * wtf/PlatformEnableCocoa.h:
+
+2020-11-08  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add TimeZone range cache over ICU TimeZone API
+        https://bugs.webkit.org/show_bug.cgi?id=218681
+
+        Reviewed by Ross Kirsling.
+
+        * wtf/DateMath.h:
+
+2020-11-08  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Support @@species in ArrayBuffer / SharedArrayBuffer slice
+        https://bugs.webkit.org/show_bug.cgi?id=218697
+
+        Reviewed by Ross Kirsling.
+
+        Remove ENABLE(SHARED_ARRAY_BUFFER) flag. We use Options::useSharedArrayBuffer() runtime flag instead.
+
+        * wtf/PlatformEnable.h:
+
+2020-11-06  Sam Weinig  <weinig@apple.com>
+
+        Further progress towards merging Settings.yaml into WebPreferences.yaml
+        https://bugs.webkit.org/show_bug.cgi?id=218663
+
+        Reviewed by Tim Horton.
+
+        * Scripts/Preferences/WebPreferences.yaml:
+        Replace some use of WebCore constants with the inlined values of those constants
+        as this was the only user and it is clearer for the values to be here too.
+
+2020-11-06  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Re-enable SharedArrayBuffer for JSC shell and Testers
+        https://bugs.webkit.org/show_bug.cgi?id=212069
+
+        Reviewed by Keith Miller.
+
+        * wtf/PlatformEnable.h:
+
+2020-11-05  Saam Barati  <sbarati@apple.com>
+
+        Add back swap() free function for RefPtr
+        https://bugs.webkit.org/show_bug.cgi?id=218454
+
+        Reviewed by Darin Adler.
+
+        Add back the swap() free function I removed in r269115. Darin's suggestion
+        of specializing only a single type of RefPtr instead of two, solved the
+        issue. I also removed some previous hack where we didn't enable this for
+        RawPtrTraits. It's now enabled for all PtrTraits.
+
+        * wtf/RefPtr.h:
+        (WTF::swap):
+
+2020-11-05  Saam Barati  <sbarati@apple.com>
+
+        Change RELEASE_ASSERT to use branch+crash inside HashTable.h
+        https://bugs.webkit.org/show_bug.cgi?id=218624
+        <rdar://problem/70901101>
+
+        Reviewed by Mark Lam.
+
+        The assertions added in r269017 used RELEASE_ASSERT. RELEASE_ASSERT
+        is implemented as invoking WTFCrashWithInfo, which does a bunch of register
+        argument/moves. Doing this in inlined hash table code bloats WK binaries
+        by a lot. This patch changes it so we just branch+crash on the same condition.
+
+        * wtf/HashTable.h:
+        (WTF::KeyTraits>::inlineLookup):
+        (WTF::KeyTraits>::lookupForWriting):
+        (WTF::KeyTraits>::fullLookupForWriting):
+        (WTF::KeyTraits>::addUniqueForInitialization):
+        (WTF::KeyTraits>::add):
+
+2020-11-05  Youenn Fablet  <youenn@apple.com>
+
+        Consider blocking ports 5060 and 5061
+        https://bugs.webkit.org/show_bug.cgi?id=218557
+        <rdar://problem/71031479>
+
+        Reviewed by Alex Christensen.
+
+        * wtf/URL.cpp:
+        (WTF::portAllowed):
+
+2020-11-04  Said Abou-Hallawa  <said@apple.com>
+
+        [GPU Process] Move the internal GPU rendering flags from WebPage to WebProcess
+        https://bugs.webkit.org/show_bug.cgi?id=218549
+
+        Reviewed by Tim Horton.
+
+        Fix a layering issue for the preference 'UseGPUProcessForMediaEnabled'.
+
+        * Scripts/Preferences/WebPreferencesInternal.yaml:
+
+2020-11-04  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, add workaround for Linux build
+        https://bugs.webkit.org/show_bug.cgi?id=218143
+
+        * wtf/WTFConfig.h:
+
+2020-11-04  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        Add new build option USE(64KB_PAGE_BLOCK)
+        https://bugs.webkit.org/show_bug.cgi?id=217989
+
+        Reviewed by Yusuke Suzuki.
+
+        * wtf/PageBlock.h:
+
+2020-11-04  Aditya Keerthi  <akeerthi@apple.com>
+
+        [Contact Picker API] Add support for picker UI on iOS
+        https://bugs.webkit.org/show_bug.cgi?id=218189
+        <rdar://problem/69862277>
+
+        Reviewed by Devin Rousso.
+
+        * wtf/PlatformHave.h:
+
+        Added HAVE(CONTACTSUI) and HAVE(CNCONTACTPICKERVIEWCONTROLLER) macros.
+
+2020-11-04  David Kilzer  <ddkilzer@apple.com>
+
+        WebKit should remove unused debug variant support
+        <https://webkit.org/b/218315>
+        <rdar://problem/70785369>
+
+        Reviewed by Darin Adler.
+
+        Remove support for building the debug variant since it is
+        currently unused. We now set default values for the
+        DEAD_CODE_STRIPPING, DEBUG_DEFINES, GCC_OPTIMIZATION_LEVEL and
+        STRIP_INSTALLED_PRODUCT variables.
+
+        Also move these values out of the Xcode project into
+        Base.xcconfig files using the [config=Debug] specifier so that
+        these overrides are next to the definitions.
+
+        * Configurations/Base.xcconfig:
+        * WTF.xcodeproj/project.pbxproj:
+
+2020-11-03  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add JITCage support
+        https://bugs.webkit.org/show_bug.cgi?id=218143
+
+        Reviewed by Saam Barati.
+
+        * wtf/OSAllocator.h:
+        (WTF::OSAllocator::reserveAndCommit):
+        (WTF::OSAllocator::reallocateCommitted):
+        * wtf/PageReservation.h:
+        (WTF::PageReservation::reserve):
+        (WTF::PageReservation::reserveWithGuardPages):
+        (WTF::PageReservation::reserveAndCommitWithGuardPages):
+        (WTF::PageReservation::PageReservation):
+        * wtf/PlatformEnable.h:
+        * wtf/PlatformUse.h:
+        * wtf/PtrTag.h:
+        (WTF::assertIsTaggedWith):
+        (WTF::tagCodePtrWithStackPointerForJITCall): Deleted.
+        (WTF::untagCodePtrWithStackPointerForJITCall): Deleted.
+        * wtf/posix/OSAllocatorPOSIX.cpp:
+        (WTF::OSAllocator::reserveUncommitted):
+        (WTF::OSAllocator::reserveAndCommit):
+        * wtf/win/OSAllocatorWin.cpp:
+        (WTF::OSAllocator::reserveUncommitted):
+        (WTF::OSAllocator::reserveAndCommit):
+
+2020-11-03  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Adjust some compile-time guards in GraphicsContextCG.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=218534
+
+        Reviewed by Tim Horton.
+
+        Add `HAVE(CG_CONTEXT_DRAW_PATH_DIRECT)`.
+
+        * wtf/PlatformHave.h:
+
+2020-11-03  Stephan Szabo  <stephan.szabo@sony.com>
+
+        [WinCairo/PlayStation] ICU 68.1 no longer exposes FALSE and TRUE macros by default
+        https://bugs.webkit.org/show_bug.cgi?id=218522
+
+        Reviewed by Don Olmstead.
+
+        Replace uses of FALSE and TRUE with false and true.
+
+        * wtf/text/icu/UTextProvider.h:
+        * wtf/text/icu/UTextProviderLatin1.cpp:
+        * wtf/text/icu/UTextProviderUTF16.cpp:
+
+2020-10-30  Tim Horton  <timothy_horton@apple.com>
+
+        REGRESSION (r267689): Rise of the Tomb Raider gets stuck while launching
+        https://bugs.webkit.org/show_bug.cgi?id=218411
+        <rdar://problem/70622557>
+
+        Reviewed by Zalan Bujtas.
+
+        * Scripts/Preferences/WebPreferences.yaml:
+        Sam accidentally changed the default of RequiresUserGestureForMediaPlayback
+        in r267689; previously it was @YES only in PLATFORM(IOS_FAMILY), he made
+        it true globally.
+
+        Go back to the old, and intended, behavior.
+
+2020-10-30  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: Incorrect list of voices being displayed on iOS
+        https://bugs.webkit.org/show_bug.cgi?id=218293
+
+        Reviewed by Per Arne Vollan.
+
+        * wtf/PlatformHave.h:
+
+2020-10-29  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Make WebContent process talk to the WebAuthn process for WebAuthn requests
+        https://bugs.webkit.org/show_bug.cgi?id=218070
+        <rdar://problem/70384404>
+
+        Reviewed by Brent Fulgham.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+        Adds bindings in WebCore.
+
+2020-10-28  Saam Barati  <sbarati@apple.com>
+
+        Better cache our serialization of the outer TDZ environment when creating FunctionExecutables during bytecode generation
+        https://bugs.webkit.org/show_bug.cgi?id=199866
+        <rdar://problem/53333108>
+
+        Reviewed by Tadeu Zagallo.
+
+        * wtf/RefPtr.h:
+        (WTF::swap): Deleted.
+        This function is no longer necessary, and causes ADL (https://en.cppreference.com/w/cpp/language/adl)
+        compile errors when not using DumbPtrTraits and calling sort on a vector of that type.
+
+2020-10-28  Sam Weinig  <weinig@apple.com>
+
+        Reduce Preference Override Methods: TabsToLinks/SpatialNavigation
+        https://bugs.webkit.org/show_bug.cgi?id=218288
+
+        Reviewed by Tim Horton.
+
+        * Scripts/Preferences/WebPreferences.yaml:
+        Unify TabToLinksEnabled and TabsToLinks. TabToLinksEnabled was added for https://bugs.webkit.org/show_bug.cgi?id=95329
+        and has never actually been needed.
+
+2020-10-27  Tim Horton  <timothy_horton@apple.com>
+
+        Adopt the UIPointerInteraction API
+        https://bugs.webkit.org/show_bug.cgi?id=218266
+        <rdar://problem/70732850>
+
+        Reviewed by Wenson Hsieh.
+
+        * wtf/PlatformHave.h:
+
+2020-10-27  Brian Burg  <bburg@apple.com>
+
+        Web Inspector: add ENABLE(INSPECTOR_EXTENSIONS) to feature defines
+        https://bugs.webkit.org/show_bug.cgi?id=218237
+        <rdar://problem/69968787>
+
+        Reviewed by Antti Koivisto.
+
+        * wtf/PlatformEnable.h:
+        * wtf/PlatformEnableCocoa.h:
+        Add ENABLE(INSPECTOR_EXTENSIONS), which is only on for the Cocoa macOS port.
+
+2020-10-15  Tadeu Zagallo  <tzagallo@apple.com>
+
+        Sign MacroAssembler::jumpsToLink
+        https://bugs.webkit.org/show_bug.cgi?id=217774
+        <rdar://problem/69433058>
+
+        Reviewed by Saam Barati.
+
+        * wtf/PtrTag.h:
+        (WTF::untagInt):
+        (WTF::tagInt):
+
+2020-10-15  Tadeu Zagallo  <tzagallo@apple.com>
+
+        Add extra validation to MetaAllocator::findAndRemoveFreeSpace
+        https://bugs.webkit.org/show_bug.cgi?id=217792
+        <rdar://problem/69433015>
+
+        Reviewed Saam Barati.
+
+        * wtf/MetaAllocator.cpp:
+        (WTF::MetaAllocator::findAndRemoveFreeSpace):
+
+2020-10-13  Tadeu Zagallo  <tzagallo@apple.com>
+
+        Assert that WTF::HashTable does not visit the same bucket twice
+        https://bugs.webkit.org/show_bug.cgi?id=217691
+        <rdar://problem/69887843>
+
+        Reviewed by Saam Barati.
+
+        * wtf/HashTable.h:
+        (WTF::KeyTraits>::inlineLookup):
+        (WTF::KeyTraits>::lookupForWriting):
+        (WTF::KeyTraits>::fullLookupForWriting):
+        (WTF::KeyTraits>::addUniqueForInitialization):
+        (WTF::KeyTraits>::add):
+
+2020-10-26  Alex Christensen  <achristensen@webkit.org>
+
+        Inclusive software: Remove instances of "dumb" from the code
+        https://bugs.webkit.org/show_bug.cgi?id=217778
+
+        Reviewed by Simon Fraser.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * icu/unicode/caniter.h:
+        * wtf/Bag.h:
+        * wtf/CMakeLists.txt:
+        * wtf/CagedPtr.h:
+        * wtf/Forward.h:
+        * wtf/NakedRef.h:
+        * wtf/RawPtrTraits.h: Renamed from Source/WTF/wtf/DumbPtrTraits.h.
+        * wtf/RawValueTraits.h: Renamed from Source/WTF/wtf/DumbValueTraits.h.
+        * wtf/Ref.h:
+        * wtf/RefCountedArray.h:
+        * wtf/RefPtr.h:
+        * wtf/SentinelLinkedList.h:
+
+2020-10-26  Youenn Fablet  <youenn@apple.com>
+
+        Use a WeakHashSet for Document::m_captionPreferencesChangedElements
+        https://bugs.webkit.org/show_bug.cgi?id=218170
+
+        Reviewed by Eric Carlson.
+
+        * wtf/WeakHashSet.h:
+        Add a static cast for classes inheriting CanMakeWeakPtr like done for the set iterator.
+        Update code to compile in WinCairo.
+
+2020-10-26  Zan Dobersek  <zdobersek@igalia.com>
+
+        Remove Accelerated2dCanvasEnabled WebPreferences entry
+        https://bugs.webkit.org/show_bug.cgi?id=218114
+
+        Reviewed by Adrian Perez de Castro.
+
+        * Scripts/Preferences/WebPreferences.yaml:
+        Remove the Accelerated2dCanvasEnabled key after the underlying code
+        was removed in r268453.
+
+2020-10-21  Alex Christensen  <achristensen@webkit.org>
+
+        Update and pass new URL web platform tests
+        https://bugs.webkit.org/show_bug.cgi?id=218056
+
+        Reviewed by Tim Horton.
+
+        * wtf/URL.cpp:
+        (WTF::URL::setPath):
+
+2020-10-20  Sihui Liu  <sihui_liu@apple.com>
+
+        Add stubs for SpeechRecognition
+        https://bugs.webkit.org/show_bug.cgi?id=217780
+        <rdar://problem/70350727>
+
+        Unreviewed build fix after r268762, which sets ENABLE_SPEECH_SYNTHESIS by mistake.
+
+        * wtf/PlatformEnable.h:
+
+2020-10-20  Sihui Liu  <sihui_liu@apple.com>
+
+        Add stubs for SpeechRecognition
+        https://bugs.webkit.org/show_bug.cgi?id=217780
+        <rdar://problem/70350727>
+
+        Reviewed by Youenn Fablet.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+        * wtf/PlatformEnable.h:
+
+2020-10-15  Jer Noble  <jer.noble@apple.com>
+
+        Add skeleton implementation of Media Session API
+        https://bugs.webkit.org/show_bug.cgi?id=217797
+
+        Reviewed by Darin Adler.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+        * wtf/PlatformEnable.h:
+        * wtf/PlatformEnableCocoa.h:
+
+2020-10-20  Sam Weinig  <weinig@apple.com>
+
+        Tweak WebPreferences*.yaml "exposed" key to only indicate that the key should not be changeable by the frontend
+        https://bugs.webkit.org/show_bug.cgi?id=217918
+
+        Reviewed by Darin Adler.
+
+        * Scripts/GeneratePreferences.rb:
+        Tweak how the "exposed" key is interpreted to extend to keys with default values
+        for the current frontend (that should continue to be set on Settings for instance)
+        but that should not respect the key being passed in. For instance, the key 
+        "AsyncFrameScrollingEnabled" has default values for all front ends, since we need
+        to set it to false in Settings when building WebKitLegacy, but is only exposed to
+        WebKit, so it won't be in WebKitLegacy's -[WebPreferences internalFeatures] array
+        and won't do anything if passed to -[WebPreferences _setBoolPreferenceForTestingWithValue:forKey:].
+
+        * Scripts/Preferences/WebPreferences.yaml:
+        Replace now incorrect uses of exposed with temporary key "webKitLegacyBinding" to indicate
+        that these keys should be valid, but currently use a custom binding in WebKitLegacy.
+
+        * Scripts/Preferences/WebPreferencesInternal.yaml:
+        Only expose AsyncFrameScrollingEnabled and AsyncOverflowScrollingEnabled to WebKit.
+        This maintains the behavior that these keys are not valid keys as test header commands
+        when run through DumpRenderTree.
+        
+
+2020-10-19  Lauro Moura  <lmoura@igalia.com>
+
+        REGRESSION(r268115) [GTK] Build failures with GCC 7 (Ubuntu 18.04) and GCC 8 (Debian Buster)
+        https://bugs.webkit.org/show_bug.cgi?id=217425
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        * wtf/StdFilesystem.h: Add fallback to <experimental/filesystem> if available.
+
+2020-10-19  Chris Dumez  <cdumez@apple.com>
+
+        [GPU Process] RemoteAudioDestination::render() should not need to dispatch to the main thread to do IPC
+        https://bugs.webkit.org/show_bug.cgi?id=217920
+
+        Reviewed by Alex Christensen.
+
+        Add an optional parameter to the CompletionHandler constructor allowing the caller to indicate it expects
+        the completion handler to get call on the main thread instead of the construction thread.
+
+        * wtf/CompletionHandler.h:
+        (WTF::CompletionHandler<Out):
+
 2020-10-19  Antoine Quint  <graouts@webkit.org>
 
         Move remaining Web Animations runtime-enabled features to settings

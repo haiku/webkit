@@ -4,6 +4,10 @@ include(platform/ImageDecoders.cmake)
 include(platform/OpenSSL.cmake)
 include(platform/TextureMapper.cmake)
 
+if (USE_DAWN)
+    include(platform/Dawn.cmake)
+endif ()
+
 list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES
     "${WEBKIT_LIBRARIES_DIR}/include"
     "${WEBCORE_DIR}/loader/archive/cf"
@@ -17,6 +21,8 @@ list(APPEND WebCore_SOURCES
 
     platform/graphics/GLContext.cpp
     platform/graphics/PlatformDisplay.cpp
+
+    platform/graphics/displaylists/DisplayListDrawGlyphsRecorderHarfBuzz.cpp
 
     platform/graphics/win/FontCustomPlatformDataCairo.cpp
     platform/graphics/win/FontPlatformDataCairoWin.cpp

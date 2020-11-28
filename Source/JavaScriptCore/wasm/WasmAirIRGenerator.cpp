@@ -379,7 +379,7 @@ private:
 
     TypedTmp g32() { return { newTmp(B3::GP), Type::I32 }; }
     TypedTmp g64() { return { newTmp(B3::GP), Type::I64 }; }
-    TypedTmp gAnyref() { return { newTmp(B3::GP), Type::Anyref }; }
+    TypedTmp gExternref() { return { newTmp(B3::GP), Type::Externref }; }
     TypedTmp gFuncref() { return { newTmp(B3::GP), Type::Funcref }; }
     TypedTmp f32() { return { newTmp(B3::FP), Type::F32 }; }
     TypedTmp f64() { return { newTmp(B3::FP), Type::F64 }; }
@@ -393,8 +393,8 @@ private:
             return g64();
         case Type::Funcref:
             return gFuncref();
-        case Type::Anyref:
-            return gAnyref();
+        case Type::Externref:
+            return gExternref();
         case Type::F32:
             return f32();
         case Type::F64:
@@ -567,7 +567,7 @@ private:
                 resultType = B3::Int32;
                 break;
             case Type::I64:
-            case Type::Anyref:
+            case Type::Externref:
             case Type::Funcref:
                 resultType = B3::Int64;
                 break;
@@ -616,7 +616,7 @@ private:
         case Type::I32:
             return Move32;
         case Type::I64:
-        case Type::Anyref:
+        case Type::Externref:
         case Type::Funcref:
             return Move;
         case Type::F32:
@@ -776,21 +776,6 @@ AirIRGenerator::AirIRGenerator(const ModuleInformation& info, B3::Procedure& pro
         m_code.pinRegister(m_memorySizeGPR);
     }
 
-    if (info.memory) {
-        switch (m_mode) {
-        case MemoryMode::BoundsChecking:
-            break;
-        case MemoryMode::Signaling:
-            // Most memory accesses in signaling mode don't do an explicit
-            // exception check because they can rely on fault handling to detect
-            // out-of-bounds accesses. FaultSignalHandler nonetheless needs the
-            // thunk to exist so that it can jump to that thunk.
-            if (UNLIKELY(!Thunks::singleton().stub(throwExceptionFromWasmThunkGenerator)))
-                CRASH();
-            break;
-        }
-    }
-
     m_code.setNumEntrypoints(1);
 
     GPRReg contextInstance = Context::useFastTLS() ? wasmCallingConvention().prologueScratchGPRs[1] : m_wasmContextInstanceGPR;
@@ -878,7 +863,7 @@ AirIRGenerator::AirIRGenerator(const ModuleInformation& info, B3::Procedure& pro
             append(Move32, arg, m_locals[i]);
             break;
         case Type::I64:
-        case Type::Anyref:
+        case Type::Externref:
         case Type::Funcref:
             append(Move, arg, m_locals[i]);
             break;
@@ -893,8 +878,7 @@ AirIRGenerator::AirIRGenerator(const ModuleInformation& info, B3::Procedure& pro
         }
     }
 
-    if (wasmFunctionSizeCanBeOMGCompiled(m_info.functions[m_functionIndex].data.size()))
-        emitEntryTierUpCheck();
+    emitEntryTierUpCheck();
 }
 
 B3::Type AirIRGenerator::toB3ResultType(BlockSignature returnType)
@@ -982,7 +966,7 @@ auto AirIRGenerator::addLocal(Type type, uint32_t count) -> PartialResult
         auto local = tmpForType(type);
         m_locals.uncheckedAppend(local);
         switch (type) {
-        case Type::Anyref:
+        case Type::Externref:
         case Type::Funcref:
             append(Move, Arg::imm(JSValue::encode(jsNull())), local);
             break;
@@ -1017,7 +1001,7 @@ auto AirIRGenerator::addConstant(BasicBlock* block, Type type, uint64_t value) -
     switch (type) {
     case Type::I32:
     case Type::I64:
-    case Type::Anyref:
+    case Type::Externref:
     case Type::Funcref:
         append(block, Move, Arg::bigImm(value), result);
         break;
@@ -1263,7 +1247,7 @@ auto AirIRGenerator::setGlobal(uint32_t index, ExpressionType value) -> PartialR
             append(Add64, temp2, temp, temp);
             append(moveOpForValueType(type), value, Arg::addr(temp));
         }
-        if (isSubtype(type, Anyref))
+        if (isSubtype(type, Externref))
             emitWriteBarrierForJSWrapper();
         break;
     case Wasm::GlobalInformation::BindingMode::Portable:
@@ -1278,7 +1262,7 @@ auto AirIRGenerator::setGlobal(uint32_t index, ExpressionType value) -> PartialR
         }
         append(moveOpForValueType(type), value, Arg::addr(temp));
         // We emit a write-barrier onto JSWebAssemblyGlobal, not JSWebAssemblyInstance.
-        if (isSubtype(type, Anyref)) {
+        if (isSubtype(type, Externref)) {
             auto cell = g64();
             auto vm = g64();
             auto cellState = g32();
@@ -2241,7 +2225,7 @@ auto AirIRGenerator::addCallIndirect(unsigned tableIndex, const Signature& signa
         // FIXME: when we have trap handlers, we can just let the call fail because Signature::invalidIndex is 0. https://bugs.webkit.org/show_bug.cgi?id=177210
         static_assert(sizeof(WasmToWasmImportableFunction::signatureIndex) == sizeof(uint64_t), "Load codegen assumes i64");
 
-        // FIXME: This seems dumb to do two checks just for a nicer error message.
+        // FIXME: This seems wasteful to do two checks just for a nicer error message.
         // We should move just to use a single branch and then figure out what
         // error to use in the exception handler.
 

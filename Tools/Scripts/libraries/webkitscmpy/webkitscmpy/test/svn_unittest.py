@@ -25,6 +25,7 @@ import shutil
 import tempfile
 import unittest
 
+from datetime import datetime
 from webkitcorepy import OutputCapture
 from webkitscmpy import local, mocks
 
@@ -60,7 +61,7 @@ class TestSvn(unittest.TestCase):
             )
 
     def test_tags(self):
-        with mocks.local.Svn(self.path, tags=('tag-1', 'tag-2')):
+        with mocks.local.Svn(self.path):
             self.assertEqual(
                 local.Svn(self.path).tags,
                 ['tag-1', 'tag-2'],
@@ -89,7 +90,7 @@ class TestSvn(unittest.TestCase):
                     u'Schedule': u'normal',
                     u'Last Changed Author': u'jbedard@apple.com',
                     u'Last Changed Rev': u'6',
-                    u'Last Changed Date': u'2020-10-02 11:58:20 -0100 (Fri, 02 Oct 2020)',
+                    u'Last Changed Date': datetime.fromtimestamp(1601665100).strftime('%Y-%m-%d %H:%M:%S -0100 (%a, %d %b %Y)'),
                 }, local.Svn(self.path).info(),
             )
 
@@ -106,7 +107,7 @@ class TestSvn(unittest.TestCase):
 
             # Out-of-bounds commit
             with self.assertRaises(local.Svn.Exception):
-                self.assertEqual(None, local.Svn(self.path).commit(revision=10))
+                self.assertEqual(None, local.Svn(self.path).commit(revision=11))
 
     def test_commit_from_branch(self):
         with mocks.local.Svn(self.path), OutputCapture():
@@ -188,10 +189,31 @@ class TestSvn(unittest.TestCase):
 
                 mock_repo.connected = False
                 commit = local.Svn(dirname).commit()
-                print(commit.revision)
                 self.assertEqual('4@trunk', str(commit))
 
                 with self.assertRaises(local.Svn.Exception):
                     local.Svn(dirname).commit(revision=3)
         finally:
             shutil.rmtree(dirname)
+
+    def test_tag(self):
+        with mocks.local.Svn(self.path), OutputCapture():
+            self.assertEqual(9, local.Svn(self.path).commit(tag='tag-1').revision)
+
+    def test_tag_previous(self):
+        with mocks.local.Svn(self.path), OutputCapture():
+            self.assertEqual(7, local.Svn(self.path).commit(identifier='2.2@tags/tag-1').revision)
+
+    def test_checkout(self):
+        with mocks.local.Svn(self.path), OutputCapture():
+            repository = local.Svn(self.path)
+
+            self.assertEqual(6, repository.commit().revision)
+            self.assertEqual(5, repository.checkout('r5').revision)
+            self.assertEqual(5, repository.commit().revision)
+
+            self.assertEqual(4, repository.checkout('3@trunk').revision)
+            self.assertEqual(4, repository.commit().revision)
+
+            self.assertEqual(9, repository.checkout('tag-1').revision)
+            self.assertEqual(9, repository.commit().revision)

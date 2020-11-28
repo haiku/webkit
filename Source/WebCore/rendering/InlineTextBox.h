@@ -116,8 +116,6 @@ private:
     LayoutUnit selectionHeight() const;
 
 public:
-    FloatRect calculateBoundaries() const override { return FloatRect(x(), y(), width(), height()); }
-
     virtual LayoutRect localSelectionRect(unsigned startPos, unsigned endPos) const;
     bool isSelected(unsigned startPosition, unsigned endPosition) const;
     std::pair<unsigned, unsigned> selectionStartEnd() const;
@@ -200,6 +198,8 @@ private:
 
     const RenderCombineText* combinedText() const;
     const FontCascade& lineFont() const;
+
+    ShadowData* debugTextShadow();
 
     String text(bool ignoreCombinedText = false, bool ignoreHyphen = false) const; // The effective text for the run.
     TextRun createTextRun(bool ignoreCombinedText = false, bool ignoreHyphen = false) const;

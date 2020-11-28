@@ -28,9 +28,9 @@
 #include "WebKitUtilities.h"
 #include "api/video/video_frame.h"
 #include "components/video_codec/RTCCodecSpecificInfoH264+Private.h"
+#include "media/engine/encoder_simulcast_proxy.h"
 #include "modules/video_coding/utility/simulcast_utility.h"
 #include "sdk/objc/api/peerconnection/RTCEncodedImage+Private.h"
-#include "sdk/objc/api/peerconnection/RTCRtpFragmentationHeader+Private.h"
 #include "sdk/objc/api/peerconnection/RTCVideoCodecInfo+Private.h"
 #include "sdk/objc/api/peerconnection/RTCVideoEncoderSettings+Private.h"
 #include "sdk/objc/components/video_codec/RTCDefaultVideoEncoderFactory.h"
@@ -41,11 +41,13 @@
 
 @interface WK_RTCLocalVideoH264H265Encoder : NSObject
 - (instancetype)initWithCodecInfo:(RTCVideoCodecInfo*)codecInfo;
+- (webrtc::VideoCodecType)codecType;
 - (void)setCallback:(RTCVideoEncoderCallback)callback;
 - (NSInteger)releaseEncoder;
 - (NSInteger)startEncodeWithSettings:(RTCVideoEncoderSettings *)settings numberOfCores:(int)numberOfCores;
 - (NSInteger)encode:(RTCVideoFrame *)frame codecSpecificInfo:(nullable id<RTCCodecSpecificInfo>)info frameTypes:(NSArray<NSNumber *> *)frameTypes;
 - (int)setBitrate:(uint32_t)bitrateKbit framerate:(uint32_t)framerate;
+- (void)setLowLatency:(bool)lowLatencyEnabled;
 @end
 
 @implementation WK_RTCLocalVideoH264H265Encoder {
@@ -56,11 +58,18 @@
 - (instancetype)initWithCodecInfo:(RTCVideoCodecInfo*)codecInfo {
     if (self = [super init]) {
         if ([codecInfo.name isEqualToString:@"H265"])
-            m_h265Encoder = [[RTCVideoEncoderH265 alloc] init];
+            m_h265Encoder = [[RTCVideoEncoderH265 alloc] initWithCodecInfo:codecInfo];
         else
-            m_h264Encoder = [[RTCVideoEncoderH264 alloc] init];
+            m_h264Encoder = [[RTCVideoEncoderH264 alloc] initWithCodecInfo:codecInfo];
     }
     return self;
+}
+
+- (webrtc::VideoCodecType)codecType
+{
+    if (m_h264Encoder)
+        return webrtc::kVideoCodecH264;
+    return webrtc::kVideoCodecH265;
 }
 
 - (void)setCallback:(RTCVideoEncoderCallback)callback {
@@ -92,21 +101,28 @@
         return [m_h264Encoder setBitrate:bitrateKbit framerate:framerate];
     return [m_h265Encoder setBitrate:bitrateKbit framerate:framerate];
 }
+- (void)setLowLatency:(bool)lowLatencyEnabled {
+    if (m_h264Encoder)
+        [m_h264Encoder setH264LowLatencyEncoderEnabled:lowLatencyEnabled];
+}
 @end
+
 namespace webrtc {
 
-std::unique_ptr<webrtc::VideoEncoderFactory> createWebKitEncoderFactory(WebKitH265 supportsH265, WebKitVP9 supportsVP9)
-{
-#if ENABLE_VCP_ENCODER || ENABLE_VCP_VTB_ENCODER
-    static std::once_flag onceFlag;
-    std::call_once(onceFlag, [] {
-        webrtc::VPModuleInitialize();
-    });
-#endif
+class VideoEncoderFactoryWithSimulcast final : public VideoEncoderFactory {
+public:
+    explicit VideoEncoderFactoryWithSimulcast(std::unique_ptr<VideoEncoderFactory>&& factory)
+        : m_internalEncoderFactory(std::move(factory))
+    {
+    }
 
-    auto internalFactory = ObjCToNativeVideoEncoderFactory([[RTCDefaultVideoEncoderFactory alloc] initWithH265: supportsH265 == WebKitH265::On vp9:supportsVP9 == WebKitVP9::On]);
-    return std::make_unique<VideoEncoderFactoryWithSimulcast>(std::move(internalFactory));
-}
+    VideoEncoderFactory::CodecInfo QueryVideoEncoder(const SdpVideoFormat& format) const final { return m_internalEncoderFactory->QueryVideoEncoder(format); }
+    std::unique_ptr<VideoEncoder> CreateVideoEncoder(const SdpVideoFormat& format) final;
+    std::vector<SdpVideoFormat> GetSupportedFormats() const final { return m_internalEncoderFactory->GetSupportedFormats(); }
+
+private:
+    const std::unique_ptr<VideoEncoderFactory> m_internalEncoderFactory;
+};
 
 static bool h264HardwareEncoderAllowed = true;
 void setH264HardwareEncoderAllowed(bool allowed)
@@ -117,17 +133,6 @@ void setH264HardwareEncoderAllowed(bool allowed)
 bool isH264HardwareEncoderAllowed()
 {
     return h264HardwareEncoderAllowed;
-}
-
-static bool h264LowLatencyEncoderEnabled = false;
-void setH264LowLatencyEncoderEnabled(bool enabled)
-{
-    h264LowLatencyEncoderEnabled = enabled;
-}
-
-bool isH264LowLatencyEncoderEnabled()
-{
-    return h264LowLatencyEncoderEnabled;
 }
 
 std::unique_ptr<VideoEncoder> VideoEncoderFactoryWithSimulcast::CreateVideoEncoder(const SdpVideoFormat& format)
@@ -160,9 +165,77 @@ void setVideoEncoderCallbacks(VideoEncoderCreateCallback createCallback, VideoEn
     callbacks.setRatesCallback = setRatesCallback;
 }
 
+class RemoteVideoEncoder final : public webrtc::VideoEncoder {
+public:
+    explicit RemoteVideoEncoder(WebKitVideoEncoder);
+    ~RemoteVideoEncoder();
+
+private:
+    int32_t InitEncode(const VideoCodec*, const Settings&) final;
+    int32_t RegisterEncodeCompleteCallback(EncodedImageCallback*) final;
+    int32_t Release() final;
+    int32_t Encode(const VideoFrame&, const std::vector<VideoFrameType>*) final;
+    void SetRates(const RateControlParameters&) final;
+    EncoderInfo GetEncoderInfo() const final;
+
+    WebKitVideoEncoder m_internalEncoder;
+};
+
+class RemoteVideoEncoderFactory final : public VideoEncoderFactory {
+public:
+    explicit RemoteVideoEncoderFactory(std::unique_ptr<VideoEncoderFactory>&&);
+    ~RemoteVideoEncoderFactory() = default;
+
+private:
+    VideoEncoderFactory::CodecInfo QueryVideoEncoder(const SdpVideoFormat& format) const final { return m_internalFactory->QueryVideoEncoder(format); }
+    std::unique_ptr<VideoEncoder> CreateVideoEncoder(const SdpVideoFormat& format) final;
+    std::vector<SdpVideoFormat> GetSupportedFormats() const final { return m_internalFactory->GetSupportedFormats(); }
+
+    std::unique_ptr<VideoEncoderFactory> m_internalFactory;
+};
+
+RemoteVideoEncoderFactory::RemoteVideoEncoderFactory(std::unique_ptr<VideoEncoderFactory>&& factory)
+    : m_internalFactory(std::move(factory))
+{
+}
+
+std::unique_ptr<VideoEncoder> RemoteVideoEncoderFactory::CreateVideoEncoder(const SdpVideoFormat& format)
+{
+    if (!videoEncoderCallbacks().createCallback)
+        return m_internalFactory->CreateVideoEncoder(format);
+
+    auto internalEncoder = videoEncoderCallbacks().createCallback(format);
+    if (!internalEncoder)
+        return m_internalFactory->CreateVideoEncoder(format);
+
+    return std::make_unique<RemoteVideoEncoder>(internalEncoder);
+}
+
+std::unique_ptr<webrtc::VideoEncoderFactory> createWebKitEncoderFactory(WebKitH265 supportsH265, WebKitVP9 supportsVP9, WebKitH264LowLatency useH264LowLatency)
+{
+#if ENABLE_VCP_ENCODER || ENABLE_VCP_VTB_ENCODER
+    static std::once_flag onceFlag;
+    std::call_once(onceFlag, [] {
+        webrtc::VPModuleInitialize();
+    });
+#endif
+
+    auto internalFactory = ObjCToNativeVideoEncoderFactory([[RTCDefaultVideoEncoderFactory alloc] initWithH265: supportsH265 == WebKitH265::On vp9:supportsVP9 == WebKitVP9::On lowLatencyH264:useH264LowLatency == WebKitH264LowLatency::On]);
+
+    if (videoEncoderCallbacks().createCallback)
+        internalFactory = std::make_unique<RemoteVideoEncoderFactory>(std::move(internalFactory));
+
+    return std::make_unique<VideoEncoderFactoryWithSimulcast>(std::move(internalFactory));
+}
+
 RemoteVideoEncoder::RemoteVideoEncoder(WebKitVideoEncoder internalEncoder)
     : m_internalEncoder(internalEncoder)
 {
+}
+
+RemoteVideoEncoder::~RemoteVideoEncoder()
+{
+    videoEncoderCallbacks().releaseCallback(m_internalEncoder);
 }
 
 int32_t RemoteVideoEncoder::InitEncode(const VideoCodec* codec, const Settings&)
@@ -175,7 +248,8 @@ int32_t RemoteVideoEncoder::InitEncode(const VideoCodec* codec, const Settings&)
 
 int32_t RemoteVideoEncoder::Release()
 {
-    return videoEncoderCallbacks().releaseCallback(m_internalEncoder);
+    RegisterEncodeCompleteCallback(nullptr);
+    return 0;
 }
 
 int32_t RemoteVideoEncoder::Encode(const VideoFrame& frame, const std::vector<VideoFrameType>* frameTypes)
@@ -217,9 +291,11 @@ int32_t RemoteVideoEncoder::RegisterEncodeCompleteCallback(EncodedImageCallback*
     return videoEncoderCallbacks().registerEncodeCompleteCallback(m_internalEncoder, callback);
 }
 
-void RemoteVideoEncoder::encodeComplete(void* callback, uint8_t* buffer, size_t length, const WebKitEncodedFrameInfo& info, const webrtc::RTPFragmentationHeader* header)
+void encoderVideoTaskComplete(void* callback, webrtc::VideoCodecType codecType, const uint8_t* buffer, size_t length, const WebKitEncodedFrameInfo& info)
 {
-    webrtc::EncodedImage encodedImage(buffer, length, length);
+    webrtc::EncodedImage encodedImage;
+    encodedImage.SetEncodedData(EncodedImageBuffer::Create(buffer, length));
+
     encodedImage._encodedWidth = info.width;
     encodedImage._encodedHeight = info.height;
     encodedImage.SetTimestamp(info.timeStamp);
@@ -233,10 +309,13 @@ void RemoteVideoEncoder::encodeComplete(void* callback, uint8_t* buffer, size_t 
     encodedImage.content_type_ = info.contentType;
 
     CodecSpecificInfo codecSpecificInfo;
-    codecSpecificInfo.codecType = webrtc::kVideoCodecH264;
-    codecSpecificInfo.codecSpecific.H264.packetization_mode = H264PacketizationMode::NonInterleaved;
+    codecSpecificInfo.codecType = codecType;
+    if (codecType == kVideoCodecH264)
+        codecSpecificInfo.codecSpecific.H264.packetization_mode = H264PacketizationMode::NonInterleaved;
+    else if (codecType == kVideoCodecH265)
+        codecSpecificInfo.codecSpecific.H265.packetization_mode = H265PacketizationMode::NonInterleaved;
 
-    static_cast<EncodedImageCallback*>(callback)->OnEncodedImage(encodedImage, &codecSpecificInfo, header);
+    static_cast<EncodedImageCallback*>(callback)->OnEncodedImage(encodedImage, &codecSpecificInfo);
 }
 
 void* createLocalEncoder(const webrtc::SdpVideoFormat& format, LocalEncoderCallback callback)
@@ -244,7 +323,7 @@ void* createLocalEncoder(const webrtc::SdpVideoFormat& format, LocalEncoderCallb
     auto *codecInfo = [[RTCVideoCodecInfo alloc] initWithNativeSdpVideoFormat: format];
     auto *encoder = [[WK_RTCLocalVideoH264H265Encoder alloc] initWithCodecInfo:codecInfo];
 
-    [encoder setCallback:^BOOL(RTCEncodedImage *_Nonnull frame, id<RTCCodecSpecificInfo> _Nonnull codecSpecificInfo,  RTCRtpFragmentationHeader *_Nonnull header) {
+    [encoder setCallback:^BOOL(RTCEncodedImage *_Nonnull frame, id<RTCCodecSpecificInfo> _Nonnull codecSpecificInfo, RTCRtpFragmentationHeader * _Nullable header) {
         EncodedImage encodedImage = [frame nativeEncodedImage];
 
         WebKitEncodedFrameInfo info;
@@ -260,7 +339,7 @@ void* createLocalEncoder(const webrtc::SdpVideoFormat& format, LocalEncoderCallb
         info.qp = encodedImage.qp_;
         info.timing = encodedImage.timing_;
 
-        callback(encodedImage.data(), encodedImage.size(), info, [header createNativeFragmentationHeader].get());
+        callback(encodedImage.data(), encodedImage.size(), info);
         return YES;
     }];
 
@@ -276,6 +355,8 @@ void releaseLocalEncoder(LocalEncoder localEncoder)
 
 void initializeLocalEncoder(LocalEncoder localEncoder, uint16_t width, uint16_t height, unsigned int startBitrate, unsigned int maxBitrate, unsigned int minBitrate, uint32_t maxFramerate)
 {
+    auto *encoder = (__bridge WK_RTCLocalVideoH264H265Encoder *)(localEncoder);
+
     webrtc::VideoCodec codecSettings;
     codecSettings.width = width;
     codecSettings.height = height;
@@ -283,18 +364,19 @@ void initializeLocalEncoder(LocalEncoder localEncoder, uint16_t width, uint16_t 
     codecSettings.maxBitrate = maxBitrate;
     codecSettings.minBitrate = minBitrate;
     codecSettings.maxFramerate = maxFramerate;
+    codecSettings.codecType = encoder.codecType;
 
-    auto *encoder = (__bridge WK_RTCLocalVideoH264H265Encoder *)(localEncoder);
     [encoder startEncodeWithSettings:[[RTCVideoEncoderSettings alloc] initWithNativeVideoCodec:&codecSettings] numberOfCores:1];
 }
 
-void encodeLocalEncoderFrame(LocalEncoder localEncoder, CVPixelBufferRef pixelBuffer, int64_t timeStamp, webrtc::VideoRotation rotation, bool isKeyframeRequired)
+void encodeLocalEncoderFrame(LocalEncoder localEncoder, CVPixelBufferRef pixelBuffer, int64_t timeStampNs, uint32_t timeStamp, webrtc::VideoRotation rotation, bool isKeyframeRequired)
 {
     NSMutableArray<NSNumber *> *rtcFrameTypes = [NSMutableArray array];
     if (isKeyframeRequired)
         [rtcFrameTypes addObject:@(RTCFrameType(RTCFrameTypeVideoFrameKey))];
 
-    auto *videoFrame = [[RTCVideoFrame alloc] initWithBuffer:ToObjCVideoFrameBuffer(pixelBufferToFrame(pixelBuffer)) rotation:RTCVideoRotation(rotation) timeStampNs:timeStamp];
+    auto *videoFrame = [[RTCVideoFrame alloc] initWithBuffer:ToObjCVideoFrameBuffer(pixelBufferToFrame(pixelBuffer)) rotation:RTCVideoRotation(rotation) timeStampNs:timeStampNs];
+    videoFrame.timeStamp = timeStamp;
     auto *encoder = (__bridge WK_RTCLocalVideoH264H265Encoder *)(localEncoder);
     [encoder encode:videoFrame codecSpecificInfo:nil frameTypes:rtcFrameTypes];
 }
@@ -303,6 +385,12 @@ void setLocalEncoderRates(LocalEncoder localEncoder, uint32_t bitRate, uint32_t 
 {
     auto *encoder = (__bridge WK_RTCLocalVideoH264H265Encoder *)(localEncoder);
     [encoder setBitrate:bitRate framerate:frameRate];
+}
+
+void setLocalEncoderLowLatency(LocalEncoder localEncoder, bool isLowLatencyEnabled)
+{
+    auto *encoder = (__bridge WK_RTCLocalVideoH264H265Encoder *)(localEncoder);
+    [encoder setLowLatency:isLowLatencyEnabled];
 }
 
 }

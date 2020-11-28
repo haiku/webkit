@@ -56,26 +56,25 @@ using namespace JSC;
 
 // Functions
 
-JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationInterface);
-JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationSpecified);
-JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationWithArguments);
-JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationWithNullableArgument);
-JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationWithVariantArgument);
-JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationWithNullableVariantArgument);
-JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationWithOptionalVariantArgument);
-JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationWithDefaultVariantArgument);
+static JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationInterface);
+static JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationSpecified);
+static JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationWithArguments);
+static JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationWithNullableArgument);
+static JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationWithVariantArgument);
+static JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationWithNullableVariantArgument);
+static JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationWithOptionalVariantArgument);
+static JSC_DECLARE_HOST_FUNCTION(jsTestCallTracerPrototypeFunction_testOperationWithDefaultVariantArgument);
 
 // Attributes
 
-JSC_DECLARE_CUSTOM_GETTER(jsTestCallTracerConstructor);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestCallTracerConstructor);
-JSC_DECLARE_CUSTOM_GETTER(jsTestCallTracer_testAttributeInterface);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestCallTracer_testAttributeInterface);
-JSC_DECLARE_CUSTOM_GETTER(jsTestCallTracer_testAttributeSpecified);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestCallTracer_testAttributeSpecified);
-JSC_DECLARE_CUSTOM_GETTER(jsTestCallTracer_testAttributeWithVariant);
-JSC_DECLARE_CUSTOM_SETTER(setJSTestCallTracer_testAttributeWithVariant);
-JSC_DECLARE_CUSTOM_GETTER(jsTestCallTracer_testReadonlyAttribute);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestCallTracerConstructor);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestCallTracer_testAttributeInterface);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestCallTracer_testAttributeInterface);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestCallTracer_testAttributeSpecified);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestCallTracer_testAttributeSpecified);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestCallTracer_testAttributeWithVariant);
+static JSC_DECLARE_CUSTOM_SETTER(setJSTestCallTracer_testAttributeWithVariant);
+static JSC_DECLARE_CUSTOM_GETTER(jsTestCallTracer_testReadonlyAttribute);
 
 class JSTestCallTracerPrototype final : public JSC::JSNonFinalObject {
 public:
@@ -140,7 +139,7 @@ template<> const ClassInfo JSTestCallTracerDOMConstructor::s_info = { "TestCallT
 
 static const HashTableValue JSTestCallTracerPrototypeTableValues[] =
 {
-    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestCallTracerConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestCallTracerConstructor) } },
+    { "constructor", static_cast<unsigned>(JSC::PropertyAttribute::DontEnum), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestCallTracerConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) } },
     { "testAttributeInterface", static_cast<unsigned>(JSC::PropertyAttribute::CustomAccessor | JSC::PropertyAttribute::DOMAttribute), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestCallTracer_testAttributeInterface), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestCallTracer_testAttributeInterface) } },
     { "testAttributeSpecified", static_cast<unsigned>(JSC::PropertyAttribute::CustomAccessor | JSC::PropertyAttribute::DOMAttribute), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestCallTracer_testAttributeSpecified), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestCallTracer_testAttributeSpecified) } },
     { "testAttributeWithVariant", static_cast<unsigned>(JSC::PropertyAttribute::CustomAccessor | JSC::PropertyAttribute::DOMAttribute), NoIntrinsic, { (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestCallTracer_testAttributeWithVariant), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestCallTracer_testAttributeWithVariant) } },
@@ -220,19 +219,6 @@ JSC_DEFINE_CUSTOM_GETTER(jsTestCallTracerConstructor, (JSGlobalObject* lexicalGl
     if (UNLIKELY(!prototype))
         return throwVMTypeError(lexicalGlobalObject, throwScope);
     return JSValue::encode(JSTestCallTracer::getConstructor(JSC::getVM(lexicalGlobalObject), prototype->globalObject()));
-}
-
-JSC_DEFINE_CUSTOM_SETTER(setJSTestCallTracerConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
-{
-    VM& vm = JSC::getVM(lexicalGlobalObject);
-    auto throwScope = DECLARE_THROW_SCOPE(vm);
-    auto* prototype = jsDynamicCast<JSTestCallTracerPrototype*>(vm, JSValue::decode(thisValue));
-    if (UNLIKELY(!prototype)) {
-        throwVMTypeError(lexicalGlobalObject, throwScope);
-        return false;
-    }
-    // Shadowing a built-in constructor
-    return prototype->putDirect(vm, vm.propertyNames->constructor, JSValue::decode(encodedValue));
 }
 
 static inline JSValue jsTestCallTracer_testAttributeInterfaceGetter(JSGlobalObject& lexicalGlobalObject, JSTestCallTracer& thisObject)

@@ -382,7 +382,7 @@ Protocol::ErrorStringOr<void> InspectorPageAgent::disable()
     inspectedPageSettings.setWebRTCEncryptionEnabledInspectorOverride(WTF::nullopt);
     inspectedPageSettings.setWebSecurityEnabledInspectorOverride(WTF::nullopt);
 
-    m_client->setDeveloperPreferenceOverride(InspectorClient::DeveloperPreference::AdClickAttributionDebugModeEnabled, WTF::nullopt);
+    m_client->setDeveloperPreferenceOverride(InspectorClient::DeveloperPreference::PrivateClickMeasurementDebugModeEnabled, WTF::nullopt);
     m_client->setDeveloperPreferenceOverride(InspectorClient::DeveloperPreference::ITPDebugModeEnabled, WTF::nullopt);
     m_client->setDeveloperPreferenceOverride(InspectorClient::DeveloperPreference::MockCaptureDevicesEnabled, WTF::nullopt);
 
@@ -431,8 +431,8 @@ Protocol::ErrorStringOr<void> InspectorPageAgent::overrideSetting(Protocol::Page
     auto& inspectedPageSettings = m_inspectedPage.settings();
 
     switch (setting) {
-    case Protocol::Page::Setting::AdClickAttributionDebugModeEnabled:
-        m_client->setDeveloperPreferenceOverride(InspectorClient::DeveloperPreference::AdClickAttributionDebugModeEnabled, value);
+    case Protocol::Page::Setting::PrivateClickMeasurementDebugModeEnabled:
+        m_client->setDeveloperPreferenceOverride(InspectorClient::DeveloperPreference::PrivateClickMeasurementDebugModeEnabled, value);
         return { };
 
     case Protocol::Page::Setting::AuthorAndUserStylesEnabled:
@@ -828,7 +828,7 @@ void InspectorPageAgent::frameDetached(Frame& frame)
 
 Frame* InspectorPageAgent::frameForId(const Protocol::Network::FrameId& frameId)
 {
-    return frameId.isEmpty() ? nullptr : m_identifierToFrame.get(frameId);
+    return frameId.isEmpty() ? nullptr : m_identifierToFrame.get(frameId).get();
 }
 
 String InspectorPageAgent::frameId(Frame* frame)
@@ -837,7 +837,7 @@ String InspectorPageAgent::frameId(Frame* frame)
         return emptyString();
     return m_frameToIdentifier.ensure(frame, [this, frame] {
         auto identifier = IdentifiersFactory::createIdentifier();
-        m_identifierToFrame.set(identifier, frame);
+        m_identifierToFrame.set(identifier, makeWeakPtr(frame));
         return identifier;
     }).iterator->value;
 }
@@ -1072,7 +1072,7 @@ Protocol::ErrorStringOr<String> InspectorPageAgent::snapshotNode(Protocol::DOM::
     if (!node)
         return makeUnexpected(errorString);
 
-    std::unique_ptr<ImageBuffer> snapshot = WebCore::snapshotNode(m_inspectedPage.mainFrame(), *node);
+    auto snapshot = WebCore::snapshotNode(m_inspectedPage.mainFrame(), *node);
     if (!snapshot)
         return makeUnexpected("Could not capture snapshot"_s);
 
@@ -1086,7 +1086,7 @@ Protocol::ErrorStringOr<String> InspectorPageAgent::snapshotRect(int x, int y, i
         options |= SnapshotOptionsInViewCoordinates;
 
     IntRect rectangle(x, y, width, height);
-    std::unique_ptr<ImageBuffer> snapshot = snapshotFrameRect(m_inspectedPage.mainFrame(), rectangle, options);
+    auto snapshot = snapshotFrameRect(m_inspectedPage.mainFrame(), rectangle, options);
 
     if (!snapshot)
         return makeUnexpected("Could not capture snapshot"_s);
@@ -1103,6 +1103,23 @@ Protocol::ErrorStringOr<String> InspectorPageAgent::archive()
 
     RetainPtr<CFDataRef> buffer = archive->rawDataRepresentation();
     return base64Encode(CFDataGetBytePtr(buffer.get()), CFDataGetLength(buffer.get()));
+}
+#endif
+
+#if !PLATFORM(COCOA)
+Protocol::ErrorStringOr<void> InspectorPageAgent::setScreenSizeOverride(Optional<int>&& width, Optional<int>&& height)
+{
+    if (width.hasValue() != height.hasValue())
+        return makeUnexpected("Screen width and height override should be both specified or omitted"_s);
+
+    if (width && *width <= 0)
+        return makeUnexpected("Screen width override should be a positive integer"_s);
+
+    if (height && *height <= 0)
+        return makeUnexpected("Screen height override should be a positive integer"_s);
+
+    m_inspectedPage.mainFrame().setOverrideScreenSize(FloatSize(width.valueOr(0), height.valueOr(0)));
+    return { };
 }
 #endif
 

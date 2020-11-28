@@ -242,8 +242,10 @@ namespace JSC { namespace DFG {
     macro(NukeStructureAndSetButterfly, NodeMustGenerate) \
     macro(CheckArray, NodeMustGenerate) \
     macro(CheckArrayOrEmpty, NodeMustGenerate) \
-    /* This checks if the edge is a typed array and if it is neutered. */ \
-    macro(CheckNeutered, NodeMustGenerate) \
+    macro(GetPrivateName, NodeResultJS | NodeMustGenerate) \
+    macro(GetPrivateNameById, NodeResultJS | NodeMustGenerate) \
+    /* This checks if the edge is a typed array and if it is detached. */ \
+    macro(CheckDetached, NodeMustGenerate) \
     macro(Arrayify, NodeMustGenerate) \
     macro(ArrayifyToStructure, NodeMustGenerate) \
     macro(GetIndexedPropertyStorage, NodeResultStorage) \
@@ -297,8 +299,8 @@ namespace JSC { namespace DFG {
     macro(AtomicsAnd, NodeResultJS | NodeMustGenerate | NodeHasVarArgs) \
     macro(AtomicsCompareExchange, NodeResultJS | NodeMustGenerate | NodeHasVarArgs) \
     macro(AtomicsExchange, NodeResultJS | NodeMustGenerate | NodeHasVarArgs) \
-    macro(AtomicsIsLockFree, NodeResultBoolean) \
-    macro(AtomicsLoad, NodeResultJS | NodeMustGenerate) \
+    macro(AtomicsIsLockFree, NodeResultBoolean | NodeHasVarArgs) \
+    macro(AtomicsLoad, NodeResultJS | NodeMustGenerate | NodeHasVarArgs) \
     macro(AtomicsOr, NodeResultJS | NodeMustGenerate | NodeHasVarArgs) \
     macro(AtomicsStore, NodeResultJS | NodeMustGenerate | NodeHasVarArgs) \
     macro(AtomicsSub, NodeResultJS | NodeMustGenerate | NodeHasVarArgs) \

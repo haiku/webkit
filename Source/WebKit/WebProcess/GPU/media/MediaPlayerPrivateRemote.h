@@ -86,6 +86,7 @@ public:
     WebCore::MediaPlayerEnums::MediaEngineIdentifier remoteEngineIdentifier() const { return m_remoteEngineIdentifier; }
     WebCore::MediaPlayerIdentifier itentifier() const { return m_id; }
     IPC::Connection& connection() const { return m_manager.gpuProcessConnection().connection(); }
+    WebCore::MediaPlayer* player() const { return m_player; }
 
     void networkStateChanged(RemoteMediaPlayerState&&);
     void readyStateChanged(RemoteMediaPlayerState&&);
@@ -262,8 +263,8 @@ private:
 
     void paint(WebCore::GraphicsContext&, const WebCore::FloatRect&) final;
     void paintCurrentFrameInContext(WebCore::GraphicsContext&, const WebCore::FloatRect&) final;
-    bool copyVideoTextureToPlatformTexture(WebCore::GraphicsContextGLOpenGL*, PlatformGLObject, GCGLenum, GCGLint, GCGLenum, GCGLenum, GCGLenum, bool, bool) final;
-    WebCore::NativeImagePtr nativeImageForCurrentTime() final;
+    bool copyVideoTextureToPlatformTexture(WebCore::GraphicsContextGL*, PlatformGLObject, GCGLenum, GCGLint, GCGLenum, GCGLenum, GCGLenum, bool, bool) final;
+    RefPtr<WebCore::NativeImage> nativeImageForCurrentTime() final;
 
     WebCore::MediaPlayerIdentifier identifier() const final;
 

@@ -1795,6 +1795,9 @@
 		E31179AA2288386100514B2C /* SymbolTableOrScopeDepth.h in Headers */ = {isa = PBXBuildFile; fileRef = E31179A92288385D00514B2C /* SymbolTableOrScopeDepth.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E31618131EC5FE170006A218 /* DOMAnnotation.h in Headers */ = {isa = PBXBuildFile; fileRef = E31618101EC5FE080006A218 /* DOMAnnotation.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E31618151EC5FE270006A218 /* DOMAttributeGetterSetter.h in Headers */ = {isa = PBXBuildFile; fileRef = E31618121EC5FE080006A218 /* DOMAttributeGetterSetter.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		E318CA6B254406B6004DC129 /* IntlListFormatConstructor.h in Headers */ = {isa = PBXBuildFile; fileRef = E318CA65254406B4004DC129 /* IntlListFormatConstructor.h */; };
+		E318CA6C254406B6004DC129 /* IntlListFormat.h in Headers */ = {isa = PBXBuildFile; fileRef = E318CA66254406B4004DC129 /* IntlListFormat.h */; };
+		E318CA6D254406B6004DC129 /* IntlListFormatPrototype.h in Headers */ = {isa = PBXBuildFile; fileRef = E318CA67254406B5004DC129 /* IntlListFormatPrototype.h */; };
 		E318CBC11B8AEF5100A2929D /* JSModuleNamespaceObject.h in Headers */ = {isa = PBXBuildFile; fileRef = E318CBBF1B8AEF5100A2929D /* JSModuleNamespaceObject.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E31C31322511AFD700E7A3A0 /* IntlCache.h in Headers */ = {isa = PBXBuildFile; fileRef = E31C31302511AFD600E7A3A0 /* IntlCache.h */; };
 		E3201C1D1F8E82360076A032 /* JSScriptFetchParameters.h in Headers */ = {isa = PBXBuildFile; fileRef = E38D060B1F8E814100649CF2 /* JSScriptFetchParameters.h */; settings = {ATTRIBUTES = (Private, ); }; };
@@ -1846,19 +1849,23 @@
 		E3637EE9236E56B00096BD0A /* LinkTimeConstant.h in Headers */ = {isa = PBXBuildFile; fileRef = E3637EE7236E56B00096BD0A /* LinkTimeConstant.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E365F33A24AA623900C991B2 /* IntlDisplayNamesConstructor.lut.h in Headers */ = {isa = PBXBuildFile; fileRef = E365F33924AA621200C991B2 /* IntlDisplayNamesConstructor.lut.h */; };
 		E365F33B24AA623B00C991B2 /* IntlDisplayNamesPrototype.lut.h in Headers */ = {isa = PBXBuildFile; fileRef = E365F33824AA621100C991B2 /* IntlDisplayNamesPrototype.lut.h */; };
+		E366441E254409B30001876F /* IntlListFormat.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E318CA69254406B5004DC129 /* IntlListFormat.cpp */; };
 		E36B767022F8D61900D09818 /* WasmOMGForOSREntryPlan.h in Headers */ = {isa = PBXBuildFile; fileRef = E36B766F22F8D61100D09818 /* WasmOMGForOSREntryPlan.h */; };
 		E36CC9472086314F0051FFD6 /* WasmCreationMode.h in Headers */ = {isa = PBXBuildFile; fileRef = E36CC9462086314F0051FFD6 /* WasmCreationMode.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E36EDCE524F0975700E60DA2 /* Concurrency.h in Headers */ = {isa = PBXBuildFile; fileRef = E36EDCE424F0975700E60DA2 /* Concurrency.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		E3711992253FA87F00BA69A0 /* Gate.h in Headers */ = {isa = PBXBuildFile; fileRef = E3711991253FA87E00BA69A0 /* Gate.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E3750CC82502E87E006A0AAB /* IntlDateTimeFormatInlines.h in Headers */ = {isa = PBXBuildFile; fileRef = E3750CC72502E87E006A0AAB /* IntlDateTimeFormatInlines.h */; };
 		E3794E761B77EB97005543AE /* ModuleAnalyzer.h in Headers */ = {isa = PBXBuildFile; fileRef = E3794E741B77EB97005543AE /* ModuleAnalyzer.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E383500A2390D93B0036316D /* WasmGlobal.h in Headers */ = {isa = PBXBuildFile; fileRef = E38350092390D9370036316D /* WasmGlobal.h */; };
 		E3850B15226ED641009ABF9C /* DFGMinifiedIDInlines.h in Headers */ = {isa = PBXBuildFile; fileRef = E3850B14226ED63E009ABF9C /* DFGMinifiedIDInlines.h */; };
 		E38652E3237CA0C900E1D5EE /* BlockDirectoryBits.h in Headers */ = {isa = PBXBuildFile; fileRef = E38652E2237CA0C800E1D5EE /* BlockDirectoryBits.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E3893A1D2203A7C600E79A74 /* AsyncFromSyncIteratorPrototype.lut.h in Headers */ = {isa = PBXBuildFile; fileRef = E3893A1C2203A7C600E79A74 /* AsyncFromSyncIteratorPrototype.lut.h */; };
+		E38E8790254B978400F6F9E4 /* JSDateMath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9788FC221471AD0C0068CE2D /* JSDateMath.cpp */; };
 		E39006212208BFC4001019CF /* SubspaceAccess.h in Headers */ = {isa = PBXBuildFile; fileRef = E39006202208BFC3001019CF /* SubspaceAccess.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E392E6F824D25FA600B20767 /* B3BottomTupleValue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E392E6F624D25FA600B20767 /* B3BottomTupleValue.cpp */; };
 		E392E6F924D25FA900B20767 /* B3BottomTupleValue.h in Headers */ = {isa = PBXBuildFile; fileRef = E392E6F724D25FA600B20767 /* B3BottomTupleValue.h */; };
 		E393ADD81FE702D00022D681 /* WeakMapImplInlines.h in Headers */ = {isa = PBXBuildFile; fileRef = E393ADD71FE702CC0022D681 /* WeakMapImplInlines.h */; };
+		E399AEC32559457F00B78485 /* IntlDateTimeFormat.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1587D671B4DC14100D69849 /* IntlDateTimeFormat.cpp */; };
 		E39BF39922A2288B00BD183E /* SymbolTableInlines.h in Headers */ = {isa = PBXBuildFile; fileRef = E39BF39822A2288B00BD183E /* SymbolTableInlines.h */; };
 		E39D45F51D39005600B3B377 /* InterpreterInlines.h in Headers */ = {isa = PBXBuildFile; fileRef = E39D9D841D39000600667282 /* InterpreterInlines.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E39D8B2E23021E2600265852 /* WasmOperations.h in Headers */ = {isa = PBXBuildFile; fileRef = E39D8B2D23021E1E00265852 /* WasmOperations.h */; };
@@ -4972,6 +4979,12 @@
 		E31618101EC5FE080006A218 /* DOMAnnotation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DOMAnnotation.h; sourceTree = "<group>"; };
 		E31618111EC5FE080006A218 /* DOMAttributeGetterSetter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DOMAttributeGetterSetter.cpp; sourceTree = "<group>"; };
 		E31618121EC5FE080006A218 /* DOMAttributeGetterSetter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DOMAttributeGetterSetter.h; sourceTree = "<group>"; };
+		E318CA65254406B4004DC129 /* IntlListFormatConstructor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IntlListFormatConstructor.h; sourceTree = "<group>"; };
+		E318CA66254406B4004DC129 /* IntlListFormat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IntlListFormat.h; sourceTree = "<group>"; };
+		E318CA67254406B5004DC129 /* IntlListFormatPrototype.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IntlListFormatPrototype.h; sourceTree = "<group>"; };
+		E318CA68254406B5004DC129 /* IntlListFormatPrototype.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IntlListFormatPrototype.cpp; sourceTree = "<group>"; };
+		E318CA69254406B5004DC129 /* IntlListFormat.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IntlListFormat.cpp; sourceTree = "<group>"; };
+		E318CA6A254406B5004DC129 /* IntlListFormatConstructor.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IntlListFormatConstructor.cpp; sourceTree = "<group>"; };
 		E318CBBE1B8AEF5100A2929D /* JSModuleNamespaceObject.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSModuleNamespaceObject.cpp; sourceTree = "<group>"; };
 		E318CBBF1B8AEF5100A2929D /* JSModuleNamespaceObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSModuleNamespaceObject.h; sourceTree = "<group>"; };
 		E31C31302511AFD600E7A3A0 /* IntlCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IntlCache.h; sourceTree = "<group>"; };
@@ -5051,6 +5064,7 @@
 		E36B766F22F8D61100D09818 /* WasmOMGForOSREntryPlan.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WasmOMGForOSREntryPlan.h; sourceTree = "<group>"; };
 		E36CC9462086314F0051FFD6 /* WasmCreationMode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WasmCreationMode.h; sourceTree = "<group>"; };
 		E36EDCE424F0975700E60DA2 /* Concurrency.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Concurrency.h; sourceTree = "<group>"; };
+		E3711991253FA87E00BA69A0 /* Gate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Gate.h; sourceTree = "<group>"; };
 		E3750CC72502E87E006A0AAB /* IntlDateTimeFormatInlines.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IntlDateTimeFormatInlines.h; sourceTree = "<group>"; };
 		E3794E731B77EB97005543AE /* ModuleAnalyzer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ModuleAnalyzer.cpp; sourceTree = "<group>"; };
 		E3794E741B77EB97005543AE /* ModuleAnalyzer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ModuleAnalyzer.h; sourceTree = "<group>"; };
@@ -7270,6 +7284,7 @@
 				E33A94922255322900D42B06 /* FuzzerAgent.h */,
 				CECFAD352372DAA700291599 /* FuzzerPredictions.cpp */,
 				CECFAD342372DAA700291599 /* FuzzerPredictions.h */,
+				E3711991253FA87E00BA69A0 /* Gate.h */,
 				70B791851C024432002481E2 /* GeneratorFunctionConstructor.cpp */,
 				70B791861C024432002481E2 /* GeneratorFunctionConstructor.h */,
 				70B791871C024432002481E2 /* GeneratorFunctionPrototype.cpp */,
@@ -7332,6 +7347,12 @@
 				E353C11824AA4CB6003FBDF3 /* IntlDisplayNamesConstructor.h */,
 				E353C11924AA4CB6003FBDF3 /* IntlDisplayNamesPrototype.cpp */,
 				E353C11B24AA4CB7003FBDF3 /* IntlDisplayNamesPrototype.h */,
+				E318CA69254406B5004DC129 /* IntlListFormat.cpp */,
+				E318CA66254406B4004DC129 /* IntlListFormat.h */,
+				E318CA6A254406B5004DC129 /* IntlListFormatConstructor.cpp */,
+				E318CA65254406B4004DC129 /* IntlListFormatConstructor.h */,
+				E318CA68254406B5004DC129 /* IntlListFormatPrototype.cpp */,
+				E318CA67254406B5004DC129 /* IntlListFormatPrototype.h */,
 				A3AFF92D245A3CFA00C9BA3B /* IntlLocale.cpp */,
 				A3AFF92B245A3CF900C9BA3B /* IntlLocale.h */,
 				A3AFF92F245A3CFB00C9BA3B /* IntlLocaleConstructor.cpp */,
@@ -9685,6 +9706,7 @@
 				62D2D3901ADF103F000206C1 /* FunctionRareData.h in Headers */,
 				E33A94972255323300D42B06 /* FuzzerAgent.h in Headers */,
 				CECFAD362372DAD000291599 /* FuzzerPredictions.h in Headers */,
+				E3711992253FA87F00BA69A0 /* Gate.h in Headers */,
 				2AACE63D18CA5A0300ED0191 /* GCActivityCallback.h in Headers */,
 				BCBE2CAE14E985AA000593AD /* GCAssertions.h in Headers */,
 				0F766D3015A8DCE2008F363E /* GCAwareJITStubRoutine.h in Headers */,
@@ -9845,6 +9867,9 @@
 				E365F33A24AA623900C991B2 /* IntlDisplayNamesConstructor.lut.h in Headers */,
 				E353C12124AA4CB7003FBDF3 /* IntlDisplayNamesPrototype.h in Headers */,
 				E365F33B24AA623B00C991B2 /* IntlDisplayNamesPrototype.lut.h in Headers */,
+				E318CA6C254406B6004DC129 /* IntlListFormat.h in Headers */,
+				E318CA6B254406B6004DC129 /* IntlListFormatConstructor.h in Headers */,
+				E318CA6D254406B6004DC129 /* IntlListFormatPrototype.h in Headers */,
 				E307178E24C7829D00DF0644 /* IntlLocale.h in Headers */,
 				E307178D24C7829A00DF0644 /* IntlLocaleConstructor.h in Headers */,
 				E307178C24C7829800DF0644 /* IntlLocalePrototype.h in Headers */,
@@ -10800,6 +10825,7 @@
 				932F5BD20822A1C700736975 /* Frameworks */,
 				5D29D8BE0E9860B400C3D2D0 /* Check For Weak VTables and Externals */,
 				3713F014142905240036387F /* Check For Inappropriate Objective-C Class Names */,
+				532424B0254905D900A6975B /* Check For Inappropriate Files In Framework */,
 				A55DEAA416703DF7003DB841 /* Check For Inappropriate Macros in External Headers */,
 				1A02D9A81B34A882000D1522 /* Add Symlink in /System/Library/PrivateFrameworks */,
 				53609F9021DFFA9C008FA60A /* Check .xcfilelists */,
@@ -10933,7 +10959,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n\nmkdir -p \"${BUILT_PRODUCTS_DIR}/LLIntOffsets/${ARCHS}\"\n\n/usr/bin/env ruby \"${SRCROOT}/offlineasm/generate_offset_extractor.rb\" \"-I${BUILT_PRODUCTS_DIR}/DerivedSources/JavaScriptCore\" \"${SRCROOT}/llint/LowLevelInterpreter.asm\"  \"${BUILT_PRODUCTS_DIR}/JSCLLIntSettingsExtractor\" \"${BUILT_PRODUCTS_DIR}/LLIntOffsets/${ARCHS}/LLIntDesiredOffsets.h\" \"${ARCHS} C_LOOP\"\n";
+			shellScript = "set -e\n\nmkdir -p \"${BUILT_PRODUCTS_DIR}/LLIntOffsets/${ARCHS}\"\n\n/usr/bin/env ruby \"${SRCROOT}/offlineasm/generate_offset_extractor.rb\" \"-I${BUILT_PRODUCTS_DIR}/DerivedSources/JavaScriptCore\" \"${SRCROOT}/llint/LowLevelInterpreter.asm\"  \"${BUILT_PRODUCTS_DIR}/JSCLLIntSettingsExtractor\" \"${BUILT_PRODUCTS_DIR}/LLIntOffsets/${ARCHS}/LLIntDesiredOffsets.h\" \"${ARCHS} C_LOOP\" \"${BUILD_VARIANTS}\"\n";
 		};
 		14BD6892215191450050DAFF /* Generate Derived Sources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -11005,6 +11031,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "set -e\n\nif [[ -f \"${BUILT_PRODUCTS_DIR}/libWTF.a\" ]]; then\n    ln -s -f -h \"${BUILT_PRODUCTS_DIR}/libWTF.a\" \"${BUILT_PRODUCTS_DIR}/DerivedSources/JavaScriptCore/libWTF.a\"\nelse\n    ln -s -f -h \"${SDK_DIR}${WK_ALTERNATE_WEBKIT_SDK_PATH}/usr/local/lib/libWTF.a\" \"${BUILT_PRODUCTS_DIR}/DerivedSources/JavaScriptCore/libWTF.a\"\nfi\n";
+		};
+		532424B0254905D900A6975B /* Check For Inappropriate Files In Framework */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Check For Inappropriate Files In Framework";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"${ACTION}\" = \"installhdrs\" ] || [ \"${ACTION}\" = \"installapi\" ]; then\n    exit 0;\nfi\n\nif [ -f ../../Tools/Scripts/check-for-inappropriate-files-in-framework ]; then\n    ../../Tools/Scripts/check-for-inappropriate-files-in-framework || exit $?\nfi\n";
 		};
 		5325BDC521DFF2BA00A0DEE1 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -11174,7 +11218,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [[ \"${ACTION}\" == \"installhdrs\" ]]; then\n    exit 0\nfi\n\ncd \"${BUILT_PRODUCTS_DIR}/DerivedSources/JavaScriptCore\"\n\n/usr/bin/env ruby JavaScriptCore/offlineasm/asm.rb \"-I${BUILT_PRODUCTS_DIR}/DerivedSources/JavaScriptCore\" JavaScriptCore/llint/LowLevelInterpreter.asm \"${BUILT_PRODUCTS_DIR}/JSCLLIntOffsetsExtractor\" LLIntAssembly.h || exit 1\n";
+			shellScript = "if [[ \"${ACTION}\" == \"installhdrs\" ]]; then\n    exit 0\nfi\n\ncd \"${BUILT_PRODUCTS_DIR}/DerivedSources/JavaScriptCore\"\n\n/usr/bin/env ruby JavaScriptCore/offlineasm/asm.rb \"-I${BUILT_PRODUCTS_DIR}/DerivedSources/JavaScriptCore\" JavaScriptCore/llint/LowLevelInterpreter.asm \"${BUILT_PRODUCTS_DIR}/JSCLLIntOffsetsExtractor\" LLIntAssembly.h \"${BUILD_VARIANTS}\" || exit 1\n";
 		};
 		65FB3F6509D11E9100F49DEB /* Generate Derived Sources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -11349,6 +11393,9 @@
 				5333BBDD2110F7E1007618EC /* DFGSpeculativeJIT64.cpp in Sources */,
 				33B2A548226543BF005A0F79 /* FTLLowerDFGToB3.cpp in Sources */,
 				5C4196622270E0000047B7CD /* InspectorBackendDispatcherCompatibility.cpp in Sources */,
+				E399AEC32559457F00B78485 /* IntlDateTimeFormat.cpp in Sources */,
+				E366441E254409B30001876F /* IntlListFormat.cpp in Sources */,
+				E38E8790254B978400F6F9E4 /* JSDateMath.cpp in Sources */,
 				536B319E1F735F160037FC33 /* LowLevelInterpreter.cpp in Sources */,
 				0FF4274A158EBE91004CB9FF /* udis86.c in Sources */,
 				0FF42740158EBE8B004CB9FF /* udis86_decode.c in Sources */,
@@ -11936,10 +11983,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1C9051440BA9E8A70081E9D0 /* DebugRelease.xcconfig */;
 			buildSettings = {
-				DEAD_CODE_STRIPPING = "$(DEAD_CODE_STRIPPING_debug)";
-				DEBUG_DEFINES = "$(DEBUG_DEFINES_debug)";
-				GCC_OPTIMIZATION_LEVEL = "$(GCC_OPTIMIZATION_LEVEL_debug)";
-				STRIP_INSTALLED_PRODUCT = "$(STRIP_INSTALLED_PRODUCT_debug)";
 			};
 			name = Debug;
 		};

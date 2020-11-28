@@ -211,7 +211,7 @@ public:
     void removeTimeout(int timeoutId) { m_timeouts.remove(timeoutId); }
     DOMTimer* findTimeout(int timeoutId) { return m_timeouts.get(timeoutId); }
 
-    WEBCORE_EXPORT JSC::VM& vm();
+    virtual JSC::VM& vm() = 0;
 
     void adjustMinimumDOMTimerInterval(Seconds oldMinimumTimerInterval);
     virtual Seconds minimumDOMTimerInterval() const;
@@ -242,7 +242,7 @@ public:
         return ensureRejectedPromiseTrackerSlow();
     }
 
-    WEBCORE_EXPORT JSC::JSGlobalObject* execState();
+    WEBCORE_EXPORT JSC::JSGlobalObject* globalObject();
 
     WEBCORE_EXPORT String domainForCachePartition() const;
     void setDomainForCachePartition(String&& domain) { m_domainForCachePartition = WTFMove(domain); }

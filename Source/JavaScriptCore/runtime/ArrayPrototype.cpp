@@ -40,19 +40,19 @@
 
 namespace JSC {
 
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncToLocaleString);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncJoin);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncKeys);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncEntries);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncPop);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncPush);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncReverse);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncShift);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncSlice);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncSplice);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncUnShift);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncIndexOf);
-JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncLastIndexOf);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncToLocaleString);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncJoin);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncKeys);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncEntries);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncPop);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncPush);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncReverse);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncShift);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncSlice);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncSplice);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncUnShift);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncIndexOf);
+static JSC_DECLARE_HOST_FUNCTION(arrayProtoFuncLastIndexOf);
 
 // ------------------------------ ArrayPrototype ----------------------------
 
@@ -110,7 +110,9 @@ void ArrayPrototype::finishCreation(VM& vm, JSGlobalObject* globalObject)
     JSC_BUILTIN_FUNCTION_WITHOUT_TRANSITION(vm.propertyNames->builtinNames().findIndexPublicName(), arrayPrototypeFindIndexCodeGenerator, static_cast<unsigned>(PropertyAttribute::DontEnum));
     JSC_BUILTIN_FUNCTION_WITHOUT_TRANSITION(vm.propertyNames->builtinNames().includesPublicName(), arrayPrototypeIncludesCodeGenerator, static_cast<unsigned>(PropertyAttribute::DontEnum));
     JSC_BUILTIN_FUNCTION_WITHOUT_TRANSITION(vm.propertyNames->builtinNames().copyWithinPublicName(), arrayPrototypeCopyWithinCodeGenerator, static_cast<unsigned>(PropertyAttribute::DontEnum));
-    JSC_BUILTIN_FUNCTION_WITHOUT_TRANSITION(vm.propertyNames->builtinNames().itemPublicName(), arrayPrototypeItemCodeGenerator, static_cast<unsigned>(PropertyAttribute::DontEnum));
+
+    if (Options::useAtMethod())
+        JSC_BUILTIN_FUNCTION_WITHOUT_TRANSITION(vm.propertyNames->builtinNames().atPublicName(), arrayPrototypeAtCodeGenerator, static_cast<unsigned>(PropertyAttribute::DontEnum));
 
     putDirectWithoutTransition(vm, vm.propertyNames->builtinNames().entriesPrivateName(), getDirect(vm, vm.propertyNames->builtinNames().entriesPublicName()), static_cast<unsigned>(PropertyAttribute::ReadOnly));
     putDirectWithoutTransition(vm, vm.propertyNames->builtinNames().forEachPrivateName(), getDirect(vm, vm.propertyNames->builtinNames().forEachPublicName()), static_cast<unsigned>(PropertyAttribute::ReadOnly));
@@ -128,10 +130,11 @@ void ArrayPrototype::finishCreation(VM& vm, JSGlobalObject* globalObject)
         &vm.propertyNames->builtinNames().flatPublicName(),
         &vm.propertyNames->builtinNames().flatMapPublicName(),
         &vm.propertyNames->builtinNames().includesPublicName(),
-        &vm.propertyNames->builtinNames().itemPublicName(),
         &vm.propertyNames->builtinNames().keysPublicName(),
         &vm.propertyNames->builtinNames().valuesPublicName()
     };
+    if (Options::useAtMethod())
+        unscopables->putDirect(vm, vm.propertyNames->builtinNames().atPublicName(), jsBoolean(true));
     for (const auto* unscopableName : unscopableNames)
         unscopables->putDirect(vm, *unscopableName, jsBoolean(true));
     putDirectWithoutTransition(vm, vm.propertyNames->unscopablesSymbol, unscopables, PropertyAttribute::DontEnum | PropertyAttribute::ReadOnly);
@@ -183,7 +186,7 @@ namespace ArrayPrototypeInternal {
 static bool verbose = false;
 }
 
-ALWAYS_INLINE bool speciesWatchpointIsValid(VM& vm, JSObject* thisObject)
+static ALWAYS_INLINE bool speciesWatchpointIsValid(VM& vm, JSObject* thisObject)
 {
     JSGlobalObject* globalObject = thisObject->globalObject(vm);
     ArrayPrototype* arrayPrototype = globalObject->arrayPrototype();

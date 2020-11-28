@@ -146,6 +146,7 @@
 #import <WebCore/DragController.h>
 #import <WebCore/DragData.h>
 #import <WebCore/DragItem.h>
+#import <WebCore/DummySpeechRecognitionProvider.h>
 #import <WebCore/Editing.h>
 #import <WebCore/Editor.h>
 #import <WebCore/Event.h>
@@ -748,8 +749,6 @@ static WebPageVisibilityState kit(WebCore::VisibilityState visibilityState)
         return WebPageVisibilityStateVisible;
     case WebCore::VisibilityState::Hidden:
         return WebPageVisibilityStateHidden;
-    case WebCore::VisibilityState::Prerender:
-        return WebPageVisibilityStatePrerender;
     }
 
     ASSERT_NOT_REACHED();
@@ -845,14 +844,14 @@ private:
     _textRectsInBoundingRectCoordinates = createNSArray(indicatorData.textRectsInBoundingRectCoordinates).leakRef();
     _contentImageScaleFactor = indicatorData.contentImageScaleFactor;
     if (indicatorData.contentImageWithHighlight)
-        _contentImageWithHighlight = [PAL::allocUIImageInstance() initWithCGImage:indicatorData.contentImageWithHighlight.get()->nativeImage().get() scale:scale orientation:UIImageOrientationDownMirrored];
+        _contentImageWithHighlight = [PAL::allocUIImageInstance() initWithCGImage:indicatorData.contentImageWithHighlight.get()->nativeImage()->platformImage().get() scale:scale orientation:UIImageOrientationDownMirrored];
     if (indicatorData.contentImage)
-        _contentImage = [PAL::allocUIImageInstance() initWithCGImage:indicatorData.contentImage.get()->nativeImage().get() scale:scale orientation:UIImageOrientationUp];
+        _contentImage = [PAL::allocUIImageInstance() initWithCGImage:indicatorData.contentImage.get()->nativeImage()->platformImage().get() scale:scale orientation:UIImageOrientationUp];
 
     if (indicatorData.contentImageWithoutSelection) {
         auto nativeImage = indicatorData.contentImageWithoutSelection.get()->nativeImage();
         if (nativeImage) {
-            _contentImageWithoutSelection = [PAL::allocUIImageInstance() initWithCGImage:nativeImage.get() scale:scale orientation:UIImageOrientationUp];
+            _contentImageWithoutSelection = [PAL::allocUIImageInstance() initWithCGImage:nativeImage->platformImage().get() scale:scale orientation:UIImageOrientationUp];
             _contentImageWithoutSelectionRectInRootViewCoordinates = indicatorData.contentImageWithoutSelectionRectInRootViewCoordinates;
         }
     }
@@ -1320,24 +1319,6 @@ static CFMutableSetRef allWebViewsSet;
     WebCore::reportException(globalObject, toJS(globalObject, exception));
 }
 
-static bool shouldEnableLoadDeferring()
-{
-#if PLATFORM(IOS_FAMILY)
-    return true;
-#else
-    return !WebCore::MacApplication::isAdobeInstaller();
-#endif
-}
-
-static bool shouldRestrictWindowFocus()
-{
-#if PLATFORM(IOS_FAMILY)
-    return true;
-#else
-    return !WebCore::MacApplication::isHRBlock();
-#endif
-}
-
 - (void)_dispatchPendingLoadRequests
 {
     webResourceLoadScheduler().servePendingRequests();
@@ -1423,46 +1404,6 @@ static bool isInternalInstall()
 
 static bool didOneTimeInitialization = false;
 #endif
-
-static bool shouldUseLegacyBackgroundSizeShorthandBehavior()
-{
-#if PLATFORM(IOS_FAMILY)
-    static bool shouldUseLegacyBackgroundSizeShorthandBehavior = !WebKitLinkedOnOrAfter(WEBKIT_FIRST_VERSION_WITHOUT_LEGACY_BACKGROUNDSIZE_SHORTHAND_BEHAVIOR);
-#else
-    static bool shouldUseLegacyBackgroundSizeShorthandBehavior = WebCore::MacApplication::isVersions()
-        && !WebKitLinkedOnOrAfter(WEBKIT_FIRST_VERSION_WITHOUT_LEGACY_BACKGROUNDSIZE_SHORTHAND_BEHAVIOR);
-#endif
-    return shouldUseLegacyBackgroundSizeShorthandBehavior;
-}
-
-static bool shouldAllowDisplayAndRunningOfInsecureContent()
-{
-    static bool shouldAllowDisplayAndRunningOfInsecureContent = !WebKitLinkedOnOrAfter(WEBKIT_FIRST_VERSION_WITH_INSECURE_CONTENT_BLOCKING);
-    return shouldAllowDisplayAndRunningOfInsecureContent;
-}
-
-static bool shouldAllowContentSecurityPolicySourceStarToMatchAnyProtocol()
-{
-#if PLATFORM(IOS_FAMILY)
-    static bool shouldAllowContentSecurityPolicySourceStarToMatchAnyProtocol = !WebKitLinkedOnOrAfter(WEBKIT_FIRST_VERSION_WITH_CONTENT_SECURITY_POLICY_SOURCE_STAR_PROTOCOL_RESTRICTION);
-    return shouldAllowContentSecurityPolicySourceStarToMatchAnyProtocol;
-#else
-    return false;
-#endif
-}
-
-static bool shouldConvertInvalidURLsToBlank()
-{
-#if PLATFORM(IOS_FAMILY)
-    static bool shouldConvertInvalidURLsToBlank = dyld_get_program_sdk_version() >= DYLD_IOS_VERSION_10_0;
-#elif PLATFORM(MAC)
-    static bool shouldConvertInvalidURLsToBlank = dyld_get_program_sdk_version() >= DYLD_MACOSX_VERSION_10_12;
-#else
-    static bool shouldConvertInvalidURLsToBlank = true;
-#endif
-
-    return shouldConvertInvalidURLsToBlank;
-}
 
 #if ENABLE(GAMEPAD)
 static void WebKitInitializeGamepadProviderIfNecessary()
@@ -1583,6 +1524,7 @@ static void WebKitInitializeGamepadProviderIfNecessary()
         WebCore::CookieJar::create(storageProvider.copyRef()),
         makeUniqueRef<WebProgressTrackerClient>(self),
         makeUniqueRef<WebFrameLoaderClient>(),
+        makeUniqueRef<WebCore::DummySpeechRecognitionProvider>(),
         makeUniqueRef<WebCore::MediaRecorderProvider>()
     );
 #if !PLATFORM(IOS_FAMILY)
@@ -1632,7 +1574,6 @@ static void WebKitInitializeGamepadProviderIfNecessary()
 
     _private->page->setCanStartMedia([self window]);
     _private->page->settings().setLocalStorageDatabasePath([[self preferences] _localStorageDatabasePath]);
-    _private->page->settings().setUseLegacyBackgroundSizeShorthandBehavior(shouldUseLegacyBackgroundSizeShorthandBehavior());
 
 #if !PLATFORM(IOS_FAMILY)
     if (needsOutlookQuirksScript()) {
@@ -1712,7 +1653,7 @@ static void WebKitInitializeGamepadProviderIfNecessary()
 
     WebInstallMemoryPressureHandler();
 
-#if !PLATFORM(IOS_FAMILY)
+#if PLATFORM(MAC)
     if (!WebKitLinkedOnOrAfter(WEBKIT_FIRST_VERSION_WITH_LOCAL_RESOURCE_SECURITY_RESTRICTION)) {
         // Originally, we allowed all local loads.
         WebCore::SecurityPolicy::setLocalLoadPolicy(WebCore::SecurityPolicy::AllowLocalLoadsForAll);
@@ -1721,22 +1662,16 @@ static void WebKitInitializeGamepadProviderIfNecessary()
         // with substitute data.
         WebCore::SecurityPolicy::setLocalLoadPolicy(WebCore::SecurityPolicy::AllowLocalLoadsForLocalAndSubstituteData);
     }
-#endif
 
-#if PLATFORM(MAC)
     if (!WebKitLinkedOnOrAfter(WEBKIT_FIRST_VERSION_WITHOUT_CONTENT_SNIFFING_FOR_FILE_URLS))
         WebCore::ResourceHandle::forceContentSniffing();
 
     _private->page->setDeviceScaleFactor([self _deviceScaleFactor]);
-#endif
 
-#if HAVE(OS_DARK_MODE_SUPPORT) && PLATFORM(MAC)
+#if HAVE(OS_DARK_MODE_SUPPORT)
     _private->page->effectiveAppearanceDidChange(self._effectiveAppearanceIsDark, self._effectiveUserInterfaceLevelIsElevated);
 #endif
 
-    _private->page->settings().setContentDispositionAttachmentSandboxEnabled(true);
-
-#if PLATFORM(MAC)
     [WebViewVisualIdentificationOverlay installForWebViewIfNeeded:self kind:@"WebView" deprecated:YES];
 #endif
 }
@@ -1865,6 +1800,7 @@ static void WebKitInitializeGamepadProviderIfNecessary()
         WebCore::CookieJar::create(storageProvider.copyRef()),
         makeUniqueRef<WebProgressTrackerClient>(self),
         makeUniqueRef<WebFrameLoaderClient>(),
+        makeUniqueRef<WebCore::DummySpeechRecognitionProvider>(),
         makeUniqueRef<WebCore::MediaRecorderProvider>()
     );
     pageConfiguration.chromeClient = new WebChromeClientIOS(self);
@@ -2901,49 +2837,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 }
 #endif
 
-#if !PLATFORM(IOS_FAMILY)
-- (BOOL)_needsAdobeFrameReloadingQuirk
-{
-    static BOOL needsQuirk = _CFAppVersionCheckLessThan(CFSTR("com.adobe.Acrobat"), -1, 9.0)
-        || _CFAppVersionCheckLessThan(CFSTR("com.adobe.Acrobat.Pro"), -1, 9.0)
-        || _CFAppVersionCheckLessThan(CFSTR("com.adobe.Reader"), -1, 9.0)
-        || _CFAppVersionCheckLessThan(CFSTR("com.adobe.distiller"), -1, 9.0)
-        || _CFAppVersionCheckLessThan(CFSTR("com.adobe.Contribute"), -1, 4.2)
-        || _CFAppVersionCheckLessThan(CFSTR("com.adobe.dreamweaver-9.0"), -1, 9.1)
-        || _CFAppVersionCheckLessThan(CFSTR("com.macromedia.fireworks"), -1, 9.1)
-        || _CFAppVersionCheckLessThan(CFSTR("com.adobe.InCopy"), -1, 5.1)
-        || _CFAppVersionCheckLessThan(CFSTR("com.adobe.InDesign"), -1, 5.1)
-        || _CFAppVersionCheckLessThan(CFSTR("com.adobe.Soundbooth"), -1, 2);
-
-    return needsQuirk;
-}
-
-- (BOOL)_needsLinkElementTextCSSQuirk
-{
-    static BOOL needsQuirk = !WebKitLinkedOnOrAfter(WEBKIT_FIRST_VERSION_WITHOUT_LINK_ELEMENT_TEXT_CSS_QUIRK)
-        && _CFAppVersionCheckLessThan(CFSTR("com.e-frontier.shade10"), -1, 10.6);
-    return needsQuirk;
-}
-
-- (BOOL)_needsFrameNameFallbackToIdQuirk
-{
-    static BOOL needsQuirk = _CFAppVersionCheckLessThan(CFSTR("info.colloquy"), -1, 2.5);
-    return needsQuirk;
-}
-
-- (BOOL)_needsIsLoadingInAPISenseQuirk
-{
-    static BOOL needsQuirk = _CFAppVersionCheckLessThan(CFSTR("com.apple.iAdProducer"), -1, 2.1);
-
-    return needsQuirk;
-}
-
-- (BOOL)_needsKeyboardEventDisambiguationQuirks
-{
-    static BOOL needsQuirks = !WebKitLinkedOnOrAfter(WEBKIT_FIRST_VERSION_WITH_IE_COMPATIBLE_KEYBOARD_EVENT_DISPATCH) && !WebCore::MacApplication::isSafari();
-    return needsQuirks;
-}
-
+#if PLATFORM(MAC)
 - (BOOL)_needsFrameLoadDelegateRetainQuirk
 {
     static BOOL needsQuirk = _CFAppVersionCheckLessThan(CFSTR("com.equinux.iSale5"), -1, 5.6);
@@ -2955,28 +2849,7 @@ static bool needsSelfRetainWhileLoadingQuirk()
     static bool needsQuirk = WebCore::MacApplication::isAperture();
     return needsQuirk;
 }
-#endif // !PLATFORM(IOS_FAMILY)
-
-- (BOOL)_needsPreHTML5ParserQuirks
-{
-#if !PLATFORM(IOS_FAMILY)
-    // AOL Instant Messenger and Microsoft My Day contain markup incompatible
-    // with the new HTML5 parser. If these applications were linked against a
-    // version of WebKit prior to the introduction of the HTML5 parser, enable
-    // parser quirks to maintain compatibility. For details, see
-    // <https://bugs.webkit.org/show_bug.cgi?id=46134> and
-    // <https://bugs.webkit.org/show_bug.cgi?id=46334>.
-    static bool isApplicationNeedingParserQuirks = !WebKitLinkedOnOrAfter(WEBKIT_FIRST_VERSION_WITH_HTML5_PARSER)
-        && (WebCore::MacApplication::isAOLInstantMessenger() || WebCore::MacApplication::isMicrosoftMyDay());
-
-    // Mail.app must continue to display HTML email that contains quirky markup.
-    static bool isAppleMail = WebCore::MacApplication::isAppleMail();
-
-    return isApplicationNeedingParserQuirks || isAppleMail || [[self preferences] usePreHTML5ParserQuirks];
-#else
-    return [[self preferences] usePreHTML5ParserQuirks];
 #endif
-}
 
 - (void)_preferencesChangedNotification:(NSNotification *)notification
 {
@@ -3040,14 +2913,17 @@ static bool needsSelfRetainWhileLoadingQuirk()
 
     auto& settings = _private->page->settings();
     
-    // FIXME: This should switch to using WebPreferences for storage and adopt autogeneration.
+    // FIXME: These should switch to using WebPreferences for storage and adopt autogeneration.
     settings.setInteractiveFormValidationEnabled([self interactiveFormValidationEnabled]);
+    settings.setValidationMessageTimerMagnification([self validationMessageTimerMagnification]);
 
-    // FIXME: We should make autogeneration smart enough to deal with core/kit conversions of enums.
+    // FIXME: Autogeneration should be smart enough to deal with core/kit conversions and validation of non-primitive types like enums, URLs and Seconds.
     settings.setStorageBlockingPolicy(core([preferences storageBlockingPolicy]));
     settings.setEditableLinkBehavior(core([preferences editableLinkBehavior]));
     settings.setJavaScriptRuntimeFlags(JSC::RuntimeFlags([preferences javaScriptRuntimeFlags]));
     settings.setFrameFlattening((const WebCore::FrameFlattening)[preferences frameFlattening]);
+    settings.setTextDirectionSubmenuInclusionBehavior(core([preferences textDirectionSubmenuInclusionBehavior]));
+    settings.setBackForwardCacheExpirationInterval(Seconds { [preferences _backForwardCacheExpirationInterval] });
 
     BOOL mediaPlaybackRequiresUserGesture = [preferences mediaPlaybackRequiresUserGesture];
     settings.setVideoPlaybackRequiresUserGesture(mediaPlaybackRequiresUserGesture || [preferences videoPlaybackRequiresUserGesture]);
@@ -3059,19 +2935,6 @@ static bool needsSelfRetainWhileLoadingQuirk()
     _private->page->setSessionID([preferences privateBrowsingEnabled] ? PAL::SessionID::legacyPrivateSessionID() : PAL::SessionID::defaultSessionID());
     _private->group->storageNamespaceProvider().setSessionIDForTesting([preferences privateBrowsingEnabled] ? PAL::SessionID::legacyPrivateSessionID() : PAL::SessionID::defaultSessionID());
 
-    settings.setShrinksStandaloneImagesToFit([preferences shrinksStandaloneImagesToFit]);
-    settings.setTextDirectionSubmenuInclusionBehavior(core([preferences textDirectionSubmenuInclusionBehavior]));
-    settings.setBackForwardCacheExpirationInterval(Seconds { [preferences _backForwardCacheExpirationInterval] });
-    settings.setForceWebGLUsesLowPower([preferences forceLowPowerGPUForWebGL]);
-    settings.setLoadDeferringEnabled(shouldEnableLoadDeferring());
-    settings.setWindowFocusRestricted(shouldRestrictWindowFocus());
-    settings.setUsePreHTML5ParserQuirks([self _needsPreHTML5ParserQuirks]);
-    settings.setValidationMessageTimerMagnification([self validationMessageTimerMagnification]);
-    settings.setAllowDisplayOfInsecureContent(shouldAllowDisplayAndRunningOfInsecureContent());
-    settings.setAllowRunningOfInsecureContent(shouldAllowDisplayAndRunningOfInsecureContent());
-    settings.setAllowContentSecurityPolicySourceStarToMatchAnyProtocol(shouldAllowContentSecurityPolicySourceStarToMatchAnyProtocol());
-    settings.setShouldConvertInvalidURLsToBlank(shouldConvertInvalidURLsToBlank());
-
 #if PLATFORM(MAC)
     // This parses the user stylesheet synchronously so anything that may affect it should be done first.
     if ([preferences userStyleSheetEnabled]) {
@@ -3079,20 +2942,9 @@ static bool needsSelfRetainWhileLoadingQuirk()
         settings.setUserStyleSheetLocation([NSURL URLWithString:(location ? location : @"")]);
     } else
         settings.setUserStyleSheetLocation([NSURL URLWithString:@""]);
-
-    settings.setAcceleratedCompositingForFixedPositionEnabled(true);
-    settings.setNeedsAdobeFrameReloadingQuirk([self _needsAdobeFrameReloadingQuirk]);
-    settings.setTreatsAnyTextCSSLinkAsStylesheet([self _needsLinkElementTextCSSQuirk]);
-    settings.setNeedsFrameNameFallbackToIdQuirk([self _needsFrameNameFallbackToIdQuirk]);
-    settings.setNeedsKeyboardEventDisambiguationQuirks([self _needsKeyboardEventDisambiguationQuirks]);
-    settings.setEnforceCSSMIMETypeInNoQuirksMode(!_CFAppVersionCheckLessThan(CFSTR("com.apple.iWeb"), -1, 2.1));
-    settings.setNeedsIsLoadingInAPISenseQuirk([self _needsIsLoadingInAPISenseQuirk]);
-    settings.setExperimentalNotificationsEnabled([preferences experimentalNotificationsEnabled]);
 #endif
 
 #if PLATFORM(IOS_FAMILY)
-    settings.setVisualViewportEnabled(false);
-    settings.setVisualViewportAPIEnabled(false);
     WebCore::DeprecatedGlobalSettings::setAudioSessionCategoryOverride([preferences audioSessionCategoryOverride]);
     WebCore::DeprecatedGlobalSettings::setNetworkDataUsageTrackingEnabled([preferences networkDataUsageTrackingEnabled]);
     WebCore::DeprecatedGlobalSettings::setNetworkInterfaceName([preferences networkInterfaceName]);
@@ -3104,11 +2956,6 @@ static bool needsSelfRetainWhileLoadingQuirk()
 
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA)
     settings.setMediaKeysStorageDirectory([preferences mediaKeysStorageDirectory]);
-#endif
-
-#if ENABLE(RUBBER_BANDING)
-    // FIXME: https://bugs.webkit.org/show_bug.cgi?id=136131
-    settings.setRubberBandingForSubScrollableRegionsEnabled(false);
 #endif
 
     // FIXME: Is this relevent to WebKitLegacy? If not, we should remove it.
@@ -5699,7 +5546,7 @@ static bool needsWebViewInitThreadWorkaround()
         if ([[self class] shouldIncludeInWebKitStatistics])
             --WebViewCount;
 
-#if !PLATFORM(IOS_FAMILY)
+#if PLATFORM(MAC)
         if ([self _needsFrameLoadDelegateRetainQuirk])
             [_private->frameLoadDelegate release];
 #endif
@@ -6104,7 +5951,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
     // unconvered a latent bug in at least one WebKit app where the delegate wasn't properly retained by the app and
     // was dealloc'ed before being cleared.
     // This is an effort to keep such apps working for now.
-#if !PLATFORM(IOS_FAMILY)
+#if PLATFORM(MAC)
     if ([self _needsFrameLoadDelegateRetainQuirk]) {
         [delegate retain];
         [_private->frameLoadDelegate release];
@@ -7907,6 +7754,21 @@ static NSAppleEventDescriptor* aeDescFromJSValue(JSC::JSGlobalObject* lexicalGlo
     if (_private->page)
         _private->page->resumeAllMediaPlayback();
 }
+
+#if PLATFORM(MAC)
+- (BOOL)_allowsLinkPreview
+{
+    if (WebImmediateActionController *immediateActionController = _private->immediateActionController)
+        return immediateActionController.enabled;
+    return NO;
+}
+
+- (void)_setAllowsLinkPreview:(BOOL)allowsLinkPreview
+{
+    if (WebImmediateActionController *immediateActionController = _private->immediateActionController)
+        immediateActionController.enabled = allowsLinkPreview;
+}
+#endif
 
 - (void)addVisitedLinks:(NSArray *)visitedLinks
 {

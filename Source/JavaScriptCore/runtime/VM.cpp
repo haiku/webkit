@@ -68,6 +68,7 @@
 #include "IntlCollator.h"
 #include "IntlDateTimeFormat.h"
 #include "IntlDisplayNames.h"
+#include "IntlListFormat.h"
 #include "IntlLocale.h"
 #include "IntlNumberFormat.h"
 #include "IntlPluralRules.h"
@@ -314,6 +315,7 @@ VM::VM(VMType vmType, HeapType heapType, WTF::RunLoop* runLoop, bool* success)
     , intlCollatorHeapCellType(IsoHeapCellType::create<IntlCollator>())
     , intlDateTimeFormatHeapCellType(IsoHeapCellType::create<IntlDateTimeFormat>())
     , intlDisplayNamesHeapCellType(IsoHeapCellType::create<IntlDisplayNames>())
+    , intlListFormatHeapCellType(IsoHeapCellType::create<IntlListFormat>())
     , intlLocaleHeapCellType(IsoHeapCellType::create<IntlLocale>())
     , intlNumberFormatHeapCellType(IsoHeapCellType::create<IntlNumberFormat>())
     , intlPluralRulesHeapCellType(IsoHeapCellType::create<IntlPluralRules>())
@@ -380,6 +382,7 @@ VM::VM(VMType vmType, HeapType heapType, WTF::RunLoop* runLoop, bool* success)
     , topCallFrame(CallFrame::noCaller())
     , deferredWorkTimer(DeferredWorkTimer::create(*this))
     , m_atomStringTable(vmType == Default ? Thread::current().atomStringTable() : new AtomStringTable)
+    , m_privateSymbolRegistry(WTF::SymbolRegistry::Type::PrivateSymbol)
     , propertyNames(nullptr)
     , emptyList(new ArgList)
     , machineCodeBytesPerBytecodeWordForBaselineJIT(makeUnique<SimpleStats>())
@@ -390,7 +393,7 @@ VM::VM(VMType vmType, HeapType heapType, WTF::RunLoop* runLoop, bool* success)
     , interpreter(nullptr)
     , entryScope(nullptr)
     , m_regExpCache(new RegExpCache(this))
-    , m_compactVariableMap(adoptRef(*(new CompactVariableMap)))
+    , m_compactVariableMap(adoptRef(*(new CompactTDZEnvironmentMap)))
 #if ENABLE(REGEXP_TRACING)
     , m_rtTraceList(new RTTraceList())
 #endif
@@ -885,15 +888,6 @@ MacroAssemblerCodePtr<JSEntryPtrTag> VM::getCTIInternalFunctionTrampolineFor(Cod
 
 VM::ClientData::~ClientData()
 {
-}
-
-void VM::resetDateCache()
-{
-    dateCache.utcTimeOffsetCache.reset();
-    dateCache.localTimeOffsetCache.reset();
-    dateCache.cachedDateString = String();
-    dateCache.cachedDateStringValue = std::numeric_limits<double>::quiet_NaN();
-    dateCache.dateInstanceCache.reset();
 }
 
 void VM::whenIdle(Function<void()>&& callback)
@@ -1544,6 +1538,7 @@ DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(callbackAPIWrapperGlobalObjectSpace, cal
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlCollatorSpace, intlCollatorHeapCellType.get(), IntlCollator)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlDateTimeFormatSpace, intlDateTimeFormatHeapCellType.get(), IntlDateTimeFormat)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlDisplayNamesSpace, intlDisplayNamesHeapCellType.get(), IntlDisplayNames)
+DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlListFormatSpace, intlListFormatHeapCellType.get(), IntlListFormat)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlLocaleSpace, intlLocaleHeapCellType.get(), IntlLocale)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlNumberFormatSpace, intlNumberFormatHeapCellType.get(), IntlNumberFormat)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlPluralRulesSpace, intlPluralRulesHeapCellType.get(), IntlPluralRules)

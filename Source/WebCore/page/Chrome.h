@@ -57,6 +57,8 @@ class PopupMenuClient;
 class PopupOpeningObserver;
 class SearchPopupMenu;
 
+struct ContactInfo;
+struct ContactsRequestData;
 struct DateTimeChooserParameters;
 struct ShareDataWithParsedURL;
 struct ViewportArguments;
@@ -82,8 +84,7 @@ public:
     void setCursor(const Cursor&) override;
     void setCursorHiddenUntilMouseMoves(bool) override;
 
-    std::unique_ptr<ImageBuffer> createImageBuffer(const FloatSize&, ShouldAccelerate, ShouldUseDisplayList, RenderingPurpose, float resolutionScale, ColorSpace) const override;
-    std::unique_ptr<ImageBuffer> createImageBuffer(const FloatSize&, RenderingMode, float resolutionScale, ColorSpace) const override;
+    RefPtr<ImageBuffer> createImageBuffer(const FloatSize&, RenderingMode, RenderingPurpose, float resolutionScale, ColorSpace, PixelFormat) const override;
 
     PlatformDisplayID displayID() const override;
     void windowScreenDidChange(PlatformDisplayID, Optional<unsigned>) override;
@@ -161,6 +162,7 @@ public:
 
     void runOpenPanel(Frame&, FileChooser&);
     void showShareSheet(ShareDataWithParsedURL&, CompletionHandler<void(bool)>&&);
+    void showContactPicker(const ContactsRequestData&, CompletionHandler<void(Optional<Vector<ContactInfo>>&&)>&&);
     void loadIconForFiles(const Vector<String>&, FileIconLoader&);
 
     void dispatchDisabledAdaptationsDidChange(const OptionSet<DisabledAdaptations>&) const;

@@ -26,7 +26,6 @@
 #include "CSSComputedStyleDeclaration.h"
 
 #include "BasicShapeFunctions.h"
-#include "CSSAspectRatioValue.h"
 #include "CSSBasicShapes.h"
 #include "CSSBorderImage.h"
 #include "CSSBorderImageSliceValue.h"
@@ -3452,16 +3451,22 @@ RefPtr<CSSValue> ComputedStyleExtractor::valueForPropertyInStyle(const RenderSty
             return timingFunctionValue(style.animations());
         case CSSPropertyWebkitAppearance:
             return cssValuePool.createValue(style.appearance());
-        case CSSPropertyWebkitAspectRatio:
+        case CSSPropertyAspectRatio:
             switch (style.aspectRatioType()) {
             case AspectRatioType::Auto:
                 return cssValuePool.createIdentifierValue(CSSValueAuto);
-            case AspectRatioType::FromDimensions:
-                return cssValuePool.createIdentifierValue(CSSValueFromDimensions);
-            case AspectRatioType::FromIntrinsic:
-                return cssValuePool.createIdentifierValue(CSSValueFromIntrinsic);
-            case AspectRatioType::Specified:
-                return CSSAspectRatioValue::create(style.aspectRatioNumerator(), style.aspectRatioDenominator());
+            case AspectRatioType::AutoAndRatio:
+            case AspectRatioType::Ratio: {
+                auto ratioList = CSSValueList::createSlashSeparated();
+                ratioList->append(cssValuePool.createValue(style.aspectRatioWidth(), CSSUnitType::CSS_NUMBER));
+                ratioList->append(cssValuePool.createValue(style.aspectRatioHeight(), CSSUnitType::CSS_NUMBER));
+                if (style.aspectRatioType() == AspectRatioType::Ratio)
+                    return ratioList;
+                auto list = CSSValueList::createSpaceSeparated();
+                list->append(cssValuePool.createIdentifierValue(CSSValueAuto));
+                list->append(ratioList);
+                return list;
+            }
             }
             ASSERT_NOT_REACHED();
             return nullptr;
@@ -3794,17 +3799,17 @@ RefPtr<CSSValue> ComputedStyleExtractor::valueForPropertyInStyle(const RenderSty
             return getCSSPropertyValuesFor2SidesShorthand(paddingBlockShorthand());
         case CSSPropertyPaddingInline:
             return getCSSPropertyValuesFor2SidesShorthand(paddingInlineShorthand());
+        case CSSPropertyScrollMargin:
+            return getCSSPropertyValuesFor4SidesShorthand(scrollMarginShorthand());
+        case CSSPropertyScrollMarginBottom:
+            return zoomAdjustedPixelValueForLength(style.scrollMarginBottom(), style);
+        case CSSPropertyScrollMarginTop:
+            return zoomAdjustedPixelValueForLength(style.scrollMarginTop(), style);
+        case CSSPropertyScrollMarginRight:
+            return zoomAdjustedPixelValueForLength(style.scrollMarginRight(), style);
+        case CSSPropertyScrollMarginLeft:
+            return zoomAdjustedPixelValueForLength(style.scrollMarginLeft(), style);
 #if ENABLE(CSS_SCROLL_SNAP)
-        case CSSPropertyScrollSnapMargin:
-            return getCSSPropertyValuesFor4SidesShorthand(scrollSnapMarginShorthand());
-        case CSSPropertyScrollSnapMarginBottom:
-            return zoomAdjustedPixelValueForLength(style.scrollSnapMarginBottom(), style);
-        case CSSPropertyScrollSnapMarginTop:
-            return zoomAdjustedPixelValueForLength(style.scrollSnapMarginTop(), style);
-        case CSSPropertyScrollSnapMarginRight:
-            return zoomAdjustedPixelValueForLength(style.scrollSnapMarginRight(), style);
-        case CSSPropertyScrollSnapMarginLeft:
-            return zoomAdjustedPixelValueForLength(style.scrollSnapMarginLeft(), style);
         case CSSPropertyScrollPadding:
             return getCSSPropertyValuesFor4SidesShorthand(scrollPaddingShorthand());
         case CSSPropertyScrollPaddingBottom:

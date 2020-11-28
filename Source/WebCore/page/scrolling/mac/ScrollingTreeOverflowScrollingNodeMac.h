@@ -47,7 +47,8 @@ protected:
     
     FloatPoint adjustedScrollPosition(const FloatPoint&, ScrollClamping) const override;
 
-    void currentScrollPositionChanged(ScrollingLayerPositionAction) final;
+    void currentScrollPositionChanged(ScrollType, ScrollingLayerPositionAction) final;
+    void willDoProgrammaticScroll(const FloatPoint&) final;
 
     void repositionScrollingLayers() override;
     void repositionRelatedLayers() override;

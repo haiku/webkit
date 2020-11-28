@@ -27,32 +27,44 @@
 
 #if ENABLE(GPU_PROCESS)
 
-#include "DisplayListFlushIdentifier.h"
+#include "GPUProcessConnection.h"
 #include "ImageBufferBackendHandle.h"
 #include "MessageReceiver.h"
 #include "MessageSender.h"
-#include "RemoteImageBufferMessageHandlerProxy.h"
+#include "RemoteResourceCacheProxy.h"
 #include "RenderingBackendIdentifier.h"
-#include <WebCore/ColorSpace.h>
 #include <WebCore/DisplayList.h>
-#include <WebCore/FloatSize.h>
-#include <WebCore/RemoteResourceIdentifier.h>
-#include <WebCore/RenderingMode.h>
-#include <wtf/HashMap.h>
+#include <WebCore/RenderingResourceIdentifier.h>
+#include <wtf/Deque.h>
 #include <wtf/WeakPtr.h>
 
+namespace WebCore {
+namespace DisplayList {
+class DisplayList;
+class Item;
+}
+class FloatSize;
+class ImageData;
+enum class AlphaPremultiplication : uint8_t;
+enum class ColorSpace : uint8_t;
+enum class RenderingMode : bool;
+}
+
 namespace WebKit {
+
+class DisplayListWriterHandle;
 
 class RemoteRenderingBackendProxy
     : public IPC::MessageSender
     , private IPC::MessageReceiver
-    , public CanMakeWeakPtr<RemoteRenderingBackendProxy> {
+    , public GPUProcessConnection::Client {
 public:
     static std::unique_ptr<RemoteRenderingBackendProxy> create();
 
     ~RemoteRenderingBackendProxy();
 
-    RenderingBackendIdentifier renderingBackendIdentifier() const { return m_renderingBackendIdentifier; }
+    RemoteResourceCacheProxy& remoteResourceCacheProxy() { return m_remoteResourceCacheProxy; }
+    WebCore::DisplayList::ItemBufferHandle createItemBuffer(size_t capacity, WebCore::RenderingResourceIdentifier destinationBufferIdentifier);
 
     // IPC::MessageSender.
     IPC::Connection* messageSenderConnection() const override;
@@ -61,8 +73,13 @@ public:
     // IPC::MessageReceiver
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) override;
 
-    std::unique_ptr<WebCore::ImageBuffer> createImageBuffer(const WebCore::FloatSize&, WebCore::ShouldAccelerate, float resolutionScale, WebCore::ColorSpace);
-    void releaseRemoteResource(WebCore::RemoteResourceIdentifier);
+    // Messages to be sent.
+    RefPtr<WebCore::ImageBuffer> createImageBuffer(const WebCore::FloatSize&, WebCore::RenderingMode, float resolutionScale, WebCore::ColorSpace, WebCore::PixelFormat);
+    RefPtr<WebCore::ImageData> getImageData(WebCore::AlphaPremultiplication outputFormat, const WebCore::IntRect& srcRect, WebCore::RenderingResourceIdentifier);
+    void submitDisplayList(const WebCore::DisplayList::DisplayList&, WebCore::RenderingResourceIdentifier destinationBufferIdentifier);
+    WebCore::DisplayList::FlushIdentifier flushDisplayListAndCommit(const WebCore::DisplayList::DisplayList&, WebCore::RenderingResourceIdentifier);
+    void cacheNativeImage(WebCore::NativeImage&);
+    void releaseRemoteResource(WebCore::RenderingResourceIdentifier);
 
     bool waitForImageBufferBackendWasCreated();
     bool waitForFlushDisplayListWasCommitted();
@@ -70,12 +87,21 @@ public:
 private:
     RemoteRenderingBackendProxy();
 
-    // Messages to be received.
-    void imageBufferBackendWasCreated(const WebCore::FloatSize& logicalSize, const WebCore::IntSize& backendSize, float resolutionScale, WebCore::ColorSpace, ImageBufferBackendHandle, WebCore::RemoteResourceIdentifier);
-    void flushDisplayListWasCommitted(DisplayListFlushIdentifier, WebCore::RemoteResourceIdentifier);
+    // GPUProcessConnection::Client
+    void gpuProcessConnectionDidClose(GPUProcessConnection&) final;
 
-    using ImageBufferMessageHandlerMap = HashMap<WebCore::RemoteResourceIdentifier, RemoteImageBufferMessageHandlerProxy*>;
-    ImageBufferMessageHandlerMap m_imageBufferMessageHandlerMap;
+    void connectToGPUProcess();
+    void reestablishGPUProcessConnection();
+    void updateReusableHandles();
+
+    // Messages to be received.
+    void imageBufferBackendWasCreated(const WebCore::FloatSize& logicalSize, const WebCore::IntSize& backendSize, float resolutionScale, WebCore::ColorSpace, WebCore::PixelFormat, ImageBufferBackendHandle, WebCore::RenderingResourceIdentifier);
+    void flushDisplayListWasCommitted(WebCore::DisplayList::FlushIdentifier, WebCore::RenderingResourceIdentifier);
+
+    RemoteResourceCacheProxy m_remoteResourceCacheProxy { *this };
+    HashMap<WebCore::DisplayList::ItemBufferIdentifier, RefPtr<DisplayListWriterHandle>> m_sharedDisplayListHandles;
+    Deque<WebCore::DisplayList::ItemBufferIdentifier> m_identifiersOfReusableHandles;
+    HashSet<WebCore::DisplayList::ItemBufferIdentifier> m_identifiersOfHandlesAvailableForWriting;
     RenderingBackendIdentifier m_renderingBackendIdentifier { RenderingBackendIdentifier::generate() };
 };
 

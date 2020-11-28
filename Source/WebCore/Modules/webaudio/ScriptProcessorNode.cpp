@@ -90,8 +90,9 @@ void ScriptProcessorNode::initialize()
     // Create double buffers on both the input and output sides.
     // These AudioBuffers will be directly accessed in the main thread by JavaScript.
     for (unsigned i = 0; i < 2; ++i) {
-        auto inputBuffer = m_numberOfInputChannels ? AudioBuffer::create(m_numberOfInputChannels, bufferSize(), sampleRate) : 0;
-        auto outputBuffer = m_numberOfOutputChannels ? AudioBuffer::create(m_numberOfOutputChannels, bufferSize(), sampleRate) : 0;
+        // We prevent detaching the AudioBuffers here since we pass those to JS and reuse them.
+        auto inputBuffer = m_numberOfInputChannels ? AudioBuffer::create(m_numberOfInputChannels, bufferSize(), sampleRate, AudioBuffer::LegacyPreventDetaching::Yes) : 0;
+        auto outputBuffer = m_numberOfOutputChannels ? AudioBuffer::create(m_numberOfOutputChannels, bufferSize(), sampleRate, AudioBuffer::LegacyPreventDetaching::Yes) : 0;
 
         m_inputBuffers.append(inputBuffer);
         m_outputBuffers.append(outputBuffer);
@@ -268,6 +269,19 @@ bool ScriptProcessorNode::requiresTailProcessing() const
 {
     // Always return true since the tail and latency are never zero.
     return true;
+}
+
+void ScriptProcessorNode::eventListenersDidChange()
+{
+    m_hasAudioProcessEventListener = hasEventListeners(eventNames().audioprocessEvent);
+}
+
+bool ScriptProcessorNode::virtualHasPendingActivity() const
+{
+    if (context().isClosed())
+        return false;
+
+    return m_hasAudioProcessEventListener;
 }
 
 } // namespace WebCore

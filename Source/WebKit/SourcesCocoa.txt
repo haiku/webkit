@@ -256,8 +256,10 @@ UIProcess/API/Cocoa/_WKExperimentalFeature.mm
 UIProcess/API/Cocoa/_WKFrameTreeNode.mm
 UIProcess/API/Cocoa/_WKGeolocationPosition.mm
 UIProcess/API/Cocoa/_WKInspector.mm
+UIProcess/API/Cocoa/_WKInspectorConfiguration.mm
 UIProcess/API/Cocoa/_WKInspectorTesting.mm
 UIProcess/API/Cocoa/_WKInspectorDebuggableInfo.mm
+UIProcess/API/Cocoa/_WKInspectorExtension.mm
 UIProcess/API/Cocoa/_WKInspectorWindow.mm
 UIProcess/API/Cocoa/_WKInternalDebugFeature.mm
 UIProcess/API/Cocoa/_WKLinkIconParameters.mm
@@ -372,6 +374,7 @@ UIProcess/Cocoa/GlobalFindInPageState.mm
 UIProcess/Cocoa/IconLoadingDelegate.mm
 UIProcess/Cocoa/LegacyCustomProtocolManagerClient.mm
 UIProcess/Cocoa/MediaUtilities.mm
+UIProcess/Cocoa/MediaPermissionUtilities.mm
 UIProcess/Cocoa/NavigationState.mm
 UIProcess/Cocoa/PageClientImplCocoa.mm
 UIProcess/Cocoa/PlaybackSessionManagerProxy.mm
@@ -394,6 +397,7 @@ UIProcess/Cocoa/WebProcessPoolCocoa.mm
 UIProcess/Cocoa/WebProcessProxyCocoa.mm
 UIProcess/Cocoa/WebURLSchemeHandlerCocoa.mm
 UIProcess/Cocoa/WebViewImpl.mm
+UIProcess/Cocoa/WKContactPicker.mm
 UIProcess/Cocoa/WKEditCommand.mm
 UIProcess/Cocoa/WKFullKeyboardAccessWatcher.mm
 UIProcess/Cocoa/WKReloadFrameErrorRecoveryAttempter.mm
@@ -575,6 +579,7 @@ WebProcess/GPU/media/RemoteAudioSourceProviderManager.cpp
 WebProcess/GPU/media/cocoa/MediaPlayerPrivateRemoteCocoa.mm
 WebProcess/GPU/media/cocoa/VideoLayerRemoteCocoa.mm
 WebProcess/GPU/media/ios/RemoteMediaSessionHelper.cpp
+WebProcess/GPU/webrtc/LibWebRTCCodecs.mm
 
 WebProcess/InjectedBundle/API/c/WKBundlePageBanner.cpp
 

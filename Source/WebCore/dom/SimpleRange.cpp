@@ -27,6 +27,7 @@
 #include "SimpleRange.h"
 
 #include "CharacterData.h"
+#include "HTMLFrameOwnerElement.h"
 #include "NodeTraversal.h"
 #include "ShadowRoot.h"
 
@@ -47,75 +48,6 @@ SimpleRange::SimpleRange(BoundaryPoint&& start, BoundaryPoint&& end)
 bool operator==(const SimpleRange& a, const SimpleRange& b)
 {
     return a.start == b.start && a.end == b.end;
-}
-
-// FIXME: Create BoundaryPoint.cpp and move this there.
-Optional<BoundaryPoint> makeBoundaryPointBeforeNode(Node& node)
-{
-    auto parent = node.parentNode();
-    if (!parent)
-        return WTF::nullopt;
-    return BoundaryPoint { *parent, node.computeNodeIndex() };
-}
-
-// FIXME: Create BoundaryPoint.cpp and move this there.
-Optional<BoundaryPoint> makeBoundaryPointAfterNode(Node& node)
-{
-    auto parent = node.parentNode();
-    if (!parent)
-        return WTF::nullopt;
-    return BoundaryPoint { *parent, node.computeNodeIndex() + 1 };
-}
-
-// FIXME: Create BoundaryPoint.cpp and move this there.
-static bool isOffsetBeforeChild(ContainerNode& container, unsigned offset, Node& child)
-{
-    if (!offset)
-        return true;
-    // If the container is not the parent, the child is part of a shadow tree, which we sort between offset 0 and offset 1.
-    if (child.parentNode() != &container)
-        return false;
-    unsigned currentOffset = 0;
-    for (auto currentChild = container.firstChild(); currentChild && currentChild != &child; currentChild = currentChild->nextSibling()) {
-        if (offset <= ++currentOffset)
-            return true;
-    }
-    return false;
-}
-
-// FIXME: Create BoundaryPoint.cpp and move this there.
-// FIXME: Once we move to C++20, replace with the C++20 <=> operator.
-// FIXME: This could return std::strong_ordering if we had that, or the equivalent.
-static PartialOrdering order(unsigned a, unsigned b)
-{
-    if (a < b)
-        return PartialOrdering::less;
-    if (a > b)
-        return PartialOrdering::greater;
-    return PartialOrdering::equivalent;
-}
-
-// FIXME: Create BoundaryPoint.cpp and move this there.
-PartialOrdering documentOrder(const BoundaryPoint& a, const BoundaryPoint& b)
-{
-    if (a.container.ptr() == b.container.ptr())
-        return order(a.offset, b.offset);
-
-    for (auto ancestor = b.container.ptr(); ancestor; ) {
-        auto nextAncestor = ancestor->parentInComposedTree();
-        if (nextAncestor == a.container.ptr())
-            return isOffsetBeforeChild(*nextAncestor, a.offset, *ancestor) ? PartialOrdering::less : PartialOrdering::greater;
-        ancestor = nextAncestor;
-    }
-
-    for (auto ancestor = a.container.ptr(); ancestor; ) {
-        auto nextAncestor = ancestor->parentInComposedTree();
-        if (nextAncestor == b.container.ptr())
-            return isOffsetBeforeChild(*nextAncestor, b.offset, *ancestor) ? PartialOrdering::greater : PartialOrdering::less;
-        ancestor = nextAncestor;
-    }
-
-    return documentOrder(a.container, b.container);
 }
 
 Optional<SimpleRange> makeRangeSelectingNode(Node& node)
@@ -203,84 +135,200 @@ void IntersectingNodeIterator::enforceEndInvariant()
     }
 }
 
-RefPtr<Node> commonInclusiveAncestor(const SimpleRange& range)
+template<TreeType treeType> Node* commonInclusiveAncestor(const SimpleRange& range)
 {
-    return commonInclusiveAncestor(range.start.container, range.end.container);
+    return commonInclusiveAncestor<treeType>(range.start.container, range.end.container);
 }
 
-bool isPointInRange(const SimpleRange& range, const BoundaryPoint& point)
+template Node* commonInclusiveAncestor<ComposedTree>(const SimpleRange&);
+
+template<TreeType treeType> bool contains(const SimpleRange& range, const BoundaryPoint& point)
 {
-    return is_lteq(documentOrder(range.start, point)) && is_lteq(documentOrder(point, range.end));
+    return is_lteq(treeOrder<treeType>(range.start, point)) && is_lteq(treeOrder<treeType>(point, range.end));
 }
 
-bool isPointInRange(const SimpleRange& range, const Optional<BoundaryPoint>& point)
+template bool contains<Tree>(const SimpleRange&, const BoundaryPoint&);
+
+template<TreeType treeType> bool contains(const SimpleRange& range, const Optional<BoundaryPoint>& point)
 {
-    return point && isPointInRange(range, *point);
+    return point && contains<treeType>(range, *point);
 }
 
-PartialOrdering documentOrder(const SimpleRange& range, const BoundaryPoint& point)
+template bool contains<ComposedTree>(const SimpleRange&, const Optional<BoundaryPoint>&);
+
+bool containsForTesting(TreeType type, const SimpleRange& range, const BoundaryPoint& point)
 {
-    if (auto order = documentOrder(range.start, point); !is_lt(order))
+    switch (type) {
+    case Tree:
+        return contains<Tree>(range, point);
+    case ShadowIncludingTree:
+        return contains<ShadowIncludingTree>(range, point);
+    case ComposedTree:
+        return contains<ComposedTree>(range, point);
+    }
+    ASSERT_NOT_REACHED();
+    return false;
+}
+
+template<TreeType treeType> PartialOrdering treeOrder(const SimpleRange& range, const BoundaryPoint& point)
+{
+    if (auto order = treeOrder<treeType>(range.start, point); !is_lt(order))
         return order;
-    if (auto order = documentOrder(range.end, point); !is_gt(order))
+    if (auto order = treeOrder<treeType>(range.end, point); !is_gt(order))
         return order;
     return PartialOrdering::equivalent;
 }
 
-PartialOrdering documentOrder(const BoundaryPoint& point, const SimpleRange& range)
+template<TreeType treeType> PartialOrdering treeOrder(const BoundaryPoint& point, const SimpleRange& range)
 {
-    if (auto order = documentOrder(point, range.start); !is_gt(order))
+    if (auto order = treeOrder<treeType>(point, range.start); !is_gt(order))
         return order;
-    if (auto order = documentOrder(point, range.end); !is_lt(order))
+    if (auto order = treeOrder<treeType>(point, range.end); !is_lt(order))
         return order;
     return PartialOrdering::equivalent;
 }
 
-bool contains(const SimpleRange& outerRange, const SimpleRange& innerRange)
+template PartialOrdering treeOrder<Tree>(const SimpleRange&, const BoundaryPoint&);
+template PartialOrdering treeOrder<Tree>(const BoundaryPoint&, const SimpleRange&);
+
+template<TreeType treeType> bool contains(const SimpleRange& outerRange, const SimpleRange& innerRange)
 {
-    return is_lteq(documentOrder(outerRange.start, innerRange.start)) && is_gteq(documentOrder(outerRange.end, innerRange.end));
+    return is_lteq(treeOrder<treeType>(outerRange.start, innerRange.start)) && is_gteq(treeOrder<treeType>(outerRange.end, innerRange.end));
 }
 
-bool intersects(const SimpleRange& a, const SimpleRange& b)
+template bool contains<Tree>(const SimpleRange&, const SimpleRange&);
+template bool contains<ComposedTree>(const SimpleRange&, const SimpleRange&);
+
+bool containsForTesting(TreeType type, const SimpleRange& outerRange, const SimpleRange& innerRange)
 {
-    return is_lteq(documentOrder(a.start, b.end)) && is_lteq(documentOrder(b.start, a.end));
+    switch (type) {
+    case Tree:
+        return contains<Tree>(outerRange, innerRange);
+    case ShadowIncludingTree:
+        return contains<ShadowIncludingTree>(outerRange, innerRange);
+    case ComposedTree:
+        return contains<ComposedTree>(outerRange, innerRange);
+    }
+    ASSERT_NOT_REACHED();
+    return false;
 }
 
-static bool compareByDocumentOrder(const BoundaryPoint& a, const BoundaryPoint& b)
+template<TreeType treeType> bool intersects(const SimpleRange& a, const SimpleRange& b)
 {
-    return is_lt(documentOrder(a, b));
+    return is_lteq(treeOrder<treeType>(a.start, b.end)) && is_lteq(treeOrder<treeType>(b.start, a.end));
+}
+
+template bool intersects<Tree>(const SimpleRange&, const SimpleRange&);
+template bool intersects<ComposedTree>(const SimpleRange&, const SimpleRange&);
+
+bool intersectsForTesting(TreeType type, const SimpleRange& a, const SimpleRange& b)
+{
+    switch (type) {
+    case Tree:
+        return intersects<Tree>(a, b);
+    case ShadowIncludingTree:
+        return intersects<ShadowIncludingTree>(a, b);
+    case ComposedTree:
+        return intersects<ComposedTree>(a, b);
+    }
+    ASSERT_NOT_REACHED();
+    return false;
+}
+
+static bool compareByComposedTreeOrder(const BoundaryPoint& a, const BoundaryPoint& b)
+{
+    return is_lt(treeOrder<ComposedTree>(a, b));
 }
 
 SimpleRange unionRange(const SimpleRange& a, const SimpleRange& b)
 {
-    return { std::min(a.start, b.start, compareByDocumentOrder), std::max(a.end, b.end, compareByDocumentOrder) };
+    return { std::min(a.start, b.start, compareByComposedTreeOrder), std::max(a.end, b.end, compareByComposedTreeOrder) };
 }
 
 Optional<SimpleRange> intersection(const Optional<SimpleRange>& a, const Optional<SimpleRange>& b)
 {
-    // FIXME: Can this be done with fewer calls to documentOrder?
-    if (!a || !b || !intersects(*a, *b))
+    // FIXME: Can this be done more efficiently, with fewer calls to treeOrder?
+    if (!a || !b || !intersects<ComposedTree>(*a, *b))
         return WTF::nullopt;
-    return { { std::max(a->start, b->start, compareByDocumentOrder), std::min(a->end, b->end, compareByDocumentOrder) } };
+    return { { std::max(a->start, b->start, compareByComposedTreeOrder), std::min(a->end, b->end, compareByComposedTreeOrder) } };
 }
 
-bool contains(const SimpleRange& range, const Node& node)
+template<TreeType treeType> bool contains(const SimpleRange& range, const Node& node)
 {
     // FIXME: Consider a more efficient algorithm that avoids always computing the node index.
     // FIXME: Does this const_cast point to a design problem?
     auto nodeRange = makeRangeSelectingNode(const_cast<Node&>(node));
-    return nodeRange && contains(range, *nodeRange);
+    return nodeRange && contains<treeType>(range, *nodeRange);
 }
 
-bool intersects(const SimpleRange& range, const Node& node)
+template bool contains<Tree>(const SimpleRange&, const Node&);
+template bool contains<ComposedTree>(const SimpleRange&, const Node&);
+
+bool containsForTesting(TreeType type, const SimpleRange& range, const Node& node)
+{
+    switch (type) {
+    case Tree:
+        return contains<Tree>(range, node);
+    case ShadowIncludingTree:
+        return contains<ShadowIncludingTree>(range, node);
+    case ComposedTree:
+        return contains<ComposedTree>(range, node);
+    }
+    ASSERT_NOT_REACHED();
+    return false;
+}
+
+template<TreeType treeType> bool contains(const Node& outer, const Node& inner)
+{
+    for (auto inclusiveAncestor = &inner; inclusiveAncestor; inclusiveAncestor = parent<treeType>(*inclusiveAncestor)) {
+        if (inclusiveAncestor == &outer)
+            return true;
+    }
+    return false;
+}
+
+template<> bool contains<Tree>(const Node& outer, const Node& inner)
+{
+    // We specialize here because we want to take advantage of optimizations in Node::isDescendantOf.
+    return outer.contains(inner);
+}
+
+template<TreeType treeType> bool intersects(const SimpleRange& range, const Node& node)
 {
     // FIXME: Consider a more efficient algorithm that avoids always computing the node index.
     // FIXME: Does this const_cast point to a design problem?
     auto nodeRange = makeRangeSelectingNode(const_cast<Node&>(node));
     if (!nodeRange)
-        return node.contains(range.start.container.ptr());
-    return is_lt(documentOrder(nodeRange->start, range.end)) && is_lt(documentOrder(range.start, nodeRange->end));
+        return contains<treeType>(node, range.start.container);
+    return is_lt(treeOrder<treeType>(nodeRange->start, range.end)) && is_lt(treeOrder<treeType>(range.start, nodeRange->end));
+}
 
+template bool intersects<Tree>(const SimpleRange&, const Node&);
+template bool intersects<ComposedTree>(const SimpleRange&, const Node&);
+
+bool intersectsForTesting(TreeType type, const SimpleRange& range, const Node& node)
+{
+    switch (type) {
+    case Tree:
+        return intersects<Tree>(range, node);
+    case ShadowIncludingTree:
+        return intersects<ShadowIncludingTree>(range, node);
+    case ComposedTree:
+        return intersects<ComposedTree>(range, node);
+    }
+    ASSERT_NOT_REACHED();
+    return false;
+}
+
+bool containsCrossingDocumentBoundaries(const SimpleRange& range, Node& node)
+{
+    auto* ancestor = &node;
+    while (&range.start.document() != &ancestor->document()) {
+        ancestor = ancestor->document().ownerElement();
+        if (!ancestor)
+            return false;
+    }
+    return contains<ComposedTree>(range, *ancestor);
 }
 
 }
