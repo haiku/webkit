@@ -274,41 +274,6 @@ void TestRunner::setPrivateBrowsingEnabled(bool flag)
     notImplemented();
 }
 
-void TestRunner::setJavaScriptCanAccessClipboard(bool flag)
-{
-    notImplemented();
-}
-
-void TestRunner::setXSSAuditorEnabled(bool flag)
-{
-    notImplemented();
-}
-
-void TestRunner::setSpatialNavigationEnabled(bool flag)
-{
-    notImplemented();
-}
-
-void TestRunner::setAllowUniversalAccessFromFileURLs(bool flag)
-{
-    notImplemented();
-}
- 
-void TestRunner::setAllowFileAccessFromFileURLs(bool flag)
-{
-    notImplemented();
-}
-
-void TestRunner::setNeedsStorageAccessFromFileURLsQuirk(bool needsQuirk)
-{
-    notImplemented();
-}
-
-void TestRunner::setAuthorAndUserStylesEnabled(bool flag)
-{
-    notImplemented();
-}
-
 void TestRunner::setMockDeviceOrientation(bool, double, bool, double, bool, double)
 {
     // FIXME: Implement for DeviceOrientation layout tests.
@@ -346,16 +311,6 @@ bool TestRunner::isGeolocationProviderActive()
 }
 
 void TestRunner::setIconDatabaseEnabled(bool enabled)
-{
-    notImplemented();
-}
-
-void TestRunner::setPopupBlockingEnabled(bool flag)
-{
-    notImplemented();
-}
-
-void TestRunner::setPluginsEnabled(bool flag)
 {
     notImplemented();
 }
@@ -504,11 +459,6 @@ void TestRunner::addUserScript(JSStringRef source, bool runAtStart, bool allFram
 void TestRunner::addUserStyleSheet(JSStringRef source, bool allFrames)
 {
     notImplemented();
-}
-
-void TestRunner::setDeveloperExtrasEnabled(bool enabled)
-{
-    webView->WebPage()->SetDeveloperExtrasEnabled(enabled);
 }
 
 void TestRunner::showWebInspector()

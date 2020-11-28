@@ -1,7 +1,5 @@
 /*
- * Copyright (C) 2010 Stephan Aßmus <superstippi@gmx.de>
- *
- * All rights reserved.
+ * Copyright (C) 2016-2020 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -25,40 +23,33 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef StillImageHaiku_h
-#define StillImageHaiku_h
+#include "config.h"
+#include "NativeImage.h"
 
-#include "Image.h"
 #include <Bitmap.h>
 
 namespace WebCore {
 
-class StillImage : public Image {
-public:
-    static RefPtr<StillImage> create(NativeImagePtr bitmap)
-    {
-        return adoptRef(new StillImage(bitmap));
-    }
+IntSize NativeImage::size() const
+{
+    return IntSize(m_platformImage.get()->Bounds().Size());
+}
 
-    static RefPtr<StillImage> createForRendering(NativeImagePtr bitmap)
-    {
-        return adoptRef(new StillImage(bitmap));
-    }
+bool NativeImage::hasAlpha() const
+{
+    return m_platformImage.get()->ColorSpace() == B_RGBA32;
+}
 
-    virtual bool currentFrameKnownToBeOpaque() const override;
-    virtual void destroyDecodedData(bool = true) override;
+Color NativeImage::singlePixelSolidColor() const
+{
+    if (size() != IntSize(1, 1))
+        return Color();
 
-    virtual FloatSize size(ImageOrientation) const override;
-    virtual NativeImagePtr nativeImageForCurrentFrame(const GraphicsContext*) override;
-    virtual ImageDrawResult draw(GraphicsContext&, const FloatRect& dstRect, const FloatRect& srcRect, const ImagePaintingOptions&) override;
+    return (asSRGBA(PackedColor::ARGB { *(int32*)m_platformImage.get()->Bits()}));
+}
 
-private:
-    StillImage(NativeImagePtr bitmap);
-    ~StillImage();
-
-    NativeImagePtr m_bitmap;
-};
+void NativeImage::clearSubimages()
+{
+}
 
 } // namespace WebCore
-
-#endif // StillImageHaiku_h

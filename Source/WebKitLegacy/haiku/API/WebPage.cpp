@@ -45,6 +45,7 @@
 #include "DiagnosticLoggingClient.h"
 #include "DOMTimer.h"
 #include "DragClientHaiku.h"
+#include "DummySpeechRecognitionProvider.h"
 #include "Editor.h"
 #include "EditorClientHaiku.h"
 #include "EmptyClients.h"
@@ -74,7 +75,6 @@
 #include "PlatformMouseEvent.h"
 #include "PlatformStrategiesHaiku.h"
 #include "PlatformWheelEvent.h"
-#include "PlugInClient.h"
 #include "PluginInfoProvider.h"
 #include "PointerLockController.h"
 #include "ProgressTracker.h"
@@ -262,39 +262,40 @@ BWebPage::BWebPage(BWebView* webView, BUrlContext* context)
     RefPtr<WebViewGroup> viewGroup = WebViewGroup::getOrCreate("default",
         storagePath.Path());
 
-	auto storageProvider = PageStorageSessionProvider::create();
+    auto storageProvider = PageStorageSessionProvider::create();
     PageConfiguration pageClients(
-		PAL::SessionID::defaultSessionID(),
-		makeUniqueRef<EditorClientHaiku>(this),
-		SocketProvider::create(),
+        PAL::SessionID::defaultSessionID(),
+        makeUniqueRef<EditorClientHaiku>(this),
+        SocketProvider::create(),
         makeUniqueRef<LibWebRTCProvider>(),
-		CacheStorageProvider::create(),
-		BackForwardList::create(),
-		CookieJar::create(storageProvider.copyRef()),
-    	makeUniqueRef<ProgressTrackerClientHaiku>(this),
-    	makeUniqueRef<FrameLoaderClientHaiku>(this),
-		makeUniqueRef<MediaRecorderProviderHaiku>()
-		);
+        CacheStorageProvider::create(),
+        BackForwardList::create(),
+        CookieJar::create(storageProvider.copyRef()),
+        makeUniqueRef<ProgressTrackerClientHaiku>(this),
+        makeUniqueRef<FrameLoaderClientHaiku>(this),
+        makeUniqueRef<WebCore::DummySpeechRecognitionProvider>(),
+        makeUniqueRef<MediaRecorderProviderHaiku>()
+        );
 
-	// alternativeText
+    // alternativeText
     pageClients.chromeClient = new ChromeClientHaiku(this, webView);
     pageClients.contextMenuClient = new ContextMenuClientHaiku(this);
     pageClients.dragClient = std::make_unique<DragClientHaiku>(webView);
     pageClients.inspectorClient = new InspectorClientHaiku();
-	pageClients.diagnosticLoggingClient = std::make_unique<WebKit::WebDiagnosticLoggingClient>();
+    pageClients.diagnosticLoggingClient = std::make_unique<WebKit::WebDiagnosticLoggingClient>();
     pageClients.applicationCacheStorage = &WebApplicationCache::storage();
     pageClients.databaseProvider = &WebDatabaseProvider::singleton();
-	// performanceLogging
+    // performanceLogging
     // pluginInClient
     pageClients.pluginInfoProvider = adoptRef(*new EmptyPluginInfoProvider);
     pageClients.storageNamespaceProvider = &viewGroup->storageNamespaceProvider();
     pageClients.userContentProvider = &viewGroup->userContentController();
-	// validationMessage *
+    // validationMessage *
     pageClients.visitedLinkStore = &viewGroup->visitedLinkStore();
-	// webGLStateTracker *
+    // webGLStateTracker *
 
     fPage = new Page(WTFMove(pageClients));
-	storageProvider->setPage(*fPage);
+    storageProvider->setPage(*fPage);
 
 #if ENABLE(GEOLOCATION)
     WebCore::provideGeolocationTo(fPage, new GeolocationClientMock());
@@ -1307,8 +1308,22 @@ void BWebPage::handleMouseWheelChanged(BMessage* message)
     if (!frame->view() || !frame->document())
         return;
 
-    PlatformWheelEvent event(message);
-    frame->eventHandler().handleWheelEvent(event);
+    BPoint position = message->FindPoint("be:view_where");
+    BPoint globalPosition = message->FindPoint("screen_where");
+    float deltaX = -message->FindFloat("be:wheel_delta_x");
+    float deltaY = -message->FindFloat("be:wheel_delta_y");
+    float wheelTicksX = deltaX;
+    float wheelTicksY = deltaY;
+
+    deltaX *= Scrollbar::pixelsPerLineStep();
+    deltaY *= Scrollbar::pixelsPerLineStep();
+
+    int32 modifiers = message->FindInt32("modifiers");
+
+    PlatformWheelEvent event(IntPoint(position), IntPoint(globalPosition), deltaX, deltaY,
+        wheelTicksX, wheelTicksY, ScrollByPixelWheelEvent, modifiers & B_SHIFT_KEY,
+        modifiers & B_COMMAND_KEY, modifiers & B_CONTROL_KEY, modifiers & B_OPTION_KEY);
+    frame->eventHandler().handleWheelEvent(event, { WheelEventProcessingSteps::MainThreadForScrolling, WheelEventProcessingSteps::MainThreadForDOMEventDispatch });
 }
 
 void BWebPage::handleKeyEvent(BMessage* message)

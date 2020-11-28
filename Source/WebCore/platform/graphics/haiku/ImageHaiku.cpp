@@ -57,35 +57,5 @@ FloatSize nativeImageDrawingScale(GraphicsContext& context, const FloatRect& des
     return { static_cast<float>(transformedDestinationRect.width() / srcRect.width()), static_cast<float>(transformedDestinationRect.height() / srcRect.height()) };
 }
 
-
-void drawNativeImage(WTF::RefPtr<WebCore::BitmapRef> const& image,
-    WebCore::GraphicsContext& ctxt, WebCore::FloatRect const& dst,
-    WebCore::FloatRect const& src, WebCore::IntSize const& size,
-    WebCore::ImagePaintingOptions const& options)
-{
-    ctxt.drawNativeImage(image, size, dst, src, options);
-}
-
-
-NativeImagePtr BitmapImage::getBBitmap()
-{
-    return frameImageAtIndex(0);
-}
-
-NativeImagePtr BitmapImage::getFirstBBitmapOfSize(const IntSize& size)
-{
-    size_t count = frameCount();
-    for (size_t i = 0; i < count; ++i) {
-        NativeImagePtr bitmap = frameImageAtIndex(i);
-        if (bitmap && bitmap->Bounds().IntegerWidth() + 1 == size.width()
-            && bitmap->Bounds().IntegerHeight() + 1 == size.height()) {
-            return bitmap;
-        }
-    }
-
-    // Fallback to the default getBBitmap if we can't find the right size
-    return getBBitmap();
-}
-
 } // namespace WebCore
 

@@ -26,13 +26,13 @@
 #include "config.h"
 #include "ImageBufferHaikuSurfaceBackend.h"
 
+#include "BitmapImage.h"
 #include "ColorUtilities.h"
 #include "GraphicsContext.h"
 #include "ImageData.h"
 #include "IntRect.h"
 #include "MIMETypeRegistry.h"
 #include "NotImplemented.h"
-#include "StillImageHaiku.h"
 #include "JavaScriptCore/JSCInlines.h"
 #include "JavaScriptCore/TypedArrayInlines.h"
 
@@ -49,23 +49,24 @@ namespace WebCore {
 
 
 ImageBufferData::ImageBufferData(const IntSize& size)
-    : m_bitmap(adoptRef(new BitmapRef(BRect(0, 0, size.width() - 1, size.height() - 1), B_RGBA32, true)))
+    : m_image(NativeImage::create(new BitmapRef(BRect(0, 0, size.width() - 1, size.height() - 1), B_RGBA32, true)))
     , m_view(NULL)
     , m_context(NULL)
 {
     // Always keep the bitmap locked, we are the only client.
-    m_bitmap->Lock();
+    PlatformImagePtr bitmap = m_image->platformImage();
+    bitmap->Lock();
     if(size.isEmpty())
         return;
 
-    if (!m_bitmap->IsLocked() || !m_bitmap->IsValid())
+    if (!bitmap->IsLocked() || !bitmap->IsValid())
         return;
 
-    m_view = new BView(m_bitmap->Bounds(), "WebKit ImageBufferData", 0, 0);
-    m_bitmap->AddChild(m_view);
+    m_view = new BView(bitmap->Bounds(), "WebKit ImageBufferData", 0, 0);
+    bitmap->AddChild(m_view);
 
     // Fill with completely transparent color.
-    memset(m_bitmap->Bits(), 0, m_bitmap->BitsLength());
+    memset(bitmap->Bits(), 0, bitmap->BitsLength());
 
     // Since ImageBuffer is used mainly for Canvas, explicitly initialize
     // its view's graphics state with the corresponding canvas defaults
@@ -74,8 +75,6 @@ ImageBufferData::ImageBufferData(const IntSize& size)
     m_view->SetDrawingMode(B_OP_ALPHA);
     m_view->SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_COMPOSITE);
     m_context = new GraphicsContext(m_view);
-
-    m_image = StillImage::createForRendering(m_bitmap);
 }
 
 
@@ -85,23 +84,24 @@ ImageBufferData::~ImageBufferData()
         // m_bitmap owns m_view and deletes it when going out of this destructor.
     m_image = nullptr;
     delete m_context;
-
-    m_bitmap->Unlock();
 }
 
 
-NativeImagePtr ImageBufferHaikuSurfaceBackend::copyNativeImage(WebCore::BackingStoreCopy doCopy) const
+WTF::RefPtr<WebCore::NativeImage> ImageBufferHaikuSurfaceBackend::copyNativeImage(WebCore::BackingStoreCopy doCopy) const
 {
-    if (doCopy == DontCopyBackingStore)
-        return m_data.m_bitmap;
-    else
-        return new BitmapRef(m_data.m_bitmap.get());
+    if (doCopy == DontCopyBackingStore) {
+        PlatformImagePtr ref = m_data.m_image->platformImage();
+        return NativeImage::create(std::move(ref));
+    } else {
+        BitmapRef* ref = new BitmapRef(*(BBitmap*)m_data.m_image->platformImage().get());
+        return NativeImage::create(ref);
+    }
 }
 
 
 std::unique_ptr<ImageBufferHaikuSurfaceBackend>
 ImageBufferHaikuSurfaceBackend::create(const FloatSize& size, float resolutionScale,
-    ColorSpace colorSpace, const HostWindow* window)
+    ColorSpace colorSpace, PixelFormat, const HostWindow* window)
 {
     IntSize backendSize = calculateBackendSize(size, resolutionScale);
     if (backendSize.isEmpty())
@@ -117,30 +117,20 @@ std::unique_ptr<ImageBufferHaikuSurfaceBackend>
 ImageBufferHaikuSurfaceBackend::create(const FloatSize& size,
     const GraphicsContext&)
 {
-    return create(size, 1, ColorSpace::SRGB, NULL);
+    return create(size, 1, ColorSpace::SRGB, PixelFormat::BGRA8, NULL);
 }
 
 
 ImageBufferHaikuSurfaceBackend::ImageBufferHaikuSurfaceBackend(
     const FloatSize& logicalSize, const IntSize& backendSize,
     float resolutionScale, ColorSpace colorSpace, const HostWindow*)
-    : ImageBufferBackend(logicalSize, backendSize, resolutionScale, colorSpace)
+    : ImageBufferBackend(logicalSize, backendSize, resolutionScale, colorSpace, PixelFormat::BGRA8)
     , m_data(backendSize)
 {
 }
 
 ImageBufferHaikuSurfaceBackend::~ImageBufferHaikuSurfaceBackend()
 {
-}
-
-ColorFormat ImageBufferHaikuSurfaceBackend::backendColorFormat() const
-{
-    return ColorFormat::BGRA;
-}
-
-AlphaPremultiplication ImageBufferHaikuSurfaceBackend::backendAlphaPremultiplication() const
-{
-    return AlphaPremultiplication::Unpremultiplied;
 }
 
 GraphicsContext& ImageBufferHaikuSurfaceBackend::context() const
@@ -153,10 +143,7 @@ RefPtr<Image> ImageBufferHaikuSurfaceBackend::copyImage(BackingStoreCopy copyBeh
     if (m_data.m_view)
         m_data.m_view->Sync();
 
-    if (copyBehavior == CopyBackingStore)
-        return StillImage::create(NativeImagePtr(new BitmapRef(*dynamic_cast<BBitmap*>(m_data.m_bitmap.get()))));
-
-    return StillImage::createForRendering(m_data.m_bitmap);
+    return BitmapImage::create(copyNativeImage(copyBehavior));
 }
 
 void ImageBufferHaikuSurfaceBackend::draw(GraphicsContext& destContext, const FloatRect& destRect, const FloatRect& srcRect,
@@ -171,7 +158,7 @@ void ImageBufferHaikuSurfaceBackend::draw(GraphicsContext& destContext, const Fl
         RefPtr<Image> copy = copyImage(CopyBackingStore, PreserveResolution::Yes);
         destContext.drawImage(*copy.get(), destRect, srcRect, options);
     } else
-        destContext.drawImage(*m_data.m_image.get(), destRect, srcRect, options);
+        destContext.drawNativeImage(*m_data.m_image.get(), srcRect.size(), destRect, srcRect, options);
 }
 
 void ImageBufferHaikuSurfaceBackend::drawPattern(GraphicsContext& destContext,
@@ -188,23 +175,23 @@ void ImageBufferHaikuSurfaceBackend::drawPattern(GraphicsContext& destContext,
         RefPtr<Image> copy = copyImage(CopyBackingStore, PreserveResolution::Yes);
         copy->drawPattern(destContext, destRect, srcRect, patternTransform, phase, size, options.compositeOperator());
     } else
-        m_data.m_image->drawPattern(destContext, destRect, srcRect, patternTransform, phase, size, options.compositeOperator());
+        destContext.drawPattern(*m_data.m_image.get(), srcRect.size(), destRect, srcRect, patternTransform, phase, size, options.compositeOperator());
 }
 
 Vector<uint8_t> ImageBufferHaikuSurfaceBackend::toBGRAData() const
 {
-    return ImageBufferBackend::toBGRAData(m_data.m_bitmap->Bits());
+    return ImageBufferBackend::toBGRAData(m_data.m_image->platformImage()->Bits());
 }
 
 
 RefPtr<ImageData> ImageBufferHaikuSurfaceBackend::getImageData(AlphaPremultiplication outputFormat, const IntRect& srcRect) const
 {
-    return ImageBufferBackend::getImageData(outputFormat, srcRect, m_data.m_bitmap->Bits());
+    return ImageBufferBackend::getImageData(outputFormat, srcRect, m_data.m_image->platformImage()->Bits());
 }
 
-void ImageBufferHaikuSurfaceBackend::putImageData(AlphaPremultiplication sourceFormat, const ImageData& imageData, const IntRect& sourceRect, const IntPoint& destPoint, AlphaPremultiplication)
+void ImageBufferHaikuSurfaceBackend::putImageData(AlphaPremultiplication sourceFormat, const ImageData& imageData, const IntRect& sourceRect, const IntPoint& destPoint, AlphaPremultiplication premultiplication)
 {
-    ImageBufferBackend::putImageData(sourceFormat, imageData, sourceRect, destPoint, backendAlphaPremultiplication(), m_data.m_bitmap->Bits());
+    ImageBufferBackend::putImageData(sourceFormat, imageData, sourceRect, destPoint, premultiplication, m_data.m_image->platformImage()->Bits());
 }
 
 // TODO: PreserveResolution
@@ -266,7 +253,7 @@ Vector<uint8_t> ImageBufferHaikuSurfaceBackend::toData(const String& mimeType, O
 
     BMallocIO translatedStream;
         // BBitmapStream doesn't take "const Bitmap*"...
-    BBitmapStream bitmapStream(m_data.m_bitmap.get());
+    BBitmapStream bitmapStream(m_data.m_image->platformImage().get());
     BBitmap* tmp = NULL;
     if (roster->Translate(&bitmapStream, 0, 0, &translatedStream, translatorType,
                           B_TRANSLATOR_BITMAP, mimeType.utf8().data()) != B_OK) {

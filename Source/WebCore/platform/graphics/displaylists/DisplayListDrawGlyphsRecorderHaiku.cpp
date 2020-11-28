@@ -1,7 +1,5 @@
 /*
- * Copyright (C) 2010 Stephan Aßmus <superstippi@gmx.de>
- *
- * All rights reserved.
+ * Copyright (C) 2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -25,32 +23,29 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ImageBufferData_h
-#define ImageBufferData_h
+#include "config.h"
+#include "DisplayListDrawGlyphsRecorder.h"
 
-#include "Image.h"
-
-#include <Bitmap.h>
-#include <View.h>
-
-#include <wtf/RefPtr.h>
+#include "DisplayListItems.h"
+#include "DisplayListRecorder.h"
+#include "FloatPoint.h"
+#include "Font.h"
+#include "GlyphBuffer.h"
 
 namespace WebCore {
 
-class IntSize;
+namespace DisplayList {
 
-class ImageBufferData {
-public:
-    ImageBufferData(const IntSize&);
-    ~ImageBufferData();
+DrawGlyphsRecorder::DrawGlyphsRecorder(Recorder& owner, DrawGlyphsDeconstruction)
+    : m_owner(owner)
+{
+}
 
-    BView* m_view;
-    GraphicsContext* m_context;
+void DrawGlyphsRecorder::drawGlyphs(const Font& font, const GlyphBuffer& glyphBuffer, unsigned from, unsigned numGlyphs, const FloatPoint& startPoint, FontSmoothingMode smoothingMode)
+{
+    m_owner.append<DrawGlyphs>(font, glyphBuffer.glyphs(from), glyphBuffer.advances(from), numGlyphs, startPoint, smoothingMode);
+}
 
-    RefPtr<NativeImage> m_image;
-};
+} // namespace DisplayList
 
 } // namespace WebCore
-
-#endif // ImageBufferData_h
-

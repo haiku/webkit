@@ -963,13 +963,6 @@ void FrameLoaderClientHaiku::redirectDataToPlugin(Widget& pluginWidge)
     debugger("plugins are not implemented on Haiku!");
 }
 
-RefPtr<Widget> FrameLoaderClientHaiku::createJavaAppletWidget(const IntSize&, HTMLAppletElement&, const URL& /*baseURL*/,
-                                                                  const Vector<String>& /*paramNames*/, const Vector<String>& /*paramValues*/)
-{
-    notImplemented();
-    return 0;
-}
-
 String FrameLoaderClientHaiku::overrideMediaType() const
 {
     // This will do, until we support printing.

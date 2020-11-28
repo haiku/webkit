@@ -107,7 +107,7 @@ IconDatabase::IconRecord::~IconRecord()
     LOG(IconDatabase, "Destroying IconRecord for icon url %s", m_iconURL.ascii().data());
 }
 
-NativeImagePtr IconDatabase::IconRecord::image(const IntSize&)
+PlatformImagePtr IconDatabase::IconRecord::image(const IntSize&)
 {
     // FIXME rdar://4680377 - For size right now, we are returning our one and only image and the Bridge
     // is resizing it in place. We need to actually store all the original representations here and return a native
@@ -133,7 +133,7 @@ void IconDatabase::IconRecord::setImageData(RefPtr<SharedBuffer>&& data)
         return;
     }
 
-    m_image = image->nativeImageForCurrentFrame();
+    m_image = image->nativeImageForCurrentFrame()->platformImage();
     if (!m_image) {
         LOG(IconDatabase, "Manual image data for iconURL '%s' FAILED - it was probably invalid image data", m_iconURL.ascii().data());
         m_imageData = nullptr;
@@ -301,7 +301,7 @@ static bool documentCanHaveIcon(const String& documentURL)
     return !documentURL.isEmpty() && !protocolIs(documentURL, "about");
 }
 
-std::pair<NativeImagePtr, IconDatabase::IsKnownIcon> IconDatabase::synchronousIconForPageURL(const String& pageURLOriginal, const IntSize& size)
+std::pair<PlatformImagePtr, IconDatabase::IsKnownIcon> IconDatabase::synchronousIconForPageURL(const String& pageURLOriginal, const IntSize& size)
 {
     ASSERT_NOT_SYNC_THREAD();
 

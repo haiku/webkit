@@ -96,12 +96,12 @@ bool EventHandler::eventActivatedView(const PlatformMouseEvent&) const
     return false;
 }
 
-bool EventHandler::passWheelEventToWidget(const PlatformWheelEvent& event, Widget& widget)
+bool EventHandler::passWheelEventToWidget(const PlatformWheelEvent& event, Widget& widget, OptionSet<WheelEventProcessingSteps> processingSteps)
 {
     if (!widget.isFrameView())
         return false;
 
-    return static_cast<FrameView&>(widget).frame().eventHandler().handleWheelEvent(event);
+    return static_cast<FrameView&>(widget).frame().eventHandler().handleWheelEvent(event, processingSteps);
 }
 
 bool EventHandler::passMousePressEventToSubframe(MouseEventWithHitTestResults& mev, Frame& subframe)

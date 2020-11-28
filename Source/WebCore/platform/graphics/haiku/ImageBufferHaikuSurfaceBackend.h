@@ -42,12 +42,12 @@ class ImageBufferHaikuSurfaceBackend : public ImageBufferBackend {
     WTF_MAKE_ISO_ALLOCATED(ImageBufferHaikuSurfaceBackend);
     WTF_MAKE_NONCOPYABLE(ImageBufferHaikuSurfaceBackend);
 public:
-    static std::unique_ptr<ImageBufferHaikuSurfaceBackend> create(const FloatSize&, float resolutionScale, ColorSpace, const HostWindow*);
+    static std::unique_ptr<ImageBufferHaikuSurfaceBackend> create(const FloatSize&, float resolutionScale, ColorSpace, PixelFormat, const HostWindow*);
     static std::unique_ptr<ImageBufferHaikuSurfaceBackend> create(const FloatSize&, const GraphicsContext&);
     ~ImageBufferHaikuSurfaceBackend();
 
     GraphicsContext& context() const override;
-    NativeImagePtr copyNativeImage(BackingStoreCopy) const override;
+    WTF::RefPtr<WebCore::NativeImage> copyNativeImage(BackingStoreCopy) const override;
     RefPtr<Image> copyImage(BackingStoreCopy, PreserveResolution) const override;
     void draw(GraphicsContext&, const FloatRect&, const FloatRect&, const ImagePaintingOptions&) override;
     void drawPattern(GraphicsContext&, const FloatRect& destRect, const FloatRect& srcRect, const AffineTransform& patternTransform, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions&) override;
@@ -60,9 +60,6 @@ public:
 
 private:
     ImageBufferHaikuSurfaceBackend(const FloatSize& logicalSize, const IntSize& backendSize, float resolutionScale, ColorSpace, const HostWindow*);
-
-    ColorFormat backendColorFormat() const override;
-    AlphaPremultiplication backendAlphaPremultiplication() const override;
 
     ImageBufferData m_data;
 };

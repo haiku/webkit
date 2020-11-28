@@ -92,7 +92,7 @@ private:
         void setTimestamp(time_t stamp) { m_stamp = stamp; }
 
         void setImageData(RefPtr<WebCore::SharedBuffer>&&);
-        WebCore::NativeImagePtr image(const WebCore::IntSize&);
+        WebCore::PlatformImagePtr image(const WebCore::IntSize&);
 
         String iconURL() { return m_iconURL; }
 
@@ -109,7 +109,7 @@ private:
         String m_iconURL;
         time_t m_stamp { 0 };
         RefPtr<WebCore::SharedBuffer> m_imageData;
-        WebCore::NativeImagePtr m_image;
+        WebCore::PlatformImagePtr m_image;
 
         HashSet<String> m_retainingPageURLs;
 
@@ -253,7 +253,7 @@ public:
     void setIconURLForPageURL(const String& iconURL, const String& pageURL);
 
     enum class IsKnownIcon { No, Yes };
-    std::pair<WebCore::NativeImagePtr, IsKnownIcon> synchronousIconForPageURL(const String&, const WebCore::IntSize&);
+    std::pair<WebCore::PlatformImagePtr, IsKnownIcon> synchronousIconForPageURL(const String&, const WebCore::IntSize&);
     String synchronousIconURLForPageURL(const String&);
     bool synchronousIconDataKnownForIconURL(const String&);
     IconLoadDecision synchronousLoadDecisionForIconURL(const String&);

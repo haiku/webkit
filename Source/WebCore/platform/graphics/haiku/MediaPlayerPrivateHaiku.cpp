@@ -333,9 +333,6 @@ void MediaPlayerPrivate::paint(GraphicsContext& context, const FloatRect& r)
     if (context.paintingDisabled())
         return;
 
-    if (!m_player->visible())
-        return;
-
     if (m_frameBuffer) {
         BView* target = context.platformContext();
         target->SetDrawingMode(B_OP_COPY);

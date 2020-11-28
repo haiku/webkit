@@ -420,7 +420,7 @@ void BWebSettings::_HandleSendIconForURL(BMessage* message)
 	reply.RemoveName("icon");
 	reply.AddString("url", url);
 
-	std::pair<WebCore::NativeImagePtr, WebKit::IconDatabase::IsKnownIcon> icon
+	std::pair<WebCore::PlatformImagePtr, WebKit::IconDatabase::IsKnownIcon> icon
 		= WebKit::iconDatabase().synchronousIconForPageURL(url, WebCore::IntSize(16, 16));
 	BMessage iconArchive;
 	if (icon.second == WebKit::IconDatabase::IsKnownIcon::Yes

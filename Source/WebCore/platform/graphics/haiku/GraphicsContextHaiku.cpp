@@ -186,7 +186,7 @@ void GraphicsContext::drawRect(const FloatRect& rect, float borderThickness)
     }
 }
 
-void GraphicsContext::drawNativeImage(const NativeImagePtr& image, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& options)
+void GraphicsContext::drawPlatformImage(const PlatformImagePtr& image, const FloatSize& imageSize, const FloatRect& destRect, const FloatRect& srcRect, const ImagePaintingOptions& options)
 {
     if (paintingDisabled())
         return;
@@ -444,56 +444,25 @@ void GraphicsContext::clipPath(const Path& path, WindRule windRule)
     // TODO: reset wind rule
 }
 
-void GraphicsContext::clipToImageBuffer(ImageBuffer& buffer, const FloatRect& destRect)
-{
-    if (paintingDisabled())
-        return;
 
-    NativeImagePtr surface = buffer.copyNativeImage(DontCopyBackingStore);
-    BPicture picture;
-    BView* view = platformContext();
-
-    if (!view)
-        return;
-
-    view->LockLooper();
-    view->BeginPicture(&picture);
-    view->PushState();
-
-    view->SetLowColor(make_color(255, 255, 255, 0));
-    view->SetViewColor(make_color(255, 255, 255, 0));
-    view->SetHighColor(make_color(0, 0, 0, 255));
-    view->SetDrawingMode(B_OP_ALPHA);
-    view->SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_COMPOSITE);
-
-    view->DrawBitmap(surface.get(), destRect);
-
-    view->PopState();
-    view->EndPicture();
-    view->ClipToPicture(&picture);
-    view->UnlockLooper();
-}
-
-
-void GraphicsContext::drawPattern(Image& image, const FloatRect& destRect,
+void GraphicsContext::drawPlatformPattern(const PlatformImagePtr& image, const WebCore::FloatSize& size, const FloatRect& destRect,
     const FloatRect& tileRect, const AffineTransform&,
     const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions&)
 {
     if (paintingDisabled())
         return;
 
-    NativeImagePtr pixels = image.nativeImageForCurrentFrame();
-    if (!pixels || !pixels->IsValid()) // If the image hasn't fully loaded.
+    if (!image->IsValid()) // If the image hasn't fully loaded.
         return;
 
     // Figure out if the image has any alpha transparency, we can use faster drawing if not
     bool hasAlpha = false;
 
-    uint8* bits = reinterpret_cast<uint8*>(pixels->Bits());
-    uint32 width = pixels->Bounds().IntegerWidth() + 1;
-    uint32 height = pixels->Bounds().IntegerHeight() + 1;
+    uint8* bits = reinterpret_cast<uint8*>(image->Bits());
+    uint32 width = image->Bounds().IntegerWidth() + 1;
+    uint32 height = image->Bounds().IntegerHeight() + 1;
 
-    uint32 bytesPerRow = pixels->BytesPerRow();
+    uint32 bytesPerRow = image->BytesPerRow();
     for (uint32 y = 0; y < height && !hasAlpha; y++) {
         uint8* p = bits;
         for (uint32 x = 0; x < width && !hasAlpha; x++) {
@@ -516,7 +485,7 @@ void GraphicsContext::drawPattern(Image& image, const FloatRect& destRect,
     phaseOffsetX -= std::trunc(phaseOffsetX / tileRect.width()) * tileRect.width();
     phaseOffsetY -= std::trunc(phaseOffsetY / tileRect.height()) * tileRect.height();
     platformContext()->DrawTiledBitmapAsync(
-        pixels.get(), destRect, BPoint(phaseOffsetX, phaseOffsetY));
+        image.get(), destRect, BPoint(phaseOffsetX, phaseOffsetY));
     restore();
 }
 

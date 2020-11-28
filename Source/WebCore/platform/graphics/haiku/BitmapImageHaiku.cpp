@@ -62,7 +62,7 @@ float subsamplingScale(GraphicsContext&, const FloatRect&, const FloatRect&)
     return 1;
 }
 
-void clearNativeImageSubimages(const NativeImagePtr&)
+void clearNativeImageSubimages(const PlatformImagePtr&)
 {
 }
 

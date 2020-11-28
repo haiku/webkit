@@ -39,6 +39,7 @@
 #include "Frame.h"
 #include <GCController.h>
 #include "PixelDumpSupport.h"
+#include "TestCommand.h"
 #include "TestRunner.h"
 #include "WebCoreTestSupport.h"
 #include "WebFrame.h"
@@ -262,7 +263,6 @@ static void createTestRunner(const String& testURL, const String& expectedPixelH
     if (shouldLogFrameLoadDelegates(testURL))
         gTestRunner->setDumpFrameLoadCallbacks(true);
 
-    gTestRunner->setDeveloperExtrasEnabled(true);
     if (shouldOpenWebInspector(testURL))
         gTestRunner->showWebInspector();
 
@@ -374,7 +374,7 @@ static void resetDefaultsToConsistentValues()
 
 static void runTest(const string& inputLine)
 {
-    TestCommand command = parseInputLine(inputLine);
+    auto command = WTR::parseInputLine(inputLine);
     const String testPathOrURL(command.pathOrURL.c_str());
     ASSERT(!testPathOrURL.isEmpty());
     dumpPixelsForCurrentTest = command.shouldDumpPixels || dumpPixelsForAllTests;
@@ -713,7 +713,6 @@ void DumpRenderTreeApp::MessageReceived(BMessage* message)
         // sure the test is done running.
 
         gTestRunner->closeWebInspector();
-        gTestRunner->setDeveloperExtrasEnabled(false);
 
         //browser->clearExtraViews();
 

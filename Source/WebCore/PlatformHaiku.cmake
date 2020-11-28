@@ -46,7 +46,6 @@ list(APPEND WebCore_SOURCES
   platform/haiku/PlatformKeyboardEventHaiku.cpp
   platform/haiku/PlatformMouseEventHaiku.cpp
   platform/haiku/PlatformScreenHaiku.cpp
-  platform/haiku/PlatformWheelEventHaiku.cpp
   platform/haiku/PopupMenuHaiku.cpp
   platform/haiku/RenderThemeHaiku.cpp
   platform/haiku/ScrollbarThemeHaiku.cpp
@@ -59,6 +58,7 @@ list(APPEND WebCore_SOURCES
   platform/posix/SharedBufferPOSIX.cpp
 
   platform/graphics/WOFFFileFormat.cpp
+  platform/graphics/displaylists/DisplayListDrawGlyphsRecorderHaiku.cpp
 
   platform/graphics/haiku/AffineTransformHaiku.cpp
   platform/graphics/haiku/BitmapImageHaiku.cpp
@@ -83,9 +83,9 @@ list(APPEND WebCore_SOURCES
   platform/graphics/haiku/IntRectHaiku.cpp
   platform/graphics/haiku/IntSizeHaiku.cpp
   platform/graphics/haiku/MediaPlayerPrivateHaiku.cpp
+  platform/graphics/haiku/NativeImageHaiku.cpp
   platform/graphics/haiku/PathHaiku.cpp
   platform/graphics/haiku/SimpleFontDataHaiku.cpp
-  platform/graphics/haiku/StillImageHaiku.cpp
   platform/graphics/haiku/TileHaiku.cpp
   platform/graphics/haiku/TiledBackingStoreHaiku.cpp
   platform/graphics/haiku/GraphicsLayerHaiku.cpp
@@ -355,7 +355,6 @@ list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/DateTimeChooser.h
     platform/DateTimeChooserClient.h
 
-    platform/graphics/haiku/StillImageHaiku.h
     platform/graphics/haiku/ImageBufferDataHaiku.h
     platform/graphics/Image.h
 )
