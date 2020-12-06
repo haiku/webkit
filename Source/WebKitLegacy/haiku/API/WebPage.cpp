@@ -762,7 +762,7 @@ void BWebPage::paint(BRect rect, bool immediate)
     if (!view || !frame->contentRenderer())
         return;
 
-    page()->updateRendering();
+    page()->isolatedUpdateRendering();
 
     view->updateLayoutAndStyleIfNeededRecursive();
 
@@ -803,8 +803,8 @@ void BWebPage::internalPaint(BView* offscreenView,
     offscreenView->PushState();
     offscreenView->ConstrainClippingRegion(dirty);
 
-	// TODO do not recreate a context everytime this is called, we can preserve
-	// it alongside the offscreen view in BWebView?
+    // TODO do not recreate a context everytime this is called, we can preserve
+    // it alongside the offscreen view in BWebView?
     WebCore::GraphicsContext context(offscreenView);
     frameView->paint(context, IntRect(dirty->Frame()));
 
