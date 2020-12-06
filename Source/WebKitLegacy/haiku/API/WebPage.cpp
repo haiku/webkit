@@ -1323,7 +1323,8 @@ void BWebPage::handleMouseWheelChanged(BMessage* message)
     PlatformWheelEvent event(IntPoint(position), IntPoint(globalPosition), deltaX, deltaY,
         wheelTicksX, wheelTicksY, ScrollByPixelWheelEvent, modifiers & B_SHIFT_KEY,
         modifiers & B_COMMAND_KEY, modifiers & B_CONTROL_KEY, modifiers & B_OPTION_KEY);
-    frame->eventHandler().handleWheelEvent(event, { WheelEventProcessingSteps::MainThreadForScrolling, WheelEventProcessingSteps::MainThreadForDOMEventDispatch });
+    frame->eventHandler().handleWheelEvent(event, { WheelEventProcessingSteps::MainThreadForScrolling,
+        WheelEventProcessingSteps::MainThreadForBlockingDOMEventDispatch });
 }
 
 void BWebPage::handleKeyEvent(BMessage* message)

@@ -93,7 +93,7 @@ void WebSettingsPrivate::apply()
 	    settings->setShouldPrintBackgrounds(true);
 	    settings->setScriptEnabled(javascriptEnabled);
 //	    settings->setShowsURLsInToolTips(true);
-	    settings->setEditingBehaviorType(WebCore::EditingMacBehavior);
+	    settings->setEditingBehaviorType(WebCore::EditingBehaviorType::Mac);
 	    settings->setLocalStorageEnabled(global->localStorageEnabled);
 	    settings->setLocalStorageDatabasePath(global->localStoragePath);
 	    settings->setDefaultTextEncodingName("UTF-8");

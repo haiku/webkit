@@ -348,13 +348,13 @@ void RenderThemeHaiku::adjustMenuListButtonStyle(RenderStyle& style, const Eleme
     style.setMinHeight(Length(minHeight, Fixed));
 }
 
-bool RenderThemeHaiku::paintMenuListButtonDecorations(const RenderBox& object, const PaintInfo& info, const FloatRect& floatRect)
+void RenderThemeHaiku::paintMenuListButtonDecorations(const RenderBox& object, const PaintInfo& info, const FloatRect& floatRect)
 {
     if (info.context().paintingDisabled())
-        return true;
+        return;
 
     if (!be_control_look)
-        return true;
+        return;
 
     rgb_color base = ui_color(B_PANEL_BACKGROUND_COLOR);
         // TODO get the color from PaintInfo?
@@ -368,7 +368,6 @@ bool RenderThemeHaiku::paintMenuListButtonDecorations(const RenderBox& object, c
     be_control_look->DrawMenuFieldFrame(view, rect, rect, base, base, flags);
     be_control_look->DrawMenuFieldBackground(view, rect, rect, base, true, flags);
     view->PopState();
-    return false;
 }
 
 bool RenderThemeHaiku::paintMenuList(const RenderObject& object, const PaintInfo& info, const FloatRect& intRect)
