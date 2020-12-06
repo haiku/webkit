@@ -116,7 +116,7 @@ LIST(APPEND WebKitLegacy_LIBRARIES
     ${PNG_LIBRARY}
     ${JPEG_LIBRARY}
     ${CMAKE_DL_LIBS}
-    be bnetapi shared translation tracker
+    be bnetapi GL shared translation tracker
     WebCore
 )
 

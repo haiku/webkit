@@ -29,8 +29,6 @@
 
 #if USE(TEXTURE_MAPPER_GL)
 #include "BitmapTextureGL.h"
-#else
-#include "BitmapTextureImageBuffer.h"
 #endif
 
 namespace WebCore {
@@ -42,11 +40,6 @@ static const Seconds releaseUnusedTexturesTimerInterval { 500_ms };
 BitmapTexturePool::BitmapTexturePool(const TextureMapperContextAttributes& contextAttributes)
     : m_contextAttributes(contextAttributes)
     , m_releaseUnusedTexturesTimer(RunLoop::current(), this, &BitmapTexturePool::releaseUnusedTexturesTimerFired)
-{
-}
-#else
-BitmapTexturePool::BitmapTexturePool()
-    : m_releaseUnusedTexturesTimer(RunLoop::current(), this, &BitmapTexturePool::releaseUnusedTexturesTimerFired)
 {
 }
 #endif
@@ -95,7 +88,8 @@ RefPtr<BitmapTexture> BitmapTexturePool::createTexture(const BitmapTexture::Flag
 #if USE(TEXTURE_MAPPER_GL)
     return BitmapTextureGL::create(m_contextAttributes, flags);
 #else
-    return BitmapTextureImageBuffer::create();
+    UNUSED_PARAM(flags);
+    return nullptr;
 #endif
 }
 

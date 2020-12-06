@@ -23,12 +23,9 @@
 #include "BitmapTexturePool.h"
 #include "FilterOperations.h"
 #include "GraphicsLayer.h"
-#include "TextureMapperImageBuffer.h"
 #include "Timer.h"
 
 namespace WebCore {
-
-TextureMapper::~TextureMapper() = default;
 
 RefPtr<BitmapTexture> TextureMapper::acquireTextureFromPool(const IntSize& size, const BitmapTexture::Flags flags)
 {
@@ -39,18 +36,7 @@ RefPtr<BitmapTexture> TextureMapper::acquireTextureFromPool(const IntSize& size,
 
 std::unique_ptr<TextureMapper> TextureMapper::create()
 {
-    // FIXME remove this Haiku hack and implement on platform side
-    return std::make_unique<TextureMapperImageBuffer>();
-    // return platformCreateAccelerated();
+    return platformCreateAccelerated();
 }
-
-TextureMapper::TextureMapper(AccelerationMode accelerationMode)
-    : m_context(0)
-    , m_interpolationQuality(InterpolationQuality::Default)
-    , m_textDrawingMode(TextModeFill)
-    , m_accelerationMode(accelerationMode)
-    , m_isMaskMode(false)
-    , m_wrapMode(StretchWrap)
-{ }
 
 } // namespace

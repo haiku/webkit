@@ -757,7 +757,7 @@ private:
     unsigned m_statusCheckCount { 0 };
     bool m_failNextStatusCheck { false };
 
-#if USE(CAIRO)
+#if USE(CAIRO) || USE(HAIKU)
     PlatformGLObject m_vao { 0 };
 #endif
 

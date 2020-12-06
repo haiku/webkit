@@ -1,13 +1,14 @@
 include(platform/GCrypt.cmake)
 include(platform/ImageDecoders.cmake)
-#include(platform/TextureMapper.cmake)
 
 list(APPEND WebCore_INCLUDE_DIRECTORIES
   "${THIRDPARTY_DIR}/ANGLE/"
   "${THIRDPARTY_DIR}/ANGLE/include/KHR"
   "${WEBCORE_DIR}/page/scrolling/coordinatedgraphics"
   "${WEBCORE_DIR}/platform/haiku"
+  "${WEBCORE_DIR}/platform/graphics/egl"
   "${WEBCORE_DIR}/platform/graphics/haiku"
+  "${WEBCORE_DIR}/platform/graphics/opengl"
   "${WEBCORE_DIR}/platform/graphics/opentype"
   "${WEBCORE_DIR}/platform/graphics/texmap/coordinated"
   "${WEBCORE_DIR}/platform/mediacapabilities"
@@ -90,11 +91,8 @@ list(APPEND WebCore_SOURCES
   platform/graphics/haiku/TiledBackingStoreHaiku.cpp
   platform/graphics/haiku/GraphicsLayerHaiku.cpp
 
-  #platform/graphics/texmap/BitmapTexture.cpp
-  #platform/graphics/texmap/BitmapTextureImageBuffer.cpp
-  #platform/graphics/texmap/BitmapTexturePool.cpp
-  #platform/graphics/texmap/GraphicsLayerTextureMapper.cpp
-  #platform/graphics/texmap/TextureMapperImageBuffer.cpp
+  platform/graphics/GLContext.cpp
+  platform/graphics/OpenGLShims.cpp
 
   platform/image-decoders/haiku/ImageDecoderHaiku.cpp
 
@@ -295,8 +293,6 @@ if (WTF_USE_3D_GRAPHICS)
         )
     else ()
         list(APPEND WebCore_SOURCES
-            platform/graphics/OpenGLShims.cpp
-
             platform/graphics/opengl/Extensions3DOpenGL.cpp
             platform/graphics/opengl/GraphicsContext3DOpenGL.cpp
         )

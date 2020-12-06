@@ -95,10 +95,6 @@ void AcceleratedCompositingContext::paintToGraphicsContext()
     BView* target = m_view->OffscreenView();
     GraphicsContext context(target);
 
-#if USE(TEXTURE_MAPPER)
-    m_textureMapper->setGraphicsContext(&context);
-#endif
-
     if(target->LockLooper()) {
         compositeLayers(target->Bounds());
         target->Sync();
@@ -124,7 +120,6 @@ void AcceleratedCompositingContext::compositeLayers(BRect updateRect)
     currentRootLayer.setTextureMapper(m_textureMapper.get());
 
     m_textureMapper->beginPainting();
-    m_textureMapper->beginClip(TransformationMatrix(), updateRect);
 
     currentRootLayer.paint();
     m_fpsCounter.updateFPSAndDisplay(*m_textureMapper);

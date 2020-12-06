@@ -21,7 +21,6 @@
 #define TextureMapper_h
 
 #include "BitmapTexture.h"
-#include "GraphicsContext.h"
 #include "Color.h"
 #include "IntRect.h"
 #include "IntSize.h"
@@ -43,7 +42,6 @@ class FloatRoundedRect;
 class TextureMapper {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    enum AccelerationMode { SoftwareMode, OpenGLMode };
     enum PaintFlag {
         PaintingMirrored = 1 << 0,
     };
@@ -57,7 +55,7 @@ public:
 
     WEBCORE_EXPORT static std::unique_ptr<TextureMapper> create();
 
-    explicit TextureMapper(AccelerationMode);
+    explicit TextureMapper();
     virtual ~TextureMapper();
 
     enum ExposedEdges {
@@ -86,13 +84,6 @@ public:
     virtual Ref<BitmapTexture> createTexture() = 0;
     virtual Ref<BitmapTexture> createTexture(int internalFormat) = 0;
 
-    void setImageInterpolationQuality(InterpolationQuality quality) { m_interpolationQuality = quality; }
-    void setTextDrawingMode(TextDrawingModeFlags mode) { m_textDrawingMode = mode; }
-
-    InterpolationQuality imageInterpolationQuality() const { return m_interpolationQuality; }
-    TextDrawingModeFlags textDrawingMode() const { return m_textDrawingMode; }
-    AccelerationMode accelerationMode() const { return m_accelerationMode; }
-
     virtual void beginPainting(PaintFlags = 0) { }
     virtual void endPainting() { }
 
@@ -106,7 +97,6 @@ public:
     void setWrapMode(WrapMode m) { m_wrapMode = m; }
 
 protected:
-    GraphicsContext* m_context;
     std::unique_ptr<BitmapTexturePool> m_texturePool;
 
     bool isInMaskMode() const { return m_isMaskMode; }
@@ -122,12 +112,9 @@ private:
         return nullptr;
     }
 #endif
-    InterpolationQuality m_interpolationQuality;
-    TextDrawingModeFlags m_textDrawingMode;
-    AccelerationMode m_accelerationMode;
-    bool m_isMaskMode;
+    bool m_isMaskMode { false };
     TransformationMatrix m_patternTransform;
-    WrapMode m_wrapMode;
+    WrapMode m_wrapMode { StretchWrap };
 };
 
 }
