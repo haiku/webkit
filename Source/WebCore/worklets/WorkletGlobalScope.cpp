@@ -50,7 +50,7 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(WorkletGlobalScope);
 static std::atomic<unsigned> gNumberOfWorkletGlobalScopes { 0 };
 
 WorkletGlobalScope::WorkletGlobalScope(WorkerOrWorkletThread& thread, const WorkletParameters& parameters)
-    : WorkerOrWorkletGlobalScope(JSC::VM::create(), &thread)
+    : WorkerOrWorkletGlobalScope(WorkerThreadType::Worklet, JSC::VM::create(), &thread)
     , m_topOrigin(SecurityOrigin::createUnique())
     , m_url(parameters.windowURL)
     , m_jsRuntimeFlags(parameters.jsRuntimeFlags)
@@ -62,7 +62,7 @@ WorkletGlobalScope::WorkletGlobalScope(WorkerOrWorkletThread& thread, const Work
 }
 
 WorkletGlobalScope::WorkletGlobalScope(Document& document, Ref<JSC::VM>&& vm, ScriptSourceCode&& code)
-    : WorkerOrWorkletGlobalScope(WTFMove(vm), nullptr)
+    : WorkerOrWorkletGlobalScope(WorkerThreadType::Worklet, WTFMove(vm), nullptr)
     , m_document(makeWeakPtr(document))
     , m_topOrigin(SecurityOrigin::createUnique())
     , m_url(code.url())
@@ -198,7 +198,7 @@ void WorkletGlobalScope::notifyFinished()
     auto completedJob = m_scriptFetchJobs.takeFirst();
 
     if (m_scriptLoader->failed()) {
-        didCompleteScriptFetchJob(WTFMove(completedJob), Exception { NetworkError, makeString("Failed to fetch module, error: ", m_scriptLoader->error().localizedDescription()) });
+        didCompleteScriptFetchJob(WTFMove(completedJob), Exception { AbortError, makeString("Failed to fetch module, error: ", m_scriptLoader->error().localizedDescription()) });
         return;
     }
 

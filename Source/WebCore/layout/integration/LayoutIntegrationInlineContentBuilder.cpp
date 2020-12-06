@@ -48,7 +48,7 @@ struct LineLevelVisualAdjustmentsForRuns {
     bool needsTrailingContentReplacement { false };
 };
 
-inline static float lineOverflowWidth(const RenderBlockFlow& flow, InlineLayoutUnit lineLogicalWidth, InlineLayoutUnit lineBoxLogicalWidth)
+inline static float lineOverflowWidth(const RenderBlockFlow& flow, InlineLayoutUnit lineBoxLogicalWidth, InlineLayoutUnit lineContentLogicalWidth)
 {
     // FIXME: It's the copy of the lets-adjust-overflow-for-the-caret behavior from ComplexLineLayout::addOverflowFromInlineChildren.
     auto endPadding = flow.hasOverflowClip() ? flow.paddingEnd() : 0_lu;
@@ -56,8 +56,8 @@ inline static float lineOverflowWidth(const RenderBlockFlow& flow, InlineLayoutU
         endPadding = flow.endPaddingWidthForCaret();
     if (flow.hasOverflowClip() && !endPadding && flow.element() && flow.element()->isRootEditableElement())
         endPadding = 1;
-    lineBoxLogicalWidth += endPadding;
-    return std::max(lineLogicalWidth, lineBoxLogicalWidth);
+    lineContentLogicalWidth += endPadding;
+    return std::max(lineBoxLogicalWidth, lineContentLogicalWidth);
 }
 
 class Iterator {
@@ -157,6 +157,7 @@ void InlineContentBuilder::build(const Layout::InlineFormattingState& inlineForm
     auto lineLevelVisualAdjustmentsForRuns = computeLineLevelVisualAdjustmentsForRuns(inlineFormattingState);
     createDisplayLineRuns(inlineFormattingState, inlineContent, lineLevelVisualAdjustmentsForRuns);
     createDisplayLines(inlineFormattingState, inlineContent, lineLevelVisualAdjustmentsForRuns);
+    createDisplayInlineBoxes(inlineFormattingState, inlineContent);
 }
 
 InlineContentBuilder::LineLevelVisualAdjustmentsForRunsList InlineContentBuilder::computeLineLevelVisualAdjustmentsForRuns(const Layout::InlineFormattingState& inlineFormattingState) const
@@ -186,8 +187,9 @@ InlineContentBuilder::LineLevelVisualAdjustmentsForRunsList InlineContentBuilder
         lineLevelVisualAdjustmentsForRuns[lineIndex].needsIntegralPosition = lineNeedsLegacyIntegralVerticalPosition();
         if (shouldCheckHorizontalOverflowForContentReplacement) {
             auto& line = lines[lineIndex];
-            auto overflowWidth = lineOverflowWidth(m_blockFlow, line.logicalWidth(), line.lineBoxLogicalSize().width());
-            lineLevelVisualAdjustmentsForRuns[lineIndex].needsTrailingContentReplacement = overflowWidth > line.logicalWidth();
+            auto lineBoxLogicalWidth = line.lineBoxLogicalRect().width();
+            auto overflowWidth = lineOverflowWidth(m_blockFlow, lineBoxLogicalWidth, line.contentLogicalWidth());
+            lineLevelVisualAdjustmentsForRuns[lineIndex].needsTrailingContentReplacement = overflowWidth > lineBoxLogicalWidth;
         }
     }
     return lineLevelVisualAdjustmentsForRuns;
@@ -212,13 +214,13 @@ void InlineContentBuilder::createDisplayLineRuns(const Layout::InlineFormattingS
     auto createDisplayBoxRun = [&](auto& lineRun) {
         auto& layoutBox = lineRun.layoutBox();
         auto lineIndex = lineRun.lineIndex();
-        auto& line = lines[lineIndex];
+        auto& lineBoxLogicalRect = lines[lineIndex].lineBoxLogicalRect();
         // Inline boxes are relative to the line box while final Runs need to be relative to the parent Box
         // FIXME: Shouldn't we just leave them be relative to the line box?
         auto runRect = FloatRect { lineRun.logicalRect() };
         // Line runs are margin box based, let's convert them to border box.
         auto& geometry = m_layoutState.geometryForBox(layoutBox);
-        runRect.moveBy({ line.logicalLeft() + std::max(geometry.marginStart(), 0_lu), line.logicalTop() + geometry.marginBefore() });
+        runRect.moveBy({ lineBoxLogicalRect.left() + std::max(geometry.marginStart(), 0_lu), lineBoxLogicalRect.top() + geometry.marginBefore() });
         runRect.setSize({ geometry.borderBoxWidth(), geometry.borderBoxHeight() });
         if (lineLevelVisualAdjustmentsForRuns[lineIndex].needsIntegralPosition)
             runRect.setY(roundToInt(runRect.y()));
@@ -231,11 +233,11 @@ void InlineContentBuilder::createDisplayLineRuns(const Layout::InlineFormattingS
         RELEASE_ASSERT(startOffset < endOffset);
         auto& layoutBox = lineRun.layoutBox();
         auto lineIndex = lineRun.lineIndex();
-        auto& line = lines[lineIndex];
+        auto& lineBoxLogicalRect = lines[lineIndex].lineBoxLogicalRect();
         auto runRect = FloatRect { lineRun.logicalRect() };
         // Inline boxes are relative to the line box while final Runs need to be relative to the parent Box
         // FIXME: Shouldn't we just leave them be relative to the line box?
-        runRect.moveBy({ line.logicalLeft(), line.logicalTop() });
+        runRect.moveBy({ lineBoxLogicalRect.left(), lineBoxLogicalRect.top() });
         if (lineLevelVisualAdjustmentsForRuns[lineIndex].needsIntegralPosition)
             runRect.setY(roundToInt(runRect.y()));
 
@@ -252,14 +254,13 @@ void InlineContentBuilder::createDisplayLineRuns(const Layout::InlineFormattingS
                     return emptyString();
                 }
                 auto runLogicalRect = lineRun.logicalRect();
-                auto lineLogicalRight = line.logicalRight();
                 auto ellipsisWidth = style.fontCascade().width(WebCore::TextRun { &horizontalEllipsis });
-                if (runLogicalRect.right() + ellipsisWidth > lineLogicalRight) {
+                if (runLogicalRect.right() + ellipsisWidth > lineBoxLogicalRect.right()) {
                     // The next run with ellipsis would surely overflow. So let's just add it to this run even if
                     // it makes the run wider than it originally was.
                     hasAdjustedTrailingLineList[lineIndex] = true;
                     float resultWidth = 0;
-                    auto maxWidth = line.logicalWidth() - runLogicalRect.left();
+                    auto maxWidth = lineBoxLogicalRect.width() - runLogicalRect.left();
                     return StringTruncator::rightTruncate(originalContent, maxWidth, style.fontCascade(), resultWidth, true);
                 }
             }
@@ -307,35 +308,70 @@ void InlineContentBuilder::createDisplayLines(const Layout::InlineFormattingStat
     size_t runIndex = 0;
     for (size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
         auto& line = lines[lineIndex];
-        auto lineBoxLogicalSize = line.lineBoxLogicalSize();
+        auto& lineBoxLogicalRect = line.lineBoxLogicalRect();
         // FIXME: This is where the logical to physical translate should happen.
-        auto scrollableOverflowRect = FloatRect { line.logicalLeft(), line.logicalTop(), lineOverflowWidth(m_blockFlow, line.logicalWidth(), lineBoxLogicalSize.width()), line.logicalHeight() };
+        auto scrollableOverflowRect = FloatRect { lineBoxLogicalRect.left(), lineBoxLogicalRect.top(), lineOverflowWidth(m_blockFlow, lineBoxLogicalRect.width(), line.contentLogicalWidth()), lineBoxLogicalRect.height() };
 
         auto firstRunIndex = runIndex;
         auto lineInkOverflowRect = scrollableOverflowRect;
         while (runIndex < runs.size() && runs[runIndex].lineIndex() == lineIndex)
             lineInkOverflowRect.unite(runs[runIndex++].inkOverflow());
         auto runCount = runIndex - firstRunIndex;
-        auto lineRect = FloatRect { line.logicalRect() };
-        auto enclosingContentRect = [&] {
+        auto enclosingTopAndBottom = [&] {
             // Let's (vertically)enclose all the inline level boxes.
-            // This mostly matches 'lineRect', unless line-height triggers line box overflow (not to be confused with ink or scroll overflow).
-            auto enclosingRect = FloatRect { lineRect.location(), lineBoxLogicalSize };
+            // This mostly matches 'line box rect', unless line-height triggers line box overflow (not to be confused with ink or scroll overflow).
+            auto enclosingTop = Optional<float> { };
+            auto enclosingBottom = Optional<float> { };
             auto& lineBox = lineBoxes[lineIndex];
             for (auto& inlineLevelBox : lineBox.inlineLevelBoxList()) {
-                auto inlineLevelBoxLogicalRect = lineBox.logicalRectForInlineLevelBox(inlineLevelBox->layoutBox());
-                // inlineLevelBoxLogicalRect is relative to the line.
-                inlineLevelBoxLogicalRect.moveBy(lineRect.location());
-                enclosingRect.setY(std::min(enclosingRect.y(), inlineLevelBoxLogicalRect.top()));
-                enclosingRect.shiftMaxYEdgeTo(std::max(enclosingRect.maxY(), inlineLevelBoxLogicalRect.bottom()));
+                auto& layoutBox = inlineLevelBox->layoutBox();
+                auto& geometry = m_layoutState.geometryForBox(layoutBox);
+                auto inlineLevelBoxLogicalRect = lineBox.logicalMarginRectForInlineLevelBox(layoutBox, geometry);
+                // inlineLevelBoxLogicalRect encloses the margin box, but we need border box for the display line.
+                inlineLevelBoxLogicalRect.expandVertically(-std::max(0_lu, geometry.marginBefore() + geometry.marginAfter()));
+                inlineLevelBoxLogicalRect.moveVertically(std::max(0_lu, geometry.marginBefore()));
+
+                enclosingTop = std::min(enclosingTop.valueOr(inlineLevelBoxLogicalRect.top()), inlineLevelBoxLogicalRect.top());
+                enclosingBottom = std::max(enclosingBottom.valueOr(inlineLevelBoxLogicalRect.bottom()), inlineLevelBoxLogicalRect.bottom());
             }
-            return enclosingRect;
+            // There's always at least one inline level box, the root inline box.
+            ASSERT(enclosingBottom && enclosingTop);
+            // inline boxes are relative to the line, let's make them relative to the root's content box.
+            return Line::EnclosingTopAndBottom { lineBoxLogicalRect.top() + *enclosingTop, lineBoxLogicalRect.top() + *enclosingBottom };
         }();
+        auto adjustedLineBoxRect = FloatRect { lineBoxLogicalRect };
         if (lineLevelVisualAdjustmentsForRuns[lineIndex].needsIntegralPosition) {
-            lineRect.setY(roundToInt(lineRect.y()));
-            enclosingContentRect.setY(roundToInt(enclosingContentRect.y()));
+            adjustedLineBoxRect.setY(roundToInt(adjustedLineBoxRect.y()));
+            enclosingTopAndBottom.top = roundToInt(enclosingTopAndBottom.top);
+            enclosingTopAndBottom.bottom = roundToInt(enclosingTopAndBottom.bottom);
         }
-        inlineContent.lines.append({ firstRunIndex, runCount, lineRect, lineBoxLogicalSize.width(), enclosingContentRect, scrollableOverflowRect, lineInkOverflowRect, line.baseline(), line.horizontalAlignmentOffset() });
+        inlineContent.lines.append({ firstRunIndex, runCount, adjustedLineBoxRect, enclosingTopAndBottom, scrollableOverflowRect, lineInkOverflowRect, line.baseline(), line.contentLogicalLeftOffset(), line.contentLogicalWidth() });
+    }
+}
+
+void InlineContentBuilder::createDisplayInlineBoxes(const Layout::InlineFormattingState& inlineFormattingState, InlineContent& inlineContent) const
+{
+    auto& lines = inlineFormattingState.lines();
+    auto& lineBoxes = inlineFormattingState.lineBoxes();
+    for (size_t lineIndex = 0; lineIndex < lineBoxes.size(); ++lineIndex) {
+        auto& lineBox = lineBoxes[lineIndex];
+        auto& line = lines[lineIndex];
+
+        auto& lineBoxLogicalRect = line.lineBoxLogicalRect();
+
+        for (auto& inlineLevelBox : lineBox.inlineLevelBoxList()) {
+            if (!inlineLevelBox->isInlineBox() || inlineLevelBox->isRootInlineBox())
+                continue;
+            auto& layoutBox = inlineLevelBox->layoutBox();
+            auto& geometry = m_layoutState.geometryForBox(layoutBox);
+            auto inlineLevelBoxLogicalRect = lineBox.logicalMarginRectForInlineLevelBox(layoutBox, geometry);
+            // inlineLevelBoxLogicalRect encloses the margin box, but we need border box for the display line.
+            inlineLevelBoxLogicalRect.expandVertically(-std::max(0_lu, geometry.marginBefore() + geometry.marginAfter()));
+            inlineLevelBoxLogicalRect.moveVertically(std::max(0_lu, geometry.marginBefore()));
+            inlineLevelBoxLogicalRect.moveBy(lineBoxLogicalRect.topLeft());
+
+            inlineContent.inlineBoxes.append({ layoutBox, lineIndex, inlineLevelBoxLogicalRect });
+        }
     }
 }
 

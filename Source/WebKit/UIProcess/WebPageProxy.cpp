@@ -2600,8 +2600,16 @@ void WebPageProxy::processNextQueuedMouseEvent()
         m_process->startResponsivenessTimer();
     }
 
+    Optional<SandboxExtension::HandleArray> sandboxExtensions;
+
+#if PLATFORM(MAC)
+    bool eventMayStartDrag = !m_currentDragOperation && eventType == WebEvent::MouseMove && event.button() != WebMouseEvent::Button::NoButton;
+    if (eventMayStartDrag)
+        sandboxExtensions = SandboxExtension::createHandlesForMachLookup({ "com.apple.iconservices"_s, "com.apple.iconservices.store"_s }, WTF::nullopt);
+#endif
+    
     LOG(MouseHandling, "UIProcess: sent mouse event %s (queue size %zu)", webMouseEventTypeString(eventType), m_mouseEventQueue.size());
-    send(Messages::WebPage::MouseEvent(event));
+    send(Messages::WebPage::MouseEvent(event, sandboxExtensions));
 }
 
 void WebPageProxy::doAfterProcessingAllPendingMouseEvents(WTF::Function<void ()>&& action)
@@ -4660,7 +4668,7 @@ void WebPageProxy::didCommitLoadForFrame(FrameIdentifier frameID, FrameInfoData&
         else if (navigation && navigation->privateClickMeasurement())
             privateClickMeasurement = navigation->privateClickMeasurement();
         if (privateClickMeasurement) {
-            if (privateClickMeasurement->destination().matches(frame->url()))
+            if (privateClickMeasurement->attributeOnSite().matches(frame->url()))
                 websiteDataStore().networkProcess().send(Messages::NetworkProcess::StorePrivateClickMeasurement(m_websiteDataStore->sessionID(), *privateClickMeasurement), 0);
         }
     }
@@ -7753,9 +7761,9 @@ static const Vector<ASCIILiteral>& mediaRelatedMachServices()
         "com.apple.audio.AURemoteIOServer"_s
 #endif
 #if PLATFORM(MAC) || PLATFORM(MACCATALYST)
-        "com.apple.coremedia.endpointstream.xpc"_s, "com.apple.coremedia.endpointplaybacksession.xpc"_s,
+        "com.apple.audio.audiohald"_s, "com.apple.coremedia.endpointstream.xpc"_s, "com.apple.coremedia.endpointplaybacksession.xpc"_s,
         "com.apple.coremedia.endpointremotecontrolsession.xpc"_s, "com.apple.coremedia.videodecoder"_s,
-        "com.apple.coremedia.videoencoder"_s, "com.apple.lskdd"_s, "com.apple.BluetoothServices"_s
+        "com.apple.coremedia.videoencoder"_s, "com.apple.lskdd"_s, "com.apple.trustd.agent"_s, "com.apple.BluetoothServices"_s
 #endif
     });
     return services;
@@ -8171,6 +8179,13 @@ void WebPageProxy::enumerateMediaDevicesForFrame(FrameIdentifier frameID, const 
     UNUSED_PARAM(userMediaDocumentOriginData);
     UNUSED_PARAM(topLevelDocumentOriginData);
     UNUSED_PARAM(completionHandler);
+#endif
+}
+
+void WebPageProxy::syncIfMockDevicesEnabledChanged()
+{
+#if ENABLE(MEDIA_STREAM)
+    userMediaPermissionRequestManager().syncWithWebCorePrefs();
 #endif
 }
 
@@ -9923,7 +9938,7 @@ void WebPageProxy::simulateDeviceOrientationChange(double alpha, double beta, do
 
 #if ENABLE(DATA_DETECTION)
 
-void WebPageProxy::detectDataInAllFrames(WebCore::DataDetectorTypes types, CompletionHandler<void(const DataDetectionResult&)>&& completionHandler)
+void WebPageProxy::detectDataInAllFrames(WebCore::DataDetectorType types, CompletionHandler<void(const DataDetectionResult&)>&& completionHandler)
 {
     if (!hasRunningProcess()) {
         completionHandler({ });
@@ -9963,6 +9978,16 @@ void WebPageProxy::clearPrivateClickMeasurement(CompletionHandler<void()>&& comp
 void WebPageProxy::setPrivateClickMeasurementOverrideTimerForTesting(bool value, CompletionHandler<void()>&& completionHandler)
 {
     websiteDataStore().networkProcess().sendWithAsyncReply(Messages::NetworkProcess::SetPrivateClickMeasurementOverrideTimerForTesting(m_websiteDataStore->sessionID(), value), WTFMove(completionHandler));
+}
+
+void WebPageProxy::markAttributedPrivateClickMeasurementsAsExpiredForTesting(CompletionHandler<void()>&& completionHandler)
+{
+    websiteDataStore().networkProcess().sendWithAsyncReply(Messages::NetworkProcess::MarkAttributedPrivateClickMeasurementsAsExpiredForTesting(m_websiteDataStore->sessionID()), WTFMove(completionHandler));
+}
+
+void WebPageProxy::simulateResourceLoadStatisticsSessionRestart(CompletionHandler<void()>&& completionHandler)
+{
+    websiteDataStore().networkProcess().sendWithAsyncReply(Messages::NetworkProcess::SimulateResourceLoadStatisticsSessionRestart(m_websiteDataStore->sessionID()), WTFMove(completionHandler));
 }
 
 void WebPageProxy::setPrivateClickMeasurementConversionURLForTesting(const URL& url, CompletionHandler<void()>&& completionHandler)
@@ -10246,6 +10271,16 @@ void WebPageProxy::requestSpeechRecognitionPermission(const WebCore::ClientOrigi
         m_speechRecognitionPermissionManager = makeUnique<SpeechRecognitionPermissionManager>(*this);
 
     m_speechRecognitionPermissionManager->request(clientOrigin, WTFMove(completionHandler));
+}
+
+void WebPageProxy::requestSpeechRecognitionPermissionByDefaultAction(const WebCore::SecurityOrigin& origin, CompletionHandler<void(bool)>&& completionHandler)
+{
+    if (!m_speechRecognitionPermissionManager) {
+        completionHandler(false);
+        return;
+    }
+
+    m_speechRecognitionPermissionManager->decideByDefaultAction(origin, WTFMove(completionHandler));
 }
 
 } // namespace WebKit

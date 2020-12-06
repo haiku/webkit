@@ -322,3 +322,17 @@
 #if CPU(ARM64) && CPU(ADDRESS64)
 #define USE_JUMP_ISLANDS 1
 #endif
+
+#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 110000) \
+    || (PLATFORM(MACCATALYST) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 140000)
+#if USE(APPLE_INTERNAL_SDK)
+/* Always use the macro on internal builds */
+#define USE_PTHREAD_JIT_PERMISSIONS_API 0 
+#else
+#define USE_PTHREAD_JIT_PERMISSIONS_API 1
+#endif
+#endif
+
+#if PLATFORM(COCOA)
+#define USE_OPENXR 0
+#endif

@@ -74,11 +74,8 @@ bool ExtensionsGLOpenGLES::isEnabled(const String& name)
         return false;
 
     // For GL_EXT_robustness, check that the context supports robust access.
-    if (name == "GL_EXT_robustness") {
-        GLint robustAccess = GL_FALSE;
-        m_context->getIntegerv(ExtensionsGL::CONTEXT_ROBUST_ACCESS, &robustAccess);
-        return robustAccess == GL_TRUE;
-    }
+    if (name == "GL_EXT_robustness")
+        return m_context->getInteger(ExtensionsGL::CONTEXT_ROBUST_ACCESS) == GL_TRUE;
 
     return true;
 }
@@ -183,7 +180,7 @@ void ExtensionsGLOpenGLES::bindVertexArrayOES(PlatformGLObject array)
         m_context->synthesizeGLError(GL_INVALID_OPERATION);
 }
 
-void ExtensionsGLOpenGLES::drawBuffersEXT(GCGLsizei /* n */, const GCGLenum* /* bufs */)
+void ExtensionsGLOpenGLES::drawBuffersEXT(GCGLSpan<const GCGLenum> /* bufs */)
 {
     // FIXME: implement the support.
     notImplemented();

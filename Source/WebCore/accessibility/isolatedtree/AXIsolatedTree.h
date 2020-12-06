@@ -126,8 +126,9 @@ enum class AXPropertyName : uint16_t {
     HighestEditableAncestor,
     HorizontalScrollBar,
     IdentifierAttribute,
-    InvalidStatus,
     IncrementButton,
+    InnerHTML,
+    InvalidStatus,
     IsAccessibilityIgnored,
     IsActiveDescendantOfFocusedContainer,
     IsAnonymousMathOperator,
@@ -249,6 +250,7 @@ enum class AXPropertyName : uint16_t {
     MinValueForRange,
     NextSibling,
     Orientation,
+    OuterHTML,
     Path,
     PlaceholderValue,
     PressedIsPresent,
@@ -320,16 +322,14 @@ class AXIsolatedTree : public ThreadSafeRefCounted<AXIsolatedTree> {
     WTF_MAKE_NONCOPYABLE(AXIsolatedTree); WTF_MAKE_FAST_ALLOCATED;
     friend WTF::TextStream& operator<<(WTF::TextStream&, AXIsolatedTree&);
 public:
-    static Ref<AXIsolatedTree> create();
+    static Ref<AXIsolatedTree> create(AXObjectCache*);
     virtual ~AXIsolatedTree();
 
-    static Ref<AXIsolatedTree> createTreeForPageID(PageIdentifier);
     static void removeTreeForPageID(PageIdentifier);
 
     static RefPtr<AXIsolatedTree> treeForPageID(PageIdentifier);
     static RefPtr<AXIsolatedTree> treeForID(AXIsolatedTreeID);
-    AXObjectCache* axObjectCache() const { return m_axObjectCache; }
-    void setAXObjectCache(AXObjectCache* axObjectCache) { m_axObjectCache = axObjectCache; }
+    AXObjectCache* axObjectCache() const;
 
     RefPtr<AXIsolatedObject> rootNode();
     RefPtr<AXIsolatedObject> focusedNode();
@@ -366,7 +366,7 @@ public:
     AXIsolatedTreeID treeID() const { return m_treeID; }
 
 private:
-    AXIsolatedTree();
+    AXIsolatedTree(AXObjectCache*);
     void clear();
 
     static HashMap<AXIsolatedTreeID, Ref<AXIsolatedTree>>& treeIDCache();
@@ -379,6 +379,7 @@ private:
 
     AXIsolatedTreeID m_treeID;
     AXObjectCache* m_axObjectCache { nullptr };
+    bool m_usedOnAXThread { true };
 
     // Only accessed on main thread.
     HashMap<AXID, Vector<AXID>> m_nodeMap;
@@ -396,6 +397,12 @@ private:
     AXID m_focusedNodeID { InvalidAXID };
     Lock m_changeLogLock;
 };
+
+inline AXObjectCache* AXIsolatedTree::axObjectCache() const
+{
+    ASSERT(isMainThread());
+    return m_axObjectCache;
+}
 
 } // namespace WebCore
 

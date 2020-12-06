@@ -2544,12 +2544,12 @@ AXObjectCache* AccessibilityObject::axObjectCache() const
     auto* document = this->document();
     return document ? document->axObjectCache() : nullptr;
 }
-    
+
 AXCoreObject* AccessibilityObject::focusedUIElement() const
 {
     auto* page = this->page();
     auto* axObjectCache = this->axObjectCache();
-    return page && axObjectCache ? axObjectCache->focusedUIElementForPage(page) : nullptr;
+    return page && axObjectCache ? axObjectCache->focusedObjectForPage(page) : nullptr;
 }
     
 AccessibilitySortDirection AccessibilityObject::sortDirection() const
@@ -3578,6 +3578,18 @@ void AccessibilityObject::setIsIgnoredFromParentDataForChild(AXCoreObject* child
     }
     
     child->setIsIgnoredFromParentData(result);
+}
+
+String AccessibilityObject::innerHTML() const
+{
+    auto* element = this->element();
+    return element ? element->innerHTML() : String();
+}
+
+String AccessibilityObject::outerHTML() const
+{
+    auto* element = this->element();
+    return element ? element->outerHTML() : String();
 }
 
 namespace Accessibility {

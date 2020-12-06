@@ -49,6 +49,14 @@
 #import <JavaScriptCore/RemoteInspectorConstants.h>
 #endif
 
+#if PLATFORM(MAC)
+#import <wtf/SoftLinking.h>
+
+SOFT_LINK_PRIVATE_FRAMEWORK(TCC)
+SOFT_LINK(TCC, TCCAccessCheckAuditToken, Boolean, (CFStringRef service, audit_token_t auditToken, CFDictionaryRef options), (service, auditToken, options))
+SOFT_LINK_CONSTANT(TCC, kTCCServiceAccessibility, CFStringRef)
+#endif
+
 namespace WebKit {
 
 static const Seconds unexpectedActivityDuration = 10_s;
@@ -202,8 +210,13 @@ void WebProcessProxy::releaseHighPerformanceGPU()
 #if ENABLE(REMOTE_INSPECTOR)
 void WebProcessProxy::enableRemoteInspectorIfNeeded()
 {
+#if PLATFORM(IOS_FAMILY)
     if (!CFPreferencesGetAppIntegerValue(WIRRemoteInspectorEnabledKey, WIRRemoteInspectorDomainName, nullptr))
         return;
+#else
+    if (!CFPreferencesGetAppIntegerValue(CFSTR("ShowDevelopMenu"), CFSTR("com.apple.Safari.SandboxBroker"), nullptr))
+        return;
+#endif
     SandboxExtension::Handle handle;
     auto auditToken = connection() ? connection()->getAuditToken() : WTF::nullopt;
     if (SandboxExtension::createHandleForMachLookup("com.apple.webinspector"_s, auditToken, handle))
@@ -257,5 +270,13 @@ Vector<String> WebProcessProxy::platformOverrideLanguages() const
     static const NeverDestroyed<Vector<String>> overrideLanguages = makeVector<String>([[NSUserDefaults standardUserDefaults] valueForKey:@"AppleLanguages"]);
     return overrideLanguages;
 }
+
+#if PLATFORM(MAC)
+void WebProcessProxy::isAXAuthenticated(audit_token_t auditToken, CompletionHandler<void(bool)>&& completionHandler)
+{
+    auto authenticated = TCCAccessCheckAuditToken(getkTCCServiceAccessibility(), auditToken, nullptr);
+    completionHandler(authenticated);
+}
+#endif
 
 }

@@ -37,6 +37,7 @@ class Element;
 class FileList;
 class FillLayer;
 class HTMLInputElement;
+class HTMLMeterElement;
 class Icon;
 class Page;
 class RenderAttachment;
@@ -71,7 +72,7 @@ public:
     // whether the CSS border/background should also be painted.
     bool paint(const RenderBox&, ControlStates&, const PaintInfo&, const LayoutRect&);
     bool paintBorderOnly(const RenderBox&, const PaintInfo&, const LayoutRect&);
-    bool paintDecorations(const RenderBox&, const PaintInfo&, const LayoutRect&);
+    void paintDecorations(const RenderBox&, const PaintInfo&, const LayoutRect&);
 
     // The remaining methods should be implemented by the platform-specific portion of the theme, e.g.,
     // RenderThemeMac.cpp for Mac OS X.
@@ -187,9 +188,9 @@ public:
     virtual ScrollbarControlSize scrollbarControlSizeForPart(ControlPart) { return ScrollbarControlSize::Regular; }
 
     // Returns the repeat interval of the animation for the progress bar.
-    virtual Seconds animationRepeatIntervalForProgressBar(RenderProgress&) const;
+    virtual Seconds animationRepeatIntervalForProgressBar(const RenderProgress&) const;
     // Returns the duration of the animation for the progress bar.
-    virtual Seconds animationDurationForProgressBar(RenderProgress&) const;
+    virtual Seconds animationDurationForProgressBar(const RenderProgress&) const;
     virtual IntRect progressBarRectForBounds(const RenderObject&, const IntRect&) const;
 
 #if ENABLE(VIDEO)
@@ -210,7 +211,7 @@ public:
 #endif
 
     virtual IntSize meterSizeForBounds(const RenderMeter&, const IntRect&) const;
-    virtual bool supportsMeter(ControlPart) const;
+    virtual bool supportsMeter(ControlPart, const HTMLMeterElement&) const;
 
 #if ENABLE(DATALIST_ELEMENT)
     // Returns the threshold distance for snapping to a slider tick mark.
@@ -235,7 +236,7 @@ public:
     virtual String fileListNameForWidth(const FileList*, const FontCascade&, int width, bool multipleFilesAllowed) const;
 
     enum FileUploadDecorations { SingleFile, MultipleFiles };
-    virtual bool paintFileUploadIconDecorations(const RenderObject& /*inputRenderer*/, const RenderObject& /*buttonRenderer*/, const PaintInfo&, const IntRect&, Icon*, FileUploadDecorations) { return true; }
+    virtual void paintFileUploadIconDecorations(const RenderObject& /*inputRenderer*/, const RenderObject& /*buttonRenderer*/, const PaintInfo&, const IntRect&, Icon*, FileUploadDecorations) { }
 
 #if ENABLE(SERVICE_CONTROLS)
     virtual IntSize imageControlsButtonSize(const RenderObject&) const { return IntSize(); }
@@ -297,27 +298,27 @@ protected:
     virtual bool paintInnerSpinButton(const RenderObject&, const PaintInfo&, const IntRect&) { return true; }
 #endif
 
-    virtual bool paintCheckboxDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { return true; }
-    virtual bool paintRadioDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { return true; }
-    virtual bool paintButtonDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { return true; }
+    virtual void paintCheckboxDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { }
+    virtual void paintRadioDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { }
+    virtual void paintButtonDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { }
 
     virtual void adjustTextFieldStyle(RenderStyle&, const Element*) const;
     virtual bool paintTextField(const RenderObject&, const PaintInfo&, const FloatRect&) { return true; }
-    virtual bool paintTextFieldDecorations(const RenderObject&, const PaintInfo&, const FloatRect&) { return true; }
+    virtual void paintTextFieldDecorations(const RenderObject&, const PaintInfo&, const FloatRect&) { }
 
     virtual void adjustTextAreaStyle(RenderStyle&, const Element*) const;
     virtual bool paintTextArea(const RenderObject&, const PaintInfo&, const FloatRect&) { return true; }
-    virtual bool paintTextAreaDecorations(const RenderObject&, const PaintInfo&, const FloatRect&) { return true; }
+    virtual void paintTextAreaDecorations(const RenderObject&, const PaintInfo&, const FloatRect&) { }
 
     virtual void adjustMenuListStyle(RenderStyle&, const Element*) const;
     virtual bool paintMenuList(const RenderObject&, const PaintInfo&, const FloatRect&) { return true; }
-    virtual bool paintMenuListDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { return true; }
+    virtual void paintMenuListDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { }
 
     virtual void adjustMenuListButtonStyle(RenderStyle&, const Element*) const;
-    virtual bool paintMenuListButtonDecorations(const RenderBox&, const PaintInfo&, const FloatRect&) { return true; }
+    virtual void paintMenuListButtonDecorations(const RenderBox&, const PaintInfo&, const FloatRect&) { }
 
-    virtual bool paintPushButtonDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { return true; }
-    virtual bool paintSquareButtonDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { return true; }
+    virtual void paintPushButtonDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { }
+    virtual void paintSquareButtonDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { }
 
     virtual void adjustMeterStyle(RenderStyle&, const Element*) const;
     virtual bool paintMeter(const RenderObject&, const PaintInfo&, const IntRect&);
@@ -347,11 +348,11 @@ protected:
 
     virtual void adjustSliderThumbStyle(RenderStyle&, const Element*) const;
     virtual bool paintSliderThumb(const RenderObject&, const PaintInfo&, const IntRect&) { return true; }
-    virtual bool paintSliderThumbDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { return true; }
+    virtual void paintSliderThumbDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { }
 
     virtual void adjustSearchFieldStyle(RenderStyle&, const Element*) const;
     virtual bool paintSearchField(const RenderObject&, const PaintInfo&, const IntRect&) { return true; }
-    virtual bool paintSearchFieldDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { return true; }
+    virtual void paintSearchFieldDecorations(const RenderObject&, const PaintInfo&, const IntRect&) { }
 
     virtual void adjustSearchFieldCancelButtonStyle(RenderStyle&, const Element*) const;
     virtual bool paintSearchFieldCancelButton(const RenderBox&, const PaintInfo&, const IntRect&) { return true; }

@@ -65,17 +65,18 @@ public:
             context().restore();
     }
 
-private:
-    void submitDisplayList(const WebCore::DisplayList::DisplayList& displayList) override
+    WebCore::DisplayList::ReplayResult submitDisplayList(const WebCore::DisplayList::DisplayList& displayList)
     {
-        if (!displayList.isEmpty()) {
-            const auto& imageBuffers = m_remoteRenderingBackend.remoteResourceCache().imageBuffers();
-            const auto& nativeImages = m_remoteRenderingBackend.remoteResourceCache().nativeImages();
-            WebCore::DisplayList::Replayer replayer { BaseConcreteImageBuffer::context(), displayList, &imageBuffers, &nativeImages, this };
-            replayer.replay();
-        }
+        if (displayList.isEmpty())
+            return { };
+
+        const auto& imageBuffers = m_remoteRenderingBackend.remoteResourceCache().imageBuffers();
+        const auto& nativeImages = m_remoteRenderingBackend.remoteResourceCache().nativeImages();
+        WebCore::DisplayList::Replayer replayer { BaseConcreteImageBuffer::context(), displayList, &imageBuffers, &nativeImages, this };
+        return replayer.replay();
     }
 
+private:
     bool apply(WebCore::DisplayList::ItemHandle item, WebCore::GraphicsContext& context) override
     {
         if (item.is<WebCore::DisplayList::PutImageData>()) {
@@ -87,12 +88,12 @@ private:
         if (item.is<WebCore::DisplayList::FlushContext>()) {
             BaseConcreteImageBuffer::flushContext();
             auto identifier = item.get<WebCore::DisplayList::FlushContext>().identifier();
-            m_remoteRenderingBackend.flushDisplayListWasCommitted(identifier, m_renderingResourceIdentifier);
+            m_remoteRenderingBackend.didFlush(identifier, m_renderingResourceIdentifier);
             return true;
         }
 
-        if (item.is<WebCore::DisplayList::MetaCommandSwitchTo>()) {
-            auto nextBufferIdentifier = item.get<WebCore::DisplayList::MetaCommandSwitchTo>().identifier();
+        if (item.is<WebCore::DisplayList::MetaCommandChangeItemBuffer>()) {
+            auto nextBufferIdentifier = item.get<WebCore::DisplayList::MetaCommandChangeItemBuffer>().identifier();
             m_remoteRenderingBackend.setNextItemBufferToRead(nextBufferIdentifier);
             return true;
         }

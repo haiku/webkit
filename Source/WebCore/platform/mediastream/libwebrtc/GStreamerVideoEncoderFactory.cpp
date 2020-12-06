@@ -23,11 +23,10 @@
 #if ENABLE(VIDEO) && ENABLE(MEDIA_STREAM) && USE(LIBWEBRTC) && USE(GSTREAMER)
 #include "GStreamerVideoEncoderFactory.h"
 
+#include "GStreamerVideoCommon.h"
 #include "GStreamerVideoEncoder.h"
 #include "GStreamerVideoFrameLibWebRTC.h"
 #include "webrtc/common_video/h264/h264_common.h"
-#include "webrtc/common_video/h264/profile_level_id.h"
-#include "webrtc/media/base/codec.h"
 #include "webrtc/modules/video_coding/codecs/h264/include/h264.h"
 #include "webrtc/modules/video_coding/codecs/vp8/include/vp8.h"
 #include "webrtc/modules/video_coding/codecs/vp8/libvpx_vp8_encoder.h"
@@ -54,8 +53,6 @@
 
 GST_DEBUG_CATEGORY(webkit_webrtcenc_debug);
 #define GST_CAT_DEFAULT webkit_webrtcenc_debug
-
-#define KBIT_TO_BIT 1024
 
 namespace WebCore {
 
@@ -328,12 +325,11 @@ public:
         return webrtcencoder;
     }
 
-    void AddCodecIfSupported(std::vector<webrtc::SdpVideoFormat>* supportedFormats)
+    void AddCodecIfSupported(std::vector<webrtc::SdpVideoFormat>& supportedFormats)
     {
         if (auto encoder = createEncoder()) {
-            webrtc::SdpVideoFormat format = ConfigureSupportedCodec(encoder.get());
-
-            supportedFormats->push_back(format);
+            auto formats = ConfigureSupportedCodec();
+            supportedFormats.insert(supportedFormats.end(), formats.begin(), formats.end());
         }
     }
 
@@ -342,9 +338,9 @@ public:
         return nullptr;
     }
 
-    virtual webrtc::SdpVideoFormat ConfigureSupportedCodec(GstElement*)
+    virtual std::vector<webrtc::SdpVideoFormat> ConfigureSupportedCodec()
     {
-        return webrtc::SdpVideoFormat(Name());
+        return { webrtc::SdpVideoFormat(Name()) };
     }
 
     virtual webrtc::VideoCodecType CodecType() = 0;
@@ -394,13 +390,9 @@ public:
         return codecSettings->H264().keyFrameInterval;
     }
 
-    webrtc::SdpVideoFormat ConfigureSupportedCodec(GstElement*) final
+    std::vector<webrtc::SdpVideoFormat> ConfigureSupportedCodec() final
     {
-        // TODO- Create from encoder src pad caps template
-        return webrtc::SdpVideoFormat(cricket::kH264CodecName,
-            { { cricket::kH264FmtpProfileLevelId, cricket::kH264ProfileLevelConstrainedBaseline },
-                { cricket::kH264FmtpLevelAsymmetryAllowed, "1" },
-                { cricket::kH264FmtpPacketizationMode, "1" } });
+        return gstreamerSupportedH264Codecs();
     }
 
     const gchar* Caps() final { return "video/x-h264"; }
@@ -470,7 +462,7 @@ GStreamerVideoEncoderFactory::GStreamerVideoEncoderFactory()
 
     std::call_once(debugRegisteredFlag, [] {
         GST_DEBUG_CATEGORY_INIT(webkit_webrtcenc_debug, "webkitlibwebrtcvideoencoder", 0, "WebKit WebRTC video encoder");
-        gst_element_register(nullptr, "webrtcvideoencoder", GST_RANK_PRIMARY, GST_TYPE_WEBRTC_VIDEO_ENCODER);
+        gst_element_register(nullptr, "webrtcvideoencoder", GST_RANK_NONE, WEBRTC_TYPE_VIDEO_ENCODER);
     });
 }
 
@@ -479,7 +471,7 @@ std::vector<webrtc::SdpVideoFormat> GStreamerVideoEncoderFactory::GetSupportedFo
     std::vector<webrtc::SdpVideoFormat> supportedCodecs;
 
     supportedCodecs.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
-    GStreamerH264Encoder().AddCodecIfSupported(&supportedCodecs);
+    GStreamerH264Encoder().AddCodecIfSupported(supportedCodecs);
 
     return supportedCodecs;
 }

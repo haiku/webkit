@@ -44,7 +44,6 @@ public:
 private:
     ScrollingTreeOverflowScrollingNodeNicosia(ScrollingTree&, ScrollingNodeID);
 
-    void commitStateBeforeChildren(const ScrollingStateNode&) override;
     void commitStateAfterChildren(const ScrollingStateNode&) override;
 
     FloatPoint adjustedScrollPosition(const FloatPoint&, ScrollClamping) const override;
@@ -58,7 +57,7 @@ private:
     void ensureScrollAnimationSmooth();
 #endif
 
-    WheelEventHandlingResult handleWheelEvent(const PlatformWheelEvent&) override;
+    WheelEventHandlingResult handleWheelEvent(const PlatformWheelEvent&, EventTargeting) override;
 
     void stopScrollAnimations() override;
 

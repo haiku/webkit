@@ -800,9 +800,8 @@ enum TreeType {
     [Conditional=WEB_RTC] undefined setH264HardwareEncoderAllowed(boolean allowed);
     [Conditional=WEB_RTC] undefined applyRotationForOutgoingVideoSources(RTCPeerConnection connection);
     [Conditional=WEB_RTC] undefined setWebRTCH265Support(boolean allowed);
-    [Conditional=WEB_RTC] undefined setWebRTCVP9Support(boolean allowed);
+    [Conditional=WEB_RTC] undefined setWebRTCVP9Support(boolean supportVP9Profile0, boolean supportVP9Profile2);
     [Conditional=WEB_RTC] undefined setWebRTCVP9VTBSupport(boolean allowed);
-    [Conditional=WEB_RTC] MockRTCRtpTransform createMockRTCRtpTransform();
     [Conditional=WEB_RTC] unsigned long long sframeCounter(RTCRtpSFrameTransform transform);
 
     [Conditional=MEDIA_STREAM] undefined setMockAudioTrackChannelNumber(MediaStreamTrack track, unsigned short count);

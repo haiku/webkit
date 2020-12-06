@@ -28,6 +28,7 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
+#include "DisplayBoxClip.h"
 #include "DisplayStyle.h"
 #include <wtf/IsoMallocInlines.h>
 
@@ -48,6 +49,9 @@ String ContainerBox::debugDescription() const
 {
     TextStream stream;
     stream << "container box " << absoluteBorderBoxRect() << " (" << this << ")";
+    if (auto* clip = ancestorClip())
+        stream << " ancestor clip " << clip->clipRect() << " affected by radius " << clip->affectedByBorderRadius();
+
     return stream.release();
 }
 

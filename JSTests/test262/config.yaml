@@ -3,11 +3,15 @@
 flags:
   WeakRef: useWeakRefs
   FinalizationRegistry: useWeakRefs
-  class-fields-public: usePublicClassFields
   class-fields-private: usePrivateClassFields
+  class-static-fields-public: usePublicStaticClassFields
+  class-static-fields-private: usePrivateStaticClassFields
   Intl.DateTimeFormat-dayPeriod: useIntlDateTimeFormatDayPeriod
   SharedArrayBuffer: useSharedArrayBuffer
   Atomics: useSharedArrayBuffer
+  Array.prototype.at: useAtMethod
+  TypedArray.prototype.at: useAtMethod
+  String.prototype.at: useAtMethod
 skip:
   features:
     - Atomics.waitAsync
@@ -17,8 +21,6 @@ skip:
 
     - arbitrary-module-namespace-names
     - class-methods-private
-    - class-static-fields-public
-    - class-static-fields-private
     - class-static-methods-private
     - cleanupSome
     - host-gc-required
@@ -26,13 +28,6 @@ skip:
     - regexp-match-indices
     - top-level-await
     - Intl.ListFormat
-
-    # remove once it's been renamed in test262
-    - Array.prototype.item
-    - TypedArray.prototype.item
-
-    # remove once it's no longer in test262
-    - String.prototype.item
   paths:
     - test/built-ins/DataView/prototype/getBigInt64
     - test/built-ins/DataView/prototype/getBigUint64

@@ -48,12 +48,12 @@ set(WebCore_PRIVATE_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/Modules/mediasource"
     "${WEBCORE_DIR}/Modules/mediastream"
     "${WEBCORE_DIR}/Modules/mediastream/libwebrtc"
+    "${WEBCORE_DIR}/Modules/model-element"
     "${WEBCORE_DIR}/Modules/navigatorcontentutils"
     "${WEBCORE_DIR}/Modules/notifications"
     "${WEBCORE_DIR}/Modules/paymentrequest"
     "${WEBCORE_DIR}/Modules/pictureinpicture"
     "${WEBCORE_DIR}/Modules/plugins"
-    "${WEBCORE_DIR}/Modules/quota"
     "${WEBCORE_DIR}/Modules/remoteplayback"
     "${WEBCORE_DIR}/Modules/speech"
     "${WEBCORE_DIR}/Modules/streams"
@@ -202,9 +202,9 @@ set(WebCore_IDL_INCLUDES
     Modules/mediacapabilities
     Modules/mediarecorder
     Modules/mediastream
+    Modules/model-element
     Modules/notifications
     Modules/paymentrequest
-    Modules/quota
     Modules/speech
     Modules/streams
     Modules/webaudio
@@ -377,6 +377,8 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/mediastream/RTCDataChannelEvent.idl
     Modules/mediastream/RTCDegradationPreference.idl
     Modules/mediastream/RTCDtxStatus.idl
+    Modules/mediastream/RTCEncodedAudioFrame.idl
+    Modules/mediastream/RTCEncodedVideoFrame.idl
     Modules/mediastream/RTCIceCandidate.idl
     Modules/mediastream/RTCIceCandidateInit.idl
     Modules/mediastream/RTCIceCandidateType.idl
@@ -391,6 +393,7 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/mediastream/RTCOfferAnswerOptions.idl
     Modules/mediastream/RTCOfferOptions.idl
     Modules/mediastream/RTCPeerConnection.idl
+    Modules/mediastream/RTCPeerConnectionIceErrorEvent.idl
     Modules/mediastream/RTCPeerConnectionIceEvent.idl
     Modules/mediastream/RTCPeerConnectionState.idl
     Modules/mediastream/RTCPriorityType.idl
@@ -407,19 +410,24 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/mediastream/RTCRtpReceiver.idl
     Modules/mediastream/RTCRtpRtxParameters.idl
     Modules/mediastream/RTCRtpSFrameTransform.idl
+    Modules/mediastream/RTCRtpScriptTransform.idl
+    Modules/mediastream/RTCRtpScriptTransformProvider.idl
+    Modules/mediastream/RTCRtpScriptTransformer.idl
+    Modules/mediastream/RTCRtpScriptTransformerConstructor.idl
     Modules/mediastream/RTCRtpSendParameters.idl
     Modules/mediastream/RTCRtpSender+Transform.idl
     Modules/mediastream/RTCRtpSender.idl
     Modules/mediastream/RTCRtpSynchronizationSource.idl
     Modules/mediastream/RTCRtpTransceiver.idl
     Modules/mediastream/RTCRtpTransceiverDirection.idl
-    Modules/mediastream/RTCRtpTransform.idl
     Modules/mediastream/RTCSdpType.idl
     Modules/mediastream/RTCSessionDescription.idl
     Modules/mediastream/RTCSessionDescriptionInit.idl
     Modules/mediastream/RTCSignalingState.idl
     Modules/mediastream/RTCStatsReport.idl
     Modules/mediastream/RTCTrackEvent.idl
+
+    Modules/model-element/HTMLModelElement.idl
 
     Modules/notifications/Notification.idl
     Modules/notifications/NotificationPermission.idl
@@ -485,6 +493,7 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/streams/WritableStream.idl
     Modules/streams/WritableStreamDefaultController.idl
     Modules/streams/WritableStreamDefaultWriter.idl
+    Modules/streams/WritableStreamSink.idl
 
     Modules/webaudio/AnalyserNode.idl
     Modules/webaudio/AnalyserOptions.idl
@@ -973,7 +982,6 @@ set(WebCore_NON_SVG_IDL_FILES
     html/HTMLMetaElement.idl
     html/HTMLMeterElement.idl
     html/HTMLModElement.idl
-    html/HTMLModelElement.idl
     html/HTMLOListElement.idl
     html/HTMLObjectElement.idl
     html/HTMLOptGroupElement.idl
@@ -1511,6 +1519,7 @@ if (ENABLE_WEBGL)
         html/canvas/EXTTextureCompressionRGTC.cpp
         html/canvas/EXTTextureFilterAnisotropic.cpp
         html/canvas/EXTsRGB.cpp
+        html/canvas/KHRParallelShaderCompile.cpp
         html/canvas/OESElementIndexUint.cpp
         html/canvas/OESFBORenderMipmap.cpp
         html/canvas/OESStandardDerivatives.cpp
@@ -1570,6 +1579,7 @@ list(APPEND WebCore_IDL_FILES
     html/canvas/EXTTextureCompressionRGTC.idl
     html/canvas/EXTTextureFilterAnisotropic.idl
     html/canvas/EXTsRGB.idl
+    html/canvas/KHRParallelShaderCompile.idl
     html/canvas/OESElementIndexUint.idl
     html/canvas/OESFBORenderMipmap.idl
     html/canvas/OESStandardDerivatives.idl
@@ -1611,28 +1621,6 @@ list(APPEND WebCore_IDL_FILES
     html/canvas/WebGLUniformLocation.idl
     html/canvas/WebGLVertexArrayObject.idl
     html/canvas/WebGLVertexArrayObjectOES.idl
-)
-
-if (ENABLE_QUOTA)
-    list(APPEND WebCore_SOURCES
-        Modules/quota/DOMWindowQuota.cpp
-        Modules/quota/NavigatorStorageQuota.cpp
-        Modules/quota/StorageErrorCallback.cpp
-        Modules/quota/StorageInfo.cpp
-        Modules/quota/StorageQuota.cpp
-        Modules/quota/WorkerNavigatorStorageQuota.cpp
-    )
-endif ()
-
-list(APPEND WebCore_IDL_FILES
-    Modules/quota/DOMWindow+Quota.idl
-    Modules/quota/Navigator+StorageQuota.idl
-    Modules/quota/StorageErrorCallback.idl
-    Modules/quota/StorageInfo.idl
-    Modules/quota/StorageQuota.idl
-    Modules/quota/StorageQuotaCallback.idl
-    Modules/quota/StorageUsageCallback.idl
-    Modules/quota/WorkerNavigator+StorageQuota.idl
 )
 
 if (ENABLE_GRAPHICS_CONTEXT_GL)
@@ -1758,7 +1746,6 @@ set(WebCoreTestSupport_IDL_FILES
     testing/MockCDMFactory.idl
     testing/MockContentFilterSettings.idl
     testing/MockPageOverlay.idl
-    testing/MockRTCRtpTransform.idl
     testing/ServiceWorkerInternals.idl
     testing/TypeConversions.idl
 )
@@ -1782,7 +1769,6 @@ list(APPEND WebCoreTestSupport_SOURCES
     testing/MockLibWebRTCPeerConnection.cpp
     testing/MockPageOverlay.cpp
     testing/MockPageOverlayClient.cpp
-    testing/MockRTCRtpTransform.cpp
     testing/ServiceWorkerInternals.cpp
     testing/js/WebCoreTestSupport.cpp
 )

@@ -231,6 +231,8 @@ JS_BINDING_IDLS := \
     $(WebCore)/Modules/mediastream/RTCDataChannelEvent.idl \
     $(WebCore)/Modules/mediastream/RTCDegradationPreference.idl \
     $(WebCore)/Modules/mediastream/RTCDtxStatus.idl \
+    $(WebCore)/Modules/mediastream/RTCEncodedAudioFrame.idl \
+    $(WebCore)/Modules/mediastream/RTCEncodedVideoFrame.idl \
     $(WebCore)/Modules/mediastream/RTCIceCandidate.idl \
     $(WebCore)/Modules/mediastream/RTCIceCandidateInit.idl \
     $(WebCore)/Modules/mediastream/RTCIceCandidateType.idl \
@@ -246,6 +248,7 @@ JS_BINDING_IDLS := \
     $(WebCore)/Modules/mediastream/RTCOfferOptions.idl \
     $(WebCore)/Modules/mediastream/RTCPeerConnection.idl \
     $(WebCore)/Modules/mediastream/RTCPeerConnectionIceEvent.idl \
+    $(WebCore)/Modules/mediastream/RTCPeerConnectionIceErrorEvent.idl \
     $(WebCore)/Modules/mediastream/RTCPeerConnectionState.idl \
     $(WebCore)/Modules/mediastream/RTCPriorityType.idl \
     $(WebCore)/Modules/mediastream/RTCRtpCapabilities.idl \
@@ -264,16 +267,20 @@ JS_BINDING_IDLS := \
     $(WebCore)/Modules/mediastream/RTCRtpSender.idl \
     $(WebCore)/Modules/mediastream/RTCRtpSender+Transform.idl \
     $(WebCore)/Modules/mediastream/RTCRtpSFrameTransform.idl \
+    $(WebCore)/Modules/mediastream/RTCRtpScriptTransform.idl \
+    $(WebCore)/Modules/mediastream/RTCRtpScriptTransformProvider.idl \
+    $(WebCore)/Modules/mediastream/RTCRtpScriptTransformer.idl \
+    $(WebCore)/Modules/mediastream/RTCRtpScriptTransformerConstructor.idl \
     $(WebCore)/Modules/mediastream/RTCRtpSynchronizationSource.idl \
     $(WebCore)/Modules/mediastream/RTCRtpTransceiver.idl \
     $(WebCore)/Modules/mediastream/RTCRtpTransceiverDirection.idl \
-    $(WebCore)/Modules/mediastream/RTCRtpTransform.idl \
     $(WebCore)/Modules/mediastream/RTCSdpType.idl \
     $(WebCore)/Modules/mediastream/RTCSessionDescription.idl \
     $(WebCore)/Modules/mediastream/RTCSessionDescriptionInit.idl \
     $(WebCore)/Modules/mediastream/RTCSignalingState.idl \
     $(WebCore)/Modules/mediastream/RTCStatsReport.idl \
     $(WebCore)/Modules/mediastream/RTCTrackEvent.idl \
+    $(WebCore)/Modules/model-element/HTMLModelElement.idl \
     $(WebCore)/Modules/notifications/Notification.idl \
     $(WebCore)/Modules/notifications/NotificationPermission.idl \
     $(WebCore)/Modules/notifications/NotificationPermissionCallback.idl \
@@ -304,14 +311,6 @@ JS_BINDING_IDLS := \
     $(WebCore)/Modules/pictureinpicture/HTMLVideoElement+PictureInPicture.idl \
     $(WebCore)/Modules/pictureinpicture/PictureInPictureWindow.idl \
     $(WebCore)/Modules/plugins/QuickTimePluginReplacement.idl \
-    $(WebCore)/Modules/quota/DOMWindow+Quota.idl \
-    $(WebCore)/Modules/quota/Navigator+StorageQuota.idl \
-    $(WebCore)/Modules/quota/StorageErrorCallback.idl \
-    $(WebCore)/Modules/quota/StorageInfo.idl \
-    $(WebCore)/Modules/quota/StorageQuota.idl \
-    $(WebCore)/Modules/quota/StorageQuotaCallback.idl \
-    $(WebCore)/Modules/quota/StorageUsageCallback.idl \
-    $(WebCore)/Modules/quota/WorkerNavigator+StorageQuota.idl \
     $(WebCore)/Modules/remoteplayback/HTMLMediaElement+RemotePlayback.idl \
     $(WebCore)/Modules/remoteplayback/RemotePlayback.idl \
     $(WebCore)/Modules/remoteplayback/RemotePlaybackAvailabilityCallback.idl \
@@ -342,6 +341,7 @@ JS_BINDING_IDLS := \
     $(WebCore)/Modules/streams/WritableStream.idl \
     $(WebCore)/Modules/streams/WritableStreamDefaultController.idl \
     $(WebCore)/Modules/streams/WritableStreamDefaultWriter.idl \
+    $(WebCore)/Modules/streams/WritableStreamSink.idl \
     $(WebCore)/Modules/webaudio/AnalyserNode.idl \
     $(WebCore)/Modules/webaudio/AnalyserOptions.idl \
     $(WebCore)/Modules/webaudio/AudioBuffer.idl \
@@ -844,7 +844,6 @@ JS_BINDING_IDLS := \
     $(WebCore)/html/HTMLMetaElement.idl \
     $(WebCore)/html/HTMLMeterElement.idl \
     $(WebCore)/html/HTMLModElement.idl \
-    $(WebCore)/html/HTMLModelElement.idl \
     $(WebCore)/html/HTMLOListElement.idl \
     $(WebCore)/html/HTMLObjectElement.idl \
     $(WebCore)/html/HTMLOptGroupElement.idl \
@@ -930,6 +929,7 @@ JS_BINDING_IDLS := \
     $(WebCore)/html/canvas/ImageBitmapRenderingContext.idl \
     $(WebCore)/html/canvas/ImageBitmapRenderingContextSettings.idl \
     $(WebCore)/html/canvas/ImageSmoothingQuality.idl \
+    $(WebCore)/html/canvas/KHRParallelShaderCompile.idl \
     $(WebCore)/html/canvas/OESElementIndexUint.idl \
     $(WebCore)/html/canvas/OESFBORenderMipmap.idl \
     $(WebCore)/html/canvas/OESStandardDerivatives.idl \
@@ -1231,7 +1231,6 @@ JS_BINDING_IDLS := \
     $(WebCore)/testing/MockPaymentContactFields.idl \
     $(WebCore)/testing/MockPaymentCoordinator.idl \
     $(WebCore)/testing/MockPaymentError.idl \
-    $(WebCore)/testing/MockRTCRtpTransform.idl \
     $(WebCore)/testing/MockWebAuthenticationConfiguration.idl \
     $(WebCore)/testing/ServiceWorkerInternals.idl \
     $(WebCore)/testing/TypeConversions.idl \
@@ -1498,9 +1497,9 @@ ColorData.cpp : $(WebCore)/platform/ColorData.gperf $(WebCore)/make-hash-tools.p
 
 USER_AGENT_STYLE_SHEETS = \
     $(WebCore)/css/dialog.css \
+    $(WebCore)/css/formControlsIOS.css \
     $(WebCore)/css/fullscreen.css \
     $(WebCore)/css/html.css \
-    $(WebCore)/css/iOSFormControlRefresh.css \
     $(WebCore)/css/mathml.css \
     $(WebCore)/css/mediaControls.css \
     $(WebCore)/css/plugIns.css \

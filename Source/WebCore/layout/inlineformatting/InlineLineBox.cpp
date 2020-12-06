@@ -57,14 +57,26 @@ void LineBox::InlineLevelBox::setLayoutBounds(const LayoutBounds& layoutBounds)
     m_layoutBounds = { InlineLayoutUnit(roundToInt(layoutBounds.ascent)), InlineLayoutUnit(roundToInt(layoutBounds.descent)) };
 }
 
+void LineBox::InlineLevelBox::setLogicalTop(InlineLayoutUnit logicalTop)
+{
+    // FIXME: Remove legacy rounding.
+    m_logicalRect.setTop(roundToInt(logicalTop));
+}
+
+void LineBox::InlineLevelBox::setLogicalHeight(InlineLayoutUnit logicalHeight)
+{
+    // FIXME: Remove legacy rounding.
+    m_logicalRect.setHeight(roundToInt(logicalHeight));
+}
+
 bool LineBox::InlineLevelBox::hasLineBoxRelativeAlignment() const
 {
     auto verticalAlignment = layoutBox().style().verticalAlign();
     return verticalAlignment == VerticalAlign::Top || verticalAlignment == VerticalAlign::Bottom;
 }
 
-LineBox::LineBox(InlineLayoutUnit contentLogicalWidth, IsLineConsideredEmpty isLineConsideredEmpty)
-    : m_logicalSize(contentLogicalWidth, { })
+LineBox::LineBox(const InlineLayoutPoint& logicalTopleft, InlineLayoutUnit contentLogicalWidth, IsLineConsideredEmpty isLineConsideredEmpty)
+    : m_logicalRect(logicalTopleft, InlineLayoutSize { contentLogicalWidth, { } })
     , m_isConsideredEmpty(isLineConsideredEmpty == IsLineConsideredEmpty::Yes)
 {
 }
@@ -98,20 +110,30 @@ InlineRect LineBox::logicalRectForTextRun(const Line::Run& run) const
     return { runlogicalTop, m_horizontalAlignmentOffset.valueOr(InlineLayoutUnit { }) + run.logicalLeft(), run.logicalWidth(), logicalHeight };
 }
 
-InlineRect LineBox::logicalRectForInlineLevelBox(const Box& layoutBox) const
+InlineRect LineBox::logicalMarginRectForInlineLevelBox(const Box& layoutBox, const BoxGeometry& boxGeometry) const
 {
-    auto* inlineBox = &inlineLevelBoxForLayoutBox(layoutBox);
-    if (inlineBox->hasLineBoxRelativeAlignment())
-        return inlineBox->logicalRect();
+    auto logicalRect = [&] {
+        auto* inlineBox = &inlineLevelBoxForLayoutBox(layoutBox);
+        if (inlineBox->hasLineBoxRelativeAlignment())
+            return inlineBox->logicalRect();
 
-    auto inlineBoxLogicalRect = inlineBox->logicalRect();
-    auto inlineBoxAbsolutelogicalTop = inlineBoxLogicalRect.top();
-    while (inlineBox != m_rootInlineBox.get() && !inlineBox->hasLineBoxRelativeAlignment()) {
-        inlineBox = &inlineLevelBoxForLayoutBox(inlineBox->layoutBox().parent());
-        ASSERT(inlineBox->isInlineBox());
-        inlineBoxAbsolutelogicalTop += inlineBox->logicalTop();
-    }
-    return { inlineBoxAbsolutelogicalTop, inlineBoxLogicalRect.left(), inlineBoxLogicalRect.width(), inlineBoxLogicalRect.height() };
+        auto inlineBoxLogicalRect = inlineBox->logicalRect();
+        auto inlineBoxAbsolutelogicalTop = inlineBoxLogicalRect.top();
+        while (inlineBox != m_rootInlineBox.get() && !inlineBox->hasLineBoxRelativeAlignment()) {
+            inlineBox = &inlineLevelBoxForLayoutBox(inlineBox->layoutBox().parent());
+            ASSERT(inlineBox->isInlineBox());
+            inlineBoxAbsolutelogicalTop += inlineBox->logicalTop();
+        }
+        return InlineRect { inlineBoxAbsolutelogicalTop, inlineBoxLogicalRect.left(), inlineBoxLogicalRect.width(), inlineBoxLogicalRect.height() };
+    }();
+    if (!layoutBox.isInlineBox())
+        return logicalRect;
+
+    // This logical rect is as tall as the "text" content is. Let's adjust with vertical border and padding -vertical margin is ignored.
+    auto verticalBorderAndPadding = boxGeometry.verticalBorder() + boxGeometry.verticalPadding().valueOr(0_lu);
+    logicalRect.expandVertically(verticalBorderAndPadding);
+    logicalRect.moveVertically(-(boxGeometry.borderTop() + boxGeometry.paddingTop().valueOr(0_lu)));
+    return logicalRect;
 }
 
 }

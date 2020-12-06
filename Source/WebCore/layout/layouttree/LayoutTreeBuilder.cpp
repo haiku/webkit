@@ -394,7 +394,8 @@ void showInlineTreeAndRuns(TextStream& stream, const LayoutState& layoutState, c
         };
         addSpacing();
         auto& line = lines[lineIndex];
-        stream << "line at (" << line.logicalLeft() << "," << line.logicalTop() << ") size (" << line.logicalWidth() << "x" << line.logicalHeight() << ") baseline (" << line.baseline() << ")";
+        auto& lineBoxLogicalRect = line.lineBoxLogicalRect();
+        stream << "line at (" << lineBoxLogicalRect.left() << "," << lineBoxLogicalRect.top() << ") size (" << lineBoxLogicalRect.width() << "x" << lineBoxLogicalRect.height() << ") baseline (" << line.baseline() << ")";
         stream.nextLine();
 
         addSpacing();
@@ -415,7 +416,8 @@ void showInlineTreeAndRuns(TextStream& stream, const LayoutState& layoutState, c
                 stream << "Generic inline box";
             else
                 stream << "Generic inline level box";
-            auto logicalRect = lineBox.logicalRectForInlineLevelBox(inlineLevelBox.layoutBox());
+            auto& layoutBox = inlineLevelBox.layoutBox();
+            auto logicalRect = lineBox.logicalMarginRectForInlineLevelBox(layoutBox, layoutState.geometryForBox(layoutBox));
             stream
                 << " at (" << logicalRect.left() << "," << logicalRect.top() << ")"
                 << " size (" << logicalRect.width() << "x" << logicalRect.height() << ")"

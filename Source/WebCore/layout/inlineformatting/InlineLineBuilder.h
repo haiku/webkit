@@ -39,7 +39,7 @@ struct LineCandidate;
 
 class LineBuilder {
 public:
-    LineBuilder(const InlineFormattingContext&, const FloatingContext&, const ContainerBox& formattingContextRoot, const InlineItems&);
+    LineBuilder(const InlineFormattingContext&, const FloatingContext&, const InlineItems&);
 
     struct InlineItemRange {
         bool isEmpty() const { return start == end; }
@@ -50,21 +50,17 @@ public:
     struct LineContent {
         InlineItemRange inlineItemRange;
         size_t partialTrailingContentLength { 0 };
-        struct Float {
-            bool isIntrusive { true };
-            const InlineItem* item { nullptr };
-        };
-        using FloatList = Vector<Float>;
+        using FloatList = Vector<const Box*>;
         const FloatList& floats;
         bool hasIntrusiveFloat { false };
         InlineLayoutPoint logicalTopLeft;
         InlineLayoutUnit lineLogicalWidth;
-        InlineLayoutUnit lineContentLogicalWidth;
+        InlineLayoutUnit contentLogicalWidth;
         bool isLineConsideredEmpty { true };
         bool isLastLineWithInlineContent { true };
         const Line::RunList& runs;
     };
-    LineContent layoutInlineContent(const InlineItemRange&, size_t partialLeadingContentLength, const InlineRect& initialLineConstraints, bool isFirstLine);
+    LineContent layoutInlineContent(const InlineItemRange&, size_t partialLeadingContentLength, const InlineRect& initialConstraintsForLine, bool isFirstLine);
 
     struct IntrinsicContent {
         InlineItemRange inlineItemRange;
@@ -73,7 +69,7 @@ public:
     IntrinsicContent computedIntrinsicWidth(const InlineItemRange&, InlineLayoutUnit availableWidth);
 
 private:
-    void nextContentForLine(LineCandidate&, size_t inlineItemIndex, const InlineItemRange& needsLayoutRange, size_t overflowLength, InlineLayoutUnit availableLineWidth, InlineLayoutUnit currentLogicalRight);
+    void candidateContentForLine(LineCandidate&, size_t inlineItemIndex, const InlineItemRange& needsLayoutRange, size_t overflowLength, InlineLayoutUnit currentLogicalRight);
     size_t nextWrapOpportunity(size_t startIndex, const LineBuilder::InlineItemRange& layoutRange) const;
 
     struct Result {
@@ -85,15 +81,13 @@ private:
         CommittedContentCount committedCount { };
         size_t partialTrailingContentLength { 0 };
     };
-    enum class CommitIntrusiveFloatsOnly { No, Yes };
     struct UsedConstraints {
         InlineLayoutUnit logicalLeft { 0 };
-        InlineLayoutUnit availableLogicalWidth { 0 };
+        InlineLayoutUnit logicalWidth { 0 };
         bool isConstrainedByFloat { false };
     };
     UsedConstraints constraintsForLine(const InlineRect& initialLineConstraints, bool isFirstLine);
-    void commitFloats(const LineCandidate&, CommitIntrusiveFloatsOnly = CommitIntrusiveFloatsOnly::No);
-    Result handleFloatsAndInlineContent(InlineContentBreaker&, const InlineItemRange& needsLayoutRange, const LineCandidate&);
+    Result handleFloatOrInlineContent(InlineContentBreaker&, const InlineItemRange& needsLayoutRange, const LineCandidate&);
     size_t rebuildLine(const InlineItemRange& needsLayoutRange, const InlineItem& lastInlineItemToAdd);
     size_t rebuildLineForTrailingSoftHyphen(const InlineItemRange& layoutRange);
     void commitPartialContent(const InlineContentBreaker::ContinuousContent::RunList&, const InlineContentBreaker::Result::PartialTrailingContent&);
@@ -109,13 +103,13 @@ private:
     bool isLastLineWithInlineContent(const InlineItemRange& lineRange, size_t lastInlineItemIndex, bool hasPartialTrailingContent) const;
 
     const InlineFormattingContext& formattingContext() const { return m_inlineFormattingContext; }
-    const ContainerBox& root() const { return m_formattingContextRoot; }
+    const ContainerBox& root() const;
     const LayoutState& layoutState() const;
 
     const InlineFormattingContext& m_inlineFormattingContext;
     const FloatingContext& m_floatingContext;
-    const ContainerBox& m_formattingContextRoot;
     Line m_line;
+    InlineLayoutUnit m_horizontalSpaceForLine { 0 };
     const InlineItems& m_inlineItems;
     LineContent::FloatList m_floats;
     Optional<InlineTextItem> m_partialLeadingTextItem;

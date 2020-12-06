@@ -158,13 +158,19 @@ Modules/mediastream/RTCDTMFSender.cpp
 Modules/mediastream/RTCDTMFToneChangeEvent.cpp
 Modules/mediastream/RTCDataChannel.cpp
 Modules/mediastream/RTCDataChannelEvent.cpp
+Modules/mediastream/RTCEncodedAudioFrame.cpp
+Modules/mediastream/RTCEncodedFrame.cpp
+Modules/mediastream/RTCEncodedVideoFrame.cpp
 Modules/mediastream/RTCIceCandidate.cpp
 Modules/mediastream/RTCIceTransport.cpp
 Modules/mediastream/RTCPeerConnection.cpp
 Modules/mediastream/RTCPeerConnectionIceEvent.cpp
+Modules/mediastream/RTCPeerConnectionIceErrorEvent.cpp
 Modules/mediastream/RTCRtpReceiver.cpp
 Modules/mediastream/RTCRtpSFrameTransform.cpp
 Modules/mediastream/RTCRtpSFrameTransformer.cpp
+Modules/mediastream/RTCRtpScriptTransform.cpp
+Modules/mediastream/RTCRtpScriptTransformer.cpp
 Modules/mediastream/RTCRtpSender.cpp
 Modules/mediastream/RTCRtpTransform.cpp
 Modules/mediastream/RTCRtpTransceiver.cpp
@@ -176,6 +182,7 @@ Modules/mediastream/libwebrtc/LibWebRTCCertificateGenerator.cpp
 Modules/mediastream/libwebrtc/LibWebRTCRtpReceiverTransformBackend.cpp
 Modules/mediastream/libwebrtc/LibWebRTCRtpSenderTransformBackend.cpp
 Modules/mediastream/libwebrtc/LibWebRTCRtpTransformBackend.cpp
+Modules/model-element/HTMLModelElement.cpp
 Modules/notifications/Notification.cpp
 Modules/notifications/NotificationController.cpp
 Modules/paymentrequest/MerchantValidationEvent.cpp
@@ -198,6 +205,9 @@ Modules/speech/SpeechRecognitionRequest.cpp
 Modules/speech/SpeechRecognitionResult.cpp
 Modules/speech/SpeechRecognitionResultList.cpp
 Modules/speech/SpeechRecognitionUpdate.cpp
+Modules/speech/SpeechRecognitionCaptureSource.cpp
+Modules/speech/SpeechRecognitionCaptureSourceImpl.cpp
+Modules/speech/SpeechRecognizer.cpp
 Modules/speech/DOMWindowSpeechSynthesis.cpp
 Modules/speech/SpeechSynthesis.cpp
 Modules/speech/SpeechSynthesisEvent.cpp
@@ -622,6 +632,7 @@ bindings/js/WebCoreJITOperations.cpp
 bindings/js/WebCoreJSClientData.cpp
 bindings/js/WebCoreTypedArrayController.cpp
 bindings/js/WindowProxy.cpp
+bindings/js/WritableStream.cpp
 bridge/IdentifierRep.cpp
 bridge/NP_jsobject.cpp
 bridge/c/CRuntimeObject.cpp
@@ -823,11 +834,13 @@ css/typedom/TypedOMCSSUnitValue.cpp
 css/typedom/TypedOMCSSUnparsedValue.cpp
 cssjit/SelectorCompiler.cpp
 display/css/DisplayBox.cpp
+display/css/DisplayBoxClip.cpp
 display/css/DisplayBoxDecorationData.cpp
 display/css/DisplayBoxDecorationPainter.cpp
 display/css/DisplayBoxFactory.cpp
 display/css/DisplayBoxModelBox.cpp
 display/css/DisplayBoxPainter.cpp
+display/css/DisplayBoxRareGeometry.cpp
 display/css/DisplayContainerBox.cpp
 display/css/DisplayCSSPainter.cpp
 display/css/DisplayFillLayerImageGeometry.cpp
@@ -1187,7 +1200,6 @@ html/HTMLMenuItemElement.cpp
 html/HTMLMetaElement.cpp
 html/HTMLMeterElement.cpp
 html/HTMLModElement.cpp
-html/HTMLModelElement.cpp
 html/HTMLNameCollection.cpp
 html/HTMLOListElement.cpp
 html/HTMLObjectElement.cpp
@@ -1293,6 +1305,7 @@ html/canvas/EXTTextureFilterAnisotropic.cpp
 html/canvas/EXTsRGB.cpp
 html/canvas/GPUBasedCanvasRenderingContext.cpp
 html/canvas/ImageBitmapRenderingContext.cpp
+html/canvas/KHRParallelShaderCompile.cpp
 html/canvas/OESElementIndexUint.cpp
 html/canvas/OESFBORenderMipmap.cpp
 html/canvas/OESStandardDerivatives.cpp
@@ -2143,6 +2156,7 @@ rendering/BidiRun.cpp
 rendering/BorderEdge.cpp
 rendering/BreakLines.cpp
 rendering/CSSFilter.cpp
+rendering/CaretRectComputation.cpp
 rendering/ClipRect.cpp
 rendering/ComplexLineLayout.cpp
 rendering/ContentfulPaintChecker.cpp
@@ -2323,7 +2337,6 @@ rendering/style/StyleMultiColData.cpp
 rendering/style/StyleMultiImage.cpp
 rendering/style/StyleRareInheritedData.cpp
 rendering/style/StyleRareNonInheritedData.cpp
-rendering/style/StyleScrollSnapPoints.cpp
 rendering/style/StyleSelfAlignmentData.cpp
 rendering/style/StyleSurroundData.cpp
 rendering/style/StyleTransformData.cpp
@@ -2427,6 +2440,7 @@ style/StyleInvalidator.cpp
 style/StylePendingResources.cpp
 style/StyleRelations.cpp
 style/StyleResolveForDocument.cpp
+style/StyleResolveForFontRaw.cpp
 style/StyleResolver.cpp
 style/StyleScope.cpp
 style/StyleScopeRuleSets.cpp
@@ -2921,6 +2935,7 @@ JSEXTShaderTextureLOD.cpp
 JSEXTTextureCompressionRGTC.cpp
 JSEXTTextureFilterAnisotropic.cpp
 JSEXTsRGB.cpp
+JSKHRParallelShaderCompile.cpp
 JSEcKeyParams.cpp
 JSEcdhKeyDeriveParams.cpp
 JSEcdsaParams.cpp
@@ -3297,6 +3312,8 @@ JSRTCDataChannel.cpp
 JSRTCDataChannelEvent.cpp
 JSRTCDegradationPreference.cpp
 JSRTCDtxStatus.cpp
+JSRTCEncodedAudioFrame.cpp
+JSRTCEncodedVideoFrame.cpp
 JSRTCIceCandidate.cpp
 JSRTCIceCandidateInit.cpp
 JSRTCIceCandidateType.cpp
@@ -3312,6 +3329,7 @@ JSRTCOfferAnswerOptions.cpp
 JSRTCOfferOptions.cpp
 JSRTCPeerConnection.cpp
 JSRTCPeerConnectionIceEvent.cpp
+JSRTCPeerConnectionIceErrorEvent.cpp
 JSRTCPeerConnectionState.cpp
 JSRTCPriorityType.cpp
 JSRTCRtpCapabilities.cpp
@@ -3325,12 +3343,14 @@ JSRTCRtpParameters.cpp
 JSRTCRtpReceiver.cpp
 JSRTCRtpRtxParameters.cpp
 JSRTCRtpSFrameTransform.cpp
+JSRTCRtpScriptTransform.cpp
+JSRTCRtpScriptTransformer.cpp
+JSRTCRtpScriptTransformerConstructor.cpp
 JSRTCRtpSendParameters.cpp
 JSRTCRtpSender.cpp
 JSRTCRtpSynchronizationSource.cpp
 JSRTCRtpTransceiver.cpp
 JSRTCRtpTransceiverDirection.cpp
-JSRTCRtpTransform.cpp
 JSRTCSdpType.cpp
 JSRTCSessionDescription.cpp
 JSRTCSessionDescriptionInit.cpp
@@ -3549,12 +3569,7 @@ JSStereoPannerNode.cpp
 JSStereoPannerOptions.cpp
 JSStaticRange.cpp
 JSStorage.cpp
-JSStorageErrorCallback.cpp
 JSStorageEvent.cpp
-JSStorageInfo.cpp
-JSStorageQuota.cpp
-JSStorageQuotaCallback.cpp
-JSStorageUsageCallback.cpp
 JSStringCallback.cpp
 JSStyleMedia.cpp
 JSStylePropertyMap.cpp
@@ -3723,6 +3738,7 @@ JSWorkletOptions.cpp
 JSWritableStream.cpp
 JSWritableStreamDefaultController.cpp
 JSWritableStreamDefaultWriter.cpp
+JSWritableStreamSink.cpp
 JSXMLDocument.cpp
 JSXMLHttpRequest.cpp
 JSXMLHttpRequestEventTarget.cpp

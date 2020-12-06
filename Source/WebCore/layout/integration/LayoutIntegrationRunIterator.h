@@ -58,6 +58,8 @@ public:
 
     FloatRect rect() const;
 
+    float logicalTop() const { return isHorizontal() ? rect().y() : rect().x(); }
+    float logicalBottom() const { return isHorizontal() ? rect().maxY() : rect().maxX(); }
     float logicalLeft() const { return isHorizontal() ? rect().x() : rect().y(); }
     float logicalRight() const { return isHorizontal() ? rect().maxX() : rect().maxY(); }
     float logicalWidth() const { return isHorizontal() ? rect().width() : rect().height(); }
@@ -141,6 +143,8 @@ public:
     RunIterator& traversePreviousOnLine();
     RunIterator& traverseNextOnLineIgnoringLineBreak();
     RunIterator& traversePreviousOnLineIgnoringLineBreak();
+    RunIterator& traverseNextOnLineInLogicalOrder();
+    RunIterator& traversePreviousOnLineInLogicalOrder();
 
     LineIterator line() const;
 
@@ -171,6 +175,8 @@ private:
     RunIterator& traversePreviousOnLine() = delete;
     RunIterator& traverseNextOnLineIgnoringLineBreak() = delete;
     RunIterator& traversePreviousOnLineIgnoringLineBreak() = delete;
+    RunIterator& traverseNextOnLineInLogicalOrder() = delete;
+    RunIterator& traversePreviousOnLineInLogicalOrder() = delete;
 
     const PathTextRun& get() const { return downcast<PathTextRun>(m_run); }
 };

@@ -219,8 +219,10 @@ namespace WebCore {
     macro(RTCIceTransport) \
     macro(RTCPeerConnection) \
     macro(RTCPeerConnectionIceEvent) \
+    macro(RTCPeerConnectionIceErrorEvent) \
     macro(RTCRtpReceiver) \
     macro(RTCRtpSFrameTransform) \
+    macro(RTCRtpScriptTransform) \
     macro(RTCRtpSender) \
     macro(RTCRtpTransceiver) \
     macro(RTCRtpTransform) \

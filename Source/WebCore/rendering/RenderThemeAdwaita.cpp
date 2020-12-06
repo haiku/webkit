@@ -297,17 +297,17 @@ bool RenderThemeAdwaita::paintMenuList(const RenderObject& renderObject, const P
     return false;
 }
 
-bool RenderThemeAdwaita::paintMenuListButtonDecorations(const RenderBox& renderObject, const PaintInfo& paintInfo, const FloatRect& rect)
+void RenderThemeAdwaita::paintMenuListButtonDecorations(const RenderBox& renderObject, const PaintInfo& paintInfo, const FloatRect& rect)
 {
-    return paintMenuList(renderObject, paintInfo, rect);
+    paintMenuList(renderObject, paintInfo, rect);
 }
 
-Seconds RenderThemeAdwaita::animationRepeatIntervalForProgressBar(RenderProgress&) const
+Seconds RenderThemeAdwaita::animationRepeatIntervalForProgressBar(const RenderProgress&) const
 {
     return progressAnimationFrameRate;
 }
 
-Seconds RenderThemeAdwaita::animationDurationForProgressBar(RenderProgress&) const
+Seconds RenderThemeAdwaita::animationDurationForProgressBar(const RenderProgress&) const
 {
     return progressAnimationFrameRate * progressAnimationFrameCount;
 }

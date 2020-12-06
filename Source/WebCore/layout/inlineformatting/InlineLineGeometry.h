@@ -35,37 +35,29 @@ namespace Layout {
 class InlineLineGeometry {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    InlineLineGeometry(const InlineRect& lineLogicalRect, const InlineLayoutSize& lineBoxLogicalSize, InlineLayoutUnit aligmentBaseline, InlineLayoutUnit horizontalAlignmentOffset);
+    InlineLineGeometry(const InlineRect& lineBoxLogicalRect, InlineLayoutUnit aligmentBaseline, InlineLayoutUnit contentLogicalLeftOffset, InlineLayoutUnit contentLogicalWidth);
 
-    InlineLayoutUnit logicalLeft() const { return logicalRect().left(); };
-    InlineLayoutUnit logicalRight() const { return logicalRect().right(); };
-
-    InlineLayoutUnit logicalTop() const { return logicalRect().top(); };
-    InlineLayoutUnit logicalBottom() const { return logicalRect().bottom(); };
-
-    InlineLayoutUnit logicalWidth() const { return logicalRect().width(); };
-    InlineLayoutUnit logicalHeight() const { return logicalRect().height(); };
-
-    const InlineRect& logicalRect() const { return m_logicalRect; }
-    const InlineLayoutSize& lineBoxLogicalSize() const { return m_lineBoxLogicalSize; }
+    const InlineRect& lineBoxLogicalRect() const { return m_lineBoxLogicalRect; }
 
     InlineLayoutUnit baseline() const { return m_aligmentBaseline; }
-    InlineLayoutUnit horizontalAlignmentOffset() const { return m_horizontalAlignmentOffset; }
 
-    void moveVertically(InlineLayoutUnit offset) { m_logicalRect.moveVertically(offset); }
+    InlineLayoutUnit contentLogicalLeftOffset() const { return m_contentLogicalLeftOffset; }
+    InlineLayoutUnit contentLogicalWidth() const { return m_contentLogicalWidth; }
+
+    void moveVertically(InlineLayoutUnit offset) { m_lineBoxLogicalRect.moveVertically(offset); }
 
 private:
-    InlineRect m_logicalRect;
-    InlineLayoutSize m_lineBoxLogicalSize;
+    InlineRect m_lineBoxLogicalRect;
     InlineLayoutUnit m_aligmentBaseline { 0 };
-    InlineLayoutUnit m_horizontalAlignmentOffset { 0 };
+    InlineLayoutUnit m_contentLogicalLeftOffset { 0 };
+    InlineLayoutUnit m_contentLogicalWidth { 0 };
 };
 
-inline InlineLineGeometry::InlineLineGeometry(const InlineRect& lineLogicalRect, const InlineLayoutSize& lineBoxLogicalSize, InlineLayoutUnit aligmentBaseline, InlineLayoutUnit horizontalAlignmentOffset)
-    : m_logicalRect(lineLogicalRect)
-    , m_lineBoxLogicalSize(lineBoxLogicalSize)
+inline InlineLineGeometry::InlineLineGeometry(const InlineRect& lineBoxLogicalRect, InlineLayoutUnit aligmentBaseline, InlineLayoutUnit contentLogicalLeftOffset, InlineLayoutUnit contentLogicalWidth)
+    : m_lineBoxLogicalRect(lineBoxLogicalRect)
     , m_aligmentBaseline(aligmentBaseline)
-    , m_horizontalAlignmentOffset(horizontalAlignmentOffset)
+    , m_contentLogicalLeftOffset(contentLogicalLeftOffset)
+    , m_contentLogicalWidth(contentLogicalWidth)
 {
 }
 

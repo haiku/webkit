@@ -55,14 +55,15 @@ public:
     LayoutUnit selectionTop() const;
     LayoutUnit selectionTopForHitTesting() const;
     LayoutUnit selectionBottom() const;
+    LayoutUnit selectionHeight() const;
     LayoutUnit lineBoxTop() const;
     LayoutUnit lineBoxBottom() const;
 
     LayoutRect selectionRect() const;
 
     float y() const;
-    float logicalLeft() const;
-    float logicalRight() const;
+    float contentLogicalLeft() const;
+    float contentLogicalRight() const;
     float logicalHeight() const;
 
     int blockDirectionPointInLine() const;
@@ -106,10 +107,14 @@ public:
 
     RunIterator firstRun() const;
     RunIterator lastRun() const;
-    RunIterator logicalStartRunWithNode() const;
-    RunIterator logicalEndRunWithNode() const;
+
     RunIterator closestRunForPoint(const IntPoint& pointInContents, bool editableOnly);
     RunIterator closestRunForLogicalLeftPosition(int position, bool editableOnly = false);
+
+    RunIterator logicalStartRun() const;
+    RunIterator logicalEndRun() const;
+    RunIterator logicalStartRunWithNode() const;
+    RunIterator logicalEndRunWithNode() const;
 
 private:
     PathLine m_line;
@@ -160,6 +165,11 @@ inline LayoutUnit PathLine::selectionBottom() const
     });
 }
 
+inline LayoutUnit PathLine::selectionHeight() const
+{
+    return selectionBottom() - selectionTop();
+}
+
 inline LayoutUnit PathLine::lineBoxTop() const
 {
     return WTF::switchOn(m_pathVariant, [](const auto& path) {
@@ -176,7 +186,7 @@ inline LayoutUnit PathLine::lineBoxBottom() const
 
 inline LayoutRect PathLine::selectionRect() const
 {
-    return { LayoutPoint { logicalLeft(), selectionTop() }, LayoutPoint { logicalRight(), selectionBottom() } };
+    return { LayoutPoint { contentLogicalLeft(), selectionTop() }, LayoutPoint { contentLogicalRight(), selectionBottom() } };
 }
 
 inline float PathLine::y() const
@@ -186,17 +196,17 @@ inline float PathLine::y() const
     });
 }
 
-inline float PathLine::logicalLeft() const
+inline float PathLine::contentLogicalLeft() const
 {
     return WTF::switchOn(m_pathVariant, [](const auto& path) {
-        return path.logicalLeft();
+        return path.contentLogicalLeft();
     });
 }
 
-inline float PathLine::logicalRight() const
+inline float PathLine::contentLogicalRight() const
 {
     return WTF::switchOn(m_pathVariant, [](const auto& path) {
-        return path.logicalRight();
+        return path.contentLogicalRight();
     });
 }
 

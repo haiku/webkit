@@ -27,6 +27,7 @@
 #include "WebPreferencesDefaultValues.h"
 
 #include <WebCore/RuntimeApplicationChecks.h>
+#include <wtf/text/WTFString.h>
 
 #if PLATFORM(COCOA)
 #include <WebCore/VersionChecks.h>
@@ -57,6 +58,12 @@ bool defaultCSSOMViewScrollingAPIEnabled()
 bool defaultPassiveWheelListenersAsDefaultOnDocument()
 {
     static bool result = linkedOnOrAfter(WebCore::SDKVersion::FirstThatDefaultsToPassiveWheelListenersOnDocument);
+    return result;
+}
+
+bool defaultWheelEventGesturesBecomeNonBlocking()
+{
+    static bool result = linkedOnOrAfter(WebCore::SDKVersion::FirstThatAllowsWheelEventGesturesToBecomeNonBlocking);
     return result;
 }
 

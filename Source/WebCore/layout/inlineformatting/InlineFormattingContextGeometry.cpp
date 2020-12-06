@@ -155,9 +155,9 @@ LineBox LineBoxBuilder::build(const LineBuilder::LineContent& lineContent)
 {
     auto& runs = lineContent.runs;
     auto lineLogicalWidth = lineContent.lineLogicalWidth;
-    auto contentLogicalWidth = lineContent.lineContentLogicalWidth;
+    auto contentLogicalWidth = lineContent.contentLogicalWidth;
     auto isLineConsideredEmpty = lineContent.isLineConsideredEmpty ? LineBox::IsLineConsideredEmpty::Yes : LineBox::IsLineConsideredEmpty::No;
-    auto lineBox = LineBox { contentLogicalWidth, isLineConsideredEmpty };
+    auto lineBox = LineBox { lineContent.logicalTopLeft, contentLogicalWidth, isLineConsideredEmpty };
 
     if (auto horizontalAlignmentOffset = Layout::horizontalAlignmentOffset(runs, rootBox().style().textAlign(), lineLogicalWidth, contentLogicalWidth, lineContent.isLastLineWithInlineContent))
         lineBox.setHorizontalAlignmentOffset(*horizontalAlignmentOffset);
@@ -259,7 +259,7 @@ void LineBoxBuilder::constructInlineLevelBoxes(LineBox& lineBox, const Line::Run
             if (layoutBox.isInlineBlockBox() && layoutBox.establishesInlineFormattingContext()) {
                 auto& formattingState = layoutState().establishedInlineFormattingState(downcast<ContainerBox>(layoutBox));
                 auto& lastLine = formattingState.lines().last();
-                auto inlineBlockBaseline = lastLine.logicalTop() + lastLine.baseline();
+                auto inlineBlockBaseline = lastLine.lineBoxLogicalRect().top() + lastLine.baseline();
                 ascent = inlineLevelBoxGeometry.marginBefore() + inlineLevelBoxGeometry.borderTop() + inlineLevelBoxGeometry.paddingTop().valueOr(0) + inlineBlockBaseline;
             } else if (layoutBox.isReplacedBox())
                 ascent = downcast<ReplacedBox>(layoutBox).baseline().valueOr(marginBoxHeight);
@@ -526,11 +526,6 @@ void LineBoxBuilder::computeLineBoxHeightAndalignInlineLevelBoxesVertically(Line
 LineBox InlineFormattingContext::Geometry::lineBoxForLineContent(const LineBuilder::LineContent& lineContent)
 {
     return LineBoxBuilder(formattingContext()).build(lineContent);
-}
-
-InlineRect InlineFormattingContext::Geometry::computedLineLogicalRect(const LineBox& lineBox, const LineBuilder::LineContent& lineContent) const
-{
-    return { lineContent.logicalTopLeft, lineContent.lineLogicalWidth, lineBox.logicalHeight() };
 }
 
 InlineLayoutUnit InlineFormattingContext::Geometry::logicalTopForNextLine(const LineBuilder::LineContent& lineContent, InlineLayoutUnit previousLineLogicalBottom, const FloatingContext& floatingContext) const

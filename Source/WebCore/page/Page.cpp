@@ -39,6 +39,7 @@
 #include "DOMRect.h"
 #include "DOMRectList.h"
 #include "DatabaseProvider.h"
+#include "DebugOverlayRegions.h"
 #include "DebugPageOverlays.h"
 #include "DiagnosticLoggingClient.h"
 #include "DiagnosticLoggingKeys.h"
@@ -338,7 +339,7 @@ Page::Page(PageConfiguration&& pageConfiguration)
 
 #if USE(LIBWEBRTC)
     m_libWebRTCProvider->setH265Support(RuntimeEnabledFeatures::sharedFeatures().webRTCH265CodecEnabled());
-    m_libWebRTCProvider->setVP9Support(RuntimeEnabledFeatures::sharedFeatures().webRTCVP9CodecEnabled());
+    m_libWebRTCProvider->setVP9Support(RuntimeEnabledFeatures::sharedFeatures().webRTCVP9Profile0CodecEnabled(), RuntimeEnabledFeatures::sharedFeatures().webRTCVP9Profile2CodecEnabled());
 #endif
 
     if (!pageConfiguration.userScriptsShouldWaitUntilNotification)
@@ -944,7 +945,7 @@ void Page::setEditableRegionEnabled(bool enabled)
 
 bool Page::shouldBuildEditableRegion() const
 {
-    return m_isEditableRegionEnabled || m_settings->visibleDebugOverlayRegions() & EditableElementRegion;
+    return m_isEditableRegionEnabled || OptionSet<DebugOverlayRegions>::fromRaw(m_settings->visibleDebugOverlayRegions()).contains(DebugOverlayRegions::EditableElementRegion);
 }
 
 #endif

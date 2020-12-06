@@ -35,7 +35,7 @@
 
 namespace WebKit {
 
-#if PLATFORM(COCOA) && HAVE(SYSTEM_FEATURE_FLAGS)
+#if HAVE(SYSTEM_FEATURE_FLAGS)
 bool isFeatureFlagEnabled(const String&);
 #endif
 
@@ -49,6 +49,7 @@ bool defaultTextAutosizingUsesIdempotentMode();
 
 #if PLATFORM(MAC)
 bool defaultPassiveWheelListenersAsDefaultOnDocument();
+bool defaultWheelEventGesturesBecomeNonBlocking();
 #endif
 
 #if PLATFORM(MAC) || PLATFORM(IOS_FAMILY)

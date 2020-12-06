@@ -499,12 +499,25 @@ class RunTest262Tests(TestWithFailureCount):
     descriptionDone = ["test262-tests"]
     failedTestsFormatString = "%d Test262 test%s failed"
     command = ["perl", "./Tools/Scripts/test262-runner", "--verbose", WithProperties("--%(configuration)s")]
+    test_summary_re = re.compile(r'^\! NEW FAIL')
 
     def start(self):
+        if USE_BUILDBOT_VERSION2:
+            self.log_observer = ParseByLineLogObserver(self.parseOutputLine)
+            self.addLogObserver('stdio', self.log_observer)
+            self.failedTestCount = 0
         appendCustomBuildFlags(self, self.getProperty('platform'), self.getProperty('fullPlatform'))
         return shell.Test.start(self)
 
+    def parseOutputLine(self, line):
+        match = self.test_summary_re.match(line)
+        if match:
+            self.failedTestCount += 1
+
     def countFailures(self, cmd):
+        if USE_BUILDBOT_VERSION2:
+            return self.failedTestCount
+
         logText = cmd.logs['stdio'].getText()
         matches = re.findall(r'^\! NEW FAIL', logText, flags=re.MULTILINE)
         if matches:
@@ -734,8 +747,13 @@ class RunAPITests(TestWithFailureCount):
 
 
 class RunPythonTests(TestWithFailureCount):
+    test_summary_re = re.compile(r'^FAILED \((?P<counts>[^)]+)\)')  # e.g.: FAILED (failures=2, errors=1)
 
     def start(self):
+        if USE_BUILDBOT_VERSION2:
+            self.log_observer = ParseByLineLogObserver(self.parseOutputLine)
+            self.addLogObserver('stdio', self.log_observer)
+            self.failedTestCount = 0
         platform = self.getProperty('platform')
         # Python tests are flaky on the GTK builders, running them serially
         # helps and does not significantly prolong the cycle time.
@@ -747,7 +765,15 @@ class RunPythonTests(TestWithFailureCount):
             self.setCommand(self.command + ['--child-processes', '1'])
         return shell.Test.start(self)
 
+    def parseOutputLine(self, line):
+        match = self.test_summary_re.match(line)
+        if match:
+            self.failedTestCount = sum(int(component.split('=')[1]) for component in match.group('counts').split(', '))
+
     def countFailures(self, cmd):
+        if USE_BUILDBOT_VERSION2:
+            return self.failedTestCount
+
         logText = cmd.logs['stdio'].getText()
         # We're looking for the line that looks like this: FAILED (failures=2, errors=1)
         regex = re.compile(r'^FAILED \((?P<counts>[^)]+)\)')
@@ -807,8 +833,24 @@ class RunPerlTests(TestWithFailureCount):
     descriptionDone = ["perl-tests"]
     command = ["perl", "./Tools/Scripts/test-webkitperl"]
     failedTestsFormatString = "%d perl test%s failed"
+    test_summary_re = re.compile(r'^Failed \d+/\d+ test programs\. (?P<count>\d+)/\d+ subtests failed\.')  # e.g.: Failed 2/19 test programs. 5/363 subtests failed.
+
+    def start(self):
+        if USE_BUILDBOT_VERSION2:
+            self.log_observer = ParseByLineLogObserver(self.parseOutputLine)
+            self.addLogObserver('stdio', self.log_observer)
+            self.failedTestCount = 0
+        return shell.Test.start(self)
+
+    def parseOutputLine(self, line):
+        match = self.test_summary_re.match(line)
+        if match:
+            self.failedTestCount = int(match.group('count'))
 
     def countFailures(self, cmd):
+        if USE_BUILDBOT_VERSION2:
+            return self.failedTestCount
+
         logText = cmd.logs['stdio'].getText()
         # We're looking for the line that looks like this: Failed 2/19 test programs. 5/363 subtests failed.
         regex = re.compile(r'^Failed \d+/\d+ test programs\. (?P<count>\d+)/\d+ subtests failed\.')
@@ -839,6 +881,7 @@ class RunLLINTCLoopTests(TestWithFailureCount):
     ]
     failedTestsFormatString = "%d regression%s found."
     logfiles = {"json": jsonFileName}
+    test_summary_re = re.compile(r'\s*(?P<count>\d+) regressions? found.')  # e.g.: 2 regressions found.
 
     def __init__(self, *args, **kwargs):
         kwargs['logEnviron'] = False
@@ -847,11 +890,22 @@ class RunLLINTCLoopTests(TestWithFailureCount):
     def start(self):
         if USE_BUILDBOT_VERSION2:
             self.workerEnvironment[RESULTS_SERVER_API_KEY] = os.getenv(RESULTS_SERVER_API_KEY)
+            self.log_observer = ParseByLineLogObserver(self.parseOutputLine)
+            self.addLogObserver('stdio', self.log_observer)
+            self.failedTestCount = 0
         else:
             self.slaveEnvironment[RESULTS_SERVER_API_KEY] = os.getenv(RESULTS_SERVER_API_KEY)
         return shell.Test.start(self)
 
+    def parseOutputLine(self, line):
+        match = self.test_summary_re.match(line)
+        if match:
+            self.failedTestCount = int(match.group('count'))
+
     def countFailures(self, cmd):
+        if USE_BUILDBOT_VERSION2:
+            return self.failedTestCount
+
         logText = cmd.logs['stdio'].getText()
         # We're looking for the line that looks like this: 0 regressions found.
         regex = re.compile(r'\s*(?P<count>\d+) regressions? found.')
@@ -882,6 +936,7 @@ class Run32bitJSCTests(TestWithFailureCount):
     ]
     failedTestsFormatString = "%d regression%s found."
     logfiles = {"json": jsonFileName}
+    test_summary_re = re.compile(r'\s*(?P<count>\d+) failures? found.')  # e.g.: 2 failures found.
 
     def __init__(self, *args, **kwargs):
         kwargs['logEnviron'] = False
@@ -890,11 +945,22 @@ class Run32bitJSCTests(TestWithFailureCount):
     def start(self):
         if USE_BUILDBOT_VERSION2:
             self.workerEnvironment[RESULTS_SERVER_API_KEY] = os.getenv(RESULTS_SERVER_API_KEY)
+            self.log_observer = ParseByLineLogObserver(self.parseOutputLine)
+            self.addLogObserver('stdio', self.log_observer)
+            self.failedTestCount = 0
         else:
             self.slaveEnvironment[RESULTS_SERVER_API_KEY] = os.getenv(RESULTS_SERVER_API_KEY)
         return shell.Test.start(self)
 
+    def parseOutputLine(self, line):
+        match = self.test_summary_re.match(line)
+        if match:
+            self.failedTestCount = int(match.group('count'))
+
     def countFailures(self, cmd):
+        if USE_BUILDBOT_VERSION2:
+            return self.failedTestCount
+
         logText = cmd.logs['stdio'].getText()
         # We're looking for the line that looks like this: 0 failures found.
         regex = re.compile(r'\s*(?P<count>\d+) failures? found.')
@@ -1193,7 +1259,8 @@ class TransferToS3(master.MasterShellCommand):
 class ExtractTestResults(master.MasterShellCommand):
     name = 'extract-test-results'
     descriptionDone = ['Extracted test results']
-    renderables = ['resultDirectory', 'zipFile']
+    if USE_BUILDBOT_VERSION2:
+        renderables = ['resultDirectory', 'zipFile']
 
     def __init__(self, **kwargs):
         kwargs['command'] = ""

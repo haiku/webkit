@@ -114,7 +114,7 @@ bool DisplayList::shouldDumpForFlags(AsTextFlags flags, ItemHandle item)
 String DisplayList::asText(AsTextFlags flags) const
 {
     TextStream stream(TextStream::LineMode::MultipleLine, TextStream::Formatting::SVGStyleRect);
-    for (auto [item, extent] : *this) {
+    for (auto [item, extent, itemSizeInBuffer] : *this) {
         if (!shouldDumpForFlags(flags, item))
             continue;
 
@@ -131,7 +131,7 @@ void DisplayList::dump(TextStream& ts) const
     TextStream::GroupScope group(ts);
     ts << "display list";
 
-    for (auto [item, extent] : *this) {
+    for (auto [item, extent, itemSizeInBuffer] : *this) {
         TextStream::GroupScope group(ts);
         ts << item;
         if (item.isDrawingItem())
@@ -278,8 +278,12 @@ void DisplayList::append(ItemHandle item)
         return append<FillEllipse>(item.get<FillEllipse>());
     case ItemType::FlushContext:
         return append<FlushContext>(item.get<FlushContext>());
-    case ItemType::MetaCommandSwitchTo:
-        return append<MetaCommandSwitchTo>(item.get<MetaCommandSwitchTo>());
+    case ItemType::MetaCommandChangeDestinationImageBuffer:
+        return append<MetaCommandChangeDestinationImageBuffer>(item.get<MetaCommandChangeDestinationImageBuffer>());
+    case ItemType::MetaCommandChangeItemBuffer:
+        return append<MetaCommandChangeItemBuffer>(item.get<MetaCommandChangeItemBuffer>());
+    case ItemType::MetaCommandEnd:
+        return append<MetaCommandEnd>(item.get<MetaCommandEnd>());
     case ItemType::PutImageData:
         return append<PutImageData>(item.get<PutImageData>());
     case ItemType::PaintFrameForMedia:

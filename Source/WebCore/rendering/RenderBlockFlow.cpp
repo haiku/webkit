@@ -34,6 +34,7 @@
 #include "HTMLParserIdioms.h"
 #include "HTMLTextAreaElement.h"
 #include "HitTestLocation.h"
+#include "InlineIterator.h"
 #include "InlineTextBox.h"
 #include "LayoutIntegrationLineIterator.h"
 #include "LayoutIntegrationLineLayout.h"
@@ -3606,7 +3607,8 @@ void RenderBlockFlow::layoutModernLines(bool relayoutChildren, LayoutUnit& repai
 
     auto& layoutFormattingContextLineLayout = *this->modernLineLayout();
 
-    for (auto& renderer : childrenOfType<RenderObject>(*this)) {
+    for (auto walker = InlineWalker(*this); !walker.atEnd(); walker.advance()) {
+        auto& renderer = *walker.current();
         if (relayoutChildren)
             renderer.setNeedsLayout(MarkOnlyThis);
         if (!renderer.needsLayout() && !needsUpdateReplacedDimensions)
@@ -3687,7 +3689,7 @@ void RenderBlockFlow::ensureLineBoxes()
         complexLineLayout.layoutLineBoxes(relayoutChildren, repaintLogicalTop, repaintLogicalBottom);
 
     updateLogicalHeight();
-    ASSERT(didNeedLayout || logicalHeight() == oldHeight);
+    ASSERT(didNeedLayout || ceilf(logicalHeight()) == ceilf(oldHeight));
 
     if (!didNeedLayout)
         clearNeedsLayout();
@@ -4436,60 +4438,6 @@ void RenderBlockFlow::computeInlinePreferredLogicalWidths(LayoutUnit& minLogical
 
     minLogicalWidth = preferredWidth(minLogicalWidth, inlineMin);
     maxLogicalWidth = preferredWidth(maxLogicalWidth, inlineMax);
-}
-
-LayoutRect RenderBlockFlow::computeCaretRect(const LayoutRect& lineSelectionRect, float logicalLeftPosition, unsigned caretWidth, CaretRectMode caretRectMode) const
-{
-    int height = lineSelectionRect.height();
-    int top = lineSelectionRect.y();
-
-    // Distribute the caret's width to either side of the offset.
-    float left = logicalLeftPosition;
-    int caretWidthLeftOfOffset = caretWidth / 2;
-    left -= caretWidthLeftOfOffset;
-    int caretWidthRightOfOffset = caretWidth - caretWidthLeftOfOffset;
-    left = roundf(left);
-
-    float lineLeft = lineSelectionRect.x();
-    float lineRight = lineSelectionRect.maxX();
-
-    bool rightAligned = false;
-    switch (style().textAlign()) {
-    case TextAlignMode::Right:
-    case TextAlignMode::WebKitRight:
-        rightAligned = true;
-        break;
-    case TextAlignMode::Left:
-    case TextAlignMode::WebKitLeft:
-    case TextAlignMode::Center:
-    case TextAlignMode::WebKitCenter:
-        break;
-    case TextAlignMode::Justify:
-    case TextAlignMode::Start:
-        rightAligned = !style().isLeftToRightDirection();
-        break;
-    case TextAlignMode::End:
-        rightAligned = style().isLeftToRightDirection();
-        break;
-    }
-
-    float leftEdge = std::min<float>(0, lineLeft);
-    float rightEdge = std::max<float>(logicalWidth(), lineRight);
-
-    if (rightAligned) {
-        left = std::max(left, leftEdge);
-        left = std::min(left, lineRight - caretWidth);
-    } else {
-        left = std::min(left, rightEdge - caretWidthRightOfOffset);
-        left = std::max(left, lineLeft);
-    }
-
-    auto rect = IntRect(left, top, caretWidth, height);
-
-    if (caretRectMode == CaretRectMode::ExpandToEndOfLine)
-        rect.shiftMaxXEdgeTo(lineRight);
-
-    return style().isHorizontalWritingMode() ? rect : rect.transposedRect();
 }
 
 }

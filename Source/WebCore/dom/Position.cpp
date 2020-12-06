@@ -68,13 +68,13 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-static bool hasInlineBoxWrapper(RenderObject& renderer)
+static bool hasInlineRun(RenderObject& renderer)
 {
-    if (is<RenderBox>(renderer) && downcast<RenderBox>(renderer).inlineBoxWrapper())
+    if (is<RenderBox>(renderer) && LayoutIntegration::runFor(downcast<RenderBox>(renderer)))
         return true;
-    if (is<RenderText>(renderer) && downcast<RenderText>(renderer).firstTextBox())
+    if (is<RenderText>(renderer) && LayoutIntegration::firstTextRunFor(downcast<RenderText>(renderer)))
         return true;
-    if (is<RenderLineBreak>(renderer) && downcast<RenderLineBreak>(renderer).inlineBoxWrapper())
+    if (is<RenderLineBreak>(renderer) && LayoutIntegration::runFor(downcast<RenderLineBreak>(renderer)))
         return true;
     return false;
 }
@@ -85,7 +85,7 @@ static Node* nextRenderedEditable(Node* node)
         RenderObject* renderer = node->renderer();
         if (!renderer || !node->hasEditableStyle())
             continue;
-        if (hasInlineBoxWrapper(*renderer))
+        if (hasInlineRun(*renderer))
             return node;
     }
     return nullptr;
@@ -97,16 +97,10 @@ static Node* previousRenderedEditable(Node* node)
         RenderObject* renderer = node->renderer();
         if (!renderer || !node->hasEditableStyle())
             continue;
-        if (hasInlineBoxWrapper(*renderer))
+        if (hasInlineRun(*renderer))
             return node;
     }
     return nullptr;
-}
-
-InlineBoxAndOffset::InlineBoxAndOffset(InlineRunAndOffset runAndOffset)
-    : box(runAndOffset.run ? runAndOffset.run->legacyInlineBox() : nullptr)
-    , offset(runAndOffset.offset)
-{
 }
 
 Position::Position(Node* anchorNode, unsigned offset, LegacyEditingPositionFlag)
@@ -1367,31 +1361,6 @@ InlineRunAndOffset Position::inlineRunAndOffset(Affinity affinity, TextDirection
     }
 
     return { run, caretOffset };
-}
-
-InlineBoxAndOffset Position::inlineBoxAndOffset(Affinity affinity) const
-{
-    return inlineBoxAndOffset(affinity, primaryDirection());
-}
-
-InlineBoxAndOffset Position::inlineBoxAndOffset(Affinity affinity, TextDirection primaryDirection) const
-{
-    ensureLineBoxes();
-
-    return { inlineRunAndOffset(affinity, primaryDirection) };
-}
-
-void Position::ensureLineBoxes() const
-{
-    auto node = deprecatedNode();
-    if (!node)
-        return;
-    auto renderer = node->renderer();
-    if (!renderer)
-        return;
-    auto* parent = renderer->parent();
-    if (is<RenderBlockFlow>(parent))
-        downcast<RenderBlockFlow>(*parent).ensureLineBoxes();
 }
 
 TextDirection Position::primaryDirection() const

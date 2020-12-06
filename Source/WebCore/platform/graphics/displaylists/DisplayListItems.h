@@ -2232,14 +2232,14 @@ private:
 };
 
 // FIXME: This should be refactored so that the command to "switch to the next item buffer"
-// is not itself a drawing item.
-class MetaCommandSwitchTo {
+// is not itself a display list item.
+class MetaCommandChangeItemBuffer {
 public:
-    static constexpr ItemType itemType = ItemType::MetaCommandSwitchTo;
+    static constexpr ItemType itemType = ItemType::MetaCommandChangeItemBuffer;
     static constexpr bool isInlineItem = true;
     static constexpr bool isDrawingItem = false;
 
-    MetaCommandSwitchTo(ItemBufferIdentifier identifier)
+    MetaCommandChangeItemBuffer(ItemBufferIdentifier identifier)
         : m_identifier(identifier)
     {
     }
@@ -2248,6 +2248,30 @@ public:
 
 private:
     ItemBufferIdentifier m_identifier;
+};
+
+class MetaCommandEnd {
+public:
+    static constexpr ItemType itemType = ItemType::MetaCommandEnd;
+    static constexpr bool isInlineItem = true;
+    static constexpr bool isDrawingItem = false;
+};
+
+class MetaCommandChangeDestinationImageBuffer {
+public:
+    static constexpr ItemType itemType = ItemType::MetaCommandChangeDestinationImageBuffer;
+    static constexpr bool isInlineItem = true;
+    static constexpr bool isDrawingItem = false;
+
+    MetaCommandChangeDestinationImageBuffer(RenderingResourceIdentifier identifier)
+        : m_identifier(identifier)
+    {
+    }
+
+    RenderingResourceIdentifier identifier() const { return m_identifier; }
+
+private:
+    RenderingResourceIdentifier m_identifier;
 };
 
 TextStream& operator<<(TextStream&, ItemHandle);
@@ -2307,7 +2331,9 @@ template<> struct EnumTraits<WebCore::DisplayList::ItemType> {
     WebCore::DisplayList::ItemType::FillPath,
     WebCore::DisplayList::ItemType::FillEllipse,
     WebCore::DisplayList::ItemType::FlushContext,
-    WebCore::DisplayList::ItemType::MetaCommandSwitchTo,
+    WebCore::DisplayList::ItemType::MetaCommandEnd,
+    WebCore::DisplayList::ItemType::MetaCommandChangeDestinationImageBuffer,
+    WebCore::DisplayList::ItemType::MetaCommandChangeItemBuffer,
     WebCore::DisplayList::ItemType::PutImageData,
     WebCore::DisplayList::ItemType::PaintFrameForMedia,
     WebCore::DisplayList::ItemType::StrokeRect,

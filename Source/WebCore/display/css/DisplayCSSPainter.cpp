@@ -28,23 +28,61 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
+#include "DisplayBoxClip.h"
 #include "DisplayBoxPainter.h"
+#include "DisplayBoxRareGeometry.h"
 #include "DisplayContainerBox.h"
 #include "DisplayPaintingContext.h"
 #include "DisplayStyle.h"
 #include "DisplayTree.h"
 #include "GraphicsContext.h"
 #include "IntRect.h"
+#include "TransformationMatrix.h"
 
 namespace WebCore {
 namespace Display {
 
-// FIXME: Make this an iterator.
-void CSSPainter::recursivePaintDescendants(const ContainerBox& containerBox, PaintingContext& paintingContext, PaintPhase paintPhase)
+static void applyClipIfNecessary(const Box& box, PaintingContext& paintingContext, GraphicsContextStateSaver& stateSaver)
 {
+    if (is<BoxModelBox>(box) && box.style().hasClippedOverflow()) {
+        stateSaver.save();
+        auto roundedInnerBorder = downcast<BoxModelBox>(box).innerBorderRoundedRect();
+        paintingContext.context.clipRoundedRect(roundedInnerBorder);
+    }
+}
+
+static void applyAncestorClip(const BoxModelBox& box, PaintingContext& paintingContext)
+{
+    auto* boxClip = box.ancestorClip();
+    if (!boxClip || !boxClip->clipRect())
+        return;
+
+    if (!boxClip->affectedByBorderRadius()) {
+        paintingContext.context.clip(*boxClip->clipRect());
+        return;
+    }
+
+    for (auto& roundedRect : boxClip->clipStack())
+        paintingContext.context.clipRoundedRect(roundedRect);
+}
+
+static void applyEffects(const Box& box, PaintingContext&, TransparencyLayerScope& transparencyScope)
+{
+    if (box.style().opacity() < 1) {
+        // FIXME: Compute and set a clip to avoid creating large transparency layers.
+        transparencyScope.beginLayer(box.style().opacity());
+    }
+}
+
+// FIXME: Make this an iterator.
+void CSSPainter::recursivePaintDescendantsForPhase(const ContainerBox& containerBox, PaintingContext& paintingContext, PaintPhase paintPhase)
+{
+    auto stateSaver = GraphicsContextStateSaver { paintingContext.context, false };
+    applyClipIfNecessary(containerBox, paintingContext, stateSaver);
+
     for (const auto* child = containerBox.firstChild(); child; child = child->nextSibling()) {
         auto& box = *child;
-        if (isStackingContextPaintingBoundary(box))
+        if (participatesInZOrderSorting(box))
             continue;
 
         switch (paintPhase) {
@@ -61,57 +99,83 @@ void CSSPainter::recursivePaintDescendants(const ContainerBox& containerBox, Pai
                 BoxPainter::paintBoxContent(box, paintingContext);
         };
         if (is<ContainerBox>(box))
-            recursivePaintDescendants(downcast<ContainerBox>(box), paintingContext, paintPhase);
+            recursivePaintDescendantsForPhase(downcast<ContainerBox>(box), paintingContext, paintPhase);
     }
 }
 
-void CSSPainter::paintStackingContext(const BoxModelBox& contextRoot, PaintingContext& paintingContext, const IntRect& dirtyRect)
+void CSSPainter::recursivePaintDescendants(const ContainerBox& containerBox, PaintingContext& paintingContext)
+{
+    // For all its in-flow, non-positioned, block-level descendants in tree order: If the element is a block, list-item, or other block equivalent:
+    // Box decorations.
+    // Table decorations.
+    recursivePaintDescendantsForPhase(containerBox, paintingContext, PaintPhase::BlockBackgrounds);
+
+    // All non-positioned floating descendants, in tree order. For each one of these, treat the element as if it created a new stacking context,
+    // but any positioned descendants and descendants which actually create a new stacking context should be considered part of the parent
+    // stacking context, not this new one.
+    recursivePaintDescendantsForPhase(containerBox, paintingContext, PaintPhase::Floats);
+
+    // If the element is an inline element that generates a stacking context, then:
+    // FIXME: Handle this case.
+    
+    // Otherwise: first for the element, then for all its in-flow, non-positioned, block-level descendants in tree order:
+    // 1. If the element is a block-level replaced element, then: the replaced content, atomically.
+    // 2. Otherwise, for each line box of that element...
+    recursivePaintDescendantsForPhase(containerBox, paintingContext, PaintPhase::BlockForegrounds);
+}
+
+void CSSPainter::paintAtomicallyPaintedBox(const Box& box, PaintingContext& paintingContext, const IntRect& dirtyRect, IncludeStackingContextDescendants includeStackingContextDescendants)
 {
     UNUSED_PARAM(dirtyRect);
-    
-    BoxPainter::paintBoxDecorations(contextRoot, paintingContext);
 
-    auto paintDescendants = [&](const ContainerBox& containerBox) {
-        // For all its in-flow, non-positioned, block-level descendants in tree order: If the element is a block, list-item, or other block equivalent:
-        // Box decorations.
-        // Table decorations.
-        recursivePaintDescendants(containerBox, paintingContext, PaintPhase::BlockBackgrounds);
-
-        // All non-positioned floating descendants, in tree order. For each one of these, treat the element as if it created a new stacking context,
-        // but any positioned descendants and descendants which actually create a new stacking context should be considered part of the parent
-        // stacking context, not this new one.
-        recursivePaintDescendants(containerBox, paintingContext, PaintPhase::Floats);
-
-        // If the element is an inline element that generates a stacking context, then:
-        // FIXME: Handle this case.
+    auto needToSaveState = [](const Box& box) {
+        if (!is<BoxModelBox>(box))
+            return false;
         
-        // Otherwise: first for the element, then for all its in-flow, non-positioned, block-level descendants in tree order:
-        // 1. If the element is a block-level replaced element, then: the replaced content, atomically.
-        // 2. Otherwise, for each line box of that element...
-        recursivePaintDescendants(containerBox, paintingContext, PaintPhase::BlockForegrounds);
+        auto& boxModelBox = downcast<BoxModelBox>(box);
+        return boxModelBox.hasAncestorClip() || boxModelBox.style().hasTransform();
     };
 
-    if (is<ContainerBox>(contextRoot)) {
-        auto& containerBox = downcast<ContainerBox>(contextRoot);
+    auto stateSaver = GraphicsContextStateSaver { paintingContext.context, needToSaveState(box) };
 
-        Vector<const BoxModelBox*> negativeZOrderList;
-        Vector<const BoxModelBox*> positiveZOrderList;
-    
-        recursiveCollectLayers(containerBox, negativeZOrderList, positiveZOrderList);
+    if (is<BoxModelBox>(box))
+        applyAncestorClip(downcast<BoxModelBox>(box), paintingContext);
 
-        auto compareZIndex = [] (const BoxModelBox* a, const BoxModelBox* b) {
-            return a->style().zIndex().valueOr(0) < b->style().zIndex().valueOr(0);
-        };
+    if (is<BoxModelBox>(box) && box.style().hasTransform()) {
+        auto transformationMatrix = downcast<BoxModelBox>(box).rareGeometry()->transform();
+        auto absoluteBorderBox = box.absoluteBoxRect();
 
-        std::stable_sort(positiveZOrderList.begin(), positiveZOrderList.end(), compareZIndex);
-        std::stable_sort(negativeZOrderList.begin(), negativeZOrderList.end(), compareZIndex);
+        // Equivalent to adjusting the CTM so that the origin is in the top left of the border box.
+        transformationMatrix.translateRight(absoluteBorderBox.x(), absoluteBorderBox.y());
+        // Allow descendants rendered using absolute coordinates to paint relative to this box.
+        transformationMatrix.translate(-absoluteBorderBox.x(), -absoluteBorderBox.y());
+
+        auto affineTransform = transformationMatrix.toAffineTransform();
+        paintingContext.context.concatCTM(affineTransform);
+    }
+
+    auto transparencyScope = TransparencyLayerScope { paintingContext.context, 1, false };
+    applyEffects(box, paintingContext, transparencyScope);
+
+    BoxPainter::paintBox(box, paintingContext, dirtyRect);
+    if (!is<ContainerBox>(box))
+        return;
+
+    auto& containerBox = downcast<ContainerBox>(box);
+
+    Vector<const BoxModelBox*> negativeZOrderList;
+    Vector<const BoxModelBox*> positiveZOrderList;
+    if (includeStackingContextDescendants == IncludeStackingContextDescendants::Yes) {
+        collectStackingContextDescendants(containerBox, negativeZOrderList, positiveZOrderList);
 
         // Stacking contexts formed by positioned descendants with negative z-indices (excluding 0) in z-index order (most negative first) then tree order.
         for (auto* box : negativeZOrderList)
             paintStackingContext(*box, paintingContext, dirtyRect);
+    }
 
-        paintDescendants(containerBox);
+    recursivePaintDescendants(containerBox, paintingContext);
 
+    if (includeStackingContextDescendants == IncludeStackingContextDescendants::Yes) {
         // All positioned descendants with 'z-index: auto' or 'z-index: 0', in tree order. For those with 'z-index: auto', treat the element
         // as if it created a new stacking context, but any positioned descendants and descendants which actually create a new stacking context
         // should be considered part of the parent stacking context, not this new one. For those with 'z-index: 0', treat the stacking context
@@ -119,18 +183,37 @@ void CSSPainter::paintStackingContext(const BoxModelBox& contextRoot, PaintingCo
         for (auto* box : positiveZOrderList) {
             if (box->style().isStackingContext())
                 paintStackingContext(*box, paintingContext, dirtyRect);
-            else if (is<ContainerBox>(*box)) {
-                BoxPainter::paintBoxDecorations(*box, paintingContext);
-                paintDescendants(downcast<ContainerBox>(*box));
-            } else
-                BoxPainter::paintBox(*box, paintingContext, dirtyRect);
+            else
+                paintAtomicallyPaintedBox(*box, paintingContext, dirtyRect);
         }
     }
+}
+
+void CSSPainter::paintStackingContext(const BoxModelBox& contextRoot, PaintingContext& paintingContext, const IntRect& dirtyRect)
+{
+    paintAtomicallyPaintedBox(contextRoot, paintingContext, dirtyRect, IncludeStackingContextDescendants::Yes);
 }
 
 bool CSSPainter::isStackingContextPaintingBoundary(const Box& box)
 {
     return box.style().isStackingContext();
+}
+
+bool CSSPainter::participatesInZOrderSorting(const Box& box)
+{
+    return box.style().participatesInZOrderSorting();
+}
+
+void CSSPainter::collectStackingContextDescendants(const ContainerBox& containerBox, Vector<const BoxModelBox*>& negativeZOrderList, Vector<const BoxModelBox*>& positiveZOrderList)
+{
+    recursiveCollectLayers(containerBox, negativeZOrderList, positiveZOrderList);
+
+    auto compareZIndex = [] (const BoxModelBox* a, const BoxModelBox* b) {
+        return a->style().zIndex().valueOr(0) < b->style().zIndex().valueOr(0);
+    };
+
+    std::stable_sort(positiveZOrderList.begin(), positiveZOrderList.end(), compareZIndex);
+    std::stable_sort(negativeZOrderList.begin(), negativeZOrderList.end(), compareZIndex);
 }
 
 void CSSPainter::recursiveCollectLayers(const ContainerBox& containerBox, Vector<const BoxModelBox*>& negativeZOrderList, Vector<const BoxModelBox*>& positiveZOrderList)
@@ -140,7 +223,6 @@ void CSSPainter::recursiveCollectLayers(const ContainerBox& containerBox, Vector
             auto& childBox = downcast<BoxModelBox>(*child);
 
             auto zIndex = childBox.style().zIndex().valueOr(0);
-
             if (zIndex < 0)
                 negativeZOrderList.append(&childBox);
             else

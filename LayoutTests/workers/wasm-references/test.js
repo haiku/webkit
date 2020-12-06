@@ -391,7 +391,12 @@ const WASM_JSON = `
         "f64.promote/f32":     { "category": "conversion", "value": 187, "return": ["f64"],      "parameter": ["f32"],                  "immediate": [], "b3op": "FloatToDouble"},
         "f64.reinterpret/i64": { "category": "conversion", "value": 191, "return": ["f64"],      "parameter": ["i64"],                  "immediate": [], "b3op": "BitwiseCast"  },
         "i32.reinterpret/f32": { "category": "conversion", "value": 188, "return": ["i32"],      "parameter": ["f32"],                  "immediate": [], "b3op": "BitwiseCast"  },
-        "i64.reinterpret/f64": { "category": "conversion", "value": 189, "return": ["i64"],      "parameter": ["f64"],                  "immediate": [], "b3op": "BitwiseCast"  }
+        "i64.reinterpret/f64": { "category": "conversion", "value": 189, "return": ["i64"],      "parameter": ["f64"],                  "immediate": [], "b3op": "BitwiseCast"  },
+        "i32.extend8_s":       { "category": "conversion", "value": 192, "return": ["i32"],      "parameter": ["i32"],                  "immediate": [], "b3op": "SExt8"        },
+        "i32.extend16_s":      { "category": "conversion", "value": 193, "return": ["i32"],      "parameter": ["i32"],                  "immediate": [], "b3op": "SExt16"       },
+        "i64.extend8_s":       { "category": "conversion", "value": 194, "return": ["i64"],      "parameter": ["i64"],                  "immediate": [], "b3op": "SExt32(SExt8(Trunc(@0)))"  },
+        "i64.extend16_s":      { "category": "conversion", "value": 195, "return": ["i64"],      "parameter": ["i64"],                  "immediate": [], "b3op": "SExt32(SExt16(Trunc(@0)))" },
+        "i64.extend32_s":      { "category": "conversion", "value": 196, "return": ["i64"],      "parameter": ["i64"],                  "immediate": [], "b3op": "SExt32(Trunc(@0))"         }
     }
 }
 `;
@@ -1858,9 +1863,9 @@ function runTest() {
             .Function("tbl_size", { params: [], ret: "i32" })
               .TableSize(1)
             .End()
-            .Function("tbl_grow", { params: ["i32"], ret: "i32" })
-                .RefFunc(0)
+            .Function("tbl_grow", { params: ["externref", "i32"], ret: "i32" })
                 .GetLocal(0)
+                .GetLocal(1)
                 .TableGrow(1)
             .End()
             .Function("tbl_fill", { params: ["i32", "externref", "i32"], ret: "void" })

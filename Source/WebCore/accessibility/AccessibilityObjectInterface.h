@@ -1489,6 +1489,9 @@ public:
     virtual String documentEncoding() const = 0;
     virtual AccessibilityChildrenVector documentLinks() = 0;
 
+    virtual String innerHTML() const = 0;
+    virtual String outerHTML() const = 0;
+
 private:
     // Detaches this object from the objects it references and it is referenced by.
     virtual void detachRemoteParts(AccessibilityDetachmentType) = 0;
@@ -1556,7 +1559,7 @@ template<typename U> inline void performFunctionOnMainThread(U&& lambda)
     if (isMainThread())
         return lambda();
 
-    callOnMainThread([&lambda] {
+    callOnMainThreadAndWait([&lambda] {
         lambda();
     });
 }

@@ -64,6 +64,7 @@
 #include "AccessibilityTableRow.h"
 #include "AccessibilityTree.h"
 #include "AccessibilityTreeItem.h"
+#include "CaretRectComputation.h"
 #include "Document.h"
 #include "Editing.h"
 #include "Editor.h"
@@ -369,17 +370,29 @@ AccessibilityObject* AXObjectCache::focusedImageMapUIElement(HTMLAreaElement* ar
     return nullptr;
 }
 
-AXCoreObject* AXObjectCache::focusedObject(Document& document)
+AXCoreObject* AXObjectCache::focusedObjectForPage(const Page* page)
 {
-    Element* focusedElement = document.focusedElement();
+    ASSERT(isMainThread());
+
+    if (!gAccessibilityEnabled)
+        return nullptr;
+
+    // get the focused node in the page
+    Document* document = page->focusController().focusedOrMainFrame().document();
+    if (!document)
+        return nullptr;
+
+    document->updateStyleIfNeeded();
+
+    Element* focusedElement = document->focusedElement();
     if (is<HTMLAreaElement>(focusedElement))
         return focusedImageMapUIElement(downcast<HTMLAreaElement>(focusedElement));
 
-    auto* axObjectCache = document.axObjectCache();
+    auto* axObjectCache = document->axObjectCache();
     if (!axObjectCache)
         return nullptr;
 
-    AXCoreObject* focus = axObjectCache->getOrCreate(focusedElement ? focusedElement : static_cast<Node*>(&document));
+    AXCoreObject* focus = axObjectCache->getOrCreate(focusedElement ? focusedElement : static_cast<Node*>(document));
     if (!focus)
         return nullptr;
 
@@ -421,24 +434,12 @@ void AXObjectCache::setIsolatedTreeFocusedObject(Node* focusedNode)
 
 AXCoreObject* AXObjectCache::focusedUIElementForPage(const Page* page)
 {
-    ASSERT(isMainThread());
-    if (!gAccessibilityEnabled)
-        return nullptr;
-
-    // get the focused node in the page
-    Document* focusedDocument = page->focusController().focusedOrMainFrame().document();
-    if (!focusedDocument)
-        return nullptr;
-
-    // Call this before isolated or non-isolated cases so the document is up to do.
-    focusedDocument->updateStyleIfNeeded();
-    
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
     if (isIsolatedTreeEnabled())
         return isolatedTreeFocusedObject();
 #endif
 
-    return focusedObject(*focusedDocument);
+    return focusedObjectForPage(page);
 }
 
 AccessibilityObject* AXObjectCache::get(Widget* widget)
@@ -789,7 +790,7 @@ RefPtr<AXIsolatedTree> AXObjectCache::getOrCreateIsolatedTree() const
     auto tree = AXIsolatedTree::treeForPageID(*m_pageID);
     if (!tree) {
         tree = Accessibility::retrieveValueFromMainThread<RefPtr<AXIsolatedTree>>([this] () -> RefPtr<AXIsolatedTree> {
-            return generateIsolatedTree(*m_pageID, m_document);
+            return AXIsolatedTree::create(const_cast<AXObjectCache*>(this));
         });
         AXObjectCache::initializeSecondaryAXThread();
     }
@@ -2902,7 +2903,7 @@ LayoutRect AXObjectCache::localCaretRectForCharacterOffset(RenderObject*& render
     if (is<RenderLineBreak>(renderer) && LayoutIntegration::runFor(downcast<RenderLineBreak>(*renderer)) != runAndOffset.run)
         return IntRect();
 
-    return renderer->localCaretRect(runAndOffset);
+    return computeLocalCaretRect(*renderer, runAndOffset);
 }
 
 IntRect AXObjectCache::absoluteCaretBoundsForCharacterOffset(const CharacterOffset& characterOffset)
@@ -3161,31 +3162,6 @@ void AXObjectCache::performDeferredCacheUpdate()
 }
     
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
-Ref<AXIsolatedTree> AXObjectCache::generateIsolatedTree(PageIdentifier pageID, Document& document)
-{
-    AXTRACE("AXObjectCache::generateIsolatedTree");
-    RELEASE_ASSERT(isMainThread());
-
-    RefPtr<AXIsolatedTree> tree(AXIsolatedTree::createTreeForPageID(pageID));
-
-    // Set the root and focused objects in the isolated tree. For that, we need
-    // the root and the focused object in the AXObject tree.
-    auto* axObjectCache = document.axObjectCache();
-    if (!axObjectCache)
-        return makeRef(*tree);
-    tree->setAXObjectCache(axObjectCache);
-
-    auto* axRoot = axObjectCache->getOrCreate(document.view());
-    if (axRoot)
-        tree->generateSubtree(*axRoot, nullptr, true);
-
-    auto* axFocus = axObjectCache->focusedObject(document);
-    if (axFocus)
-        tree->setFocusedNodeID(axFocus->objectID());
-
-    return makeRef(*tree);
-}
-
 void AXObjectCache::updateIsolatedTree(AXCoreObject& object, AXNotification notification)
 {
     AXTRACE("AXObjectCache::updateIsolatedTree");

@@ -490,10 +490,10 @@ bool RenderTheme::paintBorderOnly(const RenderBox& box, const PaintInfo& paintIn
 #endif
 }
 
-bool RenderTheme::paintDecorations(const RenderBox& box, const PaintInfo& paintInfo, const LayoutRect& rect)
+void RenderTheme::paintDecorations(const RenderBox& box, const PaintInfo& paintInfo, const LayoutRect& rect)
 {
     if (paintInfo.context().paintingDisabled())
-        return false;
+        return;
 
     IntRect integralSnappedRect = snappedIntRect(rect);
     FloatRect devicePixelSnappedRect = snapRectToDevicePixels(rect, box.document().deviceScaleFactor());
@@ -501,31 +501,42 @@ bool RenderTheme::paintDecorations(const RenderBox& box, const PaintInfo& paintI
     // Call the appropriate paint method based off the appearance value.
     switch (box.style().appearance()) {
     case MenulistButtonPart:
-        return paintMenuListButtonDecorations(box, paintInfo, devicePixelSnappedRect);
+        paintMenuListButtonDecorations(box, paintInfo, devicePixelSnappedRect);
+        break;
     case TextFieldPart:
-        return paintTextFieldDecorations(box, paintInfo, devicePixelSnappedRect);
+        paintTextFieldDecorations(box, paintInfo, devicePixelSnappedRect);
+        break;
     case TextAreaPart:
-        return paintTextAreaDecorations(box, paintInfo, devicePixelSnappedRect);
+        paintTextAreaDecorations(box, paintInfo, devicePixelSnappedRect);
+        break;
     case CheckboxPart:
-        return paintCheckboxDecorations(box, paintInfo, integralSnappedRect);
+        paintCheckboxDecorations(box, paintInfo, integralSnappedRect);
+        break;
     case RadioPart:
-        return paintRadioDecorations(box, paintInfo, integralSnappedRect);
+        paintRadioDecorations(box, paintInfo, integralSnappedRect);
+        break;
     case PushButtonPart:
-        return paintPushButtonDecorations(box, paintInfo, integralSnappedRect);
+        paintPushButtonDecorations(box, paintInfo, integralSnappedRect);
+        break;
     case SquareButtonPart:
-        return paintSquareButtonDecorations(box, paintInfo, integralSnappedRect);
+        paintSquareButtonDecorations(box, paintInfo, integralSnappedRect);
+        break;
 #if ENABLE(INPUT_TYPE_COLOR)
     case ColorWellPart:
 #endif
     case ButtonPart:
-        return paintButtonDecorations(box, paintInfo, integralSnappedRect);
+        paintButtonDecorations(box, paintInfo, integralSnappedRect);
+        break;
     case MenulistPart:
-        return paintMenuListDecorations(box, paintInfo, integralSnappedRect);
+        paintMenuListDecorations(box, paintInfo, integralSnappedRect);
+        break;
     case SliderThumbHorizontalPart:
     case SliderThumbVerticalPart:
-        return paintSliderThumbDecorations(box, paintInfo, integralSnappedRect);
+        paintSliderThumbDecorations(box, paintInfo, integralSnappedRect);
+        break;
     case SearchFieldPart:
-        return paintSearchFieldDecorations(box, paintInfo, integralSnappedRect);
+        paintSearchFieldDecorations(box, paintInfo, integralSnappedRect);
+        break;
     case MeterPart:
     case RelevancyLevelIndicatorPart:
     case ContinuousCapacityLevelIndicatorPart:
@@ -546,8 +557,6 @@ bool RenderTheme::paintDecorations(const RenderBox& box, const PaintInfo& paintI
     default:
         break;
     }
-
-    return false;
 }
 
 #if ENABLE(VIDEO)
@@ -982,7 +991,7 @@ IntSize RenderTheme::meterSizeForBounds(const RenderMeter&, const IntRect& bound
     return bounds.size();
 }
 
-bool RenderTheme::supportsMeter(ControlPart) const
+bool RenderTheme::supportsMeter(ControlPart, const HTMLMeterElement&) const
 {
     return false;
 }
@@ -1118,12 +1127,12 @@ void RenderTheme::paintSliderTicks(const RenderObject& o, const PaintInfo& paint
 
 #endif
 
-Seconds RenderTheme::animationRepeatIntervalForProgressBar(RenderProgress&) const
+Seconds RenderTheme::animationRepeatIntervalForProgressBar(const RenderProgress&) const
 {
     return 0_s;
 }
 
-Seconds RenderTheme::animationDurationForProgressBar(RenderProgress&) const
+Seconds RenderTheme::animationDurationForProgressBar(const RenderProgress&) const
 {
     return 0_s;
 }

@@ -104,6 +104,7 @@ void SpeechRecognitionPermissionManager::startProcessingRequest()
     m_speechRecognitionServiceCheck = computeSpeechRecognitionServiceAccess();
 
     if (m_page.preferences().mockCaptureDevicesEnabled()) {
+        m_page.syncIfMockDevicesEnabledChanged();
         m_microphoneCheck = CheckResult::Granted;
         m_speechRecognitionServiceCheck = CheckResult::Granted;
     }
@@ -217,6 +218,18 @@ void SpeechRecognitionPermissionManager::requestUserPermission()
         continueProcessingRequest();
     };
     m_page.uiClient().decidePolicyForSpeechRecognitionPermissionRequest(m_page, API::SecurityOrigin::create(topOrigin.get()).get(), WTFMove(decisionHandler));
+}
+
+
+
+void SpeechRecognitionPermissionManager::decideByDefaultAction(const WebCore::SecurityOrigin& origin, CompletionHandler<void(bool)>&& completionHandler)
+{
+#if PLATFORM(COCOA)
+    OptionSet<MediaPermissionType> type = MediaPermissionType::Audio;
+    alertForPermission(m_page, MediaPermissionReason::SpeechRecognition, type, origin, WTFMove(completionHandler));
+#else
+    completionHandler(false);
+#endif
 }
 
 } // namespace WebKit

@@ -1,3 +1,91 @@
+2020-11-30  Dean Jackson  <dino@apple.com>
+
+        Attempted build fix for Mac Catalyst. Include the SystemInfo header.
+
+        * src/libANGLE/renderer/gl/apple/DisplayApple_api.cpp:
+
+2020-11-27  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [ANGLE] Convert adjust-angle-include-paths.sh to a Python script for Windows without Cygwin
+        https://bugs.webkit.org/show_bug.cgi?id=219299
+
+        Reviewed by Kenneth Russell.
+
+        WinCairo port can't use shell scripts because it isn't using
+        Cygwin.
+
+        * ANGLE.xcodeproj/project.pbxproj:
+        * CMakeLists.txt:
+        * adjust-angle-include-paths.py: Added.
+        * adjust-angle-include-paths.sh: Removed.
+
+2020-11-27  Rob Buis  <rbuis@igalia.com>
+
+        Fix ANGLE CMakeLists.txt warnings
+        https://bugs.webkit.org/show_bug.cgi?id=219260
+
+        Reviewed by Philippe Normand.
+
+        Fix warning when building on GTK:
+        Make Warning (dev) at Source/ThirdParty/ANGLE/CMakeLists.txt:103:
+        Syntax Warning in cmake code at column 37
+
+        Argument not separated from preceding token by whitespace.
+        This warning is for project developers.  Use -Wno-dev to suppress it.
+
+        * CMakeLists.txt:
+
+2020-11-20  James Darpinian  <jdarpinian@chromium.org>
+
+        Update ANGLE 2020-11-12
+        https://bugs.webkit.org/show_bug.cgi?id=218877
+
+        Reviewed by Kenneth Russell.
+
+        * Excessively large list of upstream changes omitted.
+
+2020-11-19  James Darpinian  <jdarpinian@chromium.org>
+
+        Improve update-angle script and move to Tools/Scripts
+        https://bugs.webkit.org/show_bug.cgi?id=218831
+
+        Reviewed by Kenneth Russell.
+
+        update-angle fetches changes from upstream ANGLE into Source/ThirdParty/ANGLE,
+        updates WebKit's build files and helps merge WebKit's local changes.
+
+          - Moved to Tools/Scripts so that it doesn't overwrite itself during the
+            update process.
+          - Reversed direction of rebase. Before the script rebased ANGLE on WebKit;
+            now it rebases WebKit's ANGLE changes on upstream ANGLE master. This
+            makes a lot more sense and results in fewer changes to rebase. This
+            requires the use of git-filter-repo to make the rebase not prohibitively
+            slow.
+          - Removed bash dependency.
+          - Fixed all issues identified by shellcheck.
+          - Fixed changes.diff to show added files, while filtering files added by
+            WebKit's build process.
+          - Fixed changes.diff to ignore whitespace changes.
+          - Added --regenerate-changes-diff option to update changes.diff in between
+            ANGLE updates.
+          - Updated [angle_]commit.h generation for upstream changes.
+          - Removed need to run the script multiple times during the rebase process.
+
+        * update-angle.sh: Removed.
+
+2020-11-19  Dean Jackson  <dino@apple.com>
+
+        Add schemes for ANGLE to Xcode project
+        https://bugs.webkit.org/show_bug.cgi?id=217546
+        rdar://69062082
+
+        Reviewed by Alex Christensen.
+
+        * Configurations/Base.xcconfig: Update paths for built frameworks.
+        * ANGLE.xcodeproj/xcshareddata/xcschemes/ANGLE (dynamic).xcscheme: Added.
+        * ANGLE.xcodeproj/xcshareddata/xcschemes/ANGLE (static).xcscheme: Added.
+        * ANGLE.xcodeproj/xcshareddata/xcschemes/ANGLE.xcscheme: Added.
+
 2020-11-04  David Kilzer  <ddkilzer@apple.com>
 
         WebKit should remove unused debug variant support

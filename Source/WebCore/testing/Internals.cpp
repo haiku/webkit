@@ -138,7 +138,6 @@
 #include "MockLibWebRTCPeerConnection.h"
 #include "MockPageOverlay.h"
 #include "MockPageOverlayClient.h"
-#include "MockRTCRtpTransform.h"
 #include "NavigatorBeacon.h"
 #include "NavigatorMediaDevices.h"
 #include "NetworkLoadInformation.h"
@@ -1557,11 +1556,11 @@ void Internals::setWebRTCH265Support(bool value)
 #endif
 }
 
-void Internals::setWebRTCVP9Support(bool value)
+void Internals::setWebRTCVP9Support(bool supportVP9Profile0, bool supportVP9Profile2)
 {
 #if USE(LIBWEBRTC)
     if (auto* page = contextDocument()->page()) {
-        page->libWebRTCProvider().setVP9Support(value);
+        page->libWebRTCProvider().setVP9Support(supportVP9Profile0, supportVP9Profile2);
         page->libWebRTCProvider().clearFactory();
     }
 #endif
@@ -1575,11 +1574,6 @@ void Internals::setWebRTCVP9VTBSupport(bool value)
         page->libWebRTCProvider().clearFactory();
     }
 #endif
-}
-
-Ref<MockRTCRtpTransform> Internals::createMockRTCRtpTransform()
-{
-    return MockRTCRtpTransform::create();
 }
 
 uint64_t Internals::sframeCounter(const RTCRtpSFrameTransform& transform)

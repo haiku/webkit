@@ -205,6 +205,8 @@ $(PROJECT_DIR)/Modules/mediastream/RTCDataChannel.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCDataChannelEvent.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCDegradationPreference.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCDtxStatus.idl
+$(PROJECT_DIR)/Modules/mediastream/RTCEncodedAudioFrame.idl
+$(PROJECT_DIR)/Modules/mediastream/RTCEncodedVideoFrame.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCIceCandidate.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCIceCandidateInit.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCIceCandidateType.idl
@@ -220,6 +222,7 @@ $(PROJECT_DIR)/Modules/mediastream/RTCOfferAnswerOptions.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCOfferOptions.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCPeerConnection.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCPeerConnection.js
+$(PROJECT_DIR)/Modules/mediastream/RTCPeerConnectionIceErrorEvent.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCPeerConnectionIceEvent.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCPeerConnectionInternals.js
 $(PROJECT_DIR)/Modules/mediastream/RTCPeerConnectionState.idl
@@ -237,6 +240,10 @@ $(PROJECT_DIR)/Modules/mediastream/RTCRtpReceiver+Transform.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCRtpReceiver.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCRtpRtxParameters.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCRtpSFrameTransform.idl
+$(PROJECT_DIR)/Modules/mediastream/RTCRtpScriptTransform.idl
+$(PROJECT_DIR)/Modules/mediastream/RTCRtpScriptTransformProvider.idl
+$(PROJECT_DIR)/Modules/mediastream/RTCRtpScriptTransformer.idl
+$(PROJECT_DIR)/Modules/mediastream/RTCRtpScriptTransformerConstructor.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCRtpSendParameters.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCRtpSender+Transform.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCRtpSender.idl
@@ -250,6 +257,7 @@ $(PROJECT_DIR)/Modules/mediastream/RTCSessionDescriptionInit.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCSignalingState.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCStatsReport.idl
 $(PROJECT_DIR)/Modules/mediastream/RTCTrackEvent.idl
+$(PROJECT_DIR)/Modules/model-element/HTMLModelElement.idl
 $(PROJECT_DIR)/Modules/notifications/Notification.idl
 $(PROJECT_DIR)/Modules/notifications/NotificationPermission.idl
 $(PROJECT_DIR)/Modules/notifications/NotificationPermissionCallback.idl
@@ -282,14 +290,6 @@ $(PROJECT_DIR)/Modules/pictureinpicture/PictureInPictureWindow.idl
 $(PROJECT_DIR)/Modules/plugins/QuickTimePluginReplacement.css
 $(PROJECT_DIR)/Modules/plugins/QuickTimePluginReplacement.idl
 $(PROJECT_DIR)/Modules/plugins/QuickTimePluginReplacement.js
-$(PROJECT_DIR)/Modules/quota/DOMWindow+Quota.idl
-$(PROJECT_DIR)/Modules/quota/Navigator+StorageQuota.idl
-$(PROJECT_DIR)/Modules/quota/StorageErrorCallback.idl
-$(PROJECT_DIR)/Modules/quota/StorageInfo.idl
-$(PROJECT_DIR)/Modules/quota/StorageQuota.idl
-$(PROJECT_DIR)/Modules/quota/StorageQuotaCallback.idl
-$(PROJECT_DIR)/Modules/quota/StorageUsageCallback.idl
-$(PROJECT_DIR)/Modules/quota/WorkerNavigator+StorageQuota.idl
 $(PROJECT_DIR)/Modules/remoteplayback/HTMLMediaElement+RemotePlayback.idl
 $(PROJECT_DIR)/Modules/remoteplayback/RemotePlayback.idl
 $(PROJECT_DIR)/Modules/remoteplayback/RemotePlaybackAvailabilityCallback.idl
@@ -338,6 +338,7 @@ $(PROJECT_DIR)/Modules/streams/WritableStreamDefaultController.js
 $(PROJECT_DIR)/Modules/streams/WritableStreamDefaultWriter.idl
 $(PROJECT_DIR)/Modules/streams/WritableStreamDefaultWriter.js
 $(PROJECT_DIR)/Modules/streams/WritableStreamInternals.js
+$(PROJECT_DIR)/Modules/streams/WritableStreamSink.idl
 $(PROJECT_DIR)/Modules/webaudio/AnalyserNode.idl
 $(PROJECT_DIR)/Modules/webaudio/AnalyserOptions.idl
 $(PROJECT_DIR)/Modules/webaudio/AudioBuffer.idl
@@ -674,9 +675,9 @@ $(PROJECT_DIR)/css/StyleSheetList.idl
 $(PROJECT_DIR)/css/WebKitCSSViewportRule.idl
 $(PROJECT_DIR)/css/WebKitFontFamilyNames.in
 $(PROJECT_DIR)/css/dialog.css
+$(PROJECT_DIR)/css/formControlsIOS.css
 $(PROJECT_DIR)/css/fullscreen.css
 $(PROJECT_DIR)/css/html.css
-$(PROJECT_DIR)/css/iOSFormControlRefresh.css
 $(PROJECT_DIR)/css/make-css-file-arrays.pl
 $(PROJECT_DIR)/css/makeSelectorPseudoClassAndCompatibilityElementMap.py
 $(PROJECT_DIR)/css/makeSelectorPseudoElementsMap.py
@@ -898,7 +899,6 @@ $(PROJECT_DIR)/html/HTMLMenuItemElement.idl
 $(PROJECT_DIR)/html/HTMLMetaElement.idl
 $(PROJECT_DIR)/html/HTMLMeterElement.idl
 $(PROJECT_DIR)/html/HTMLModElement.idl
-$(PROJECT_DIR)/html/HTMLModelElement.idl
 $(PROJECT_DIR)/html/HTMLOListElement.idl
 $(PROJECT_DIR)/html/HTMLObjectElement.idl
 $(PROJECT_DIR)/html/HTMLOptGroupElement.idl
@@ -985,6 +985,7 @@ $(PROJECT_DIR)/html/canvas/EXTsRGB.idl
 $(PROJECT_DIR)/html/canvas/ImageBitmapRenderingContext.idl
 $(PROJECT_DIR)/html/canvas/ImageBitmapRenderingContextSettings.idl
 $(PROJECT_DIR)/html/canvas/ImageSmoothingQuality.idl
+$(PROJECT_DIR)/html/canvas/KHRParallelShaderCompile.idl
 $(PROJECT_DIR)/html/canvas/OESElementIndexUint.idl
 $(PROJECT_DIR)/html/canvas/OESFBORenderMipmap.idl
 $(PROJECT_DIR)/html/canvas/OESStandardDerivatives.idl

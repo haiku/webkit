@@ -426,10 +426,6 @@
 #define ENABLE_POINTER_LOCK 1
 #endif
 
-#if !defined(ENABLE_QUOTA)
-#define ENABLE_QUOTA 0
-#endif
-
 #if !defined(ENABLE_REMOTE_INSPECTOR)
 #define ENABLE_REMOTE_INSPECTOR 0
 #endif
@@ -690,7 +686,7 @@
 #endif
 
 #if ENABLE(WEBASSEMBLY) && HAVE(MACHINE_CONTEXT)
-#define ENABLE_WEBASSEMBLY_FAST_MEMORY 1
+#define ENABLE_WEBASSEMBLY_SIGNALING_MEMORY 1
 #endif
 
 /* Counts uses of write barriers using sampling counters. Be sure to also

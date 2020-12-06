@@ -7,7 +7,7 @@
     <script src="resources/util.js"></script>
 </head>
 <body onload="setTimeout(runTest, 0)">
-<div id="description">Tests that a second attribution conversion with higher priority replaces an older with lower priority.</div>
+<div id="description">Tests that a second attribution with higher priority replaces an older with lower priority.</div>
 <a id="targetLink">Link</a><br>
 <div id="output"></div>
 <script>
@@ -15,13 +15,13 @@
     const configuration = [
         {
             href: "http://localhost:8000" + path + "?stepTwo",
-            adcampaignid: "3",
-            addestination: "http://localhost:8000"
+            attributionsourceid: "3",
+            attributeon: "http://localhost:8000"
         },
         {
             href: "http://localhost:8000" + path + "?stepFour",
-            adcampaignid: "4",
-            addestination: "http://localhost:8000"
+            attributionsourceid: "4",
+            attributeon: "http://localhost:8000"
         }
     ];
 
@@ -30,8 +30,8 @@
     function configureLink(index) {
         let linkElement = document.getElementById("targetLink");
         linkElement.setAttribute("href", configuration[index].href);
-        linkElement.setAttribute("adcampaignid", configuration[index].adcampaignid);
-        linkElement.setAttribute("addestination", configuration[index].addestination);
+        linkElement.setAttribute("attributionsourceid", configuration[index].attributionsourceid);
+        linkElement.setAttribute("attributeon", configuration[index].attributeon);
     }
 
     function activateElement(elementID) {

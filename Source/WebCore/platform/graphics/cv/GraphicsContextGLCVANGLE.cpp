@@ -30,6 +30,7 @@
 
 #include "FourCC.h"
 #include "Logging.h"
+#include <pal/spi/cf/CoreVideoSPI.h>
 #include <pal/spi/cocoa/IOSurfaceSPI.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/StdMap.h>
@@ -146,6 +147,9 @@ static PixelRange pixelRangeFromPixelFormat(OSType pixelFormat)
     case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange:
     case kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange:
     case kCVPixelFormatType_444YpCbCr10BiPlanarVideoRange:
+#if HAVE(COREVIDEO_COMPRESSED_PIXEL_FORMAT_TYPES)
+    case kCVPixelFormatType_AGX_420YpCbCr8BiPlanarVideoRange:
+#endif
         return PixelRange::Video;
     case kCVPixelFormatType_420YpCbCr8PlanarFullRange:
     case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
@@ -154,6 +158,9 @@ static PixelRange pixelRangeFromPixelFormat(OSType pixelFormat)
     case kCVPixelFormatType_420YpCbCr10BiPlanarFullRange:
     case kCVPixelFormatType_422YpCbCr10BiPlanarFullRange:
     case kCVPixelFormatType_444YpCbCr10BiPlanarFullRange:
+#if HAVE(COREVIDEO_COMPRESSED_PIXEL_FORMAT_TYPES)
+    case kCVPixelFormatType_AGX_420YpCbCr8BiPlanarFullRange:
+#endif
         return PixelRange::Full;
     default:
         return PixelRange::Unknown;
@@ -228,18 +235,13 @@ struct GLfloatColors {
 };
 
 struct YCbCrMatrix {
-    union {
         GLfloat rows[4][4];
-        GLfloat data[16];
-    };
 
     constexpr YCbCrMatrix(PixelRange, GLfloat cbCoefficient, GLfloat crCoefficient);
 
-    operator Vector<GLfloat>() const
+    operator GCGLSpan<const GLfloat, 16>() const
     {
-        Vector<GLfloat> vector;
-        vector.append(data, 16);
-        return vector;
+        return makeGCGLSpan<16>(&rows[0][0]);
     }
 
     constexpr GLfloatColor operator*(const GLfloatColor&) const;
@@ -311,10 +313,10 @@ constexpr GLfloatColor YCbCrMatrix::operator*(const GLfloatColor& color) const
     );
 }
 
-static const Vector<GLfloat> YCbCrToRGBMatrixForRangeAndTransferFunction(PixelRange range, TransferFunctionCV transferFunction)
+static GCGLSpan<const GLfloat, 16> YCbCrToRGBMatrixForRangeAndTransferFunction(PixelRange range, TransferFunctionCV transferFunction)
 {
     using MapKey = std::pair<PixelRange, TransferFunctionCV>;
-    using MatrixMap = StdMap<MapKey, Vector<GLfloat>>;
+    using MatrixMap = StdMap<MapKey, const YCbCrMatrix&>;
 
     static NeverDestroyed<MatrixMap> matrices;
     static dispatch_once_t onceToken;
@@ -464,8 +466,7 @@ bool GraphicsContextGLCVANGLE::initializeUVContextObjects()
 
     m_context->compileShaderDirect(vertexShader);
 
-    GCGLint status = 0;
-    m_context->getShaderiv(vertexShader, GraphicsContextGL::COMPILE_STATUS, &status);
+    GCGLint status = m_context->getShaderi(vertexShader, GraphicsContextGL::COMPILE_STATUS);
     if (!status) {
         LOG(WebGL, "GraphicsContextGLCVANGLE::initializeUVContextObjects(%p) - Vertex shader failed to compile.", this);
         m_context->deleteShader(vertexShader);
@@ -480,7 +481,7 @@ bool GraphicsContextGLCVANGLE::initializeUVContextObjects()
 
     m_context->compileShaderDirect(fragmentShader);
 
-    m_context->getShaderiv(fragmentShader, GraphicsContextGL::COMPILE_STATUS, &status);
+    status = m_context->getShaderi(fragmentShader, GraphicsContextGL::COMPILE_STATUS);
     if (!status) {
         LOG(WebGL, "GraphicsContextGLCVANGLE::initializeUVContextObjects(%p) - Fragment shader failed to compile.", this);
         m_context->deleteShader(vertexShader);
@@ -493,7 +494,7 @@ bool GraphicsContextGLCVANGLE::initializeUVContextObjects()
     m_context->attachShader(m_yuvProgram, fragmentShader);
     m_context->linkProgram(m_yuvProgram);
 
-    m_context->getProgramiv(m_yuvProgram, GraphicsContextGL::LINK_STATUS, &status);
+    status = m_context->getProgrami(m_yuvProgram, GraphicsContextGL::LINK_STATUS);
     if (!status) {
         LOG(WebGL, "GraphicsContextGLCVANGLE::initializeUVContextObjects(%p) - Program failed to link.", this);
         m_context->deleteShader(vertexShader);
@@ -520,7 +521,7 @@ bool GraphicsContextGLCVANGLE::initializeUVContextObjects()
     float vertices[12] = { -1, -1, 1, -1, 1, 1, 1, 1, -1, 1, -1, -1 };
 
     m_context->bindBuffer(GraphicsContextGL::ARRAY_BUFFER, m_yuvVertexBuffer);
-    m_context->bufferData(GraphicsContextGL::ARRAY_BUFFER, sizeof(vertices), vertices, GraphicsContextGL::STATIC_DRAW);
+    m_context->bufferData(GraphicsContextGL::ARRAY_BUFFER, GCGLSpan<const GCGLvoid>(vertices, sizeof(vertices)), GraphicsContextGL::STATIC_DRAW);
     m_context->enableVertexAttribArray(m_yuvPositionAttributeLocation);
     m_context->vertexAttribPointer(m_yuvPositionAttributeLocation, 2, GraphicsContextGL::FLOAT, false, 0, 0);
 
@@ -578,7 +579,13 @@ bool GraphicsContextGLCVANGLE::copyPixelBufferToTexture(CVPixelBufferRef image, 
 {
     // FIXME: This currently only supports '420v' and '420f' pixel formats. Investigate supporting more pixel formats.
     OSType pixelFormat = CVPixelBufferGetPixelFormatType(image);
-    if (pixelFormat != kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange && pixelFormat != kCVPixelFormatType_420YpCbCr8BiPlanarFullRange) {
+    if (pixelFormat != kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+        && pixelFormat != kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
+#if HAVE(COREVIDEO_COMPRESSED_PIXEL_FORMAT_TYPES)
+        && pixelFormat != kCVPixelFormatType_AGX_420YpCbCr8BiPlanarVideoRange
+        && pixelFormat != kCVPixelFormatType_AGX_420YpCbCr8BiPlanarFullRange
+#endif
+        ) {
         LOG(WebGL, "GraphicsContextGLCVANGLE::copyVideoTextureToPlatformTexture(%p) - Asked to copy an unsupported pixel format ('%s').", this, FourCC(pixelFormat).toString().utf8().data());
         return false;
     }
@@ -613,7 +620,7 @@ bool GraphicsContextGLCVANGLE::copyPixelBufferToTexture(CVPixelBufferRef image, 
     m_context->texParameteri(GraphicsContextGL::TEXTURE_2D, GraphicsContextGL::TEXTURE_MIN_FILTER, GraphicsContextGL::LINEAR);
     m_context->texParameteri(GraphicsContextGL::TEXTURE_2D, GraphicsContextGL::TEXTURE_WRAP_S, GraphicsContextGL::CLAMP_TO_EDGE);
     m_context->texParameteri(GraphicsContextGL::TEXTURE_2D, GraphicsContextGL::TEXTURE_WRAP_T, GraphicsContextGL::CLAMP_TO_EDGE);
-    m_context->texImage2DDirect(GraphicsContextGL::TEXTURE_2D, level, internalFormat, width, height, 0, format, type, nullptr);
+    gl::TexImage2D(GL_TEXTURE_2D, level, internalFormat, width, height, 0, format, type, nullptr);
 
     m_context->framebufferTexture2D(GraphicsContextGL::FRAMEBUFFER, GraphicsContextGL::COLOR_ATTACHMENT0, GraphicsContextGL::TEXTURE_2D, outputTexture, level);
     GCGLenum status = m_context->checkFramebufferStatus(GraphicsContextGL::FRAMEBUFFER);
@@ -670,8 +677,8 @@ bool GraphicsContextGLCVANGLE::copyPixelBufferToTexture(CVPixelBufferRef image, 
 
     auto range = pixelRangeFromPixelFormat(pixelFormat);
     auto transferFunction = transferFunctionFromString((CFStringRef)CVBufferGetAttachment(image, kCVImageBufferYCbCrMatrixKey, nil));
-    auto& colorMatrix = YCbCrToRGBMatrixForRangeAndTransferFunction(range, transferFunction);
-    m_context->uniformMatrix4fv(m_colorMatrixUniformLocation, 1, GL_FALSE, colorMatrix.data());
+    auto colorMatrix = YCbCrToRGBMatrixForRangeAndTransferFunction(range, transferFunction);
+    m_context->uniformMatrix4fv(m_colorMatrixUniformLocation, GL_FALSE, colorMatrix);
 
     // Do the actual drawing.
     m_context->drawArrays(GraphicsContextGL::TRIANGLES, 0, 6);

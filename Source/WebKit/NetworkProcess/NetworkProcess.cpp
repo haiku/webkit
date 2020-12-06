@@ -2562,6 +2562,35 @@ void NetworkProcess::setPrivateClickMeasurementOverrideTimerForTesting(PAL::Sess
     completionHandler();
 }
 
+void NetworkProcess::firePrivateClickMeasurementTimerImmediately(PAL::SessionID sessionID)
+{
+    if (auto* session = networkSession(sessionID))
+        session->firePrivateClickMeasurementTimerImmediately();
+}
+
+void NetworkProcess::simulateResourceLoadStatisticsSessionRestart(PAL::SessionID sessionID, CompletionHandler<void()>&& completionHandler)
+{
+#if ENABLE(RESOURCE_LOAD_STATISTICS)
+    if (auto* session = networkSession(sessionID)) {
+        session->recreateResourceLoadStatisticStore([this, sessionID, completionHandler = WTFMove(completionHandler)] () mutable {
+            firePrivateClickMeasurementTimerImmediately(sessionID);
+            completionHandler();
+        });
+        return;
+    }
+#endif
+    completionHandler();
+}
+
+void NetworkProcess::markAttributedPrivateClickMeasurementsAsExpiredForTesting(PAL::SessionID sessionID, CompletionHandler<void()>&& completionHandler)
+{
+    if (auto* session = networkSession(sessionID)) {
+        session->markAttributedPrivateClickMeasurementsAsExpiredForTesting(WTFMove(completionHandler));
+        return;
+    }
+    completionHandler();
+}
+
 void NetworkProcess::setPrivateClickMeasurementConversionURLForTesting(PAL::SessionID sessionID, URL&& url, CompletionHandler<void()>&& completionHandler)
 {
     if (auto* session = networkSession(sessionID))

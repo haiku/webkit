@@ -2580,8 +2580,8 @@ void FrameLoader::checkLoadCompleteForThisFrame()
                 FRAMELOADER_RELEASE_LOG_IF_ALLOWED(ResourceLoading, "checkLoadCompleteForThisFrame: Finished frame load");
 #if ENABLE(DATA_DETECTION)
                 auto document = m_frame.document();
-                auto types = m_frame.settings().dataDetectorTypes();
-                if (document && static_cast<uint32_t>(types)) {
+                auto types = OptionSet<DataDetectorType> { m_frame.settings().dataDetectorTypes() };
+                if (document && types) {
                     m_frame.setDataDetectionResults(DataDetection::detectContentInRange(makeRangeSelectingNodeContents(*document), types, m_client->dataDetectionContext()));
                     if (m_frame.isMainFrame())
                         m_client->dispatchDidFinishDataDetection(m_frame.dataDetectionResults());
@@ -3234,8 +3234,6 @@ bool FrameLoader::shouldClose()
     Page* page = m_frame.page();
     if (!page)
         return true;
-    if (!page->chrome().canRunBeforeUnloadConfirmPanel())
-        return true;
 
     // Store all references to each subframe in advance since beforeunload's event handler may modify frame
     Vector<Ref<Frame>, 16> targetFrames;
@@ -3365,7 +3363,7 @@ bool FrameLoader::dispatchBeforeUnloadEvent(Chrome& chrome, FrameLoader* frameLo
     if (!beforeUnloadEvent->defaultPrevented())
         document->defaultEventHandler(beforeUnloadEvent.get());
 
-    if (!shouldAskForNavigationConfirmation(*document, beforeUnloadEvent))
+    if (!chrome.canRunBeforeUnloadConfirmPanel() || !shouldAskForNavigationConfirmation(*document, beforeUnloadEvent))
         return true;
 
     // If the navigating FrameLoader has already shown a beforeunload confirmation panel for the current navigation attempt,

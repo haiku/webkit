@@ -755,19 +755,19 @@ static WebPageVisibilityState kit(WebCore::VisibilityState visibilityState)
     return WebPageVisibilityStateVisible;
 }
 
-static WebCore::SecurityOrigin::StorageBlockingPolicy core(WebStorageBlockingPolicy storageBlockingPolicy)
+static WebCore::StorageBlockingPolicy core(WebStorageBlockingPolicy storageBlockingPolicy)
 {
     switch (storageBlockingPolicy) {
     case WebAllowAllStorage:
-        return WebCore::SecurityOrigin::AllowAllStorage;
+        return WebCore::StorageBlockingPolicy::AllowAll;
     case WebBlockThirdPartyStorage:
-        return WebCore::SecurityOrigin::BlockThirdPartyStorage;
+        return WebCore::StorageBlockingPolicy::BlockThirdParty;
     case WebBlockAllStorage:
-        return WebCore::SecurityOrigin::BlockAllStorage;
+        return WebCore::StorageBlockingPolicy::BlockAll;
     default:
         // If an invalid value was set (as can be done via NSUserDefaults), fall back to
-        // the default value, WebCore::SecurityOrigin::AllowAllStorage.
-        return WebCore::SecurityOrigin::AllowAllStorage;
+        // the default value, WebCore::StorageBlockingPolicy::AllowAll.
+        return WebCore::StorageBlockingPolicy::AllowAll;
     }
 }
 
@@ -807,15 +807,15 @@ private:
 
 @implementation WebUITextIndicatorData
 
-@synthesize dataInteractionImage=_dataInteractionImage;
-@synthesize selectionRectInRootViewCoordinates=_selectionRectInRootViewCoordinates;
-@synthesize textBoundingRectInRootViewCoordinates=_textBoundingRectInRootViewCoordinates;
-@synthesize textRectsInBoundingRectCoordinates=_textRectsInBoundingRectCoordinates;
-@synthesize contentImageWithHighlight=_contentImageWithHighlight;
-@synthesize contentImageWithoutSelection=_contentImageWithoutSelection;
-@synthesize contentImageWithoutSelectionRectInRootViewCoordinates=_contentImageWithoutSelectionRectInRootViewCoordinates;
-@synthesize contentImage=_contentImage;
-@synthesize estimatedBackgroundColor=_estimatedBackgroundColor;
+@synthesize dataInteractionImage = _dataInteractionImage;
+@synthesize selectionRectInRootViewCoordinates = _selectionRectInRootViewCoordinates;
+@synthesize textBoundingRectInRootViewCoordinates = _textBoundingRectInRootViewCoordinates;
+@synthesize textRectsInBoundingRectCoordinates = _textRectsInBoundingRectCoordinates;
+@synthesize contentImageWithHighlight = _contentImageWithHighlight;
+@synthesize contentImageWithoutSelection = _contentImageWithoutSelection;
+@synthesize contentImageWithoutSelectionRectInRootViewCoordinates = _contentImageWithoutSelectionRectInRootViewCoordinates;
+@synthesize contentImage = _contentImage;
+@synthesize estimatedBackgroundColor = _estimatedBackgroundColor;
 
 - (void)dealloc
 {
@@ -985,7 +985,7 @@ enum class WebListType {
 
 @implementation WebTextListTouchBarViewController
 
-@synthesize currentListType=_currentListType;
+@synthesize currentListType = _currentListType;
 
 static const CGFloat listControlSegmentWidth = 67.0;
 
@@ -1091,10 +1091,10 @@ static const NSUInteger orderedListSegment = 2;
 
 @implementation WebTextTouchBarItemController
 
-@synthesize textIsBold=_textIsBold;
-@synthesize textIsItalic=_textIsItalic;
-@synthesize textIsUnderlined=_textIsUnderlined;
-@synthesize currentTextAlignment=_currentTextAlignment;
+@synthesize textIsBold = _textIsBold;
+@synthesize textIsItalic = _textIsItalic;
+@synthesize textIsUnderlined = _textIsUnderlined;
+@synthesize currentTextAlignment = _currentTextAlignment;
 
 - (instancetype)initWithWebView:(WebView *)webView
 {
@@ -4982,7 +4982,7 @@ IGNORE_WARNINGS_END
 }
 
 #if PLATFORM(IOS_FAMILY)
-@synthesize asyncForwarder=_asyncForwarder;
+@synthesize asyncForwarder = _asyncForwarder;
 
 - (void)dealloc
 {

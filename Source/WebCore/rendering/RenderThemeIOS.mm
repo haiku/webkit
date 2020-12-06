@@ -49,6 +49,7 @@
 #import "GraphicsContextCG.h"
 #import "HTMLAttachmentElement.h"
 #import "HTMLInputElement.h"
+#import "HTMLMeterElement.h"
 #import "HTMLNames.h"
 #import "HTMLSelectElement.h"
 #import "IOSurface.h"
@@ -61,11 +62,13 @@
 #import "PathUtilities.h"
 #import "PlatformLocale.h"
 #import "RenderAttachment.h"
+#import "RenderMeter.h"
 #import "RenderObject.h"
 #import "RenderProgress.h"
 #import "RenderStyle.h"
 #import "RenderView.h"
 #import "RuntimeEnabledFeatures.h"
+#import "Settings.h"
 #import "UTIUtilities.h"
 #import "UserAgentScripts.h"
 #import "UserAgentStyleSheets.h"
@@ -372,8 +375,13 @@ static void drawJoinedLines(CGContextRef context, const Vector<CGPoint>& points,
     CGContextStrokePath(context);
 }
 
-bool RenderThemeIOS::paintCheckboxDecorations(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
+void RenderThemeIOS::paintCheckboxDecorations(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
 {
+#if ENABLE(IOS_FORM_CONTROL_REFRESH)
+    if (box.settings().iOSFormControlRefreshEnabled())
+        return;
+#endif
+
     bool checked = isChecked(box);
     bool indeterminate = isIndeterminate(box);
     CGContextRef cgContext = paintInfo.context().platformContext();
@@ -430,7 +438,6 @@ bool RenderThemeIOS::paintCheckboxDecorations(const RenderObject& box, const Pai
         drawAxialGradient(cgContext, gradientWithName(ShadeGradient), clip.location(), FloatPoint { clip.x(), clip.maxY() }, LinearInterpolation);
         drawRadialGradient(cgContext, gradientWithName(ShineGradient), bottomCenter, 0, bottomCenter, sqrtf((width * width) / 4.0f + height * height), ExponentialInterpolation);
     }
-    return false;
 }
 
 int RenderThemeIOS::baselinePosition(const RenderBox& box) const
@@ -465,8 +472,13 @@ void RenderThemeIOS::adjustRadioStyle(RenderStyle& style, const Element*) const
     style.setBorderRadius({ size / 2, size / 2 });
 }
 
-bool RenderThemeIOS::paintRadioDecorations(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
+void RenderThemeIOS::paintRadioDecorations(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
 {
+#if ENABLE(IOS_FORM_CONTROL_REFRESH)
+    if (box.settings().iOSFormControlRefreshEnabled())
+        return;
+#endif
+
     GraphicsContextStateSaver stateSaver(paintInfo.context());
     CGContextRef cgContext = paintInfo.context().platformContext();
 
@@ -501,10 +513,9 @@ bool RenderThemeIOS::paintRadioDecorations(const RenderObject& box, const PaintI
         auto clip = addRoundedBorderClip(box, paintInfo.context(), rect);
         drawShadeAndShineGradients(clip);
     }
-    return false;
 }
 
-bool RenderThemeIOS::paintTextFieldDecorations(const RenderObject& box, const PaintInfo& paintInfo, const FloatRect& rect)
+void RenderThemeIOS::paintTextFieldDecorations(const RenderObject& box, const PaintInfo& paintInfo, const FloatRect& rect)
 {
     auto& style = box.style();
     FloatPoint point(rect.x() + style.borderLeftWidth(), rect.y() + style.borderTopWidth());
@@ -518,12 +529,11 @@ bool RenderThemeIOS::paintTextFieldDecorations(const RenderObject& box, const Pa
     bool topBorderIsInvisible = !style.hasBorder() || !style.borderTopWidth() || style.borderTopIsTransparent();
     if (!box.view().printing() && !topBorderIsInvisible)
         drawAxialGradient(paintInfo.context().platformContext(), gradientWithName(InsetGradient), point, FloatPoint(CGPointMake(point.x(), point.y() + 3.0f)), LinearInterpolation);
-    return false;
 }
 
-bool RenderThemeIOS::paintTextAreaDecorations(const RenderObject& box, const PaintInfo& paintInfo, const FloatRect& rect)
+void RenderThemeIOS::paintTextAreaDecorations(const RenderObject& box, const PaintInfo& paintInfo, const FloatRect& rect)
 {
-    return paintTextFieldDecorations(box, paintInfo, rect);
+    paintTextFieldDecorations(box, paintInfo, rect);
 }
 
 const int MenuListMinHeight = 15;
@@ -650,7 +660,7 @@ void RenderThemeIOS::adjustMenuListButtonStyle(RenderStyle& style, const Element
         adjustInputElementButtonStyle(style, downcast<HTMLInputElement>(*element));
 }
 
-bool RenderThemeIOS::paintMenuListButtonDecorations(const RenderBox& box, const PaintInfo& paintInfo, const FloatRect& rect)
+void RenderThemeIOS::paintMenuListButtonDecorations(const RenderBox& box, const PaintInfo& paintInfo, const FloatRect& rect)
 {
     auto& style = box.style();
     bool isRTL = style.direction() == TextDirection::RTL;
@@ -767,8 +777,6 @@ bool RenderThemeIOS::paintMenuListButtonDecorations(const RenderBox& box, const 
         paintInfo.context().setFillColor(Color::white);
         paintInfo.context().drawPath(Path::polygonPathFromPoints(arrow));
     }
-
-    return false;
 }
 
 const CGFloat kTrackThickness = 4.0;
@@ -877,7 +885,7 @@ void RenderThemeIOS::adjustSliderThumbSize(RenderStyle& style, const Element*) c
     }
 }
 
-bool RenderThemeIOS::paintSliderThumbDecorations(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
+void RenderThemeIOS::paintSliderThumbDecorations(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
 {
     GraphicsContextStateSaver stateSaver(paintInfo.context());
     FloatRect clip = addRoundedBorderClip(box, paintInfo.context(), rect);
@@ -890,12 +898,15 @@ bool RenderThemeIOS::paintSliderThumbDecorations(const RenderObject& box, const 
         drawAxialGradient(cgContext, gradientWithName(ShadeGradient), clip.location(), FloatPoint(clip.x(), clip.maxY()), LinearInterpolation);
         drawRadialGradient(cgContext, gradientWithName(ShineGradient), bottomCenter, 0.0f, bottomCenter, std::max(clip.width(), clip.height()), ExponentialInterpolation);
     }
-
-    return false;
 }
 
 bool RenderThemeIOS::paintProgressBar(const RenderObject& renderer, const PaintInfo& paintInfo, const IntRect& rect)
 {
+#if ENABLE(IOS_FORM_CONTROL_REFRESH)
+    if (renderer.settings().iOSFormControlRefreshEnabled())
+        return paintProgressBarFCR(renderer, paintInfo, rect);
+#endif
+
     if (!is<RenderProgress>(renderer))
         return true;
 
@@ -1006,9 +1017,9 @@ void RenderThemeIOS::adjustSearchFieldStyle(RenderStyle& style, const Element* e
     adjustRoundBorderRadius(style, *box);
 }
 
-bool RenderThemeIOS::paintSearchFieldDecorations(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
+void RenderThemeIOS::paintSearchFieldDecorations(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
 {
-    return paintTextFieldDecorations(box, paintInfo, rect);
+    paintTextFieldDecorations(box, paintInfo, rect);
 }
 
 void RenderThemeIOS::adjustButtonStyle(RenderStyle& style, const Element* element) const
@@ -1038,9 +1049,9 @@ void RenderThemeIOS::adjustButtonStyle(RenderStyle& style, const Element* elemen
     adjustRoundBorderRadius(style, *box);
 }
 
-bool RenderThemeIOS::paintButtonDecorations(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
+void RenderThemeIOS::paintButtonDecorations(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
 {
-    return paintPushButtonDecorations(box, paintInfo, rect);
+    paintPushButtonDecorations(box, paintInfo, rect);
 }
 
 static bool shouldUseConvexGradient(const Color& backgroundColor)
@@ -1051,7 +1062,7 @@ static bool shouldUseConvexGradient(const Color& backgroundColor)
     return a > 0.5 && largestNonAlphaChannel < 0.5;
 }
 
-bool RenderThemeIOS::paintPushButtonDecorations(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
+void RenderThemeIOS::paintPushButtonDecorations(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
 {
     GraphicsContextStateSaver stateSaver(paintInfo.context());
     FloatRect clip = addRoundedBorderClip(box, paintInfo.context(), rect);
@@ -1063,7 +1074,6 @@ bool RenderThemeIOS::paintPushButtonDecorations(const RenderObject& box, const P
         drawAxialGradient(cgContext, gradientWithName(ShadeGradient), clip.location(), FloatPoint(clip.x(), clip.maxY()), LinearInterpolation);
         drawAxialGradient(cgContext, gradientWithName(ShineGradient), FloatPoint(clip.x(), clip.maxY()), clip.location(), ExponentialInterpolation);
     }
-    return false;
 }
 
 void RenderThemeIOS::setButtonSize(RenderStyle& style) const
@@ -1081,7 +1091,7 @@ const int kThumbnailBorderCornerRadius = 1;
 const int kVisibleBackgroundImageWidth = 1;
 const int kMultipleThumbnailShrinkSize = 2;
 
-bool RenderThemeIOS::paintFileUploadIconDecorations(const RenderObject&, const RenderObject& buttonRenderer, const PaintInfo& paintInfo, const IntRect& rect, Icon* icon, FileUploadDecorations fileUploadDecorations)
+void RenderThemeIOS::paintFileUploadIconDecorations(const RenderObject&, const RenderObject& buttonRenderer, const PaintInfo& paintInfo, const IntRect& rect, Icon* icon, FileUploadDecorations fileUploadDecorations)
 {
     GraphicsContextStateSaver stateSaver(paintInfo.context());
 
@@ -1123,8 +1133,6 @@ bool RenderThemeIOS::paintFileUploadIconDecorations(const RenderObject&, const R
     // Foreground picture frame and icon.
     paintInfo.context().fillRoundedRect(FloatRoundedRect(thumbnailPictureFrameRect, cornerSize, cornerSize, cornerSize, cornerSize), pictureFrameColor);
     icon->paint(paintInfo.context(), thumbnailRect);
-
-    return false;
 }
 
 Color RenderThemeIOS::platformActiveSelectionBackgroundColor(OptionSet<StyleColor::Options>) const
@@ -1963,6 +1971,216 @@ void RenderThemeIOS::paintSystemPreviewBadge(Image& image, const PaintInfo& pain
     CGContextRestoreGState(ctx);
 }
 #endif
+
+#if ENABLE(IOS_FORM_CONTROL_REFRESH)
+
+// Colors
+constexpr auto controlColor = SRGBA<uint8_t> { 0, 122, 255 };
+constexpr auto controlBackgroundColor = SRGBA<uint8_t> { 238, 238, 238 };
+
+constexpr auto meterOptimalColor = SRGBA<uint8_t> { 52, 199, 89 };
+constexpr auto meterSuboptimalColor = SRGBA<uint8_t> { 247, 206, 70 };
+constexpr auto meterEvenLessGoodColor = SRGBA<uint8_t> { 255, 59, 48 };
+
+bool RenderThemeIOS::paintCheckbox(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
+{
+    if (!box.settings().iOSFormControlRefreshEnabled())
+        return true;
+
+    auto& context = paintInfo.context();
+    GraphicsContextStateSaver stateSaver { context };
+
+    constexpr auto checkboxHeight = 16.0f;
+    constexpr auto checkboxCornerRadius = 5.0f;
+
+    FloatRoundedRect checkboxRect(rect, FloatRoundedRect::Radii(checkboxCornerRadius * rect.height() / checkboxHeight));
+
+    auto checked = isChecked(box);
+    auto indeterminate = isIndeterminate(box);
+    if (checked || indeterminate) {
+        context.fillRoundedRect(checkboxRect, controlColor);
+
+        Path path;
+        if (checked) {
+            path.moveTo({ 28.174f, 68.652f });
+            path.addBezierCurveTo({ 31.006f, 68.652f }, { 33.154f, 67.578f }, { 34.668f, 65.332f });
+            path.addLineTo({ 70.02f, 11.28f });
+            path.addBezierCurveTo({ 71.094f, 9.62f }, { 71.582f, 8.107f }, { 71.582f, 6.642f });
+            path.addBezierCurveTo({ 71.582f, 2.784f }, { 68.652f, 0.001f }, { 64.697f, 0.001f });
+            path.addBezierCurveTo({ 62.012f, 0.001f }, { 60.352f, 0.978f }, { 58.691f, 3.565f });
+            path.addLineTo({ 28.027f, 52.1f });
+            path.addLineTo({ 12.354f, 32.52f });
+            path.addBezierCurveTo({ 10.84f, 30.664f }, { 9.18f, 29.834f }, { 6.884f, 29.834f });
+            path.addBezierCurveTo({ 2.882f, 29.834f }, { 0.0f, 32.666f }, { 0.0f, 36.572f });
+            path.addBezierCurveTo({ 0.0f, 38.282f }, { 0.537f, 39.795f }, { 2.002f, 41.504f });
+            path.addLineTo({ 21.826f, 65.625f });
+            path.addBezierCurveTo({ 23.536f, 67.675f }, { 25.536f, 68.652f }, { 28.174f, 68.652f });
+
+            const FloatSize checkmarkSize(72.0f, 69.0f);
+            float scale = (0.65f * rect.width()) / checkmarkSize.width();
+
+            AffineTransform transform;
+            transform.translate(rect.center() - (checkmarkSize * scale * 0.5f));
+            transform.scale(scale);
+            path.transform(transform);
+        } else {
+            const FloatSize indeterminateBarRoundingRadii(1.25f, 1.25f);
+            constexpr float indeterminateBarPadding = 2.5f;
+            float height = 0.12f * rect.height();
+
+            FloatRect indeterminateBarRect(rect.x() + indeterminateBarPadding, rect.center().y() - height / 2.0f, rect.width() - indeterminateBarPadding * 2, height);
+            path.addRoundedRect(indeterminateBarRect, indeterminateBarRoundingRadii);
+        }
+
+        context.setFillColor(Color::white);
+        context.fillPath(path);
+    } else
+        context.fillRoundedRect(checkboxRect, controlBackgroundColor);
+
+    return false;
+}
+
+bool RenderThemeIOS::paintRadio(const RenderObject& box, const PaintInfo& paintInfo, const IntRect& rect)
+{
+    if (!box.settings().iOSFormControlRefreshEnabled())
+        return true;
+
+    auto& context = paintInfo.context();
+    GraphicsContextStateSaver stateSaver(context);
+
+    if (isChecked(box)) {
+        context.setFillColor(controlColor);
+        context.fillEllipse(rect);
+
+        // The inner circle is 6 / 14 the size of the surrounding circle,
+        // leaving 8 / 14 around it. (8 / 14) / 2 = 2 / 7.
+        constexpr float innerInverseRatio = 2 / 7.0f;
+
+        FloatRect innerCircleRect(rect);
+        innerCircleRect.inflateX(-innerCircleRect.width() * innerInverseRatio);
+        innerCircleRect.inflateY(-innerCircleRect.height() * innerInverseRatio);
+
+        context.setFillColor(Color::white);
+        context.fillEllipse(innerCircleRect);
+    } else {
+        context.setFillColor(controlBackgroundColor);
+        context.fillEllipse(rect);
+    }
+
+    return false;
+}
+
+// Animate the indeterminate progress bar at 30 fps. This value was chosen to
+// ensure a smooth animation, while trying to reduce the number of times the
+// progress bar is repainted.
+constexpr Seconds progressAnimationRepeatInterval = 33_ms;
+
+Seconds RenderThemeIOS::animationRepeatIntervalForProgressBar(const RenderProgress&) const
+{
+    return progressAnimationRepeatInterval;
+}
+
+bool RenderThemeIOS::paintProgressBarFCR(const RenderObject& renderer, const PaintInfo& paintInfo, const IntRect& rect)
+{
+    if (!is<RenderProgress>(renderer))
+        return true;
+    auto& renderProgress = downcast<RenderProgress>(renderer);
+
+    auto& context = paintInfo.context();
+    GraphicsContextStateSaver stateSaver(context);
+
+    constexpr auto barHeight = 4.0f;
+    FloatRoundedRect::Radii barCornerRadii(2.5f, 1.5f);
+
+    if (rect.height() < barHeight) {
+        // The rect is smaller than the standard progress bar. We clip to the
+        // element's rect to avoid leaking pixels outside the repaint rect.
+        context.clip(rect);
+    }
+
+    float barTop = rect.y() + (rect.height() - barHeight) / 2.0f;
+
+    FloatRect trackRect(rect.x(), barTop, rect.width(), barHeight);
+    FloatRoundedRect roundedTrackRect(trackRect, barCornerRadii);
+    context.fillRoundedRect(roundedTrackRect, controlBackgroundColor);
+
+    float barWidth;
+    float barLeft = rect.x();
+
+    if (renderProgress.isDeterminate()) {
+        barWidth = clampTo<float>(renderProgress.position(), 0.0f, 1.0f) * trackRect.width();
+
+        if (!renderProgress.style().isLeftToRightDirection())
+            barLeft = trackRect.maxX() - barWidth;
+    } else {
+        barWidth = 0.25f * trackRect.width();
+
+        Seconds elapsed = MonotonicTime::now() - renderProgress.animationStartTime();
+        float position = fmodf(elapsed.value(), 1.0f);
+        float offset = position * (trackRect.width() + barWidth);
+
+        bool reverseDirection = static_cast<int>(elapsed.value()) % 2;
+        if (reverseDirection)
+            barLeft = trackRect.maxX() - offset;
+        else
+            barLeft -= barWidth - offset;
+
+        context.clipRoundedRect(roundedTrackRect);
+    }
+
+    FloatRect barRect(barLeft, barTop, barWidth, barHeight);
+    context.fillRoundedRect(FloatRoundedRect(barRect, barCornerRadii), controlColor);
+
+    return false;
+}
+
+bool RenderThemeIOS::supportsMeter(ControlPart part, const HTMLMeterElement& element) const
+{
+    if (part == MeterPart)
+        return element.document().settings().iOSFormControlRefreshEnabled();
+
+    return false;
+}
+
+bool RenderThemeIOS::paintMeter(const RenderObject& renderer, const PaintInfo& paintInfo, const IntRect& rect)
+{
+    if (!renderer.settings().iOSFormControlRefreshEnabled() || !is<RenderMeter>(renderer))
+        return true;
+
+    auto& renderMeter = downcast<RenderMeter>(renderer);
+    auto element = makeRefPtr(renderMeter.meterElement());
+
+    auto& context = paintInfo.context();
+    GraphicsContextStateSaver stateSaver(context);
+
+    float cornerRadius = std::min(rect.width(), rect.height()) / 2.0f;
+    FloatRoundedRect roundedFillRect(rect, FloatRoundedRect::Radii(cornerRadius));
+    context.fillRoundedRect(roundedFillRect, controlBackgroundColor);
+    context.clipRoundedRect(roundedFillRect);
+
+    FloatRect fillRect(rect);
+    if (renderMeter.style().isLeftToRightDirection())
+        fillRect.move(rect.width() * (element->valueRatio() - 1), 0);
+    else
+        fillRect.move(rect.width() * (1 - element->valueRatio()), 0);
+    roundedFillRect.setRect(fillRect);
+
+    switch (element->gaugeRegion()) {
+    case HTMLMeterElement::GaugeRegionOptimum:
+        context.fillRoundedRect(roundedFillRect, meterOptimalColor);
+        break;
+    case HTMLMeterElement::GaugeRegionSuboptimal:
+        context.fillRoundedRect(roundedFillRect, meterSuboptimalColor);
+        break;
+    case HTMLMeterElement::GaugeRegionEvenLessGood:
+        context.fillRoundedRect(roundedFillRect, meterEvenLessGoodColor);
+        break;
+    }
+
+    return false;
+}
+
+#endif // ENABLE(IOS_FORM_CONTROL_REFRESH)
 
 } // namespace WebCore
 

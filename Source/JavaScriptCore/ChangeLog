@@ -1,3 +1,717 @@
+2020-11-30  Sergey Rubanov  <chi187@gmail.com>
+
+        Add support for the Wasm i64 sign-extension-ops proposal
+        https://bugs.webkit.org/show_bug.cgi?id=218990
+
+        Reviewed by Yusuke Suzuki.
+
+        * llint/WebAssembly.asm:
+        * offlineasm/arm64.rb:
+        * offlineasm/cloop.rb:
+        * offlineasm/instructions.rb:
+        * offlineasm/x86.rb:
+        * wasm/WasmAirIRGenerator.cpp:
+        (JSC::Wasm::AirIRGenerator::addOp<OpType::I64Extend8S>):
+        (JSC::Wasm::AirIRGenerator::addOp<OpType::I64Extend16S>):
+        (JSC::Wasm::AirIRGenerator::addOp<OpType::I64Extend32S>):
+        * wasm/wasm.json:
+
+2020-11-28  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, follow-up after r270214
+        https://bugs.webkit.org/show_bug.cgi?id=219281
+
+        ARM64 does not support unary Not32 / Not64.
+
+        * wasm/WasmAirIRGenerator.cpp:
+        (JSC::Wasm::AirIRGenerator::emitAtomicBinaryRMWOp):
+
+2020-11-27  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Use ARM atomic ops in wasm
+        https://bugs.webkit.org/show_bug.cgi?id=219281
+
+        Reviewed by Filip Pizlo.
+
+        This patch uses ARM LSE Atomic instructions in wasm atomic operations. This includes support in MacroAssembler, offlineasm, Air and B3,
+        so that FTL atomic operations automatically leverage ARM LSE atomic instructions too. Later we can extend DFG JIT to use it too.
+
+        One interesting thing is that this includes a fix for cmpxchg wasm operation implementations. Unfortunately, current wasm cmpxchg ops
+        are not the same to ARM cas / X86 cmpxchg. For example, i64.atomic.rmw8.cmpxchg_u takes i64 expected value. And the spec requires that
+        we should perform `i64-expected-value <cmp> loaded-zero-extended-1byte-value`. For example, if the expected value is `0xffffffff_ffffff00`,
+        and the value stored in the memory is `0x00`, then the wasm op needs to fail since `0x00` is not `0xffffffff_ffffff00`. But x86 and ARM
+        cmpxchg / cas ops behave differently since it truncates expected value to 1byte when performing 1byte cmpxchg. So we need to have a check
+        which performs the value is within 1byte range in this operation.
+
+        * assembler/ARM64EAssembler.h:
+        (JSC::ARM64EAssembler::exoticAtomicLoadStore):
+        (JSC::ARM64EAssembler::exoticAtomicCAS):
+        (JSC::ARM64EAssembler::ldaddal):
+        (JSC::ARM64EAssembler::ldeoral):
+        (JSC::ARM64EAssembler::ldclral):
+        (JSC::ARM64EAssembler::ldsetal):
+        (JSC::ARM64EAssembler::swpal):
+        (JSC::ARM64EAssembler::casal):
+        * assembler/MacroAssemblerARM64E.h:
+        (JSC::MacroAssemblerARM64E::atomicXchgAdd8):
+        (JSC::MacroAssemblerARM64E::atomicXchgAdd16):
+        (JSC::MacroAssemblerARM64E::atomicXchgAdd32):
+        (JSC::MacroAssemblerARM64E::atomicXchgAdd64):
+        (JSC::MacroAssemblerARM64E::atomicXchgXor8):
+        (JSC::MacroAssemblerARM64E::atomicXchgXor16):
+        (JSC::MacroAssemblerARM64E::atomicXchgXor32):
+        (JSC::MacroAssemblerARM64E::atomicXchgXor64):
+        (JSC::MacroAssemblerARM64E::atomicXchgOr8):
+        (JSC::MacroAssemblerARM64E::atomicXchgOr16):
+        (JSC::MacroAssemblerARM64E::atomicXchgOr32):
+        (JSC::MacroAssemblerARM64E::atomicXchgOr64):
+        (JSC::MacroAssemblerARM64E::atomicXchgClear8):
+        (JSC::MacroAssemblerARM64E::atomicXchgClear16):
+        (JSC::MacroAssemblerARM64E::atomicXchgClear32):
+        (JSC::MacroAssemblerARM64E::atomicXchgClear64):
+        (JSC::MacroAssemblerARM64E::atomicXchg8):
+        (JSC::MacroAssemblerARM64E::atomicXchg16):
+        (JSC::MacroAssemblerARM64E::atomicXchg32):
+        (JSC::MacroAssemblerARM64E::atomicXchg64):
+        (JSC::MacroAssemblerARM64E::atomicStrongCAS8):
+        (JSC::MacroAssemblerARM64E::atomicStrongCAS16):
+        (JSC::MacroAssemblerARM64E::atomicStrongCAS32):
+        (JSC::MacroAssemblerARM64E::atomicStrongCAS64):
+        * b3/B3LowerMacros.cpp:
+        * b3/B3LowerToAir.cpp:
+        * b3/air/AirOpcode.opcodes:
+        * b3/air/opcode_generator.rb:
+        * disassembler/ARM64/A64DOpcode.cpp:
+        (JSC::ARM64Disassembler::A64DOpcodeLoadAtomic::format):
+        (JSC::ARM64Disassembler::A64DOpcodeSwapAtomic::format):
+        (JSC::ARM64Disassembler::A64DOpcodeCAS::format):
+        * disassembler/ARM64/A64DOpcode.h:
+        (JSC::ARM64Disassembler::A64DOpcode::appendInstructionName):
+        (JSC::ARM64Disassembler::A64DOpcodeLoadAtomic::opName):
+        (JSC::ARM64Disassembler::A64DOpcodeLoadAtomic::rs):
+        (JSC::ARM64Disassembler::A64DOpcodeLoadAtomic::opc):
+        (JSC::ARM64Disassembler::A64DOpcodeLoadAtomic::ar):
+        (JSC::ARM64Disassembler::A64DOpcodeLoadAtomic::opNumber):
+        (JSC::ARM64Disassembler::A64DOpcodeSwapAtomic::opName):
+        (JSC::ARM64Disassembler::A64DOpcodeSwapAtomic::rs):
+        (JSC::ARM64Disassembler::A64DOpcodeSwapAtomic::ar):
+        (JSC::ARM64Disassembler::A64DOpcodeSwapAtomic::opNumber):
+        (JSC::ARM64Disassembler::A64DOpcodeCAS::opName):
+        (JSC::ARM64Disassembler::A64DOpcodeCAS::rs):
+        (JSC::ARM64Disassembler::A64DOpcodeCAS::o1):
+        (JSC::ARM64Disassembler::A64DOpcodeCAS::l):
+        (JSC::ARM64Disassembler::A64DOpcodeCAS::opNumber):
+        * llint/WebAssembly.asm:
+        * offlineasm/arm64.rb:
+        * offlineasm/instructions.rb:
+        * offlineasm/x86.rb:
+        * wasm/WasmAirIRGenerator.cpp:
+        (JSC::Wasm::AirIRGenerator::sanitizeAtomicResult):
+        (JSC::Wasm::AirIRGenerator::appendGeneralAtomic):
+        (JSC::Wasm::AirIRGenerator::appendStrongCAS):
+        (JSC::Wasm::AirIRGenerator::emitAtomicLoadOp):
+        (JSC::Wasm::AirIRGenerator::emitAtomicStoreOp):
+        (JSC::Wasm::AirIRGenerator::emitAtomicBinaryRMWOp):
+        (JSC::Wasm::AirIRGenerator::emitAtomicCompareExchange):
+        * wasm/WasmB3IRGenerator.cpp:
+        (JSC::Wasm::B3IRGenerator::emitAtomicCompareExchange):
+
+2020-11-26  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add wasm atomics instructions
+        https://bugs.webkit.org/show_bug.cgi?id=218954
+
+        Reviewed by Filip Pizlo.
+
+        This patch implements wasm threading's atomic operations[1] in X86_64 and ARM64. Currently, all ARM64 atomic operations are implemented by using LL/SC.
+        Later, we will use ARM64 CAS operations if possible, at least in ARM64E.
+
+        To test it easily, we also extend jsc shell's worker to support transferring shared WebAssembly.Memory so that we can use wasm atomic operations in several
+        workers in jsc shell.
+
+        [1]: https://github.com/WebAssembly/threads
+
+        * assembler/MacroAssemblerX86Common.h:
+        (JSC::MacroAssemblerX86Common::atomicXchg8):
+        (JSC::MacroAssemblerX86Common::atomicXchg16):
+        (JSC::MacroAssemblerX86Common::atomicXchg32):
+        * b3/B3Kind.h:
+        (JSC::B3::Kind::hasTraps const):
+        * b3/B3LowerToAir.cpp:
+        * b3/B3Width.h:
+        (JSC::B3::bytesForWidth):
+        * b3/testb3_8.cpp:
+        (testAtomicXchg):
+        * bytecode/BytecodeList.rb:
+        * interpreter/Register.h:
+        (JSC::Register::unboxedInt64 const):
+        (JSC::Register::asanUnsafeUnboxedInt64 const):
+        * jsc.cpp:
+        (Message::releaseContents):
+        (Message::Message):
+        (JSC_DEFINE_HOST_FUNCTION):
+        * llint/WebAssembly.asm:
+        * offlineasm/arm64.rb:
+        * offlineasm/instructions.rb:
+        * offlineasm/x86.rb:
+        * runtime/OptionsList.h:
+        * wasm/WasmAirIRGenerator.cpp:
+        (JSC::Wasm::AirIRGenerator::appendEffectful):
+        (JSC::Wasm::accessWidth):
+        (JSC::Wasm::sizeOfAtomicOpMemoryAccess):
+        (JSC::Wasm::AirIRGenerator::fixupPointerPlusOffsetForAtomicOps):
+        (JSC::Wasm::AirIRGenerator::sanitizeAtomicResult):
+        (JSC::Wasm::AirIRGenerator::appendGeneralAtomic):
+        (JSC::Wasm::AirIRGenerator::appendStrongCAS):
+        (JSC::Wasm::AirIRGenerator::emitAtomicLoadOp):
+        (JSC::Wasm::AirIRGenerator::atomicLoad):
+        (JSC::Wasm::AirIRGenerator::emitAtomicStoreOp):
+        (JSC::Wasm::AirIRGenerator::atomicStore):
+        (JSC::Wasm::AirIRGenerator::emitAtomicBinaryRMWOp):
+        (JSC::Wasm::AirIRGenerator::atomicBinaryRMW):
+        (JSC::Wasm::AirIRGenerator::emitAtomicCompareExchange):
+        (JSC::Wasm::AirIRGenerator::atomicCompareExchange):
+        (JSC::Wasm::AirIRGenerator::atomicWait):
+        (JSC::Wasm::AirIRGenerator::atomicNotify):
+        (JSC::Wasm::AirIRGenerator::atomicFence):
+        (JSC::Wasm::AirIRGenerator::addCall):
+        * wasm/WasmB3IRGenerator.cpp:
+        (JSC::Wasm::B3IRGenerator::emitCheckAndPreparePointer):
+        (JSC::Wasm::B3IRGenerator::memoryKind):
+        (JSC::Wasm::accessWidth):
+        (JSC::Wasm::sizeOfAtomicOpMemoryAccess):
+        (JSC::Wasm::B3IRGenerator::sanitizeAtomicResult):
+        (JSC::Wasm::B3IRGenerator::fixupPointerPlusOffsetForAtomicOps):
+        (JSC::Wasm::B3IRGenerator::emitAtomicLoadOp):
+        (JSC::Wasm::B3IRGenerator::atomicLoad):
+        (JSC::Wasm::B3IRGenerator::emitAtomicStoreOp):
+        (JSC::Wasm::B3IRGenerator::atomicStore):
+        (JSC::Wasm::B3IRGenerator::emitAtomicBinaryRMWOp):
+        (JSC::Wasm::B3IRGenerator::atomicBinaryRMW):
+        (JSC::Wasm::B3IRGenerator::emitAtomicCompareExchange):
+        (JSC::Wasm::B3IRGenerator::atomicCompareExchange):
+        (JSC::Wasm::B3IRGenerator::atomicWait):
+        (JSC::Wasm::B3IRGenerator::atomicNotify):
+        (JSC::Wasm::B3IRGenerator::atomicFence):
+        (JSC::Wasm::B3IRGenerator::addCall):
+        * wasm/WasmFunctionParser.h:
+        (JSC::Wasm::FunctionParser<Context>::atomicLoad):
+        (JSC::Wasm::FunctionParser<Context>::atomicStore):
+        (JSC::Wasm::FunctionParser<Context>::atomicBinaryRMW):
+        (JSC::Wasm::FunctionParser<Context>::atomicCompareExchange):
+        (JSC::Wasm::FunctionParser<Context>::atomicWait):
+        (JSC::Wasm::FunctionParser<Context>::atomicNotify):
+        (JSC::Wasm::FunctionParser<Context>::atomicFence):
+        (JSC::Wasm::FunctionParser<Context>::parseExpression):
+        (JSC::Wasm::FunctionParser<Context>::parseUnreachableExpression):
+        * wasm/WasmLLIntGenerator.cpp:
+        (JSC::Wasm::LLIntGenerator::atomicLoad):
+        (JSC::Wasm::LLIntGenerator::atomicStore):
+        (JSC::Wasm::LLIntGenerator::atomicBinaryRMW):
+        (JSC::Wasm::LLIntGenerator::atomicCompareExchange):
+        (JSC::Wasm::LLIntGenerator::atomicWait):
+        (JSC::Wasm::LLIntGenerator::atomicNotify):
+        (JSC::Wasm::LLIntGenerator::atomicFence):
+        * wasm/WasmMemory.h:
+        * wasm/WasmMemoryInformation.cpp:
+        (JSC::Wasm::MemoryInformation::MemoryInformation):
+        * wasm/WasmMemoryInformation.h:
+        (JSC::Wasm::MemoryInformation::isShared const):
+        * wasm/WasmOperations.cpp:
+        (JSC::Wasm::wait):
+        (JSC::Wasm::JSC_DEFINE_JIT_OPERATION):
+        * wasm/WasmOperations.h:
+        * wasm/WasmSectionParser.cpp:
+        (JSC::Wasm::SectionParser::parseResizableLimits):
+        (JSC::Wasm::SectionParser::parseTableHelper):
+        (JSC::Wasm::SectionParser::parseMemoryHelper):
+        * wasm/WasmSectionParser.h:
+        * wasm/WasmSlowPaths.cpp:
+        (JSC::LLInt::WASM_SLOW_PATH_DECL):
+        * wasm/WasmSlowPaths.h:
+        * wasm/generateWasm.py:
+        (isAtomic):
+        (isAtomicLoad):
+        (isAtomicStore):
+        (isAtomicBinaryRMW):
+        (memoryLog2Alignment):
+        * wasm/generateWasmOpsHeader.py:
+        (atomicMemoryLoadMacroizer):
+        (atomicMemoryLoadMacroizer.modifier):
+        (atomicMemoryStoreMacroizer):
+        (atomicMemoryStoreMacroizer.modifier):
+        (atomicBinaryRMWMacroizer):
+        (atomicBinaryRMWMacroizer.modifier):
+        (memoryLog2AlignmentGenerator):
+        (atomicMemoryLog2AlignmentGenerator):
+        (ExtAtomicOpType):
+        * wasm/js/JSWebAssemblyInstance.cpp:
+        (JSC::JSWebAssemblyInstance::tryCreate):
+        * wasm/wasm.json:
+
+2020-11-19  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Enable private instance and static fields
+        https://bugs.webkit.org/show_bug.cgi?id=219179
+
+        Reviewed by Mark Lam.
+
+        Enable private instance and static fields. We are not supporting private methods and static private methods yet.
+
+        * runtime/OptionsList.h:
+
+2020-11-19  Saam Barati  <sbarati@apple.com>
+
+        Use os_thread_self_restrict_rwx_is_supported instead of pthread_jit_write_protect_supported_np on Apple Internal SDK builds
+        https://bugs.webkit.org/show_bug.cgi?id=219099
+        <rdar://problem/71547048>
+
+        Reviewed by Mark Lam.
+
+        * assembler/FastJITPermissions.h:
+        (useFastJITPermissions):
+        (threadSelfRestrictRWXToRW):
+        (threadSelfRestrictRWXToRX):
+
+2020-11-19  Xan López  <xan@igalia.com>
+
+        [JSC] Add support for static private class fields
+        https://bugs.webkit.org/show_bug.cgi?id=214297
+
+        Reviewed by Yusuke Suzuki.
+
+        Static private fields come trivially now that both private and
+        static (public) fields are implemented.
+
+        * parser/Parser.cpp:
+        (JSC::Parser<LexerType>::parseClass): accept static private fields if the runtime option allows it.
+        * runtime/Options.cpp:
+        (JSC::Options::recomputeDependentOptions): usePrivateStaticClassFields depends on usePrivateClassFields.
+        * runtime/OptionsList.h: add runtime option to enable static private fields.
+        * tools/JSDollarVM.cpp: add a method to check for private symbols in the stress tests.
+        (JSC::JSC_DEFINE_HOST_FUNCTION):
+        (JSC::JSDollarVM::finishCreation):
+
+2020-11-19  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [JSC] Build failed due to unknown values in LLIntDesiredOffsets.h
+        https://bugs.webkit.org/show_bug.cgi?id=219158
+
+        Reviewed by Don Olmstead.
+
+        CMake uses the contents of the variables OFFLINE_ASM and GENERATOR as part of the
+        dependencies that cause LLIntDesiredOffsets.h to be regenerated, so add to them
+        those files missing from the lists.
+
+        * CMakeLists.txt: Update OFFLINE_ASM and GENERATOR lists.
+
+2020-11-18  Dmitry Bezhetskov  <dbezhetskov@igalia.com>
+
+        [WASM-References] Remove subtyping rule for externref and funcref
+        https://bugs.webkit.org/show_bug.cgi?id=218885
+
+        Reviewed by Yusuke Suzuki.
+
+        Make funcref is not a subtype of externref.
+        The spec: https://webassembly.github.io/reference-types/core/
+        The PR for removing subtype from the spec:
+        https://github.com/WebAssembly/reference-types/pull/87.
+
+        * wasm/WasmFormat.h:
+        (JSC::Wasm::isSubtype):
+        * wasm/WasmFunctionParser.h:
+        (JSC::Wasm::FunctionParser<Context>::parseExpression):
+        * wasm/js/WebAssemblyModuleRecord.cpp:
+        (JSC::WebAssemblyModuleRecord::link):
+
+2020-11-18  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [JSC] Reinstate String#at
+        https://bugs.webkit.org/show_bug.cgi?id=219124
+
+        Reviewed by Yusuke Suzuki.
+
+        At this week's TC39 meeting, consensus was achieved on renaming item() *and* keeping it for strings too.
+        Accordingly, this patch reinstates String.prototype.at behind the existing useAtMethod runtime option.
+
+        * builtins/StringPrototype.js:
+        (at):
+        * runtime/StringPrototype.cpp:
+        (JSC::StringPrototype::finishCreation):
+
+2020-11-17  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Improve Wasm binary test coverage
+        https://bugs.webkit.org/show_bug.cgi?id=204843
+
+        Reviewed by Darin Adler.
+
+        This patch fixes some of bugs in wasm parser so that we validate malformed wasm modules more strictly.
+
+        1. current_memory / grow_memory should have uint8 flag, not varuint32 flag.
+        2. global section should have uint8 mutability information, not varuint32.
+        3. memory section should have varuint32 memory count.
+
+        * wasm/WasmFunctionParser.h:
+        (JSC::Wasm::FunctionParser<Context>::parseExpression):
+        (JSC::Wasm::FunctionParser<Context>::parseUnreachableExpression):
+        * wasm/WasmSectionParser.cpp:
+        (JSC::Wasm::SectionParser::parseResizableLimits):
+        (JSC::Wasm::SectionParser::parseMemory):
+        (JSC::Wasm::SectionParser::parseGlobalType):
+        * wasm/wasm.json:
+
+2020-11-18  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, relanding r269940
+        https://bugs.webkit.org/show_bug.cgi?id=219076
+
+        ARM64E clang optimizer is broken and optimizing forever if Wasm::MemoryHandle::memory() is inlined.
+        Putting NEVER_INLINE onto this function for now (unfortunate).
+
+        * CMakeLists.txt:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * llint/LLIntPCRanges.h:
+        (JSC::LLInt::isWasmLLIntPC):
+        * llint/LowLevelInterpreter.asm:
+        * llint/WebAssembly.asm:
+        * runtime/JSArrayBuffer.h:
+        (JSC::JSArrayBuffer::toWrappedAllowShared):
+        * runtime/JSArrayBufferView.h:
+        * runtime/JSArrayBufferViewInlines.h:
+        (JSC::JSArrayBufferView::toWrappedAllowShared):
+        * runtime/JSGenericTypedArrayView.h:
+        (JSC::JSGenericTypedArrayView<Adaptor>::toWrappedAllowShared):
+        * runtime/Options.cpp:
+        (JSC::overrideDefaults):
+        (JSC::Options::initialize):
+        * wasm/WasmAirIRGenerator.cpp:
+        (JSC::Wasm::AirIRGenerator::AirIRGenerator):
+        (JSC::Wasm::AirIRGenerator::restoreWebAssemblyGlobalState):
+        (JSC::Wasm::AirIRGenerator::addCurrentMemory):
+        (JSC::Wasm::AirIRGenerator::emitCheckAndPreparePointer):
+        (JSC::Wasm::AirIRGenerator::addCall):
+        (JSC::Wasm::AirIRGenerator::addCallIndirect):
+        * wasm/WasmB3IRGenerator.cpp:
+        (JSC::Wasm::B3IRGenerator::B3IRGenerator):
+        (JSC::Wasm::B3IRGenerator::restoreWebAssemblyGlobalState):
+        (JSC::Wasm::B3IRGenerator::addCurrentMemory):
+        (JSC::Wasm::B3IRGenerator::emitCheckAndPreparePointer):
+        (JSC::Wasm::B3IRGenerator::addCall):
+        (JSC::Wasm::B3IRGenerator::addCallIndirect):
+        * wasm/WasmBinding.cpp:
+        (JSC::Wasm::wasmToWasm):
+        * wasm/WasmFaultSignalHandler.cpp:
+        (JSC::Wasm::trapHandler):
+        (JSC::Wasm::enableFastMemory):
+        (JSC::Wasm::prepareFastMemory):
+        * wasm/WasmInstance.h:
+        (JSC::Wasm::Instance::cachedMemory const):
+        (JSC::Wasm::Instance::cachedBoundsCheckingSize const):
+        (JSC::Wasm::Instance::updateCachedMemory):
+        (JSC::Wasm::Instance::offsetOfCachedBoundsCheckingSize):
+        (JSC::Wasm::Instance::cachedMemorySize const): Deleted.
+        (JSC::Wasm::Instance::offsetOfCachedMemorySize): Deleted.
+        * wasm/WasmMemory.cpp:
+        (JSC::Wasm::MemoryHandle::MemoryHandle):
+        (JSC::Wasm::MemoryHandle::~MemoryHandle):
+        (JSC::Wasm::MemoryHandle::memory const):
+        (JSC::Wasm::Memory::Memory):
+        (JSC::Wasm::Memory::create):
+        (JSC::Wasm::Memory::tryCreate):
+        (JSC::Wasm::Memory::addressIsInGrowableOrFastMemory):
+        (JSC::Wasm::Memory::growShared):
+        (JSC::Wasm::Memory::grow):
+        (JSC::Wasm::Memory::dump const):
+        (JSC::Wasm::Memory::~Memory): Deleted.
+        (JSC::Wasm::Memory::addressIsInActiveFastMemory): Deleted.
+        * wasm/WasmMemory.h:
+        (JSC::Wasm::Memory::addressIsInGrowableOrFastMemory):
+        (JSC::Wasm::Memory::operator bool const): Deleted.
+        (JSC::Wasm::Memory::memory const): Deleted.
+        (JSC::Wasm::Memory::size const): Deleted.
+        (JSC::Wasm::Memory::sizeInPages const): Deleted.
+        (JSC::Wasm::Memory::initial const): Deleted.
+        (JSC::Wasm::Memory::maximum const): Deleted.
+        (JSC::Wasm::Memory::mode const): Deleted.
+        (JSC::Wasm::Memory::check): Deleted.
+        (JSC::Wasm::Memory::offsetOfMemory): Deleted.
+        (JSC::Wasm::Memory::offsetOfSize): Deleted.
+        (JSC::Wasm::Memory::addressIsInActiveFastMemory): Deleted.
+        * wasm/WasmMemoryInformation.cpp:
+        (JSC::Wasm::PinnedRegisterInfo::get):
+        (JSC::Wasm::PinnedRegisterInfo::PinnedRegisterInfo):
+        * wasm/WasmMemoryInformation.h:
+        (JSC::Wasm::PinnedRegisterInfo::toSave const):
+        * wasm/WasmMemoryMode.cpp:
+        (JSC::Wasm::makeString):
+        * wasm/WasmMemoryMode.h:
+        * wasm/js/JSToWasm.cpp:
+        (JSC::Wasm::createJSToWasmWrapper):
+        * wasm/js/JSWebAssemblyInstance.cpp:
+        (JSC::JSWebAssemblyInstance::tryCreate):
+        * wasm/js/JSWebAssemblyMemory.cpp:
+        (JSC::JSWebAssemblyMemory::buffer):
+        (JSC::JSWebAssemblyMemory::growSuccessCallback):
+        * wasm/js/JSWebAssemblyMemory.h:
+        * wasm/js/WebAssemblyFunction.cpp:
+        (JSC::WebAssemblyFunction::jsCallEntrypointSlow):
+        * wasm/js/WebAssemblyMemoryConstructor.cpp:
+        (JSC::JSC_DEFINE_HOST_FUNCTION):
+        * wasm/js/WebAssemblyMemoryPrototype.cpp:
+        (JSC::JSC_DEFINE_HOST_FUNCTION):
+        * wasm/js/WebAssemblyModuleRecord.cpp:
+        (JSC::WebAssemblyModuleRecord::evaluate):
+
+2020-11-18  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r269940.
+        https://bugs.webkit.org/show_bug.cgi?id=219076
+
+        caused seemingly-infinite build time regression
+
+        Reverted changeset:
+
+        "[JSC] Implement WebAssembly.Memory with shared"
+        https://bugs.webkit.org/show_bug.cgi?id=218693
+        https://trac.webkit.org/changeset/269940
+
+2020-11-16  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Implement WebAssembly.Memory with shared
+        https://bugs.webkit.org/show_bug.cgi?id=218693
+
+        Reviewed by Saam Barati.
+
+        This patch implements shared WebAssembly.Memory. This can be shared between workers like SharedArrayBuffer.
+        The most interesting thing of shared WebAssembly.Memory is that it is growable. The memory can be grown in
+        one thread, and immediately, it should be accessible in the other threads.
+
+        To achieve that, shared WebAssembly.Memory leverages signaling even if bounds-checking is mainly used.
+        If the fast memory is enabled, we just use it so that mprotect can make memory grown easily. But if fast memory
+        is disabled, we allocates requested VA region and perform bounds-checking with this VA. Since WebAssembly.Memory
+        always requires "maximum" size of memory, we can first allocate VA and map active part of memory first. And
+        when growing, we perform mprotect to the rest of the memory. Since this VA is not 4GB, we still need to perform
+        bounds-checking, but we perform bounds-checking with VA size instead of active memory size. As a result, even if
+        shared WebAssembly.Memory is grown, we do not need to update (1) pointer and (2) bounds-checking size.
+        The shared bounds-checking WebAssembly.Memory is something like below.
+
+        <================================================ maximum ============================><------------ other memory, protected by bounds-checking --...
+        <======= active ==========><===================== not active yet =====================>
+        ^                               [ if we access this, fault handler will detect it]    ^
+        pointer                                                                               bounds checking size
+
+        These "growable bound-checking memory" is now managed by wasm memory-manager. And fault handler is used even if fast memory is disabled.
+        And fault handler also accepts signals from Wasm LLInt code since both bounds-checkings + signalings are required to confine memory access even in
+        Wasm LLInt. This patch also renamed memory-size and size-register to bounds-checking-size and bounds-checking-size-register since this is no longer
+        a size of memory.
+
+        * CMakeLists.txt:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * llint/LLIntPCRanges.h:
+        (JSC::LLInt::isWasmLLIntPC):
+        * llint/LowLevelInterpreter.asm:
+        * llint/WebAssembly.asm:
+        * runtime/JSArrayBuffer.h:
+        (JSC::JSArrayBuffer::toWrappedAllowShared):
+        * runtime/JSArrayBufferView.h:
+        * runtime/JSArrayBufferViewInlines.h:
+        (JSC::JSArrayBufferView::toWrappedAllowShared):
+        * runtime/JSGenericTypedArrayView.h:
+        (JSC::JSGenericTypedArrayView<Adaptor>::toWrappedAllowShared):
+        * runtime/Options.cpp:
+        (JSC::overrideDefaults):
+        (JSC::Options::initialize):
+        * wasm/WasmAirIRGenerator.cpp:
+        (JSC::Wasm::AirIRGenerator::AirIRGenerator):
+        (JSC::Wasm::AirIRGenerator::restoreWebAssemblyGlobalState):
+        (JSC::Wasm::AirIRGenerator::addCurrentMemory):
+        (JSC::Wasm::AirIRGenerator::emitCheckAndPreparePointer):
+        (JSC::Wasm::AirIRGenerator::addCall):
+        (JSC::Wasm::AirIRGenerator::addCallIndirect):
+        * wasm/WasmB3IRGenerator.cpp:
+        (JSC::Wasm::B3IRGenerator::B3IRGenerator):
+        (JSC::Wasm::B3IRGenerator::restoreWebAssemblyGlobalState):
+        (JSC::Wasm::B3IRGenerator::addCurrentMemory):
+        (JSC::Wasm::B3IRGenerator::emitCheckAndPreparePointer):
+        (JSC::Wasm::B3IRGenerator::addCall):
+        (JSC::Wasm::B3IRGenerator::addCallIndirect):
+        * wasm/WasmBinding.cpp:
+        (JSC::Wasm::wasmToWasm):
+        * wasm/WasmFaultSignalHandler.cpp:
+        (JSC::Wasm::trapHandler):
+        (JSC::Wasm::enableFastMemory):
+        (JSC::Wasm::prepareFastMemory):
+        * wasm/WasmInstance.h:
+        (JSC::Wasm::Instance::cachedMemory const):
+        (JSC::Wasm::Instance::cachedBoundsCheckingSize const):
+        (JSC::Wasm::Instance::updateCachedMemory):
+        (JSC::Wasm::Instance::offsetOfCachedBoundsCheckingSize):
+        (JSC::Wasm::Instance::cachedMemorySize const): Deleted.
+        (JSC::Wasm::Instance::offsetOfCachedMemorySize): Deleted.
+        * wasm/WasmMemory.cpp:
+        (JSC::Wasm::MemoryHandle::MemoryHandle):
+        (JSC::Wasm::MemoryHandle::~MemoryHandle):
+        (JSC::Wasm::Memory::Memory):
+        (JSC::Wasm::Memory::create):
+        (JSC::Wasm::Memory::tryCreate):
+        (JSC::Wasm::Memory::addressIsInGrowableOrFastMemory):
+        (JSC::Wasm::Memory::growShared):
+        (JSC::Wasm::Memory::grow):
+        (JSC::Wasm::Memory::dump const):
+        (JSC::Wasm::Memory::~Memory): Deleted.
+        (JSC::Wasm::Memory::addressIsInActiveFastMemory): Deleted.
+        * wasm/WasmMemory.h:
+        (JSC::Wasm::Memory::addressIsInGrowableOrFastMemory):
+        (JSC::Wasm::Memory::operator bool const): Deleted.
+        (JSC::Wasm::Memory::memory const): Deleted.
+        (JSC::Wasm::Memory::size const): Deleted.
+        (JSC::Wasm::Memory::sizeInPages const): Deleted.
+        (JSC::Wasm::Memory::initial const): Deleted.
+        (JSC::Wasm::Memory::maximum const): Deleted.
+        (JSC::Wasm::Memory::mode const): Deleted.
+        (JSC::Wasm::Memory::check): Deleted.
+        (JSC::Wasm::Memory::offsetOfMemory): Deleted.
+        (JSC::Wasm::Memory::offsetOfSize): Deleted.
+        (JSC::Wasm::Memory::addressIsInActiveFastMemory): Deleted.
+        * wasm/WasmMemoryInformation.cpp:
+        (JSC::Wasm::PinnedRegisterInfo::get):
+        (JSC::Wasm::PinnedRegisterInfo::PinnedRegisterInfo):
+        * wasm/WasmMemoryInformation.h:
+        (JSC::Wasm::PinnedRegisterInfo::toSave const):
+        * wasm/WasmMemoryMode.cpp:
+        (JSC::Wasm::makeString):
+        * wasm/WasmMemoryMode.h:
+        * wasm/js/JSToWasm.cpp:
+        (JSC::Wasm::createJSToWasmWrapper):
+        * wasm/js/JSWebAssemblyInstance.cpp:
+        (JSC::JSWebAssemblyInstance::tryCreate):
+        * wasm/js/JSWebAssemblyMemory.cpp:
+        (JSC::JSWebAssemblyMemory::buffer):
+        (JSC::JSWebAssemblyMemory::growSuccessCallback):
+        * wasm/js/JSWebAssemblyMemory.h:
+        * wasm/js/WebAssemblyFunction.cpp:
+        (JSC::WebAssemblyFunction::jsCallEntrypointSlow):
+        * wasm/js/WebAssemblyMemoryConstructor.cpp:
+        (JSC::JSC_DEFINE_HOST_FUNCTION):
+        * wasm/js/WebAssemblyMemoryPrototype.cpp:
+        (JSC::JSC_DEFINE_HOST_FUNCTION):
+        * wasm/js/WebAssemblyModuleRecord.cpp:
+        (JSC::WebAssemblyModuleRecord::evaluate):
+
+2020-11-17  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Enable static public class fields
+        https://bugs.webkit.org/show_bug.cgi?id=219058
+
+        Reviewed by Saam Barati.
+
+        Let's flip the runtime flag (usePublicStaticClassFields). And we drop usePublicClassFields flag since it is already shipped.
+
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::BytecodeGenerator):
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::FunctionCallValueNode::emitBytecode):
+        * parser/Parser.cpp:
+        (JSC::Parser<LexerType>::parseClass):
+        * runtime/OptionsList.h:
+
+2020-11-17  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        [CMake] generate_offset_extractor.rb missing build dependency for llint/WebAssembly.asm
+        https://bugs.webkit.org/show_bug.cgi?id=219043
+
+        Reviewed by Don Olmstead.
+
+        generate_offset_extractor.rb is missing a build dependency for llint/WebAssembly.asm. If
+        WebAssembly.asm is modified, generate_offset_extracter.rb needs to be run again.
+
+        * CMakeLists.txt:
+
+2020-11-17  Saam Barati  <sbarati@apple.com>
+
+        Add more info to the RELEASE_ASSERT inside Parser::parseInner
+        https://bugs.webkit.org/show_bug.cgi?id=219054
+        <rdar://problem/71506453>
+
+        Reviewed by Mark Lam.
+
+        We have some crashes here, and it'll be helpful for the crashlogs to have
+        more info in the register state.
+
+        * parser/Lexer.h:
+        (JSC::Lexer::codeLength):
+        * parser/Parser.cpp:
+        (JSC::Parser<LexerType>::parseInner):
+
+2020-11-17  Sergey Rubanov  <chi187@gmail.com>
+
+        Add support for the Wasm i32 sign-extension-ops proposal
+        https://bugs.webkit.org/show_bug.cgi?id=210302
+
+        Reviewed by Yusuke Suzuki.
+
+        * llint/LowLevelInterpreter.asm:
+        * llint/WebAssembly.asm:
+        * offlineasm/arm64.rb:
+        * offlineasm/cloop.rb:
+        * offlineasm/instructions.rb:
+        * offlineasm/x86.rb:
+        * wasm/WasmAirIRGenerator.cpp:
+        (JSC::Wasm::AirIRGenerator::addOp<OpType::I32Extend8S>):
+        (JSC::Wasm::AirIRGenerator::addOp<OpType::I32Extend16S>):
+        * wasm/wasm.json:
+
+2020-11-17  Xan López  <xan@igalia.com>
+
+        [JSC] Add support for static public class fields
+        https://bugs.webkit.org/show_bug.cgi?id=194095
+
+        Reviewed by Yusuke Suzuki.
+
+        Add support for static public class fields. We can reuse most of
+        the existing machinery available for instance fields. Like
+        instance fields, static fields are initialized with a synthetic
+        function. This is done to allow us to trivially follow the scoping
+        rules in the spec. As it happens with instance fields this could
+        be inlined in a future patch.
+
+        A lot of small changes in many files are just a matter of doing
+        s/instance/class/ for variables related to class fields, which
+        before were assuming there are only instance fields implemented.
+
+        * bytecode/UnlinkedFunctionExecutable.cpp:
+        (JSC::generateUnlinkedFunctionCodeBlock): do s/instanceField/classField/.
+        * bytecode/UnlinkedFunctionExecutable.h: ditto.
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::emitNewClassFieldInitializerFunction): ditto.
+        * bytecompiler/BytecodeGenerator.h: ditto, plus add a parameter
+        for static field locations in emitDefineClassElements.
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::PropertyListNode::emitBytecode): save static fields
+        locations when going through the property list.
+        (JSC::PropertyListNode::emitSaveComputedFieldName): consider
+        static fields here too.
+        (JSC::ClassExprNode::emitBytecode): call the initializer for
+        static fields as the very last action of the class creation.
+        * parser/ASTBuilder.h:
+        (JSC::ASTBuilder::createDefineField): field nodes can be static
+        too now.
+        * parser/NodeConstructors.h:
+        (JSC::DefineFieldNode::DefineFieldNode): ditto.
+        * parser/Nodes.h: ditto.
+        * parser/Parser.cpp:
+        (JSC::Parser<LexerType>::parseInner): s/instanceField/classField/
+        (JSC::Parser<LexerType>::parseClass): consider static fields.
+        (JSC::Parser<LexerType>::parseInstanceFieldInitializerSourceElements):
+        s/instanceField/classField/, and consider static fields.
+        * parser/Parser.h:
+        (JSC::Parser<LexerType>::parse): s/instanceField/classField/
+        (JSC::parse): ditto.
+        * runtime/JSFunction.cpp:
+        (JSC::JSFunction::setFunctionName): s/instanceField/classField/
+        * runtime/OptionsList.h: add option to enable/disable static public fields.
+
 2020-11-15  Yusuke Suzuki  <ysuzuki@apple.com>
 
         [JSC] Wasm should get byte length from source typed array

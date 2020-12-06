@@ -35,43 +35,57 @@ namespace LayoutIntegration {
 class Line {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    Line(size_t firstRunIndex, size_t runCount, const FloatRect& lineRect, float lineBoxWidth, const FloatRect& enclosingContentRect, const FloatRect& scrollableOverflow, const FloatRect& inkOverflow, float baseline, float horizontalAlignmentOffset)
+    struct EnclosingTopAndBottom {
+        // This values encloses the root inline box and any other inline level box's border box.
+        float top { 0 };
+        float bottom { 0 };
+    };
+    Line(size_t firstRunIndex, size_t runCount, const FloatRect& lineBoxRect, EnclosingTopAndBottom enclosingTopAndBottom, const FloatRect& scrollableOverflow, const FloatRect& inkOverflow, float baseline, float contentLeftOffset, float contentWidth)
         : m_firstRunIndex(firstRunIndex)
         , m_runCount(runCount)
-        , m_lineRect(lineRect)
-        , m_lineBoxWidth(lineBoxWidth)
-        , m_enclosingContentRect(enclosingContentRect)
+        , m_lineBoxRect(lineBoxRect)
+        , m_enclosingTopAndBottom(enclosingTopAndBottom)
         , m_scrollableOverflow(scrollableOverflow)
         , m_inkOverflow(inkOverflow)
         , m_baseline(baseline)
-        , m_horizontalAlignmentOffset(horizontalAlignmentOffset)
+        , m_contentLeftOffset(contentLeftOffset)
+        , m_contentWidth(contentWidth)
     {
     }
 
     size_t firstRunIndex() const { return m_firstRunIndex; }
     size_t runCount() const { return m_runCount; }
-    const FloatRect& rect() const { return m_lineRect; }
-    float lineBoxWidth() const { return m_lineBoxWidth; }
-    const FloatRect& enclosingContentRect() const { return m_enclosingContentRect; }
+
+    float lineBoxTop() const { return m_lineBoxRect.y(); }
+    float lineBoxBottom() const { return m_lineBoxRect.maxY(); }
+    float lineBoxLeft() const { return m_lineBoxRect.x(); }
+    float lineBoxRight() const { return m_lineBoxRect.maxX(); }
+
+    float enclosingContentTop() const { return m_enclosingTopAndBottom.top; }
+    float enclosingContentBottom() const { return m_enclosingTopAndBottom.bottom; }
+
     const FloatRect& scrollableOverflow() const { return m_scrollableOverflow; }
     const FloatRect& inkOverflow() const { return m_inkOverflow; }
+
     float baseline() const { return m_baseline; }
-    float horizontalAlignmentOffset() const { return m_horizontalAlignmentOffset; }
+
+    float contentLeftOffset() const { return m_contentLeftOffset; }
+    float contentWidth() const { return m_contentWidth; }
 
 private:
     size_t m_firstRunIndex { 0 };
     size_t m_runCount { 0 };
-    // Line is always as tall as the line box is. However they may differ in width.
-    // While line box encloses all the inline level boxes on the line horizontally, the line itself may be shorter (and trigger horizontal overflow).
-    // Enclosing content rect includes all inline level boxes both vertically and horizontally. In certain cases (see line-height property)
-    // the line (and the line box) is not as tall as the inline level boxes on the line.
-    FloatRect m_lineRect;
-    float m_lineBoxWidth { 0 };
-    FloatRect m_enclosingContentRect;
+    // This is line box geometry (see https://www.w3.org/TR/css-inline-3/#line-box).
+    FloatRect m_lineBoxRect;
+    // Enclosing top and bottom includes all inline level boxes (border box) vertically.
+    // While the line box usually enclose them as well, its vertical geometry is based on
+    // the layout bounds of the inline level boxes which may be different when line-height is present.
+    EnclosingTopAndBottom m_enclosingTopAndBottom;
     FloatRect m_scrollableOverflow;
     FloatRect m_inkOverflow;
     float m_baseline { 0 };
-    float m_horizontalAlignmentOffset { 0 };
+    float m_contentLeftOffset { 0 };
+    float m_contentWidth { 0 };
 };
 
 }

@@ -214,28 +214,22 @@ void HTMLAnchorElement::defaultEventHandler(Event& event)
 void HTMLAnchorElement::setActive(bool down, bool pause)
 {
     if (hasEditableStyle()) {
-        EditableLinkBehavior editableLinkBehavior = document().settings().editableLinkBehavior();
-            
-        switch (editableLinkBehavior) {
-            default:
-            case EditableLinkDefaultBehavior:
-            case EditableLinkAlwaysLive:
-                break;
+        switch (document().settings().editableLinkBehavior()) {
+        case EditableLinkBehavior::Default:
+        case EditableLinkBehavior::AlwaysLive:
+            break;
 
-            case EditableLinkNeverLive:
+        // Don't set the link to be active if the current selection is in the same editable block as this link.
+        case EditableLinkBehavior::LiveWhenNotFocused:
+            if (down && document().frame() && document().frame()->selection().selection().rootEditableElement() == rootEditableElement())
                 return;
+            break;
+        
+        case EditableLinkBehavior::NeverLive:
+        case EditableLinkBehavior::OnlyLiveWithShiftKey:
+            return;
 
-            // Don't set the link to be active if the current selection is in the same editable block as
-            // this link
-            case EditableLinkLiveWhenNotFocused:
-                if (down && document().frame() && document().frame()->selection().selection().rootEditableElement() == rootEditableElement())
-                    return;
-                break;
-            
-            case EditableLinkOnlyLiveWithShiftKey:
-                return;
         }
-
     }
     
     HTMLElement::setActive(down, pause);
@@ -406,9 +400,9 @@ bool HTMLAnchorElement::isSystemPreviewLink()
 
 Optional<PrivateClickMeasurement> HTMLAnchorElement::parsePrivateClickMeasurement() const
 {
-    using Campaign = PrivateClickMeasurement::Campaign;
-    using Source = PrivateClickMeasurement::Source;
-    using Destination = PrivateClickMeasurement::Destination;
+    using SourceID = PrivateClickMeasurement::SourceID;
+    using SourceSite = PrivateClickMeasurement::SourceSite;
+    using AttributeOnSite = PrivateClickMeasurement::AttributeOnSite;
 
     auto* page = document().page();
     if (!page || page->sessionID().isEphemeral()
@@ -416,14 +410,14 @@ Optional<PrivateClickMeasurement> HTMLAnchorElement::parsePrivateClickMeasuremen
         || !UserGestureIndicator::processingUserGesture())
         return WTF::nullopt;
 
-    if (!hasAttributeWithoutSynchronization(adcampaignidAttr) && !hasAttributeWithoutSynchronization(addestinationAttr))
+    if (!hasAttributeWithoutSynchronization(attributionsourceidAttr) && !hasAttributeWithoutSynchronization(attributeonAttr))
         return WTF::nullopt;
     
-    auto adCampaignIDAttr = attributeWithoutSynchronization(adcampaignidAttr);
-    auto adDestinationAttr = attributeWithoutSynchronization(addestinationAttr);
+    auto attributionSourceIDAttr = attributeWithoutSynchronization(attributionsourceidAttr);
+    auto attributeOnAttr = attributeWithoutSynchronization(attributeonAttr);
     
-    if (adCampaignIDAttr.isEmpty() || adDestinationAttr.isEmpty()) {
-        document().addConsoleMessage(MessageSource::Other, MessageLevel::Warning, "Both adcampaignid and addestination need to be set for Private Click Measurement to work."_s);
+    if (attributionSourceIDAttr.isEmpty() || attributeOnAttr.isEmpty()) {
+        document().addConsoleMessage(MessageSource::Other, MessageLevel::Warning, "Both attributionsourceid and attributeon need to be set for Private Click Measurement to work."_s);
         return WTF::nullopt;
     }
 
@@ -433,30 +427,30 @@ Optional<PrivateClickMeasurement> HTMLAnchorElement::parsePrivateClickMeasuremen
         return WTF::nullopt;
     }
     
-    auto adCampaignID = parseHTMLNonNegativeInteger(adCampaignIDAttr);
-    if (!adCampaignID) {
-        document().addConsoleMessage(MessageSource::Other, MessageLevel::Warning, "adcampaignid can not be converted to a non-negative integer which is required for Private Click Measurement."_s);
+    auto attributionSourceID = parseHTMLNonNegativeInteger(attributionSourceIDAttr);
+    if (!attributionSourceID) {
+        document().addConsoleMessage(MessageSource::Other, MessageLevel::Warning, "attributionsourceid can not be converted to a non-negative integer which is required for Private Click Measurement."_s);
         return WTF::nullopt;
     }
     
-    if (adCampaignID.value() > PrivateClickMeasurement::MaxEntropy) {
-        document().addConsoleMessage(MessageSource::Other, MessageLevel::Warning, makeString("adcampaignid must have a non-negative value less than or equal to ", PrivateClickMeasurement::MaxEntropy, " for Private Click Measurement."));
+    if (attributionSourceID.value() > PrivateClickMeasurement::MaxEntropy) {
+        document().addConsoleMessage(MessageSource::Other, MessageLevel::Warning, makeString("attributionsourceid must have a non-negative value less than or equal to ", PrivateClickMeasurement::MaxEntropy, " for Private Click Measurement."));
         return WTF::nullopt;
     }
 
-    URL adDestinationURL { URL(), adDestinationAttr };
-    if (!adDestinationURL.isValid() || !adDestinationURL.protocolIsInHTTPFamily()) {
-        document().addConsoleMessage(MessageSource::Other, MessageLevel::Warning, "addestination could not be converted to a valid HTTP-family URL."_s);
+    URL attributeOnURL { URL(), attributeOnAttr };
+    if (!attributeOnURL.isValid() || !attributeOnURL.protocolIsInHTTPFamily()) {
+        document().addConsoleMessage(MessageSource::Other, MessageLevel::Warning, "attributeon could not be converted to a valid HTTP-family URL."_s);
         return WTF::nullopt;
     }
 
     RegistrableDomain documentRegistrableDomain { document().url() };
-    if (documentRegistrableDomain.matches(adDestinationURL)) {
-        document().addConsoleMessage(MessageSource::Other, MessageLevel::Warning, "addestination can not be the same site as the current website."_s);
+    if (documentRegistrableDomain.matches(attributeOnURL)) {
+        document().addConsoleMessage(MessageSource::Other, MessageLevel::Warning, "attributeon can not be the same site as the current website."_s);
         return WTF::nullopt;
     }
 
-    return PrivateClickMeasurement { Campaign(adCampaignID.value()), Source(documentRegistrableDomain), Destination(adDestinationURL) };
+    return PrivateClickMeasurement { SourceID(attributionSourceID.value()), SourceSite(documentRegistrableDomain), AttributeOnSite(attributeOnURL) };
 }
 
 void HTMLAnchorElement::handleClick(Event& event)
@@ -550,19 +544,19 @@ bool HTMLAnchorElement::treatLinkAsLiveForEventType(EventType eventType) const
         return true;
 
     switch (document().settings().editableLinkBehavior()) {
-    case EditableLinkDefaultBehavior:
-    case EditableLinkAlwaysLive:
+    case EditableLinkBehavior::Default:
+    case EditableLinkBehavior::AlwaysLive:
         return true;
 
-    case EditableLinkNeverLive:
+    case EditableLinkBehavior::NeverLive:
         return false;
 
     // If the selection prior to clicking on this link resided in the same editable block as this link,
     // and the shift key isn't pressed, we don't want to follow the link.
-    case EditableLinkLiveWhenNotFocused:
+    case EditableLinkBehavior::LiveWhenNotFocused:
         return eventType == MouseEventWithShiftKey || (eventType == MouseEventWithoutShiftKey && rootEditableElementForSelectionOnMouseDown() != rootEditableElement());
 
-    case EditableLinkOnlyLiveWithShiftKey:
+    case EditableLinkBehavior::OnlyLiveWithShiftKey:
         return eventType == MouseEventWithShiftKey;
     }
 

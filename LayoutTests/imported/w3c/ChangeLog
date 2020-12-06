@@ -1,3 +1,492 @@
+2020-11-30  Youenn Fablet  <youenn@apple.com>
+
+        Update WPT WebRTC tests
+        https://bugs.webkit.org/show_bug.cgi?id=219272
+
+        Reviewed by Eric Carlson.
+
+        * web-platform-tests/webrtc: Resynced.
+
+2020-11-30  Tyler Wilcock  <twilco.o@protonmail.com>
+
+        getComputedStyle rounds lineHeight to nearest pixel
+        https://bugs.webkit.org/show_bug.cgi?id=216601
+
+        Reviewed by Simon Fraser.
+
+        * web-platform-tests/css/css-fonts/parsing/font-computed-expected.txt:
+            Update test reflecting the fact that serialization of `line-height` from
+            `getComputedStyle` is now represented fractionally (when appropriate).
+            Prior to this patch, `line-height` serialization was always an integer value.
+
+2020-11-30  Sergio Villar Senin  <svillar@igalia.com>
+
+        [css-flex] Import flex-aspect-ratio-img-* tests
+        https://bugs.webkit.org/show_bug.cgi?id=219344
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-011-expected.txt: Updated.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-011.html: Ditto.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-012-expected.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-012.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-013-expected.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-013.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-014-expected.xht: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-014.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-015-expected.xht: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-015.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-016-expected.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-016.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-017-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-column-017.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-006-expected.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-006.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-007-expected.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-007.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-008-expected.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-008.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-009-expected.xht: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-009.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-010-expected.xht: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-010.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-011-expected.xht: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-011.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-012-expected.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-012.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-013-expected.txt: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-013.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-014-expected.html: Added.
+        * web-platform-tests/css/css-flexbox/flex-aspect-ratio-img-row-014.html: Added.
+        * web-platform-tests/css/css-flexbox/w3c-import.log:
+
+2020-11-20  Sergio Villar Senin  <svillar@igalia.com>
+
+        [css-flex] Images as flex items should use the overridingLogicalWidth when defined to compute the logical height
+        https://bugs.webkit.org/show_bug.cgi?id=219195
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        Replaced 15 FAIL by PASS expectations.
+
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-001-expected.txt:
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-002v-expected.txt:
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-005-expected.txt:
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-006v-expected.txt:
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-007-expected.txt:
+
+2020-11-20  Chris Lord  <clord@igalia.com>
+
+        Enable font functions on OffscreenCanvas for main-thread
+        https://bugs.webkit.org/show_bug.cgi?id=219088
+
+        Reviewed by Simon Fraser.
+
+        Update test expectations for OffscreenCanvas text tests and add where
+        they were missing.
+
+        * web-platform-tests/html/canvas/offscreen/text/*:
+
+2020-11-20  Youenn Fablet  <youenn@apple.com>
+
+        Add support for RTCPeerConnection.onicecandidateerror event
+        https://bugs.webkit.org/show_bug.cgi?id=169644
+
+        Reviewed by Alex Christensen.
+
+        * web-platform-tests/webrtc/idlharness.https.window-expected.txt:
+
+2020-11-16  Sergio Villar Senin  <svillar@igalia.com>
+
+        [css-flex] Images as flex items should use the overridingLogicalHeight when defined to compute the logical width
+        https://bugs.webkit.org/show_bug.cgi?id=218975
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        Replaced 19 FAIL by PASS expectations.
+
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-001v-expected.txt:
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-002-expected.txt:
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-005v-expected.txt:
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-006-expected.txt:
+        * web-platform-tests/css/css-flexbox/image-as-flexitem-size-007v-expected.txt:
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Regression(r267865) Geolocation API's error callback should be nullable
+        https://bugs.webkit.org/show_bug.cgi?id=219165
+
+        Reviewed by Geoffrey Garen.
+
+        Rebaseline WPT test now that more checks are passing.
+
+        * web-platform-tests/geolocation-API/PositionOptions.https-expected.txt:
+
+2020-11-19  Darin Adler  <darin@apple.com>
+
+        Remove extra copy of html5lib left over from an earlier Web Platform Tests import
+        https://bugs.webkit.org/show_bug.cgi?id=219170
+
+        Reviewed by Youenn Fablet.
+
+        The new location is imported/w3c/web-platform-tests/tools/third_party/html5lib and
+        we already have another copy of the library there.
+
+        * web-platform-tests/tools/html5lib: Removed.
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Unable to fetch an audio worklet module using a data URL
+        https://bugs.webkit.org/show_bug.cgi?id=219166
+
+        Reviewed by Youenn Fablet.
+
+        Rebaseline WPT test now that one more check is passing.
+
+        * web-platform-tests/worklets/audio-worklet-import.https-expected.txt:
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Import web-platform-tests/compat tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=219126
+
+        Reviewed by Sam Weinig.
+
+        Import web-platform-tests/compat tests from usptream dd35c2b21b76772123.
+
+        * resources/import-expectations.json:
+        * resources/resource-files.json:
+        * web-platform-tests/compat/*: Added.
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Import web-platform-tests/uievents tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=219131
+
+        Reviewed by Sam Weinig.
+
+        Import web-platform-tests/uievents tests from upstream dd35c2b21b76772123f76a.
+
+        * resources/import-expectations.json:
+        * resources/resource-files.json:
+        * web-platform-tests/uievents/*: Added.
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Worklet.addModule() should reject promise with an AbortError when the network load fails
+        https://bugs.webkit.org/show_bug.cgi?id=219135
+
+        Reviewed by Geoffrey Garen.
+
+        Rebaseline WPT tests now that more checks are passing (or keep failing with slighly different
+        output).
+
+        * web-platform-tests/worklets/audio-worklet-credentials.https-expected.txt:
+        * web-platform-tests/worklets/audio-worklet-import.https-expected.txt:
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Resync web-platform-tests/beacon tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=219123
+
+        Reviewed by Sam Weinig.
+
+        Resync web-platform-tests/beacon tests from upstream dd35c2b21b76772123f7.
+
+        * web-platform-tests/beacon/headers/header-content-type-and-body-expected.txt: Renamed from LayoutTests/imported/w3c/web-platform-tests/beacon/headers/header-content-type-expected.txt.
+        * web-platform-tests/beacon/headers/header-content-type-and-body.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/beacon/headers/header-content-type.html.
+        * web-platform-tests/beacon/headers/w3c-import.log:
+        * web-platform-tests/beacon/resources/content-type-and-body.py: Renamed from LayoutTests/imported/w3c/web-platform-tests/beacon/resources/content-type.py.
+        (main):
+        * web-platform-tests/beacon/resources/w3c-import.log:
+
+2020-11-19  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r270009.
+        https://bugs.webkit.org/show_bug.cgi?id=219162
+
+        Added two broken tests on ios
+
+        Reverted changeset:
+
+        "Import web-platform-tests/compat tests from usptream"
+        https://bugs.webkit.org/show_bug.cgi?id=219126
+        https://trac.webkit.org/changeset/270009
+
+2020-11-19  Martin Robinson  <mrobinson@webkit.org>
+
+        Make scroll-padding independent of scroll-snap and have it affect scrollIntoView
+        https://bugs.webkit.org/show_bug.cgi?id=219073
+
+        Reviewed by Simon Fraser.
+
+        * web-platform-tests/css/cssom-view/scrollIntoView-scrollPadding-expected.txt: Updated to reflect newly passing test.
+
+2020-11-19  Chris Lord  <clord@igalia.com>
+
+        Update WPT OffscreenCanvas text tests
+        https://bugs.webkit.org/show_bug.cgi?id=219151
+
+        Reviewed by Noam Rosenthal.
+
+        Sync WPT OffscreenCanvas text tests with c12517985bca8a3fafd1d3f4.
+
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.draw.align.end.ltr.html:
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.draw.align.end.ltr.worker.js:
+        (t.step):
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.draw.align.end.rtl.html:
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.draw.align.end.rtl.worker.js:
+        (t.step):
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.draw.align.start.ltr.html:
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.draw.align.start.ltr.worker.js:
+        (t.step):
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.draw.align.start.rtl.html:
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.draw.align.start.rtl.worker.js:
+        (t.step):
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.drawing.style.textRendering.settings.html: Added.
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.drawing.style.textRendering.settings.worker.html: Added.
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.drawing.style.textRendering.settings.worker.js: Added.
+        (t_fail.t.step_func):
+        (t.step):
+        * web-platform-tests/html/canvas/offscreen/text/w3c-import.log:
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Import web-platform-tests/worklets tests from usptream
+        https://bugs.webkit.org/show_bug.cgi?id=219121
+
+        Reviewed by Sam Weinig.
+
+        Import web-platform-tests/worklets tests from usptream dd35c2b21b76772123f76.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/worklets/*: Added.
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Import web-platform-tests/geolocation-API tests from usptream
+        https://bugs.webkit.org/show_bug.cgi?id=219128
+
+        Reviewed by Sam Weinig.
+
+        Import web-platform-tests/geolocation-API tests from usptream dd35c2b21b76772123f76.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/geolocation-API/META.yml: Added.
+        * web-platform-tests/geolocation-API/PositionOptions.https-expected.txt: Added.
+        * web-platform-tests/geolocation-API/PositionOptions.https.html: Added.
+        * web-platform-tests/geolocation-API/clearWatch_TypeError-expected.txt: Added.
+        * web-platform-tests/geolocation-API/clearWatch_TypeError.html: Added.
+        * web-platform-tests/geolocation-API/getCurrentPosition_IDL.https-expected.txt: Added.
+        * web-platform-tests/geolocation-API/getCurrentPosition_IDL.https.html: Added.
+        * web-platform-tests/geolocation-API/getCurrentPosition_TypeError-expected.txt: Added.
+        * web-platform-tests/geolocation-API/getCurrentPosition_TypeError.html: Added.
+        * web-platform-tests/geolocation-API/getCurrentPosition_permission_allow.https-expected.txt: Added.
+        * web-platform-tests/geolocation-API/getCurrentPosition_permission_allow.https.html: Added.
+        * web-platform-tests/geolocation-API/getCurrentPosition_permission_deny.https-expected.txt: Added.
+        * web-platform-tests/geolocation-API/getCurrentPosition_permission_deny.https.html: Added.
+        * web-platform-tests/geolocation-API/idlharness.https.window-expected.txt: Added.
+        * web-platform-tests/geolocation-API/idlharness.https.window.html: Added.
+        * web-platform-tests/geolocation-API/idlharness.https.window.js: Added.
+        * web-platform-tests/geolocation-API/non-secure-contexts.http-expected.txt: Added.
+        * web-platform-tests/geolocation-API/non-secure-contexts.http.html: Added.
+        * web-platform-tests/geolocation-API/support.js: Added.
+        (setup):
+        (dummyFunction):
+        (positionToString):
+        (errorToString):
+        * web-platform-tests/geolocation-API/w3c-import.log: Added.
+        * web-platform-tests/geolocation-API/watchPosition_TypeError-expected.txt: Added.
+        * web-platform-tests/geolocation-API/watchPosition_TypeError.html: Added.
+        * web-platform-tests/geolocation-API/watchPosition_permission_deny.https-expected.txt: Added.
+        * web-platform-tests/geolocation-API/watchPosition_permission_deny.https.html: Added.
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Resync web-platform-tests/FileAPI tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=219125
+
+        Reviewed by Sam Weinig.
+
+        Resync web-platform-tests/FileAPI tests from upstream dd35c2b21b76772123f7.
+
+        * web-platform-tests/FileAPI/file/File-constructor-expected.txt:
+        * web-platform-tests/FileAPI/file/File-constructor.html:
+        * web-platform-tests/FileAPI/file/resources/echo-content-escaped.py: Added.
+        (escape_byte):
+        (main):
+        * web-platform-tests/FileAPI/file/resources/w3c-import.log: Added.
+        * web-platform-tests/FileAPI/file/send-file-form-controls.tentative-expected.txt: Added.
+        * web-platform-tests/FileAPI/file/send-file-form-controls.tentative.html: Added.
+        * web-platform-tests/FileAPI/file/send-file-form-punctuation.tentative-expected.txt: Added.
+        * web-platform-tests/FileAPI/file/send-file-form-punctuation.tentative.html: Added.
+        * web-platform-tests/FileAPI/file/send-file-form-utf-8.html:
+        * web-platform-tests/FileAPI/file/send-file-form-windows-1252.tentative.html:
+        * web-platform-tests/FileAPI/file/send-file-form-x-user-defined.tentative.html:
+        * web-platform-tests/FileAPI/file/send-file-formdata-controls.tentative-expected.txt: Added.
+        * web-platform-tests/FileAPI/file/send-file-formdata-controls.tentative.html: Added.
+        * web-platform-tests/FileAPI/file/send-file-formdata-expected.txt: Added.
+        * web-platform-tests/FileAPI/file/send-file-formdata-punctuation.tentative-expected.txt: Added.
+        * web-platform-tests/FileAPI/file/send-file-formdata-punctuation.tentative.html: Added.
+        * web-platform-tests/FileAPI/file/send-file-formdata-utf-8-expected.txt: Added.
+        * web-platform-tests/FileAPI/file/send-file-formdata-utf-8.html: Added.
+        * web-platform-tests/FileAPI/file/send-file-formdata.html: Added.
+        * web-platform-tests/FileAPI/file/w3c-import.log:
+        * web-platform-tests/FileAPI/fileReader-expected.txt:
+        * web-platform-tests/FileAPI/fileReader.html:
+        * web-platform-tests/FileAPI/support/send-file-form-helper.js:
+        (escapeString):
+        (const.formPostFileUploadTest):
+        * web-platform-tests/FileAPI/support/send-file-formdata-helper.js: Added.
+        (const.formDataPostFileUploadTest):
+        * web-platform-tests/FileAPI/support/w3c-import.log:
+        * web-platform-tests/FileAPI/url/url-charset.window-expected.txt: Added.
+        * web-platform-tests/FileAPI/url/url-charset.window.html: Added.
+        * web-platform-tests/FileAPI/url/url-charset.window.js: Added.
+        (async_test.t.t.add_cleanup):
+        (async_test.t.win.onload.t.step_func_done):
+        * web-platform-tests/FileAPI/url/w3c-import.log:
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Import web-platform-tests/compat tests from usptream
+        https://bugs.webkit.org/show_bug.cgi?id=219126
+
+        Reviewed by Sam Weinig.
+
+        Import web-platform-tests/compat tests from usptream dd35c2b21b76772123.
+
+        * resources/import-expectations.json:
+        * resources/resource-files.json:
+        * web-platform-tests/compat/*: Added.
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Import web-platform-tests/entries-api tests from usptream
+        https://bugs.webkit.org/show_bug.cgi?id=219127
+
+        Reviewed by Sam Weinig.
+
+        Import web-platform-tests/entries-api tests from usptream dd35c2b21b76772123f76a1.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/entries-api/META.yml: Added.
+        * web-platform-tests/entries-api/README.md: Added.
+        * web-platform-tests/entries-api/idlharness.window-expected.txt: Added.
+        * web-platform-tests/entries-api/idlharness.window.html: Added.
+        * web-platform-tests/entries-api/idlharness.window.js: Added.
+        * web-platform-tests/entries-api/support.js: Added.
+        (entry_test):
+        (getEntriesAsPromise):
+        * web-platform-tests/entries-api/support/a/b/c/3.txt: Added.
+        * web-platform-tests/entries-api/support/a/b/c/d/1.txt: Added.
+        * web-platform-tests/entries-api/support/a/b/c/d/2.txt: Added.
+        * web-platform-tests/entries-api/support/a/b/c/d/w3c-import.log: Added.
+        * web-platform-tests/entries-api/support/a/b/c/w3c-import.log: Added.
+        * web-platform-tests/entries-api/support/upload.txt: Added.
+        * web-platform-tests/entries-api/support/upload/file.txt: Added.
+        * web-platform-tests/entries-api/support/upload/subdir/1.txt: Added.
+        * web-platform-tests/entries-api/support/upload/subdir/2.txt: Added.
+        * web-platform-tests/entries-api/support/upload/subdir/3.txt: Added.
+        * web-platform-tests/entries-api/support/upload/subdir/w3c-import.log: Added.
+        * web-platform-tests/entries-api/support/upload/w3c-import.log: Added.
+        * web-platform-tests/entries-api/support/w3c-import.log: Added.
+        * web-platform-tests/entries-api/w3c-import.log: Added.
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Resync web-platform-tests/WebIDL tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=219120
+
+        Reviewed by Alex Christensen.
+
+        Resync web-platform-tests/WebIDL tests from upstream dd35c2b21b76772123f.
+
+        * web-platform-tests/WebIDL/ecmascript-binding/es-exceptions/DOMException-custom-bindings.any-expected.txt:
+        * web-platform-tests/WebIDL/ecmascript-binding/es-exceptions/DOMException-custom-bindings.any.js:
+        (test):
+        * web-platform-tests/WebIDL/ecmascript-binding/es-exceptions/DOMException-custom-bindings.any.worker-expected.txt:
+        * web-platform-tests/WebIDL/ecmascript-binding/legacy-callback-interface-object.html:
+        * web-platform-tests/WebIDL/ecmascript-binding/w3c-import.log:
+        * web-platform-tests/WebIDL/idlharness.any-expected.txt: Copied from LayoutTests/imported/w3c/web-platform-tests/WebIDL/idlharness-expected.txt.
+        * web-platform-tests/WebIDL/idlharness.any.html: Added.
+        * web-platform-tests/WebIDL/idlharness.any.js: Added.
+        * web-platform-tests/WebIDL/idlharness.any.worker-expected.txt: Renamed from LayoutTests/imported/w3c/web-platform-tests/WebIDL/idlharness-expected.txt.
+        * web-platform-tests/WebIDL/idlharness.any.worker.html: Added.
+        * web-platform-tests/WebIDL/idlharness.html: Removed.
+        * web-platform-tests/WebIDL/w3c-import.log:
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, drop manual test in web-platform-tests/notifications.
+
+        * web-platform-tests/notifications/shownotification-resolve-manual.https-expected.txt: Removed.
+        * web-platform-tests/notifications/shownotification-resolve-manual.https.html: Removed.
+        * web-platform-tests/notifications/w3c-import.log:
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        REGRESSION (r269598): [ Mac ] imported/w3c/web-platform-tests/html/semantics/embedded-content/the-iframe-element/iframe-network-error.sub.html is flaky failing
+        https://bugs.webkit.org/show_bug.cgi?id=219008
+        <rdar://problem/71463894>
+
+        Unreviewed, rebaseline test.
+
+        * web-platform-tests/html/semantics/embedded-content/the-iframe-element/iframe-network-error.sub-expected.txt:
+
+2020-11-18  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, relanding r269940
+        https://bugs.webkit.org/show_bug.cgi?id=219076
+
+        * web-platform-tests/html/webappapis/scripting/processing-model-2/integration-with-the-javascript-agent-formalism/requires-success.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/constructor-shared.tentative.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/constructor-shared.tentative.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/constructor.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/constructor.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/grow.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/grow.any.worker-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffer-interface/audiobuffer-copy-channel-expected.txt:
+
+2020-11-18  Chris Lord  <clord@igalia.com>
+
+        Make CSS font shorthands parsable within a worker (i.e. without CSSValuePool)
+        https://bugs.webkit.org/show_bug.cgi?id=202794
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/html/canvas/element/text-styles/2d.text.font.parse.invalid-expected.txt:
+
+2020-11-18  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r269940.
+        https://bugs.webkit.org/show_bug.cgi?id=219076
+
+        caused seemingly-infinite build time regression
+
+        Reverted changeset:
+
+        "[JSC] Implement WebAssembly.Memory with shared"
+        https://bugs.webkit.org/show_bug.cgi?id=218693
+        https://trac.webkit.org/changeset/269940
+
+2020-11-16  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Implement WebAssembly.Memory with shared
+        https://bugs.webkit.org/show_bug.cgi?id=218693
+
+        Reviewed by Saam Barati.
+
+        * web-platform-tests/html/webappapis/scripting/processing-model-2/integration-with-the-javascript-agent-formalism/requires-success.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/constructor-shared.tentative.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/constructor-shared.tentative.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/constructor.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/constructor.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/grow.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/grow.any.worker-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffer-interface/audiobuffer-copy-channel-expected.txt:
+
 2020-11-16  Alex Christensen  <achristensen@webkit.org>
 
         FileReaderLoader::convertToDataURL should use application/octet-stream if MIME type is empty

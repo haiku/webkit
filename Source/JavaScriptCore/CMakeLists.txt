@@ -192,11 +192,14 @@ set(LLINT_ASM
     llint/LowLevelInterpreter.asm
     llint/LowLevelInterpreter32_64.asm
     llint/LowLevelInterpreter64.asm
+    llint/WebAssembly.asm
 )
 
 set(OFFLINE_ASM
     offlineasm/arm.rb
     offlineasm/arm64.rb
+    offlineasm/arm64e.rb
+    offlineasm/asm.rb
     offlineasm/ast.rb
     offlineasm/backends.rb
     offlineasm/cloop.rb
@@ -217,6 +220,7 @@ set(OFFLINE_ASM
 set(GENERATOR
     generator/Argument.rb
     generator/Assertion.rb
+    generator/Checkpoints.rb
     generator/DSL.rb
     generator/Fits.rb
     generator/GeneratedFile.rb
@@ -227,6 +231,7 @@ set(GENERATOR
     generator/Section.rb
     generator/Template.rb
     generator/Type.rb
+    generator/Wasm.rb
     generator/main.rb
 )
 
@@ -1088,6 +1093,7 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     wasm/WasmTierUpCount.h
 
     wasm/js/JSWebAssembly.h
+    wasm/js/JSWebAssemblyMemory.h
     wasm/js/JSWebAssemblyModule.h
 
 

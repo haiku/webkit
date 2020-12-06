@@ -3220,16 +3220,20 @@ sub GenerateHeader
     push(@headerContent, "};\n\n");
 
     if (ShouldGenerateWrapperOwnerCode($hasParent, $interface)) {
-        if ($interfaceName ne "Node" && $codeGenerator->InheritsInterface($interface, "Node")) {
-            $headerIncludes{"JSNode.h"} = 1;
-            push(@headerContent, "class ${exportMacro}JS${interfaceName}Owner : public JSNodeOwner {\n");
-        } else {
+        my $overrideDecl = "final";
+        if ($interfaceName eq "Node") {
             push(@headerContent, "class ${exportMacro}JS${interfaceName}Owner : public JSC::WeakHandleOwner {\n");
+            $overrideDecl = "override";
+        } elsif ($codeGenerator->InheritsInterface($interface, "Node")) {
+            $headerIncludes{"JSNode.h"} = 1;
+            push(@headerContent, "class ${exportMacro}JS${interfaceName}Owner final : public JSNodeOwner {\n");
+        } else {
+            push(@headerContent, "class ${exportMacro}JS${interfaceName}Owner final : public JSC::WeakHandleOwner {\n");
         }
         $headerIncludes{"<wtf/NeverDestroyed.h>"} = 1;
         push(@headerContent, "public:\n");
-        push(@headerContent, "    virtual bool isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown>, void* context, JSC::SlotVisitor&, const char**);\n");
-        push(@headerContent, "    virtual void finalize(JSC::Handle<JSC::Unknown>, void* context);\n");
+        push(@headerContent, "    bool isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown>, void* context, JSC::SlotVisitor&, const char**) ${overrideDecl};\n");
+        push(@headerContent, "    void finalize(JSC::Handle<JSC::Unknown>, void* context) ${overrideDecl};\n");
         push(@headerContent, "};\n");
         push(@headerContent, "\n");
         push(@headerContent, "inline JSC::WeakHandleOwner* wrapperOwner(DOMWrapperWorld&, $implType*)\n");
@@ -6473,9 +6477,9 @@ sub GenerateCallbackHeaderContent
     push(@$contentRef, "        return adoptRef(*new ${className}(callback, globalObject));\n");
     push(@$contentRef, "    }\n\n");
 
-    push(@$contentRef, "    virtual ScriptExecutionContext* scriptExecutionContext() const { return ContextDestructionObserver::scriptExecutionContext(); }\n\n");
+    push(@$contentRef, "    ScriptExecutionContext* scriptExecutionContext() const { return ContextDestructionObserver::scriptExecutionContext(); }\n\n");
 
-    push(@$contentRef, "    virtual ~$className();\n");
+    push(@$contentRef, "    ~$className() final;\n");
 
     push(@$contentRef, "    ${callbackDataType}* callbackData() { return m_data; }\n");
 
@@ -6999,6 +7003,7 @@ sub IsAnnotatedType
     return 1 if $type->extendedAttributes->{LegacyNullToEmptyString};
     return 1 if $type->extendedAttributes->{AtomString};
     return 1 if $type->extendedAttributes->{RequiresExistingAtomString};
+    return 1 if $type->extendedAttributes->{AllowShared};
 }
 
 sub GetAnnotatedIDLType
@@ -7010,6 +7015,7 @@ sub GetAnnotatedIDLType
     return "IDLLegacyNullToEmptyStringAdaptor" if $type->extendedAttributes->{LegacyNullToEmptyString};
     return "IDLAtomStringAdaptor" if $type->extendedAttributes->{AtomString};
     return "IDLRequiresExistingAtomStringAdaptor" if $type->extendedAttributes->{RequiresExistingAtomString};
+    return "IDLAllowSharedAdaptor" if $type->extendedAttributes->{AllowShared};
 }
 
 sub GetBaseIDLType

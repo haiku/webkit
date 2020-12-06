@@ -51,13 +51,6 @@ enum PositionMoveType {
 
 struct InlineRunAndOffset;
 
-struct InlineBoxAndOffset {
-    InlineBoxAndOffset(InlineRunAndOffset);
-
-    InlineBox* box { nullptr };
-    int offset { 0 };
-};
-
 class Position {
 public:
     enum AnchorType {
@@ -179,9 +172,6 @@ public:
     InlineRunAndOffset inlineRunAndOffset(Affinity) const;
     InlineRunAndOffset inlineRunAndOffset(Affinity, TextDirection primaryDirection) const;
 
-    InlineBoxAndOffset inlineBoxAndOffset(Affinity) const;
-    InlineBoxAndOffset inlineBoxAndOffset(Affinity, TextDirection primaryDirection) const;
-
     TextDirection primaryDirection() const;
 
     // Returns the number of positions that exist between two positions.
@@ -208,8 +198,6 @@ public:
     // This is a tentative enhancement of operator== to account for different position types.
     // FIXME: Combine this function with operator==
     bool equals(const Position&) const;
-
-    void ensureLineBoxes() const;
 
 private:
     // For creating legacy editing positions: (Anchor type will be determined from editingIgnoresContent(node))

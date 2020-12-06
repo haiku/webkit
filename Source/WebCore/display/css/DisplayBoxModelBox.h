@@ -28,11 +28,14 @@
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
 #include "DisplayBox.h"
+#include <wtf/RefPtr.h>
 
 namespace WebCore {
 namespace Display {
 
+class BoxClip;
 class BoxDecorationData;
+class BoxRareGeometry;
 
 // A box in the sense of the CSS Box Model.
 // This box can draw backgrounds and borders.
@@ -47,6 +50,13 @@ public:
     AbsoluteFloatRect absoluteContentBoxRect() const { return m_contentBoxRect; }
 
     const BoxDecorationData* boxDecorationData() const { return m_boxDecorationData.get(); }
+    const BoxRareGeometry* rareGeometry() const { return m_boxRareGeometry.get(); }
+
+    const BoxClip* ancestorClip() const { return m_ancestorClip.get(); }
+    bool hasAncestorClip() const;
+
+    FloatRoundedRect borderRoundedRect() const;
+    FloatRoundedRect innerBorderRoundedRect() const;
 
     virtual String debugDescription() const;
 
@@ -54,12 +64,19 @@ private:
     friend class BoxFactory;
     void setAbsolutePaddingBoxRect(const AbsoluteFloatRect& box) { m_paddingBoxRect = box; }
     void setAbsoluteContentBoxRect(const AbsoluteFloatRect& box) { m_contentBoxRect = box; }
+
     void setBoxDecorationData(std::unique_ptr<BoxDecorationData>&&);
+    void setBoxRareGeometry(std::unique_ptr<BoxRareGeometry>&&);
+
+    void setAncestorClip(RefPtr<BoxClip>&&);
+    RefPtr<BoxClip> clipForDescendants() const;
 
     AbsoluteFloatRect m_paddingBoxRect;
     AbsoluteFloatRect m_contentBoxRect;
 
     std::unique_ptr<BoxDecorationData> m_boxDecorationData;
+    std::unique_ptr<BoxRareGeometry> m_boxRareGeometry;
+    RefPtr<BoxClip> m_ancestorClip;
 };
 
 } // namespace Display

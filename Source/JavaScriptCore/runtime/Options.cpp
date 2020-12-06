@@ -366,8 +366,9 @@ static void overrideDefaults()
     Options::usePollingTraps() = true;
 #endif
 
-#if !ENABLE(WEBASSEMBLY_FAST_MEMORY)
+#if !ENABLE(WEBASSEMBLY_SIGNALING_MEMORY)
     Options::useWebAssemblyFastMemory() = false;
+    Options::useSharedArrayBuffer() = false;
 #endif
 
 #if !HAVE(MACH_EXCEPTIONS)
@@ -551,6 +552,9 @@ void Options::recomputeDependentOptions()
 
         FOR_EACH_JSC_EXPERIMENTAL_OPTION(DISABLE_TIERS);
     }
+
+    if (Options::usePrivateStaticClassFields())
+        Options::usePrivateClassFields() = true;
 }
 
 inline void* Options::addressOfOption(Options::ID id)
@@ -659,14 +663,15 @@ void Options::initialize()
             }
 #endif
 
-#if ASAN_ENABLED && OS(LINUX) && ENABLE(WEBASSEMBLY_FAST_MEMORY)
-            if (Options::useWebAssemblyFastMemory()) {
+#if ASAN_ENABLED && OS(LINUX) && ENABLE(WEBASSEMBLY_SIGNALING_MEMORY)
+            if (Options::useWebAssemblyFastMemory() || Options::useSharedArrayBuffer()) {
                 const char* asanOptions = getenv("ASAN_OPTIONS");
                 bool okToUseWebAssemblyFastMemory = asanOptions
                     && (strstr(asanOptions, "allow_user_segv_handler=1") || strstr(asanOptions, "handle_segv=0"));
                 if (!okToUseWebAssemblyFastMemory) {
-                    dataLogLn("WARNING: ASAN interferes with JSC signal handlers; useWebAssemblyFastMemory will be disabled.");
+                    dataLogLn("WARNING: ASAN interferes with JSC signal handlers; useWebAssemblyFastMemory and useSharedArrayBuffer will be disabled.");
                     Options::useWebAssemblyFastMemory() = false;
+                    Options::useSharedArrayBuffer() = false;
                 }
             }
 #endif

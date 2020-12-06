@@ -84,7 +84,7 @@ public:
     bool paintMenuList(const RenderObject&, const PaintInfo&, const FloatRect&) override;
     void adjustMenuListButtonStyle(RenderStyle&, const Element*) const override;
 
-    bool paintMenuListButtonDecorations(const RenderBox&, const PaintInfo&, const FloatRect&) override;
+    void paintMenuListButtonDecorations(const RenderBox&, const PaintInfo&, const FloatRect&) override;
 
     bool paintSliderTrack(const RenderObject&, const PaintInfo&, const IntRect&) override;
     bool paintSliderThumb(const RenderObject&, const PaintInfo&, const IntRect&) override;
@@ -125,7 +125,7 @@ public:
 #endif
 
     IntSize meterSizeForBounds(const RenderMeter&, const IntRect&) const override;
-    bool supportsMeter(ControlPart) const override;
+    bool supportsMeter(ControlPart, const HTMLMeterElement&) const override;
     void adjustMeterStyle(RenderStyle&, const Element*) const override;
     bool paintMeter(const RenderObject&, const PaintInfo&, const IntRect&) override;
 

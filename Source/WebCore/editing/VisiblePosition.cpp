@@ -28,6 +28,7 @@
 #include "VisiblePosition.h"
 
 #include "BoundaryPoint.h"
+#include "CaretRectComputation.h"
 #include "Document.h"
 #include "Editing.h"
 #include "FloatQuad.h"
@@ -643,7 +644,7 @@ auto VisiblePosition::localCaretRect() const -> LocalCaretRect
     if (!renderer)
         return { };
 
-    return { renderer->localCaretRect(runAndOffset), const_cast<RenderObject*>(renderer) };
+    return { computeLocalCaretRect(*renderer, runAndOffset), const_cast<RenderObject*>(renderer) };
 }
 
 IntRect VisiblePosition::absoluteCaretBounds(bool* insideFixed) const
@@ -660,7 +661,7 @@ FloatRect VisiblePosition::absoluteSelectionBoundsForLine() const
         return { };
 
     auto line = run.line();
-    auto localRect = FloatRect { FloatPoint { line->logicalLeft(), line->selectionTop() }, FloatPoint { line->logicalRight(), line->selectionBottom() } };
+    auto localRect = FloatRect { FloatPoint { line->contentLogicalLeft(), line->selectionTop() }, FloatPoint { line->contentLogicalRight(), line->selectionBottom() } };
     if (!line->isHorizontal())
         localRect = localRect.transposedRect();
 

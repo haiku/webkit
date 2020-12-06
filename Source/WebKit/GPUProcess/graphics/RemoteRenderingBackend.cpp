@@ -104,9 +104,9 @@ void RemoteRenderingBackend::imageBufferBackendWasCreated(const FloatSize& logic
     send(Messages::RemoteRenderingBackendProxy::ImageBufferBackendWasCreated(logicalSize, backendSize, resolutionScale, colorSpace, pixelFormat, WTFMove(handle), renderingResourceIdentifier), m_renderingBackendIdentifier);
 }
 
-void RemoteRenderingBackend::flushDisplayListWasCommitted(DisplayList::FlushIdentifier flushIdentifier, RenderingResourceIdentifier renderingResourceIdentifier)
+void RemoteRenderingBackend::didFlush(DisplayList::FlushIdentifier flushIdentifier, RenderingResourceIdentifier renderingResourceIdentifier)
 {
-    send(Messages::RemoteRenderingBackendProxy::FlushDisplayListWasCommitted(flushIdentifier, renderingResourceIdentifier), m_renderingBackendIdentifier);
+    send(Messages::RemoteRenderingBackendProxy::DidFlush(flushIdentifier, renderingResourceIdentifier), m_renderingBackendIdentifier);
 }
 
 void RemoteRenderingBackend::createImageBuffer(const FloatSize& logicalSize, RenderingMode renderingMode, float resolutionScale, ColorSpace colorSpace, PixelFormat pixelFormat, RenderingResourceIdentifier renderingResourceIdentifier)
@@ -148,7 +148,10 @@ void RemoteRenderingBackend::applyDisplayListsFromHandle(ImageBuffer& destinatio
             return;
         }
 
-        destination.submitDisplayList(*displayList);
+        if (destination.isAccelerated())
+            static_cast<AcceleratedRemoteImageBuffer&>(destination).submitDisplayList(*displayList);
+        else
+            static_cast<UnacceleratedRemoteImageBuffer&>(destination).submitDisplayList(*displayList);
 
         CheckedSize checkedOffset = offset;
         checkedOffset += sizeToRead;
@@ -198,7 +201,7 @@ void RemoteRenderingBackend::wakeUpAndApplyDisplayList(DisplayList::ItemBufferId
         }
         // Otherwise, continue reading the next display list item buffer from the start.
         m_nextItemBufferToRead = { };
-        applyDisplayListsFromHandle(*imageBuffer, *nextHandle, SharedDisplayListHandle::reservedCapacityAtStart);
+        applyDisplayListsFromHandle(*imageBuffer, *nextHandle, SharedDisplayListHandle::headerSize());
     }
 }
 
@@ -243,7 +246,7 @@ void RemoteRenderingBackend::didCreateSharedDisplayListHandle(DisplayList::ItemB
 
     if (m_nextItemBufferToRead == identifier) {
         m_nextItemBufferToRead = { };
-        wakeUpAndApplyDisplayList(identifier, SharedDisplayListHandle::reservedCapacityAtStart, destinationBufferIdentifier);
+        wakeUpAndApplyDisplayList(identifier, SharedDisplayListHandle::headerSize(), destinationBufferIdentifier);
     }
 }
 
@@ -312,7 +315,9 @@ Optional<DisplayList::ItemHandle> WARN_UNUSED_RETURN RemoteRenderingBackend::dec
 #endif
     case DisplayList::ItemType::FillRect:
     case DisplayList::ItemType::FlushContext:
-    case DisplayList::ItemType::MetaCommandSwitchTo:
+    case DisplayList::ItemType::MetaCommandChangeDestinationImageBuffer:
+    case DisplayList::ItemType::MetaCommandChangeItemBuffer:
+    case DisplayList::ItemType::MetaCommandEnd:
     case DisplayList::ItemType::PaintFrameForMedia:
     case DisplayList::ItemType::Restore:
     case DisplayList::ItemType::Rotate:

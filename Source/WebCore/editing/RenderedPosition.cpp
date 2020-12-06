@@ -31,6 +31,7 @@
 #include "config.h"
 #include "RenderedPosition.h"
 
+#include "CaretRectComputation.h"
 #include "InlineRunAndOffset.h"
 #include "InlineTextBox.h"
 #include "VisiblePosition.h"
@@ -84,9 +85,6 @@ RenderedPosition::RenderedPosition(const Position& position, Affinity affinity)
 {
     if (position.isNull())
         return;
-
-    // FIXME: Remove.
-    position.ensureLineBoxes();
 
     auto runAndOffset = position.inlineRunAndOffset(affinity);
     m_run = runAndOffset.run;
@@ -229,7 +227,7 @@ IntRect RenderedPosition::absoluteRect(CaretRectMode caretRectMode) const
     if (isNull())
         return IntRect();
 
-    IntRect localRect = snappedIntRect(m_renderer->localCaretRect({ m_run, m_offset }, caretRectMode));
+    IntRect localRect = snappedIntRect(computeLocalCaretRect(*m_renderer, { m_run, m_offset }, caretRectMode));
     return localRect == IntRect() ? IntRect() : m_renderer->localToAbsoluteQuad(FloatRect(localRect)).enclosingBoundingBox();
 }
 

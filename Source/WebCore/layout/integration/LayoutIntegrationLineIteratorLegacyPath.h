@@ -53,8 +53,8 @@ public:
     LayoutUnit lineBoxBottom() const { return m_rootInlineBox->lineBoxBottom(); }
 
     float y() const { return m_rootInlineBox->y(); }
-    float logicalLeft() const { return m_rootInlineBox->logicalLeft(); }
-    float logicalRight() const { return m_rootInlineBox->logicalRight(); }
+    float contentLogicalLeft() const { return m_rootInlineBox->logicalLeft(); }
+    float contentLogicalRight() const { return m_rootInlineBox->logicalRight(); }
     float logicalHeight() const { return m_rootInlineBox->logicalHeight(); }
     bool isHorizontal() const { return m_rootInlineBox->isHorizontal(); }
 
@@ -86,22 +86,18 @@ public:
         return { m_rootInlineBox->lastLeafDescendant() };
     }
 
-    RunIteratorLegacyPath logicalStartRunWithNode() const
+
+    RunIteratorLegacyPath logicalStartRun() const
     {
-        InlineBox* box = nullptr;
-        m_rootInlineBox->getLogicalStartBoxWithNode(box);
-        return { box };
+        return { *m_rootInlineBox, RunIteratorLegacyPath::LogicalOrder::Start };
     }
 
-    RunIteratorLegacyPath logicalEndRunWithNode() const
+    RunIteratorLegacyPath logicalEndRun() const
     {
-        InlineBox* box = nullptr;
-        m_rootInlineBox->getLogicalEndBoxWithNode(box);
-        return { box };
+        return { *m_rootInlineBox, RunIteratorLegacyPath::LogicalOrder::End };
     }
 
 private:
-
     const RootInlineBox* m_rootInlineBox;
 };
 

@@ -1433,6 +1433,9 @@
     "imported/w3c/web-platform-tests/fetch/redirect-navigate/preserve-fragment.html": [
         "slow"
     ],
+    "imported/w3c/web-platform-tests/geolocation-API/getCurrentPosition_IDL.https.html": [
+        "slow"
+    ],
     "imported/w3c/web-platform-tests/html/browsers/browsing-the-web/history-traversal/persisted-user-state-restoration/resume-timer-on-history-back.html": [
         "slow"
     ],
@@ -2921,6 +2924,9 @@
     "imported/w3c/web-platform-tests/svg/animations/svglengthlist-animation-3.html": [
         "slow"
     ],
+    "imported/w3c/web-platform-tests/uievents/mouse/mouseevent_move_button.html": [
+        "slow"
+    ],
     "imported/w3c/web-platform-tests/url/failure.html": [
         "slow"
     ],
@@ -2957,6 +2963,9 @@
     "imported/w3c/web-platform-tests/webrtc/RTCIceConnectionState-candidate-pair.https.html": [
         "slow"
     ],
+    "imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-SLD-SRD-timing.https.html": [
+        "slow"
+    ],
     "imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-createDataChannel.html": [
         "slow"
     ],
@@ -2967,6 +2976,12 @@
         "slow"
     ],
     "imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-mandatory-getStats.https.html": [
+        "slow"
+    ],
+    "imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-perfect-negotiation-stress-glare-linear.https.html": [
+        "slow"
+    ],
+    "imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-perfect-negotiation-stress-glare.https.html": [
         "slow"
     ],
     "imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-perfect-negotiation.https.html": [
@@ -2988,6 +3003,9 @@
         "slow"
     ],
     "imported/w3c/web-platform-tests/webrtc/RTCRtpReceiver-getSynchronizationSources.https.html": [
+        "slow"
+    ],
+    "imported/w3c/web-platform-tests/webrtc/RTCRtpSender-encode-same-track-twice.https.html": [
         "slow"
     ],
     "imported/w3c/web-platform-tests/webrtc/RTCRtpSender-replaceTrack.https.html": [
@@ -3114,6 +3132,30 @@
         "slow"
     ],
     "imported/w3c/web-platform-tests/workers/semantics/multiple-workers/007.html": [
+        "slow"
+    ],
+    "imported/w3c/web-platform-tests/worklets/animation-worklet-csp.https.html": [
+        "slow"
+    ],
+    "imported/w3c/web-platform-tests/worklets/animation-worklet-referrer.https.html": [
+        "slow"
+    ],
+    "imported/w3c/web-platform-tests/worklets/audio-worklet-csp.https.html": [
+        "slow"
+    ],
+    "imported/w3c/web-platform-tests/worklets/audio-worklet-referrer.https.html": [
+        "slow"
+    ],
+    "imported/w3c/web-platform-tests/worklets/layout-worklet-csp.https.html": [
+        "slow"
+    ],
+    "imported/w3c/web-platform-tests/worklets/layout-worklet-referrer.https.html": [
+        "slow"
+    ],
+    "imported/w3c/web-platform-tests/worklets/paint-worklet-csp.https.html": [
+        "slow"
+    ],
+    "imported/w3c/web-platform-tests/worklets/paint-worklet-referrer.https.html": [
         "slow"
     ],
     "imported/w3c/web-platform-tests/xhr/overridemimetype-blob.html": [

@@ -49,20 +49,20 @@ public:
     LineIteratorModernPath& operator=(const LineIteratorModernPath&) = default;
     LineIteratorModernPath& operator=(LineIteratorModernPath&&) = default;
 
-    LayoutUnit top() const { return LayoutUnit::fromFloatRound(line().enclosingContentRect().y()); }
-    LayoutUnit bottom() const { return LayoutUnit::fromFloatRound(line().enclosingContentRect().maxY()); }
-    LayoutUnit lineBoxTop() const { return LayoutUnit::fromFloatRound(line().rect().y()); }
-    LayoutUnit lineBoxBottom() const { return LayoutUnit::fromFloatRound(line().rect().maxY()); }
+    LayoutUnit top() const { return LayoutUnit::fromFloatRound(line().enclosingContentTop()); }
+    LayoutUnit bottom() const { return LayoutUnit::fromFloatRound(line().enclosingContentBottom()); }
+    LayoutUnit lineBoxTop() const { return LayoutUnit::fromFloatRound(line().lineBoxTop()); }
+    LayoutUnit lineBoxBottom() const { return LayoutUnit::fromFloatRound(line().lineBoxBottom()); }
 
     // FIXME: What should these really be?
     LayoutUnit selectionTop() const { return top(); }
     LayoutUnit selectionTopForHitTesting() const { return top(); }
     LayoutUnit selectionBottom() const { return bottom(); }
 
-    float logicalLeft() const { return line().rect().x(); }
-    float logicalRight() const { return logicalLeft() + line().lineBoxWidth(); }
+    float contentLogicalLeft() const { return line().lineBoxLeft() + line().contentLeftOffset(); }
+    float contentLogicalRight() const { return contentLogicalLeft() + line().contentWidth(); }
     float y() const { return lineBoxTop(); }
-    float logicalHeight() const { return line().rect().height(); }
+    float logicalHeight() const { return lineBoxBottom() - lineBoxTop(); }
     bool isHorizontal() const { return true; }
 
     const RenderBlockFlow& containingBlock() const { return m_inlineContent->containingBlock(); }
@@ -107,29 +107,16 @@ public:
         return { *m_inlineContent, line().firstRunIndex() + runCount - 1 };
     }
 
-    RunIteratorModernPath logicalStartRunWithNode() const
+    RunIteratorModernPath logicalStartRun() const
     {
-        auto startIndex = line().firstRunIndex();
-        auto endIndex = startIndex + line().runCount();
-        for (auto runIndex = startIndex; runIndex < endIndex; ++runIndex) {
-            auto& renderer = m_inlineContent->rendererForLayoutBox(m_inlineContent->runs[runIndex].layoutBox());
-            if (renderer.node())
-                return { *m_inlineContent, runIndex };
-        }
-        return { *m_inlineContent };
+        return firstRun();
     }
 
-    RunIteratorModernPath logicalEndRunWithNode() const
+    RunIteratorModernPath logicalEndRun() const
     {
-        auto startIndex = line().firstRunIndex();
-        auto endIndex = startIndex + line().runCount();
-        for (auto runIndex = endIndex; runIndex-- > startIndex;) {
-            auto& renderer = m_inlineContent->rendererForLayoutBox(m_inlineContent->runs[runIndex].layoutBox());
-            if (renderer.node())
-                return { *m_inlineContent, runIndex };
-        }
-        return { *m_inlineContent };
+        return lastRun();
     }
+
 
 private:
     const InlineContent::Lines& lines() const { return m_inlineContent->lines; }

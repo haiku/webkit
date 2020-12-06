@@ -31,6 +31,7 @@
 #include "BorderData.h"
 #include "FillLayer.h"
 #include "RenderStyle.h"
+#include "ShadowData.h"
 #include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
@@ -56,15 +57,39 @@ static RefPtr<FillLayer> deepCopy(const FillLayer& layer)
     return firstLayer;
 }
 
+static std::unique_ptr<ShadowData> deepCopy(const ShadowData* shadow, const RenderStyle& style)
+{
+    std::unique_ptr<ShadowData> firstShadow;
+    ShadowData* currCopiedShadow = nullptr;
+
+    for (auto* currShadow = shadow; currShadow; currShadow = currShadow->next()) {
+        auto shadowCopy = makeUnique<ShadowData>(*currShadow);
+        shadowCopy->setColor(style.colorByApplyingColorFilter(shadowCopy->color()));
+        
+        if (!firstShadow) {
+            currCopiedShadow = shadowCopy.get();
+            firstShadow = WTFMove(shadowCopy);
+        } else {
+            auto nextCopiedShadow = shadowCopy.get();
+            currCopiedShadow->setNext(WTFMove(shadowCopy));
+            currCopiedShadow = nextCopiedShadow;
+        }
+    }
+    return firstShadow;
+}
+
 Style::Style(const RenderStyle& style)
     : Style(style, &style)
 {
 }
 
 Style::Style(const RenderStyle& style, const RenderStyle* styleForBackground)
-    : m_fontCascade(style.fontCascade())
+    : m_overflowX(style.overflowX())
+    , m_overflowY(style.overflowY())
+    , m_fontCascade(style.fontCascade())
     , m_whiteSpace(style.whiteSpace())
     , m_tabSize(style.tabSize())
+    , m_opacity(style.opacity())
 {
     // FIXME: Is currentColor resolved here?
     m_color = style.visitedDependentColorWithColorFilter(CSSPropertyColor);
@@ -72,11 +97,14 @@ Style::Style(const RenderStyle& style, const RenderStyle* styleForBackground)
     if (styleForBackground)
         setupBackground(*styleForBackground);
 
+    m_boxShadow = deepCopy(style.boxShadow(), style);
+
     if (!style.hasAutoUsedZIndex())
         m_zIndex = style.usedZIndex();
 
     setIsPositioned(style.position() != PositionType::Static);
     setIsFloating(style.floating() != Float::No);
+    setHasTransform(style.hasTransform());
 }
 
 void Style::setupBackground(const RenderStyle& style)

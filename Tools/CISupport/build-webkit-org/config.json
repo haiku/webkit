@@ -101,6 +101,7 @@
                     { "name": "gtk-linux-bot-15", "platform": "gtk" },
                     { "name": "gtk-linux-bot-16", "platform": "gtk" },
                     { "name": "gtk-linux-bot-17", "platform": "gtk" },
+                    { "name": "gtk-linux-bot-18", "platform": "gtk" },
 
                     { "name": "jsconly-linux-igalia-bot-1", "platform": "jsc-only" },
                     { "name": "jsconly-linux-igalia-bot-2", "platform": "jsc-only" },
@@ -125,12 +126,12 @@
                       "workernames": ["bot279", "bot600", "bot614"]
                     },
                     { "name": "Apple-BigSur-Release-WK1-Tests", "factory": "TestWebKit1AllButJSCFactory", "builddir": "bigsur-release-tests-wk1",
-                      "platform": "mac-bigsur", "configuration": "release", "architectures": ["x86_64"],
+                      "platform": "mac-bigsur", "configuration": "release", "architectures": ["x86_64", "arm64"],
                       "additionalArguments": ["--no-retry-failures"],
                       "workernames": ["bot1020", "bot1021"]
                     },
                     { "name": "Apple-BigSur-Release-WK2-Tests", "factory": "TestAllButJSCFactory", "builddir": "bigsur-release-tests-wk2",
-                      "platform": "mac-bigsur", "configuration": "release", "architectures": ["x86_64"],
+                      "platform": "mac-bigsur", "configuration": "release", "architectures": ["x86_64", "arm64"],
                       "additionalArguments": ["--no-retry-failures"],
                       "workernames": ["bot1022", "bot1023"]
                     },
@@ -140,12 +141,12 @@
                       "workernames": ["bot684", "bot685"]
                     },
                     { "name": "Apple-BigSur-Debug-WK1-Tests", "factory": "TestWebKit1AllButJSCFactory", "builddir": "bigsur-debug-tests-wk1",
-                      "platform": "mac-bigsur", "configuration": "debug", "architectures": ["x86_64"],
+                      "platform": "mac-bigsur", "configuration": "debug", "architectures": ["x86_64", "arm64"],
                       "additionalArguments": ["--no-retry-failures"],
                       "workernames": ["bot1024", "bot1025"]
                     },
                     { "name": "Apple-BigSur-Debug-WK2-Tests", "factory": "TestAllButJSCFactory", "builddir": "bigsur-debug-tests-wk2",
-                      "platform": "mac-bigsur", "configuration": "debug", "architectures": ["x86_64"],
+                      "platform": "mac-bigsur", "configuration": "debug", "architectures": ["x86_64", "arm64"],
                       "additionalArguments": ["--no-retry-failures"],
                       "workernames": ["bot1026", "bot1027"]
                     },
@@ -406,6 +407,11 @@
                       "platform": "gtk", "configuration": "release", "architectures": ["x86_64"],
                       "additionalArguments": ["--no-bubblewrap-sandbox"],
                       "workernames": ["gtk-linux-bot-17"]
+                    },
+                    {
+                      "name": "GTK-Linux-64-bit-Release-GTK4-Tests", "factory": "BuildAndTestAllButJSCFactory", "builddir": "gtk-linux-64-release-gtk4",
+                      "platform": "gtk", "configuration": "release", "architectures": ["x86_64"],
+                      "workernames": ["gtk-linux-bot-18"]
                     },
                     {
                       "name": "WinCairo-64-bit-WKL-Release-Build", "factory": "BuildFactory", "builddir": "wincairo-wkl-release",

@@ -346,7 +346,7 @@ static bool handleWheelEventInAppropriateEnclosingBox(Node* startNode, const Whe
             bool scrollingWasHandled;
             if (platformEvent) {
                 auto copiedEvent = platformEvent->copyWithDeltasAndVelocity(filteredPlatformDelta.width(), filteredPlatformDelta.height(), filteredVelocity);
-                scrollingWasHandled = boxLayer->handleWheelEvent(copiedEvent);
+                scrollingWasHandled = boxLayer->handleWheelEventForScrolling(copiedEvent);
             } else
                 scrollingWasHandled = didScrollInScrollableArea(*boxLayer, wheelEvent);
 
@@ -1383,21 +1383,20 @@ bool EventHandler::useHandCursor(Node* node, bool isOverLink, bool shiftKey)
     // If the link is editable, then we need to check the settings to see whether or not the link should be followed
     if (editable) {
         switch (m_frame.settings().editableLinkBehavior()) {
-        default:
-        case EditableLinkDefaultBehavior:
-        case EditableLinkAlwaysLive:
+        case EditableLinkBehavior::Default:
+        case EditableLinkBehavior::AlwaysLive:
             editableLinkEnabled = true;
             break;
 
-        case EditableLinkNeverLive:
+        case EditableLinkBehavior::NeverLive:
             editableLinkEnabled = false;
             break;
 
-        case EditableLinkLiveWhenNotFocused:
+        case EditableLinkBehavior::LiveWhenNotFocused:
             editableLinkEnabled = nodeIsNotBeingEdited(*node, m_frame) || shiftKey;
             break;
 
-        case EditableLinkOnlyLiveWithShiftKey:
+        case EditableLinkBehavior::OnlyLiveWithShiftKey:
             editableLinkEnabled = shiftKey;
             break;
         }
@@ -2788,9 +2787,13 @@ bool EventHandler::processWheelEventForScrolling(const PlatformWheelEvent& event
     // We do another check on the frame view because the event handler can run JS which results in the frame getting destroyed.
     FrameView* view = m_frame.view();
     
-    bool didHandleEvent = view ? view->wheelEvent(event) : false;
+    bool didHandleEvent = view ? view->handleWheelEventForScrolling(event) : false;
     m_isHandlingWheelEvent = false;
     return didHandleEvent;
+}
+
+void EventHandler::wheelEventWasProcessedByMainThread(const PlatformWheelEvent&, OptionSet<EventHandling>)
+{
 }
 
 bool EventHandler::platformCompletePlatformWidgetWheelEvent(const PlatformWheelEvent&, const Widget&, const WeakPtr<ScrollableArea>&)
@@ -2864,6 +2867,14 @@ bool EventHandler::completeWidgetWheelEvent(const PlatformWheelEvent& event, con
 
 bool EventHandler::handleWheelEvent(const PlatformWheelEvent& event, OptionSet<WheelEventProcessingSteps> processingSteps)
 {
+    OptionSet<EventHandling> handling;
+    bool handled = handleWheelEventInternal(event, processingSteps, handling);
+    wheelEventWasProcessedByMainThread(event, handling);
+    return handled;
+}
+
+bool EventHandler::handleWheelEventInternal(const PlatformWheelEvent& event, OptionSet<WheelEventProcessingSteps> processingSteps, OptionSet<EventHandling>& handling)
+{
     auto* document = m_frame.document();
     if (!document)
         return false;
@@ -2925,11 +2936,13 @@ bool EventHandler::handleWheelEvent(const PlatformWheelEvent& event, OptionSet<W
             }
         }
 
-        if (!element->dispatchWheelEvent(event)) {
+        auto isCancelable = processingSteps.contains(WheelEventProcessingSteps::MainThreadForBlockingDOMEventDispatch) ? Event::IsCancelable::Yes : Event::IsCancelable::No;
+        if (!element->dispatchWheelEvent(event, handling, isCancelable)) {
             m_isHandlingWheelEvent = false;
             if (scrollableArea && scrollableArea->scrollShouldClearLatchedState()) {
                 // Web developer is controlling scrolling, so don't attempt to latch.
-                clearLatchedState();
+                if (handling.containsAll({ EventHandling::DispatchedToDOM, EventHandling::DefaultPrevented }))
+                    clearLatchedState();
                 scrollableArea->setScrollShouldClearLatchedState(false);
             }
 
@@ -2955,6 +2968,7 @@ bool EventHandler::handleWheelEvent(const PlatformWheelEvent& event, OptionSet<W
         handledEvent = processWheelEventForScrolling(event, scrollableArea);
         processWheelEventForScrollSnap(event, scrollableArea);
     }
+
     return handledEvent;
 }
 
@@ -3012,7 +3026,7 @@ void EventHandler::defaultWheelEventHandler(Node* startNode, WheelEvent& wheelEv
         auto platformEvent = wheelEvent.underlyingPlatformEvent();
         if (platformEvent) {
             auto copiedEvent = platformEvent->copyWithDeltasAndVelocity(filteredPlatformDelta.width(), filteredPlatformDelta.height(), filteredVelocity);
-            if (latchedScroller->handleWheelEvent(copiedEvent))
+            if (latchedScroller->handleWheelEventForScrolling(copiedEvent))
                 wheelEvent.setDefaultHandled();
             return;
         }

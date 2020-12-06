@@ -14,7 +14,9 @@ editing/deleting/ios [ Pass ]
 editing/input/cocoa [ Pass ]
 http/tests/quicklook [ Pass ]
 media/ios [ Pass ]
+model-element [ Pass ]
 quicklook [ Pass ]
+system-preview [ Pass ]
 swipe [ Pass ]
 http/tests/swipe [ Pass ]
 
@@ -1307,6 +1309,8 @@ webkit.org/b/178963 fast/css/sticky/inline-sticky.html [ ImageOnlyFailure ]
 webkit.org/b/178963 fast/css/sticky/sticky-left-percentage.html [ ImageOnlyFailure ]
 webkit.org/b/178963 fast/css/sticky/sticky-writing-mode-vertical-lr.html [ ImageOnlyFailure ]
 webkit.org/b/178963 fast/css/sticky/sticky-writing-mode-vertical-rl.html [ ImageOnlyFailure ]
+
+imported/w3c/web-platform-tests/compat/webkit-box-clamp-bottom-border.html [ ImageOnlyFailure ]
 
 # editing/deleting tests to triage
 editing/deleting/delete-all-text-in-text-field-assertion.html [ Failure ]
@@ -3083,8 +3087,6 @@ http/tests/cookies/same-site [ Pass ]
 # FIXME: Mark as Pass once <rdar://problem/47165939> is fixed.
 http/tests/cookies/only-accept-first-party-cookies.html [ Skip ]
 
-system-preview [ Pass ]
-
 editing/selection/character-granularity-rect.html [ Pass ]
 
 # < iOS12 doesn't support the CG needed for Conic Gradients
@@ -3490,3 +3492,7 @@ fast/shadow-dom/ios/ [ Pass ]
 
 # https://bugs.webkit.org/show_bug.cgi?id=217156
 fast/forms/defaultValue-clobbering.html [ Failure ]
+
+webkit.org/b/219105 fast/text/international/complex-character-based-fallback.html [ Failure ]
+webkit.org/b/219105 platform/ios/ios/fast/text/opticalFontWithTextStyle.html [ Failure ]
+

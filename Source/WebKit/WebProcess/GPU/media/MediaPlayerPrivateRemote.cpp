@@ -35,6 +35,7 @@
 #include "RemoteLegacyCDMSession.h"
 #include "RemoteMediaPlayerManagerProxyMessages.h"
 #include "RemoteMediaPlayerProxyMessages.h"
+#include "RemoteMediaResourceManagerMessages.h"
 #include "SandboxExtension.h"
 #include "VideoLayerRemote.h"
 #include "WebCoreArgumentCoders.h"
@@ -69,6 +70,10 @@
 
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA)
 #include <WebCore/LegacyCDM.h>
+#endif
+
+#if ENABLE(MEDIA_SOURCE)
+#include "RemoteMediaSourceIdentifier.h"
 #endif
 
 namespace WebCore {
@@ -148,7 +153,7 @@ void MediaPlayerPrivateRemote::prepareForPlayback(bool privateMode, MediaPlayer:
     }, m_id);
 }
 
-void MediaPlayerPrivateRemote::MediaPlayerPrivateRemote::load(const URL& url, const ContentType& contentType, const String& keySystem)
+void MediaPlayerPrivateRemote::load(const URL& url, const ContentType& contentType, const String& keySystem)
 {
     Optional<SandboxExtension::Handle> sandboxExtensionHandle;
     if (url.isLocalFile()) {
@@ -624,8 +629,16 @@ void MediaPlayerPrivateRemote::remoteVideoTrackConfigurationChanged(TrackPrivate
 }
 
 #if ENABLE(MEDIA_SOURCE)
-void MediaPlayerPrivateRemote::load(const String&, MediaSourcePrivateClient*)
+void MediaPlayerPrivateRemote::load(const URL& url, const ContentType& contentType, MediaSourcePrivateClient* client)
 {
+    if (m_remoteEngineIdentifier == MediaPlayerEnums::MediaEngineIdentifier::AVFoundationMSE) {
+        auto identifier = RemoteMediaSourceIdentifier::generate();
+        connection().send(Messages::RemoteMediaPlayerProxy::LoadMediaSource(url, contentType, identifier), m_id);
+        m_mediaSourcePrivate = MediaSourcePrivateRemote::create(m_manager.gpuProcessConnection(), identifier, m_manager.typeCache(m_remoteEngineIdentifier), *this, client);
+
+        return;
+    }
+
     callOnMainThread([weakThis = makeWeakPtr(*this), this] {
         if (!weakThis)
             return;
@@ -1130,6 +1143,12 @@ void MediaPlayerPrivateRemote::requestResource(RemoteMediaResourceIdentifier rem
     ASSERT(!m_mediaResources.contains(remoteMediaResourceIdentifier));
     auto resource = m_mediaResourceLoader->requestResource(WTFMove(request), options);
 
+    if (!resource) {
+        completionHandler();
+        // FIXME: Get the error from MediaResourceLoader::requestResource.
+        connection().send(Messages::RemoteMediaResourceManager::LoadFailed(remoteMediaResourceIdentifier, { ResourceError::Type::Cancellation }), 0);
+        return;
+    }
     // PlatformMediaResource owns the PlatformMediaResourceClient
     resource->setClient(makeUnique<RemoteMediaResourceProxy>(connection(), *resource, remoteMediaResourceIdentifier));
     m_mediaResources.add(remoteMediaResourceIdentifier, WTFMove(resource));

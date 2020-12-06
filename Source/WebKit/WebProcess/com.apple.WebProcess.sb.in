@@ -171,7 +171,8 @@
     (allow iokit-open
         (iokit-registry-entry-class "IOFramebufferSharedUserClient"))
 #endif
-    ;; H.264 Acceleration
+
+    ;; This is needed for Encrypted Media on some hardware (MacMini8,1 for example)
     (allow iokit-open
         (iokit-registry-entry-class "AppleIntelMEUserClient")
 #if HAVE(SANDBOX_MESSAGE_FILTERING)
@@ -187,6 +188,8 @@
         )
 #endif
     )
+    
+    ;; This is needed for Encrypted Media on some hardware (MacMini8,1 for example)
     (allow iokit-open
         (iokit-registry-entry-class "AppleSNBFBUserClient")
 #if HAVE(SANDBOX_MESSAGE_FILTERING)
@@ -202,6 +205,7 @@
         )
 #endif
     )
+
     ;; QuartzCore
     (allow iokit-open
         (iokit-registry-entry-class "AGPMClient")
@@ -917,10 +921,11 @@
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 110000
     (with report) (with telemetry-backtrace)
 #endif
+#if !ENABLE(SET_WEBCONTENT_PROCESS_INFORMATION_IN_NETWORK_PROCESS)
     (global-name "com.apple.coreservices.launchservicesd")
+#endif
     (global-name "com.apple.iconservices")
     (global-name "com.apple.iconservices.store")
-    (global-name "com.apple.powerlog.plxpclogger.xpc")
     (global-name "com.apple.tccd.system")
     (global-name "com.apple.trustd.agent")
 )
@@ -953,7 +958,6 @@
     (global-name "com.apple.SystemConfiguration.configd")
     (global-name "com.apple.assertiond.processassertionconnection")
     (global-name "com.apple.audio.SystemSoundServer-OSX")
-    (global-name "com.apple.audio.audiohald")
     (global-name "com.apple.fonts")
     (global-name "com.apple.PowerManagement.control")
 )
@@ -1207,6 +1211,7 @@
 (deny mach-lookup (with telemetry-backtrace)
     (global-name "com.apple.containermanagerd")
     (global-name "com.apple.cookied")
+    (global-name "com.apple.coreservices.launchservicesd")
 )
 #endif
 
@@ -1229,13 +1234,14 @@
             "com.apple.diagnosticd"
             "com.apple.iconservices"
             "com.apple.iconservices.store"
+            "com.apple.powerlog.plxpclogger.xpc"
             "com.apple.tccd"
             "com.apple.BluetoothServices"
 
             ;;; FIXME(207716): The following should be removed when the GPU process is complete
-            "com.apple.audio.AudioComponentRegistrar" "com.apple.coremedia.endpoint.xpc" "com.apple.coremedia.endpointstream.xpc"
+            "com.apple.audio.AudioComponentRegistrar" "com.apple.audio.audiohald" "com.apple.coremedia.endpoint.xpc" "com.apple.coremedia.endpointstream.xpc"
             "com.apple.coremedia.endpointplaybacksession.xpc" "com.apple.coremedia.endpointremotecontrolsession.xpc" "com.apple.coremedia.routediscoverer.xpc"
-            "com.apple.coremedia.routingcontext.xpc" "com.apple.coremedia.volumecontroller.xpc" "com.apple.lskdd" "com.apple.mediaremoted.xpc"
+            "com.apple.coremedia.routingcontext.xpc" "com.apple.coremedia.volumecontroller.xpc" "com.apple.lskdd" "com.apple.mediaremoted.xpc" "com.apple.trustd.agent"
             ;;; FIXME(207716): End services to remove.
         )
     )
@@ -1477,6 +1483,7 @@
                 io_registry_entry_get_parent_iterator
                 io_registry_entry_get_properties_bin_buf
                 io_registry_entry_get_property_bin_buf
+                io_registry_entry_get_property_bytes
                 io_registry_entry_get_registry_entry_id
                 io_registry_get_root_entry
                 io_server_version
@@ -1486,12 +1493,15 @@
                 io_service_get_matching_service_bin
                 io_service_get_matching_services_bin
                 io_service_open_extended
+                mach_exception_raise
+                mach_port_get_context_from_user
                 mach_port_get_refs
                 mach_port_request_notification
                 mach_port_set_attributes
                 mach_vm_copy
                 mach_vm_map_external
                 mach_vm_region
+                mach_vm_region_recurse
                 mach_vm_remap_external
                 semaphore_create
                 semaphore_destroy
@@ -1499,6 +1509,7 @@
                 task_info_from_user
                 task_policy_set
                 task_restartable_ranges_synchronize
+                task_threads_from_user
                 thread_get_state_to_user
                 thread_info
                 thread_policy
@@ -1547,6 +1558,7 @@
         MSC_semaphore_signal_trap
         MSC_semaphore_timedwait_trap
         MSC_semaphore_wait_trap
+        MSC_swtch_pri
         MSC_syscall_thread_switch
         MSC_task_name_for_pid
         MSC_thread_get_special_reply_port

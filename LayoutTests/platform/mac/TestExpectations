@@ -15,7 +15,7 @@ editing/pasteboard/mac [ Pass ]
 fast/dom/Range/mac [ Pass ]
 fast/scrolling/latching [ Pass ]
 media/mac [ Pass ]
-system-preview/model [ Pass ]
+model-element [ Pass ]
 
 fast/forms/search/search-padding-cancel-results-buttons.html [ Pass ]
 fast/forms/search/search-results-hidden-crash.html [ Pass ]
@@ -1291,8 +1291,6 @@ webkit.org/b/175193 fast/images/async-image-body-background-image.html [ Pass Ti
 # This test is specific to Core Text.
 fast/text/font-lookup-dot-prefix-case-sensitive.html [ Pass ]
 
-webkit.org/b/175592 fast/mediacapturefromelement/CanvasCaptureMediaStream-webgl-events.html [ Pass Timeout ]
-
 webkit.org/b/175700 media/video-controls-rendering.html [ Pass Failure ]
 
 webkit.org/b/173010 [ Debug ] js/slow-stress/Int32Array-alloc-huge.html [ Pass Timeout ]
@@ -2203,23 +2201,10 @@ webkit.org/b/216492 imported/w3c/web-platform-tests/selection/extend-00.html [ S
 [ BigSur+ ] http/tests/media/hls/hls-hdr-switch.html [ Pass ]
 
 # rdar://69347249
-[ arm64 ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-biquad-connection.html [ Failure ]
-[ arm64 ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-delay-connections.html [ Failure ]
-[ arm64 ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-getFrequencyResponse.html [ Failure ]
-[ arm64 ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-4-chan.html [ Failure ]
 [ arm64 ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/realtime-conv.html [ Failure ]
-[ arm64 ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/automation-changes.html [ Failure ]
 [ arm64 ] webaudio/Analyser/realtimeanalyser-byte-data.html [ Failure ]
 [ arm64 ] webaudio/Analyser/realtimeanalyser-freq-data.html [ Failure ]
-[ arm64 ] webaudio/BiquadFilter/tail-time-allpass.html [ Failure ]
-[ arm64 ] webaudio/BiquadFilter/tail-time-bandpass.html [ Failure ]
-[ arm64 ] webaudio/BiquadFilter/tail-time-highpass.html [ Failure ]
-[ arm64 ] webaudio/BiquadFilter/tail-time-highshelf.html [ Failure ]
-[ arm64 ] webaudio/BiquadFilter/tail-time-lowpass.html [ Failure ]
-[ arm64 ] webaudio/BiquadFilter/tail-time-peaking.html [ Failure ]
-[ arm64 ] webaudio/IIRFilter/iir-tail-time.html [ Failure ]
 [ arm64 ] webaudio/Oscillator/no-dezippering.html [ Failure ]
-[ arm64 ] webaudio/convolution-mono-mono.html [ Failure ]
 
 webkit.org/b/217118 [ Release ] imported/w3c/web-platform-tests/user-timing/measure-l3.any.worker.html [ Pass Failure ]
 
@@ -2261,3 +2246,5 @@ webkit.org/b/218346 [ Mojave ] fast/text/canvas-color-fonts [ Skip ]
 
 # rdar://rdar://71039166
 [ Mojave ] http/tests/canvas/color-fonts [ Skip ]
+
+webkit.org/b/219366 imported/w3c/web-platform-tests/streams/transform-streams/terminate.any.html [ Pass Failure ]

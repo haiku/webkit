@@ -47,6 +47,7 @@
 #include "RenderChildIterator.h"
 #include "RenderDescendantIterator.h"
 #include "RenderImage.h"
+#include "RenderInline.h"
 #include "RenderLineBreak.h"
 #include "RenderView.h"
 #include "RuntimeEnabledFeatures.h"
@@ -76,9 +77,11 @@ LineLayout* LineLayout::containing(RenderObject& renderer)
     if (renderer.isReplica() || renderer.isRenderScrollbarPart())
         return nullptr;
     
-    if (auto* parent = renderer.parent()) {
+    for (auto* parent = renderer.parent(); parent; parent = parent->parent()) {
         if (is<RenderBlockFlow>(*parent))
             return downcast<RenderBlockFlow>(*parent).modernLineLayout();
+        if (!is<RenderInline>(*parent))
+            return nullptr;
     }
 
     return nullptr;
@@ -128,11 +131,15 @@ void LineLayout::updateLayoutBoxDimensions(const RenderBox& replacedOrInlineBloc
     replacedBox.setContentSizeForIntegration({ replacedOrInlineBlock.contentWidth(), replacedOrInlineBlock.contentHeight() });
 
     auto& replacedBoxGeometry = m_layoutState.ensureGeometryForBox(replacedBox);
-    replacedBoxGeometry.setVerticalScrollbarWidth(replacedOrInlineBlock.verticalScrollbarWidth());
-    replacedBoxGeometry.setHorizontalScrollbarHeight(replacedOrInlineBlock.horizontalScrollbarHeight());
+    // Scrollbars are placed "between" the border and the padding box and they never stretch the border box. They may shrink the padding box though.
+    auto horizontalSpaceReservedForScrollbar = std::min(replacedOrInlineBlock.width() - replacedOrInlineBlock.paddingBoxWidth(), LayoutUnit(replacedOrInlineBlock.verticalScrollbarWidth()));
+    replacedBoxGeometry.setHorizontalSpaceForScrollbar(horizontalSpaceReservedForScrollbar);
+
+    auto verticalSpaceReservedForScrollbar = std::min(replacedOrInlineBlock.height() - replacedOrInlineBlock.paddingBoxHeight(), LayoutUnit(replacedOrInlineBlock.horizontalScrollbarHeight()));
+    replacedBoxGeometry.setVerticalSpaceForScrollbar(verticalSpaceReservedForScrollbar);
 
     auto baseline = replacedOrInlineBlock.baselinePosition(AlphabeticBaseline, false /* firstLine */, HorizontalLine, PositionOnContainingLine);
-    replacedBox.setBaseline(baseline);
+    replacedBox.setBaseline(roundToInt(baseline));
 }
 
 void LineLayout::updateStyle(const RenderBoxModelObject& renderer)
@@ -228,7 +235,7 @@ LayoutUnit LineLayout::contentLogicalHeight() const
         return { };
 
     auto& lines = m_inlineContent->lines;
-    return LayoutUnit { lines.last().rect().maxY() - lines.first().rect().y() + m_inlineContent->clearGapAfterLastLine };
+    return LayoutUnit { lines.last().lineBoxBottom() - lines.first().lineBoxTop() + m_inlineContent->clearGapAfterLastLine };
 }
 
 size_t LineLayout::lineCount() const
@@ -249,7 +256,7 @@ LayoutUnit LineLayout::firstLineBaseline() const
     }
 
     auto& firstLine = m_inlineContent->lines.first();
-    return LayoutUnit { firstLine.rect().y() + firstLine.baseline() };
+    return LayoutUnit { firstLine.lineBoxTop() + firstLine.baseline() };
 }
 
 LayoutUnit LineLayout::lastLineBaseline() const
@@ -260,7 +267,7 @@ LayoutUnit LineLayout::lastLineBaseline() const
     }
 
     auto& lastLine = m_inlineContent->lines.last();
-    return LayoutUnit { lastLine.rect().y() + lastLine.baseline() };
+    return LayoutUnit { lastLine.lineBoxTop() + lastLine.baseline() };
 }
 
 void LineLayout::adjustForPagination()
@@ -272,7 +279,7 @@ void LineLayout::adjustForPagination()
     }
 
     auto& lines = paginedInlineContent->lines;
-    m_paginatedHeight = LayoutUnit { lines.last().rect().maxY() - lines.first().rect().y() };
+    m_paginatedHeight = LayoutUnit { lines.last().lineBoxBottom() - lines.first().lineBoxTop() };
 
     m_inlineContent = WTFMove(paginedInlineContent);
 }
@@ -344,6 +351,22 @@ LineIterator LineLayout::lastLine() const
     return { LineIteratorModernPath(*m_inlineContent, m_inlineContent->lines.isEmpty() ? 0 : m_inlineContent->lines.size() - 1) };
 }
 
+LayoutRect LineLayout::enclosingBorderBoxRectFor(const RenderInline& renderInline) const
+{
+    if (!m_inlineContent)
+        return { };
+
+    auto& layoutBox = m_boxTree.layoutBoxForRenderer(renderInline);
+
+    LayoutRect rect;
+    for (auto& inlineBox : m_inlineContent->inlineBoxes) {
+        if (&inlineBox.layoutBox() == &layoutBox)
+            rect.uniteIfNonZero(LayoutRect(inlineBox.rect()));
+    }
+
+    return rect;
+}
+
 const RenderObject& LineLayout::rendererForLayoutBox(const Layout::Box& layoutBox) const
 {
     return m_boxTree.rendererForLayoutBox(layoutBox);
@@ -407,11 +430,11 @@ void LineLayout::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
         }
 
         auto& line = inlineContent.lineForRun(run);
-        auto baseline = paintOffset.y() + line.rect().y() + line.baseline();
+        auto baseline = paintOffset.y() + line.lineBoxTop() + line.baseline();
         auto expansion = run.expansion();
         // TextRun expects the xPos to be adjusted with the aligment offset (e.g. when the line is center aligned
         // and the run starts at 100px, due to the horizontal aligment, the xpos is supposed to be at 0px).
-        auto xPos = rect.x() - (line.rect().x() + line.horizontalAlignmentOffset());
+        auto xPos = rect.x() - (line.lineBoxLeft() + line.contentLeftOffset());
         WebCore::TextRun textRun { textContent.renderedContent(), xPos, expansion.horizontalExpansion, expansion.behavior };
         textRun.setTabSize(!style.collapseWhiteSpace(), style.tabSize());
         FloatPoint textOrigin { rect.x() + paintOffset.x(), roundToDevicePixel(baseline, deviceScaleFactor) };
@@ -424,12 +447,10 @@ void LineLayout::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
         textPainter.paint(textRun, rect, textOrigin);
 
         if (!style.textDecorationsInEffect().isEmpty()) {
-            // FIXME: Use correct RenderText.
-            if (auto* textRenderer = childrenOfType<RenderText>(flow()).first()) {
-                auto painter = TextDecorationPainter { paintInfo.context(), style.textDecorationsInEffect(), *textRenderer, false, style.fontCascade() };
-                painter.setWidth(rect.width());
-                painter.paintTextDecoration(textRun, textOrigin, rect.location() + paintOffset);
-            }
+            auto& textRenderer = downcast<RenderText>(m_boxTree.rendererForLayoutBox(run.layoutBox()));
+            auto painter = TextDecorationPainter { paintInfo.context(), style.textDecorationsInEffect(), textRenderer, false, style.fontCascade() };
+            painter.setWidth(rect.width());
+            painter.paintTextDecoration(textRun, textOrigin, rect.location() + paintOffset);
         }
     }
 }
@@ -445,7 +466,7 @@ bool LineLayout::hitTest(const HitTestRequest& request, HitTestResult& result, c
     auto& inlineContent = *m_inlineContent;
 
     // FIXME: This should do something efficient to find the run range.
-    for (auto& run : inlineContent.runs) {
+    for (auto& run : WTF::makeReversedRange(inlineContent.runs)) {
         auto runRect = Layout::toLayoutRect(run.rect());
         runRect.moveBy(accumulatedOffset);
 

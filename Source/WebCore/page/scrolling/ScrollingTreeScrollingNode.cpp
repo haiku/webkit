@@ -134,7 +134,7 @@ bool ScrollingTreeScrollingNode::isLatchedNode() const
     return scrollingTree().latchedNodeID() == scrollingNodeID();
 }
 
-bool ScrollingTreeScrollingNode::canHandleWheelEvent(const PlatformWheelEvent& wheelEvent) const
+bool ScrollingTreeScrollingNode::canHandleWheelEvent(const PlatformWheelEvent& wheelEvent, EventTargeting eventTargeting) const
 {
     if (!canHaveScrollbars())
         return false;
@@ -145,13 +145,13 @@ bool ScrollingTreeScrollingNode::canHandleWheelEvent(const PlatformWheelEvent& w
 
     // We always rubber-band the latched node, or the root node.
     // The stateless wheel event doesn't trigger rubber-band.
-    if (isLatchedNode() || (isRootNode() && !wheelEvent.isNonGestureEvent()))
+    if (isLatchedNode() || eventTargeting == EventTargeting::NodeOnly || (isRootNode() && !wheelEvent.isNonGestureEvent()))
         return true;
 
     return eventCanScrollContents(wheelEvent);
 }
 
-WheelEventHandlingResult ScrollingTreeScrollingNode::handleWheelEvent(const PlatformWheelEvent&)
+WheelEventHandlingResult ScrollingTreeScrollingNode::handleWheelEvent(const PlatformWheelEvent&, EventTargeting)
 {
     return WheelEventHandlingResult::unhandled();
 }
@@ -253,7 +253,7 @@ void ScrollingTreeScrollingNode::scrollTo(const FloatPoint& position, ScrollType
     m_currentScrollPosition = adjustedScrollPosition(position, clamp);
     
     LOG_WITH_STREAM(Scrolling, stream << "ScrollingTreeScrollingNode " << scrollingNodeID() << " scrollTo " << position << " adjusted to "
-        << m_currentScrollPosition << " (" << scrollType << ") (delta from last committed position " << (m_lastCommittedScrollPosition - m_currentScrollPosition) << ")"
+        << m_currentScrollPosition << " (" << scrollType << ", " << clamp << ") (delta from last committed position " << (m_lastCommittedScrollPosition - m_currentScrollPosition) << ")"
         << " rubberbanding " << scrollingTree().isRubberBandInProgressForNode(scrollingNodeID()));
 
     updateViewportForCurrentScrollPosition();

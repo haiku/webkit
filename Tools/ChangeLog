@@ -1,3 +1,814 @@
+2020-11-30  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Move old buildbot unittests to steps_unittest_old.py (follow-up fix)
+        https://bugs.webkit.org/show_bug.cgi?id=219364
+        <rdar://problem/71821157>
+
+        Unreviewed minor follow-up fix.
+
+        * CISupport/build-webkit-org/loadConfig_unittest.py:
+
+2020-11-30  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Move old buildbot unittests to steps_unittest_old.py
+        https://bugs.webkit.org/show_bug.cgi?id=219364
+
+        Reviewed by Jonathan Bedard.
+
+        * CISupport/build-webkit-org/committer_auth_unittest.py: Removed.
+        * CISupport/build-webkit-org/committer_auth_unittest_old.py: Moved from Tools/CISupport/build-webkit-org/committer_auth_unittest.py.
+        * CISupport/build-webkit-org/steps_unittest.py: Removed.
+        * CISupport/build-webkit-org/steps_unittest_old.py: Moved from Tools/CISupport/build-webkit-org/steps_unittest.py.
+        * CISupport/ews-build/steps.py:
+        (RunBuildWebKitOrgUnitTests): Updated ews configuration appropriately.
+        (RunBuildWebKitOrgUnitTests.getResultSummary):
+        * CISupport/ews-build/steps_unittest.py: Updated ews unit-tests.
+
+2020-11-30  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitscmpy] Support remote repositories in git-webkit
+        https://bugs.webkit.org/show_bug.cgi?id=219172
+        <rdar://problem/71594909>
+
+        Rubber-stamped by Aakash Jain.
+
+        * Scripts/libraries/webkitscmpy/webkitscmpy/program.py:
+        (Command.parser): Remove repository, since it depends on the parser.
+        (Command.main): Support arguments to main functions.
+        (Find.parser): Remove repository, since it depends on the parser.
+        (Checkout.parser): Ditto.
+        (Checkout.main): Early return if specified repository is remote.
+        (main): Construct repository based on path argument.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/checkout_unittest.py:
+        (TestCheckout):
+        (TestCheckout.test_checkout_remote):
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/find_unittest.py:
+        (TestFind.test_baisc_svn_remote):
+
+2020-11-30  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitscmpy] webkitscmpy.test.svn_unittest.TestRemoteSvn.test_info timezone dependent
+        https://bugs.webkit.org/show_bug.cgi?id=219263
+        <rdar://problem/71806358>
+
+        Reviewed by Aakash Jain.
+
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/svn_unittest.py:
+        (TestRemoteSvn.test_info):
+
+2020-11-30  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Update RunTest262Tests step for new buildbot
+        https://bugs.webkit.org/show_bug.cgi?id=219356
+
+        Reviewed by Jonathan Bedard.
+
+        * CISupport/build-webkit-org/steps.py:
+        (RunTest262Tests):
+        (RunTest262Tests.start): Initialized log observer.
+        (RunTest262Tests.parseOutputLine): Parse each log line as they come.
+        (RunTest262Tests.countFailures): Updated to return failedTestCount.
+
+2020-11-30  Aakash Jain  <aakash_jain@apple.com>
+
+        Automatically delete old data from ews buildbot instance
+        https://bugs.webkit.org/show_bug.cgi?id=214921
+
+        Reviewed by Jonathan Bedard.
+
+        * CISupport/ews-build/master.cfg: Configured JanitorConfigurator to delete logs older than one year, and
+        configured to run every morning.
+
+2020-11-30  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Update RunLLINTCLoopTests step for new buildbot
+        https://bugs.webkit.org/show_bug.cgi?id=219084
+
+        Reviewed by Jonathan Bedard.
+
+        * CISupport/build-webkit-org/steps.py:
+        (RunLLINTCLoopTests):
+        (RunLLINTCLoopTests.start): Initialized log observer.
+        (RunLLINTCLoopTests.parseOutputLine): Parse each log line as they come.
+        (RunLLINTCLoopTests.countFailures): Updated to return failedTestCount.
+
+2020-11-27  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Introduce new display list meta commands in preparation for webkit.org/b/219091
+        https://bugs.webkit.org/show_bug.cgi?id=219262
+
+        Reviewed by Ryosuke Niwa.
+
+        Rename `MetaCommandSwitchToItemBuffer`.
+
+        * TestWebKitAPI/Tests/WebCore/DisplayListTests.cpp:
+        (TestWebKitAPI::TEST):
+
+2020-11-27  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] use lz4 compression for improving buildbot performance
+        https://bugs.webkit.org/show_bug.cgi?id=219133
+
+        Reviewed by Jonathan Bedard.
+
+        * CISupport/build-webkit-org/master_buildbot2.cfg:
+
+2020-11-27  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] MiniBroeser add an option to quit the browser after loading finishes
+        https://bugs.webkit.org/show_bug.cgi?id=219081
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        It's useful to run benchmarks or test case reduction tools.
+
+        * MiniBrowser/gtk/BrowserTab.c:
+        (webProcessTerminatedCallback): Show a warning when the web process crashes.
+        (browserTabConstructed): Connect to web-process-terminated signal.
+        * MiniBrowser/gtk/main.c:
+        (quitApplication): Quit the MiniBrowser.
+        (exitAfterWebViewLoadFinishesCallback): Schedule a browser quit to the next run loop iteration.
+        (exitAfterWebProcessCrashed): Call exitAfterWebViewLoadFinishesCallback with WEBKIT_LOAD_FINISHED.
+        (exitAfterWebViewLoadFinishes): Connect to load-changed and web-process-terminated signals
+        (activate): Ensure the browser is exited after the load finishes or web process crashes when --exit-after-load is passed.
+
+2020-11-26  Lauro Moura  <lmoura@igalia.com>
+
+        [GTK] Unreviewed. Remove leftover test case after Internet Explorer quirks changes
+
+        The test cases were still expecting Linux platform for
+        drive.google.com, which now uses the IE quirk and thus the Windows
+        platform.
+
+        * TestWebKitAPI/Tests/WebCore/UserAgentQuirks.cpp:
+        (TestWebKitAPI::TEST):
+
+2020-11-26  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Update Run32bitJSCTests step for new buildbot
+        https://bugs.webkit.org/show_bug.cgi?id=219085
+
+        Reviewed by Jonathan Bedard.
+
+        * CISupport/build-webkit-org/steps.py:
+        (Run32bitJSCTests):
+        (Run32bitJSCTests.start): Initialized log observer.
+        (Run32bitJSCTests.parseOutputLine): Parse each log line as they come.
+        (Run32bitJSCTests.countFailures): Updated to return failedTestCount.
+
+2020-11-26  Frederic Wang  <fwang@igalia.com>
+
+        [GTK] Allow WebKitTestServer to run non-loopback addresses for API tests
+        https://bugs.webkit.org/show_bug.cgi?id=219257
+
+        GTK API tests currently assumes that loopback IP addresses can be treated as mixed content
+        in order to test WEBKIT_INSECURE_CONTENT_RUN and WEBKIT_INSECURE_CONTENT_DISPLAYED APIs.
+        After bug 218623, this will no longer be true so this patch adds an option to
+        WebKitTestServer so that it can run a server listening to "localhost" instead. This approach
+        will work until bug 171934 is fixed, but we might add a way to launch a server listening to
+        non-localhost addresses (bug 219198) or review the whole mixed content handling in the
+        future (bug 140625). This patch also tweaks a bit WebKitTestServer options, so they use a
+        bitset instead.
+
+        Reviewed by Michael Catanzaro.
+
+        * TestWebKitAPI/Tests/WebKitGLib/TestSSL.cpp:
+        (beforeAll): Add a ServerNonLoopback bit to the HTTPS server used by the tests, so that
+        insecure content APIs will still work after bug 218623. Also remove explicit options for the
+        HTTP server since it just uses the default (no bits set).
+        * TestWebKitAPI/glib/WebKitGLib/WebKitTestServer.cpp:
+        (WebKitTestServer::WebKitTestServer): Use the new bitset syntax. Starts a server listening to
+        "localhost" if the ServerNonLoopback bit is set.
+        * TestWebKitAPI/glib/WebKitGLib/WebKitTestServer.h: Make the enum a list of bit positions
+        and the parameter a bitset of options. Add the new ServerNonLoopback option and remove
+        ServerHTTP, which corresponds to the default value (no bits set).
+
+2020-11-26  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        [WPE][GTK] Use Internet Explorer quirk for Google Docs
+        https://bugs.webkit.org/show_bug.cgi?id=219278
+
+        Reviewed by Carlos Garcia Campos.
+
+        * TestWebKitAPI/Tests/WebCore/UserAgentQuirks.cpp:
+        (TestWebKitAPI::assertUserAgentForURLHasChromeBrowserQuirk):
+        (TestWebKitAPI::assertUserAgentForURLHasFirefoxBrowserQuirk):
+        (TestWebKitAPI::assertUserAgentForURLHasInternetExplorerBrowserQuirk):
+        (TestWebKitAPI::assertUserAgentForURLHasWindowsPlatformQuirk):
+        (TestWebKitAPI::TEST):
+
+2020-11-21  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Implement SPI for AuthenticationServices.Framework
+        https://bugs.webkit.org/show_bug.cgi?id=218893
+        <rdar://problem/71364731>
+
+        Reviewed by Alex Christensen.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/_WKWebAuthenticationPanel.mm:
+        (TestWebKitAPI::TEST):
+        (): Deleted.
+
+2020-11-20  Kate Cheney  <katherine_cheney@apple.com>
+
+        PCM: Persist pending ad clicks and attributions so they can survive browser restart
+        https://bugs.webkit.org/show_bug.cgi?id=219134
+        <rdar://problem/70470129>
+
+        Reviewed by John Wilander.
+
+        Add support for testing of expired ad-clicks and attributions.
+        Update names after Private Click Measurement standards discussions.
+
+        * TestWebKitAPI/Tests/WebCore/PrivateClickMeasurement.cpp:
+        (TestWebKitAPI::TEST):
+        * WebKitTestRunner/InjectedBundle/Bindings/TestRunner.idl:
+        * WebKitTestRunner/InjectedBundle/TestRunner.cpp:
+        (WTR::TestRunner::markAttributedPrivateClickMeasurementsAsExpiredForTesting):
+        (WTR::TestRunner::simulateResourceLoadStatisticsSessionRestart):
+        * WebKitTestRunner/InjectedBundle/TestRunner.h:
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::markAttributedPrivateClickMeasurementsAsExpiredForTesting):
+        (WTR::TestController::simulateResourceLoadStatisticsSessionRestart):
+        * WebKitTestRunner/TestController.h:
+        * WebKitTestRunner/TestInvocation.cpp:
+        (WTR::TestInvocation::didReceiveSynchronousMessageFromInjectedBundle):
+
+2020-11-20  Geoffrey Garen  <ggaren@apple.com>
+
+        Use a Version 1 CFRunLoopSource for faster task dispatch
+        https://bugs.webkit.org/show_bug.cgi?id=202874
+
+        Reviewed by Simon Fraser.
+
+        Fixed a test incompatibiilty.
+
+        * TestWebKitAPI/cocoa/UtilitiesCocoa.mm:
+        (TestWebKitAPI::Util::spinRunLoop): Be sure to run the runloop until
+        it runs out of sources to handle.
+
+        The SuspendServiceWorkerProcessBasedOnClientProcesses test invokes
+        spinRunLoop while adding items to the runloop. Under those conditions,
+        whether a given source will fire or not in a single invocation of
+        CFRunLoopRunInMode is undefined behavior.
+
+2020-11-20  Don Olmstead  <don.olmstead@sony.com>
+
+        Remove quota module
+        https://bugs.webkit.org/show_bug.cgi?id=219206
+
+        Reviewed by Anders Carlsson.
+
+        Remove the option to ENABLE_QUOTA.
+
+        * Scripts/webkitperl/FeatureList.pm:
+
+2020-11-20  Frederic Wang  <fwang@igalia.com>
+
+        [GTK] Migrate WebKitTestServer to libsoup 2.48 API
+        https://bugs.webkit.org/show_bug.cgi?id=219160
+
+        Reviewed by Carlos Garcia Campos.
+
+        * TestWebKitAPI/glib/WebKitGLib/WebKitTestServer.cpp:
+        (WebKitTestServer::WebKitTestServer): SOUP_SERVER_INTERFACE and soup_server_get_port are
+        deprecated. The libsoup doc recommends to use soup_server_listen* and soup_server_get_uris
+        instead. Existing code uses 127.0.0.1 (https or http) which corresponds to calling
+        soup_server_listen_local with thIPV4_ONLY (and HTTPS or HTTP) option.
+
+2020-11-19  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        REGRESSION (r259151): The "Convert Text to Traditional Chinese" services menu action is broken
+        https://bugs.webkit.org/show_bug.cgi?id=219190
+        <rdar://problem/71438389>
+
+        Reviewed by Tim Horton.
+
+        Add an API test to exercise `-readSelectionFromPasteboard:`.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/PasteHTML.mm:
+        (TEST):
+
+2020-11-19  Hoa Dinh  <dvh@apple.com>
+
+        Code formatting: change instances of "@synthesize a=b" to "@synthesize a = b".
+        https://bugs.webkit.org/show_bug.cgi?id=219094
+
+        Reviewed by Wenson Hsieh.
+
+        There was a mix of "@synthesize a=b" and "@synthesize a = b" in the codebase.
+        Most of the instances are "@synthesize a = b", with spaces around the equal sign.
+        With https://bugs.webkit.org/show_bug.cgi?id=219092, we're changing the behavior of
+        the code style checker to require spaces around the equal sign.
+        The change replace all the instances of "@synthesize a=b" with "@synthesize a = b".
+
+        * DumpRenderTree/DumpRenderTreeFileDraggingSource.m:
+        * DumpRenderTree/mac/DumpRenderTreeDraggingInfo.mm:
+        * MiniBrowser/mac/BrowserWindowController.m:
+        * TestRunnerShared/cocoa/LayoutTestSpellChecker.mm:
+        * TestWebKitAPI/Tests/WebKit/mac/CustomBundleObject.mm:
+        * TestWebKitAPI/Tests/WebKitCocoa/IDBCheckpointWAL.mm:
+        * TestWebKitAPI/mac/DragAndDropSimulatorMac.mm:
+        * TestWebKitAPI/mac/TestDraggingInfo.mm:
+        * TestWebKitAPI/mac/TestFontOptions.mm:
+
+2020-11-19  Hoa Dinh  <dvh@apple.com>
+
+        check-webkit-style: requires spaces around the equal sign for Objective-C @synthesize.
+        https://bugs.webkit.org/show_bug.cgi?id=219092
+
+        Reviewed by Wenson Hsieh.
+
+        Teach the Objective-C style checker to prefer `@synthesize a = b` over `@synthesize a=b`. As a followup,
+        <webkit.org/b/219094> will apply this style rule in existing @synthesize statements in WebKit.
+
+        * Scripts/webkitpy/style/checkers/cpp.py:
+        (check_spacing):
+        * Scripts/webkitpy/style/checkers/cpp_unittest.py:
+        (CppStyleTest):
+
+2020-11-19  James Darpinian  <jdarpinian@chromium.org>
+
+        Improve update-angle script and move to Tools/Scripts
+        https://bugs.webkit.org/show_bug.cgi?id=218831
+
+        Reviewed by Kenneth Russell.
+
+        update-angle fetches changes from upstream ANGLE into Source/ThirdParty/ANGLE,
+        updates WebKit's build files and helps merge WebKit's local changes.
+
+         - Moved to Tools/Scripts so that it doesn't overwrite itself during the
+           update process.
+         - Reversed direction of rebase. Before the script rebased ANGLE on WebKit;
+           now it rebases WebKit's ANGLE changes on upstream ANGLE master. This
+           makes a lot more sense and results in fewer changes to rebase. This
+           requires the use of git-filter-repo to make the rebase not prohibitively
+           slow.
+         - Removed bash dependency.
+         - Fixed all issues identified by shellcheck.
+         - Fixed changes.diff to show added files, while filtering files added by
+           WebKit's build process.
+         - Fixed changes.diff to ignore whitespace changes.
+         - Added --regenerate-changes-diff option to update changes.diff in between
+           ANGLE updates.
+         - Updated [angle_]commit.h generation for upstream changes.
+         - Removed need to run the script multiple times during the rebase process.
+
+        * Scripts/update-angle: Added.
+
+2020-11-19  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitpy] Resolve baseline search path for Big Sur as default version
+        https://bugs.webkit.org/show_bug.cgi?id=219176
+        <rdar://problem/71597951>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/webkitpy/port/mac.py:
+        (MacPort.default_baseline_search_path):
+
+2020-11-19  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitscmpy] Support remote Subversion repository
+        https://bugs.webkit.org/show_bug.cgi?id=218827
+        <rdar://problem/71304485>
+
+        Rubber-stamped by Aakash Jain.
+
+        It is possible to interact with a Subversion repository without the svn command. This is useful
+        for services hosted in environments where installing binaries is burdensome, or in cases where
+        tools are running without a checkout.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Bump version, add dependencies.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/mocks/__init__.py:
+        * Scripts/libraries/webkitscmpy/webkitscmpy/mocks/remote: Added.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/mocks/remote/__init__.py: Added.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/mocks/remote/svn.py: Added.
+        (Svn): Interact with a remote Subversion repository without using the svn command.
+        (Svn.is_webserver): Check if the provided url matches the pattern for a Subversion server.
+        (Svn.__init__):
+        (Svn.is_svn):
+        (Svn._latest): Return the latest revision.
+        (Svn.info): Return the bits of the `svn info` command that are used in code.
+        (Svn.default_branch):
+        (Svn.list):
+        (Svn.branches): List all branches.
+        (Svn.tags): List all tags.
+        (Svn._cache_path): Return path to json cache.
+        (Svn._cache_lock): Filesystem lock used to prevent contention over the json cache, this
+        is particularly important during testing.
+        (Svn._cache_revisions): Cache the identifier/revision mapping.
+        (Svn._branch_for): Given a commit, determine which branch that commit is on.
+        (Svn._commit_count): Determine the amount of commits on a branch since branching.
+        (Svn.commit): Return a commit object given a revision, branch, identifier or tag.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/remote: Added.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/remote/__init__.py: Added.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/remote/scm.py: Added.
+        (Scm):
+        (Scm.from_url): Given a URL, attempt to determine what kind of remote API is available.
+        (Scm.__init__):
+        * Scripts/libraries/webkitscmpy/webkitscmpy/mocks/remote/svn.py: Added.
+        (Svn): Mock requests needed to interact with a remote Subversion repository.
+        (Svn.latest): Return the most recent commit on any branch.
+        (Svn.branches): Return branches at some revision.
+        (Svn.tags): Return tags at some revision.
+        (Svn.range): Give a start and end revision, along with a tag or branch,
+        return all commits in that range.
+        (Svn.request): Handle a small subset of requests to a Subversion server.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/svn_unittest.py:
+        (TestLocalSvn): Moved from TestSvn.
+        (TestRemoteSvn): Added.
+        (TestSvn): Moved to TestLocalSvn.
+
+2020-11-19  Per Arne Vollan  <pvollan@apple.com>
+
+        [macOS] Issue sandbox extension to Web Inspector service
+        https://bugs.webkit.org/show_bug.cgi?id=219041
+        <rdar://problem/71495287>
+
+        Reviewed by Brent Fulgham.
+
+        Allow MiniBrowser to read preferences from the domain com.apple.Safari.SandboxBroker.
+
+        * MiniBrowser/MiniBrowser.entitlements:
+
+2020-11-19  Alexey Proskuryakov  <ap@apple.com>
+
+        Make block-spammers autoinstall requests
+        https://bugs.webkit.org/show_bug.cgi?id=219137
+
+        Reviewed by Jonathan Bedard.
+
+        * Scripts/block-spammers: Move the webkitpy import first, making autoinstaller
+        is available for subsequent imports.
+
+2020-11-18  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Rename MetaCommandSwitchTo to MetaCommandSwitchToItemBuffer
+        https://bugs.webkit.org/show_bug.cgi?id=219130
+
+        Reviewed by Tim Horton.
+
+        * TestWebKitAPI/Tests/WebCore/DisplayListTests.cpp:
+        (TestWebKitAPI::TEST):
+
+2020-11-18  Jonathan Bedard  <jbedard@apple.com>
+
+        [webitscmpy] Branch point incorrect for Git checkouts
+        https://bugs.webkit.org/show_bug.cgi?id=219132
+        <rdar://problem/71561569>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/libraries/webkitscmpy/webkitscmpy/local/git.py:
+        (Git.commit): Banca-point is the distance from the primordial commit minus the distance from
+        the default branch.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/mocks/local/git.py:
+
+2020-11-18  Alexey Proskuryakov  <ap@apple.com>
+
+        Remove IRC bots from webkitpy
+        https://bugs.webkit.org/show_bug.cgi?id=219111
+
+        Reviewed by Jonathan Bedard and Aakash Jain.
+
+        We haven't been running any IRC bots for a while, this is dead code.
+
+        * Scripts/webkitpy/common/net/irc: Removed.
+        * Scripts/webkitpy/thirdparty/irc: Removed.
+        * Scripts/webkitpy/tool/bot/irc_command.py: Removed.
+        * Scripts/webkitpy/tool/bot/irc_command_unittest.py: Removed.
+        * Scripts/webkitpy/tool/bot/ircbot.py: Removed.
+        * Scripts/webkitpy/tool/bot/ircbot_unittest.py: Removed.
+        * Scripts/webkitpy/tool/bot/sheriff.py: Removed.
+        * Scripts/webkitpy/tool/bot/sheriff_unittest.py: Removed.
+        * Scripts/webkitpy/tool/commands/__init__.py:
+        * Scripts/webkitpy/tool/commands/newcommitbot.py: Removed.
+        * Scripts/webkitpy/tool/commands/newcommitbot_unittest.py: Removed.
+        * Scripts/webkitpy/tool/commands/perfalizer.py: Removed.
+        * Scripts/webkitpy/tool/commands/perfalizer_unittest.py: Removed.
+        * Scripts/webkitpy/tool/commands/sheriffbot.py: Removed.
+        * Scripts/webkitpy/tool/commands/sheriffbot_unittest.py: Removed.
+        * Scripts/webkitpy/tool/main.py:
+        (WebKitPatch):
+        (WebKitPatch.__init__):
+        (WebKitPatch.path):
+        (WebKitPatch.command_completed):
+        (WebKitPatch.handle_global_options):
+        (WebKitPatch.ensure_irc_connected): Deleted.
+        (WebKitPatch.irc): Deleted.
+        * Scripts/webkitpy/tool/mocktool.py:
+        (MockTool.__init__):
+        (MockTool.path):
+        (MockTool.ensure_irc_connected): Deleted.
+        (MockTool.irc): Deleted.
+
+2020-11-18  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [Concurrent display lists] Add a way for display lists to partially replay
+        https://bugs.webkit.org/show_bug.cgi?id=219067
+
+        Reviewed by Simon Fraser.
+
+        Add a test that exercises partial display list replay.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebCore/DisplayListTests.cpp:
+        (TestWebKitAPI::TEST):
+        * TestWebKitAPI/Tests/WebCore/cg/DisplayListTestsCG.cpp: Added.
+        (TestWebKitAPI::TEST):
+
+2020-11-17  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Improve Wasm binary test coverage
+        https://bugs.webkit.org/show_bug.cgi?id=204843
+
+        Reviewed by Darin Adler.
+
+        We add more tests for LEBDecoder. In particular, the added tests focus on the case which overflow bits.
+
+        * TestWebKitAPI/Tests/WTF/LEBDecoder.cpp:
+        (TestWebKitAPI::toString):
+        (TestWebKitAPI::testUInt32LEBDecode):
+        (TestWebKitAPI::TEST):
+        (TestWebKitAPI::testUInt64LEBDecode):
+        (TestWebKitAPI::testInt32LEBDecode):
+        (TestWebKitAPI::testInt64LEBDecode):
+
+2020-11-18  Aakash Jain  <aakash_jain@apple.com>
+
+        [ews] Add timeout to network requests
+        https://bugs.webkit.org/show_bug.cgi?id=218994
+
+        Reviewed by Jonathan Bedard.
+
+        * CISupport/ews-build/steps.py:
+        (BugzillaMixin.fetch_data_from_url_with_authentication): Added timeout to requests.get() call.
+        (BugzillaMixin.fetch_data_from_url): Ditto.
+        (ValidateCommiterAndReviewer.load_contributors_from_trac): Ditto.
+        (CheckPatchStatusOnEWSQueues.get_patch_status): Ditto.
+
+2020-11-18  Keith Rollin  <krollin@apple.com>
+
+        Extend check-for-inappropriate-files-in-framework to check for .tmp files
+        https://bugs.webkit.org/show_bug.cgi?id=219064
+        <rdar://problem/71519010>
+
+        Reviewed by Alexey Proskuryakov.
+
+        Some *.tmp files that were generated from post-processing header files
+        were appearing in *.framework/Headers directories. The problem doesn't
+        seem to be occurring any more, but update
+        check-for-inappropriate-files-in-framework to catch it if it does
+        again.
+
+        * Scripts/check-for-inappropriate-files-in-framework:
+
+2020-11-18  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitpy] Respect --result-report-flavor on device ports
+        https://bugs.webkit.org/show_bug.cgi?id=219112
+        <rdar://problem/71553965>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/webkitpy/port/device_port.py:
+        (DevicePort.configuration_for_upload): Add flavor to the configuration, if flag passed.
+
+2020-11-18  Matt Lewis  <jlewis3@apple.com>
+
+        Big Sur testers failing to download build products
+        https://bugs.webkit.org/show_bug.cgi?id=219095
+
+        Reviewed by Aakash Jain.
+
+        Fixing the url parsing to deal with special characters. Also
+        reworking the imports to help with transition to python3.
+        
+        * CISupport/download-built-product:
+        (main):
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        [iOS] beforeunload event does not fire in MobileSafari
+        https://bugs.webkit.org/show_bug.cgi?id=219102
+        <rdar://problem/70550655>
+
+        Reviewed by Geoff Garen.
+
+        Add API test coverage.
+
+        * TestWebKitAPI/Tests/WebKit/beforeunload.html:
+        * TestWebKitAPI/Tests/WebKitCocoa/ModalAlerts.mm:
+        (-[UIDelegateWithoutRunBeforeUnload webViewDidClose:]):
+        (-[BeforeUnloadMessageHandler userContentController:didReceiveScriptMessage:]):
+        (TEST):
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        navigator.clipboard is not exposed on *.localhost pages
+        https://bugs.webkit.org/show_bug.cgi?id=219020
+
+        Reviewed by Wenson Hsieh.
+
+        Extend API test coverage.
+
+        * TestWebKitAPI/Tests/WebCore/SecurityOrigin.cpp:
+        (TestWebKitAPI::TEST_F):
+
+2020-11-18  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Update RunPerlTests step for new buildbot
+        https://bugs.webkit.org/show_bug.cgi?id=219083
+
+        Reviewed by Jonathan Bedard.
+
+        * CISupport/build-webkit-org/steps.py:
+        (RunPerlTests):
+        (RunPerlTests.start): Initialized log observer.
+        (RunPerlTests.parseOutputLine): Parse each log line as they come.
+        (RunPerlTests.countFailures): Updated to return failedTestCount.
+
+2020-11-18  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Update RunPythonTests step for new buildbot
+        https://bugs.webkit.org/show_bug.cgi?id=219082
+
+        Reviewed by Jonathan Bedard.
+
+        * CISupport/build-webkit-org/steps.py:
+        (RunPythonTests):
+        (RunPythonTests.start): Initialized log observer.
+        (RunPythonTests.parseOutputLine): Parse each log line as they come.
+        (RunPythonTests.countFailures): Updated to return failedTestCount.
+
+2020-11-18  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        [WPE][GTK] Update Outlook user agent quirk
+        https://bugs.webkit.org/show_bug.cgi?id=219049
+
+        Reviewed by Carlos Garcia Campos.
+
+        * TestWebKitAPI/Tests/WebCore/UserAgentQuirks.cpp:
+        (TestWebKitAPI::TEST):
+
+2020-11-18  Carlos Alberto Lopez Perez  <clopez@igalia.com>
+
+        [FlatPak] update-webkitgtk-libs fails after a clean build
+        https://bugs.webkit.org/show_bug.cgi?id=218724
+
+        Reviewed by Philippe Normand.
+
+        The issue was caused because when adding a new flatpak repository
+        via the method FlatpakRepos.add() that repository is not added to
+        the internal list of available repositories inside the object FlatpakRepos.
+        So then the check on setup_builddir() added in r268542 failed because
+        the internal list of repositories on the object FlatpakRepos() was
+        empty on the first run (after a clean build).
+        To fix this we ensure to re-generate the internal list of flatpak
+        repositories any time that a new reporistory is added by calling
+        FlatpakRepos.update() after FlatpakRepos.add()
+
+        On top of that fix, we add another fix to make the code more robust.
+        Now it allows the generation of toolchains to fail without causing
+        a fatal error. Also a new check is added in order to retry to generate
+        the toolchains in the next run if is detected that they were not
+        correctly generated.
+
+        * flatpak/flatpakutils.py:
+        (FlatpakRepos.add):
+        (WebkitFlatpak.load_from_args):
+        (WebkitFlatpak.main):
+        (WebkitFlatpak.check_toolchains_generated):
+        (WebkitFlatpak.pack_toolchain):
+
+2020-11-17  Diego Pino Garcia  <dpino@igalia.com>
+
+        [buildbot] Add buildAndTest bot for WebKitGTK (GTK4)
+        https://bugs.webkit.org/show_bug.cgi?id=213016
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Add a new post-commit bot to test WebKitGTK using GTK4 library.
+
+        The bot builds WebKitGTK and runs the following test suites: layout-test, api-test
+        and webdriver-test.
+
+        * CISupport/build-webkit-org/config.json:
+        * CISupport/build-webkit-org/factories.py:
+        (BuildAndTestAllButJSCFactory):
+        (BuildAndTestAllButJSCFactory.getProduct):
+        (BuildAndTestAllButJSCFactory.__init__):
+        * CISupport/build-webkit-org/steps_unittest.py:
+
+2020-11-17  Matt Lewis  <jlewis3@apple.com>
+
+        Big Sur testers fail to find proper archives due to architecture keys.
+        https://bugs.webkit.org/show_bug.cgi?id=219039
+
+        Reviewed by Aakash Jain.
+
+        * CISupport/build-webkit-org/config.json:
+
+2020-11-17  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitcorepy] Support mocking request network calls.
+        https://bugs.webkit.org/show_bug.cgi?id=218927
+        <rdar://problem/71389720>
+
+        Rubber-stamped by Aakash Jain.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Bump version.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/mocks/__init__.py:
+        * Scripts/libraries/webkitcorepy/webkitcorepy/mocks/requests.py: Moved to requests_.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/mocks/requests_.py: Copied from Tools/Scripts/libraries/webkitcorepy/webkitcorepy/mocks/requests.py.
+        (Response): Object mimicking the structure of Requests's response object, useful for mocking.
+        (Requests): Context manager which will intercept http and https requests to a specific host.
+        (Requests.__exit__):
+        * Scripts/libraries/webkitcorepy/webkitcorepy/tests/mocks/requests_unittest.py: Added.
+        (MockRequests):
+        (MockRequests.test_basic):
+        (MockRequests.test_fallback):
+
+2020-11-17  Aakash Jain  <aakash_jain@apple.com>
+
+        [build.webkit.org] Update ExtractTestResults step for new buildbot (follow-up fix)
+        https://bugs.webkit.org/show_bug.cgi?id=218759
+        <rdar://problem/71246754>
+
+        Unreviewed minor follow-up fix.
+
+        * CISupport/build-webkit-org/steps.py:
+        (ExtractTestResults):
+
+2020-11-16  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitscmpy] Generalize parts of local.Scm class
+        https://bugs.webkit.org/show_bug.cgi?id=218935
+        <rdar://problem/71395688>
+
+        Rubber-stamped by Aakash Jain.
+
+        * Scripts/libraries/webkitscmpy/webkitscmpy/__init__.py: Bump version.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/local/scm.py:
+        (Scm):
+        (Scm.Exception): Moved to ScmBase.
+        (Scm.__init__): Move branches logic to ScmBase.
+        (Scm.is_svn): Moved to ScmBase.
+        (Scm.is_git): Ditto.
+        (Scm.default_branch): Ditto.
+        (Scm.branches): Ditto.
+        (Scm.tags): Ditto.
+        (Scm.find): Ditto.
+        (Scm.commit): Ditto.
+        (Scm.prioritize_branches): Ditto.
+        (Scm.log): Ditto.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/local/svn.py:
+        (Svn.commit): Passing branch to self.info is redundant.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/mocks/__init__.py:
+        * Scripts/libraries/webkitscmpy/webkitscmpy/scm_base.py: Added.
+        (ScmBase): Base class for all local and remote Scm objects.
+        (ScmBase.Exception): Moved from local.Scm.
+        (ScmBase.__init__): Ditto.
+        (ScmBase.is_svn): Ditto.
+        (ScmBase.is_git): Ditto.
+        (ScmBase.default_branch): Ditto.
+        (ScmBase.branches): Ditto.
+        (ScmBase.tags): Ditto.
+        (ScmBase.commit): Ditto.
+        (ScmBase.prioritize_branches): Ditto.
+        (ScmBase.find): Ditto.
+        (ScmBase.log): Ditto.
+        * Scripts/libraries/webkitscmpy/webkitscmpy/test/svn_unittest.py:
+
+2020-11-16  Ling Ho  <lingho@apple.com>
+
+        Updated contributors.json to remove inactive committers and reviewers.
+        Removed irc user "Adam Barth" from IRCCommand in webkitpy unittest. 
+        https://bugs.webkit.org/show_bug.cgi?id=219006
+
+        Reviewed by Alexey Proskuryakov.
+
+        * Scripts/webkitpy/tool/bot/irc_command_unittest.py:
+        (IRCCommandTest.test_whois):
+
+2020-11-16  John Wilander  <wilander@apple.com>
+
+        PCM: Change attribute and JSON key names according to the W3C conversation
+        https://bugs.webkit.org/show_bug.cgi?id=218967
+
+        Reviewed by Brent Fulgham.
+
+        We've discussed extensively with Google and others on naming for the link
+        attributes and JSON key names in these issues:
+        https://github.com/privacycg/private-click-measurement/issues/30
+        https://github.com/privacycg/private-click-measurement/issues/56
+
+        This patch changes PCM accordingly.
+
+        * TestWebKitAPI/Tests/WebCore/PrivateClickMeasurement.cpp:
+        (TestWebKitAPI::TEST):
+
 2020-11-16  Matt Lewis  <jlewis3@apple.com>
 
         Bring up Big Sur Builders and Testers

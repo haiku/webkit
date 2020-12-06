@@ -118,10 +118,10 @@ bool RemoteRenderingBackendProxy::waitForImageBufferBackendWasCreated()
     return connection->waitForAndDispatchImmediately<Messages::RemoteRenderingBackendProxy::ImageBufferBackendWasCreated>(m_renderingBackendIdentifier, 1_s, IPC::WaitForOption::InterruptWaitingIfSyncMessageArrives);
 }
 
-bool RemoteRenderingBackendProxy::waitForFlushDisplayListWasCommitted()
+bool RemoteRenderingBackendProxy::waitForDidFlush()
 {
     Ref<IPC::Connection> connection = WebProcess::singleton().ensureGPUProcessConnection().connection();
-    return connection->waitForAndDispatchImmediately<Messages::RemoteRenderingBackendProxy::FlushDisplayListWasCommitted>(m_renderingBackendIdentifier, 1_s, IPC::WaitForOption::InterruptWaitingIfSyncMessageArrives);
+    return connection->waitForAndDispatchImmediately<Messages::RemoteRenderingBackendProxy::DidFlush>(m_renderingBackendIdentifier, 1_s, IPC::WaitForOption::InterruptWaitingIfSyncMessageArrives);
 }
 
 RefPtr<ImageBuffer> RemoteRenderingBackendProxy::createImageBuffer(const FloatSize& size, RenderingMode renderingMode, float resolutionScale, ColorSpace colorSpace, PixelFormat pixelFormat)
@@ -158,7 +158,7 @@ void RemoteRenderingBackendProxy::submitDisplayList(const DisplayList::DisplayLi
         m_identifiersOfHandlesAvailableForWriting.add(handle.identifier);
 
         auto* sharedHandle = m_sharedDisplayListHandles.get(handle.identifier);
-        RELEASE_ASSERT_WITH_MESSAGE(sharedHandle, "%s failed to find shared display list", __PRETTY_FUNCTION__);
+        RELEASE_ASSERT_WITH_MESSAGE(sharedHandle, "%s failed to find shared display list", WTF_PRETTY_FUNCTION);
 
         bool unreadCountWasEmpty = sharedHandle->advance(handle.capacity) == handle.capacity;
         if (isFirstHandle && unreadCountWasEmpty)
@@ -195,16 +195,16 @@ void RemoteRenderingBackendProxy::imageBufferBackendWasCreated(const FloatSize& 
         downcast<UnacceleratedRemoteImageBufferProxy>(*imageBuffer).createBackend(logicalSize, backendSize, resolutionScale, colorSpace, pixelFormat, WTFMove(handle));
 }
 
-void RemoteRenderingBackendProxy::flushDisplayListWasCommitted(DisplayList::FlushIdentifier flushIdentifier, RenderingResourceIdentifier renderingResourceIdentifier)
+void RemoteRenderingBackendProxy::didFlush(DisplayList::FlushIdentifier flushIdentifier, RenderingResourceIdentifier renderingResourceIdentifier)
 {
     auto imageBuffer = m_remoteResourceCacheProxy.cachedImageBuffer(renderingResourceIdentifier);
     if (!imageBuffer)
         return;
 
     if (imageBuffer->isAccelerated())
-        downcast<AcceleratedRemoteImageBufferProxy>(*imageBuffer).commitFlushDisplayList(flushIdentifier);
+        downcast<AcceleratedRemoteImageBufferProxy>(*imageBuffer).didFlush(flushIdentifier);
     else
-        downcast<UnacceleratedRemoteImageBufferProxy>(*imageBuffer).commitFlushDisplayList(flushIdentifier);
+        downcast<UnacceleratedRemoteImageBufferProxy>(*imageBuffer).didFlush(flushIdentifier);
 }
 
 void RemoteRenderingBackendProxy::updateReusableHandles()
@@ -228,7 +228,7 @@ DisplayList::ItemBufferHandle RemoteRenderingBackendProxy::createItemBuffer(size
     while (!m_identifiersOfReusableHandles.isEmpty()) {
         auto identifier = m_identifiersOfReusableHandles.first();
         auto* reusableHandle = m_sharedDisplayListHandles.get(identifier);
-        RELEASE_ASSERT_WITH_MESSAGE(reusableHandle, "%s failed to find shared display list", __PRETTY_FUNCTION__);
+        RELEASE_ASSERT_WITH_MESSAGE(reusableHandle, "%s failed to find shared display list", WTF_PRETTY_FUNCTION);
 
         if (m_identifiersOfHandlesAvailableForWriting.contains(identifier) && reusableHandle->availableCapacity() >= capacity) {
             m_identifiersOfHandlesAvailableForWriting.remove(identifier);
@@ -239,8 +239,9 @@ DisplayList::ItemBufferHandle RemoteRenderingBackendProxy::createItemBuffer(size
     }
 
     static constexpr size_t defaultSharedItemBufferSize = 1 << 16;
+    static_assert(defaultSharedItemBufferSize > SharedDisplayListHandle::headerSize());
 
-    auto sharedMemory = SharedMemory::allocate(std::max(defaultSharedItemBufferSize, capacity + SharedDisplayListHandle::reservedCapacityAtStart));
+    auto sharedMemory = SharedMemory::allocate(std::max(defaultSharedItemBufferSize, capacity + SharedDisplayListHandle::headerSize()));
     if (!sharedMemory)
         return { };
 

@@ -46,46 +46,49 @@ Replayer::Replayer(GraphicsContext& context, const DisplayList& displayList, con
 Replayer::~Replayer() = default;
 
 template<class T>
-inline static bool applyImageBufferItem(GraphicsContext& context, const ImageBufferHashMap& imageBuffers, ItemHandle item)
+inline static Optional<StopReplayReason> applyImageBufferItem(GraphicsContext& context, const ImageBufferHashMap& imageBuffers, ItemHandle item)
 {
-    if (!item.is<T>())
-        return false;
     auto& imageBufferItem = item.get<T>();
-    if (auto* imageBuffer = imageBuffers.get(imageBufferItem.imageBufferIdentifier()))
+    if (auto* imageBuffer = imageBuffers.get(imageBufferItem.imageBufferIdentifier())) {
         imageBufferItem.apply(context, *imageBuffer);
-    return true;
+        return WTF::nullopt;
+    }
+    return StopReplayReason::MissingCachedResource;
 }
 
 template<class T>
-inline static bool applyNativeImageItem(GraphicsContext& context, const NativeImageHashMap& nativeImages, ItemHandle item)
+inline static Optional<StopReplayReason> applyNativeImageItem(GraphicsContext& context, const NativeImageHashMap& nativeImages, ItemHandle item)
 {
-    if (!item.is<T>())
-        return false;
     auto& nativeImageItem = item.get<T>();
-    if (auto* image = nativeImages.get(nativeImageItem.imageIdentifier()))
+    if (auto* image = nativeImages.get(nativeImageItem.imageIdentifier())) {
         nativeImageItem.apply(context, *image);
-    return true;
+        return WTF::nullopt;
+    }
+    return StopReplayReason::MissingCachedResource;
 }
 
-void Replayer::applyItem(ItemHandle item)
+Optional<StopReplayReason> Replayer::applyItem(ItemHandle item)
 {
     if (m_delegate && m_delegate->apply(item, m_context))
-        return;
+        return WTF::nullopt;
 
-    if (applyImageBufferItem<DrawImageBuffer>(m_context, m_imageBuffers, item))
-        return;
-    if (applyImageBufferItem<ClipToImageBuffer>(m_context, m_imageBuffers, item))
-        return;
+    if (item.is<DrawImageBuffer>())
+        return applyImageBufferItem<DrawImageBuffer>(m_context, m_imageBuffers, item);
 
-    if (applyNativeImageItem<DrawNativeImage>(m_context, m_nativeImages, item))
-        return;
-    if (applyNativeImageItem<DrawPattern>(m_context, m_nativeImages, item))
-        return;
+    if (item.is<ClipToImageBuffer>())
+        return applyImageBufferItem<ClipToImageBuffer>(m_context, m_imageBuffers, item);
+
+    if (item.is<DrawNativeImage>())
+        return applyNativeImageItem<DrawNativeImage>(m_context, m_nativeImages, item);
+
+    if (item.is<DrawPattern>())
+        return applyNativeImageItem<DrawPattern>(m_context, m_nativeImages, item);
 
     item.apply(m_context);
+    return WTF::nullopt;
 }
 
-std::unique_ptr<DisplayList> Replayer::replay(const FloatRect& initialClip, bool trackReplayList)
+ReplayResult Replayer::replay(const FloatRect& initialClip, bool trackReplayList)
 {
     LOG_WITH_STREAM(DisplayLists, stream << "\nReplaying with clip " << initialClip);
     UNUSED_PARAM(initialClip);
@@ -97,14 +100,35 @@ std::unique_ptr<DisplayList> Replayer::replay(const FloatRect& initialClip, bool
 #if !LOG_DISABLED
     size_t i = 0;
 #endif
-    for (auto [item, extent] : m_displayList) {
+    ReplayResult result;
+    for (auto [item, extent, itemSizeInBuffer] : m_displayList) {
         if (!initialClip.isZero() && extent && !extent->intersects(initialClip)) {
             LOG_WITH_STREAM(DisplayLists, stream << "skipping " << i++ << " " << item);
+            result.numberOfBytesRead += itemSizeInBuffer;
             continue;
         }
 
         LOG_WITH_STREAM(DisplayLists, stream << "applying " << i++ << " " << item);
-        applyItem(item);
+
+        if (item.is<MetaCommandChangeDestinationImageBuffer>()) {
+            result.numberOfBytesRead += itemSizeInBuffer;
+            result.reasonForStopping = StopReplayReason::ChangeDestinationImageBuffer;
+            result.nextDestinationImageBuffer = item.get<MetaCommandChangeDestinationImageBuffer>().identifier();
+            break;
+        }
+
+        if (item.is<MetaCommandEnd>()) {
+            result.numberOfBytesRead += itemSizeInBuffer;
+            result.reasonForStopping = StopReplayReason::EndOfDisplayList;
+            break;
+        }
+
+        if (auto reasonForStopping = applyItem(item)) {
+            result.reasonForStopping = *reasonForStopping;
+            break;
+        }
+
+        result.numberOfBytesRead += itemSizeInBuffer;
 
         if (UNLIKELY(trackReplayList)) {
             replayList->append(item);
@@ -113,7 +137,8 @@ std::unique_ptr<DisplayList> Replayer::replay(const FloatRect& initialClip, bool
         }
     }
 
-    return replayList;
+    result.trackedDisplayList = WTFMove(replayList);
+    return result;
 }
 
 } // namespace DisplayList

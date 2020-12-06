@@ -1,3 +1,1397 @@
+2020-11-30  Sergey Rubanov  <chi187@gmail.com>
+
+        Add support for the Wasm i64 sign-extension-ops proposal
+        https://bugs.webkit.org/show_bug.cgi?id=218990
+
+        Reviewed by Yusuke Suzuki.
+
+        * workers/wasm-references/test.js:
+
+2020-11-30  Truitt Savell  <tsavell@apple.com>
+
+        REGRESSION: imported/w3c/web-platform-tests/streams/transform-streams/terminate.any.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=219366
+
+        unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
+2020-11-30  James Darpinian  <jdarpinian@chromium.org>
+
+        Support KHR_parallel_shader_compile
+        https://bugs.webkit.org/show_bug.cgi?id=219266
+
+        Reviewed by Kenneth Russell.
+
+        * webgl/conformance/extensions/khr-parallel-shader-compile-expected.txt: Added.
+        * webgl/conformance/extensions/khr-parallel-shader-compile.html: Added.
+        * webgl/resources/webgl_test_files/conformance/extensions/khr-parallel-shader-compile.html: Added.
+
+2020-11-30  Youenn Fablet  <youenn@apple.com>
+
+        Introduce an experimental flag specific to VP9 profile 2
+        https://bugs.webkit.org/show_bug.cgi?id=219350
+
+        Reviewed by Eric Carlson.
+
+        * webrtc/vp9-expected.txt:
+        * webrtc/vp9-vtb.html:
+        * webrtc/vp9.html:
+
+2020-11-30  Youenn Fablet  <youenn@apple.com>
+
+        Missing WebRTC Metrics in iOS 14 Beta 5
+        https://bugs.webkit.org/show_bug.cgi?id=215678
+        <rdar://problem/67625414>
+
+        Reviewed by Eric Carlson.
+
+        * webrtc/video-stats.html:
+
+2020-11-30  Youenn Fablet  <youenn@apple.com>
+
+        Update WPT WebRTC tests
+        https://bugs.webkit.org/show_bug.cgi?id=219272
+
+        Reviewed by Eric Carlson.
+
+        Mark a new test as flaky in iOS simulator.
+
+        * platform/ios-simulator-wk2/TestExpectations:
+        * tests-options.json:
+
+2020-11-30  Tyler Wilcock  <twilco.o@protonmail.com>
+
+        getComputedStyle rounds lineHeight to nearest pixel
+        https://bugs.webkit.org/show_bug.cgi?id=216601
+
+        Reviewed by Simon Fraser.
+
+        Add test ensuring serialization of `line-height` from
+        `getComputedStyle` is represented fractionally (when appropriate).
+        Prior to this patch, `line-height` serialization was always an integer value.
+
+        The `line-height-rounding.html` test has been removed, as it expected
+        `line-height` to serialize as an integer, which seems wrong
+        considering the used value for `line-height` can be a `<number>`
+        (which is fractional).  Gecko and Chromium allow fractional
+        `line-height`s to be returned from `getComputedStyle`, further
+        confirming this.
+
+        https://drafts.csswg.org/css2/#propdef-line-height
+
+        * fast/css/line-height-get-computed-style-expected.txt: Added.
+        * fast/css/line-height-get-computed-style.html: Added.
+        * fast/css/line-height-rounding-expected.txt: Removed.
+        * fast/css/line-height-rounding.html: Removed.
+
+2020-11-30  Lauro Moura  <lmoura@igalia.com>
+
+        [GLIB] Properly garden webrtc crashes
+
+        Unreviewed test gardening.
+
+        * platform/gtk-wayland/TestExpectations: Move wayland-specific issue here
+        * platform/gtk/TestExpectations: Updated already existing expectations
+        * platform/wpe/TestExpectations: Remove undeed pass entries from previous
+          unimplemented-like bugs that are already fixed. These entries were
+          overriding the generic glib entries.
+
+2020-11-30  Sergio Villar Senin  <svillar@igalia.com>
+
+        [css-flex] Import flex-aspect-ratio-img-* tests
+        https://bugs.webkit.org/show_bug.cgi?id=219344
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        As part of the work to fix the images with aspect ratio handling when they're flex items, we're importing the latest
+        additions to the WPT test suite related to that. A few of them work as expected but others require fixes. Note that
+        one of the tests also updated their expectations and it's now failing now 2 subtests.
+
+        * TestExpectations: Added tests that are not working as expected.
+
+2020-11-30  Youenn Fablet  <youenn@apple.com>
+
+        REGRESSION: [ Mac wk2 ] webrtc/captureCanvas-webrtc-software-h264-baseline.html is flaky failing
+        https://bugs.webkit.org/show_bug.cgi?id=218875
+        <rdar://problem/71349101>
+
+        Unreviewed.
+
+        * platform/mac-wk2/TestExpectations:
+        Remove flaky expectation.
+
+2020-11-29  Lauro Moura  <lmoura@igalia.com>
+
+        [GTK] Gardening WebGL failures
+
+        Unreviewed test gardening
+
+        * platform/gtk/TestExpectations:
+
+2020-11-29  Lauro Moura  <lmoura@igalia.com>
+
+        [GLIB] Gardening webrtc crashes
+
+        Unreviewed test gardening.
+
+        * platform/glib/TestExpectations:
+
+2020-11-29  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][Display] Enable LFC tests that are passing now
+        https://bugs.webkit.org/show_bug.cgi?id=219337
+
+        Unreviewed.
+
+        * TestExpectations:
+        * platform/mac-wk1/TestExpectations:
+        * platform/mac-wk2/TestExpectations:
+
+2020-11-29  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][BFC] Do not assume float avoiders have pre-computed vertical positions
+        https://bugs.webkit.org/show_bug.cgi?id=219326
+
+        Reviewed by Antti Koivisto.
+
+        * fast/layoutformattingcontext/block-only/child-containing-block-margin-collapse-when-float-avoiders-expected.html: Added.
+        * fast/layoutformattingcontext/block-only/child-containing-block-margin-collapse-when-float-avoiders.html: Added.
+
+2020-11-22  Diego Pino Garcia  <dpino@igalia.com>
+
+        [WPE] Unreviewed test gardening. Remove unnecessary passes after r270017.
+
+        * platform/wpe/TestExpectations:
+
+2020-11-27  Simon Fraser  <simon.fraser@apple.com>
+
+        [LFC Display] Fix box locations for positioned elements
+        https://bugs.webkit.org/show_bug.cgi?id=219310
+
+        Reviewed by Zalan Bujtas.
+
+        Two table tests are now image failures because of webkit.org/b/219322.
+
+        * TestExpectations:
+
+2020-11-27  Aditya Keerthi  <akeerthi@apple.com>
+
+        [iOS][FCR] Add new look for meter element
+        https://bugs.webkit.org/show_bug.cgi?id=219103
+        <rdar://problem/71549155>
+
+        Reviewed by Wenson Hsieh.
+
+        Added tests to verify the stylability of native meters and to
+        verify that different states are painted with a different appearance.
+
+        * fast/forms/ios/form-control-refresh/meter/border-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/meter/border.html: Added.
+        * fast/forms/ios/form-control-refresh/meter/even-less-good-appearance-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/meter/even-less-good-appearance.html: Added.
+        * fast/forms/ios/form-control-refresh/meter/optimal-appearance-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/meter/optimal-appearance.html: Added.
+        * fast/forms/ios/form-control-refresh/meter/suboptimal-appearance-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/meter/suboptimal-appearance.html: Added.
+        * fast/forms/ios/form-control-refresh/meter/width-height-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/meter/width-height.html: Added.
+
+2020-11-27  Víctor Manuel Jáquez Leal  <vjaquez@igalia.com>
+
+        REGRESSION(r269642) [GStreamer][WebRTC] Unexpected results after update to M87
+        https://bugs.webkit.org/show_bug.cgi?id=218787
+
+        Reviewed by Philippe Normand.
+
+        Update expectations with fixed tests.
+        Also fixed a typo.
+
+        * platform/glib/TestExpectations:
+        * platform/gtk/TestExpectations:
+
+2020-11-27  Philippe Normand  <pnormand@igalia.com>
+
+        Unreviewed, GLib webaudio gardening
+
+        * platform/glib/TestExpectations: webaudio/AudioParam/audioparam-processing.html
+        consistently passing since r270139.
+
+2020-11-27  Youenn Fablet  <youenn@apple.com>
+
+        [WebRTC] webrtc/audio-sframe.html is flaky crashing since added in r269830
+        https://bugs.webkit.org/show_bug.cgi?id=219066
+        <rdar://problem/71747778>
+
+        Unreviewed.
+
+        webrtc/audio-sframe.html is no longer crashing after revision 270107.
+        Update test expectations accordingly.
+
+        * platform/glib/TestExpectations:
+        * platform/ios-simulator-wk2/TestExpectations:
+        * platform/mac/TestExpectations:
+
+2020-11-26  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WinCairo] Unreviewed test gardening
+
+        * platform/wincairo/TestExpectations:
+        * platform/wincairo/css1/formatting_model/height_of_lines-expected.txt:
+        * platform/wincairo/css1/text_properties/vertical_align-expected.txt:
+        * platform/wincairo/css2.1/20110323/replaced-intrinsic-ratio-001-expected.txt:
+        * platform/wincairo/editing/input/caret-at-the-edge-of-contenteditable-expected.txt:
+        * platform/wincairo/editing/input/reveal-caret-of-multiline-input-expected.txt:
+        * platform/wincairo/editing/inserting/paragraph-separator-in-table-1-expected.txt:
+        * platform/wincairo/fast/css/named-images-expected.txt:
+        * platform/wincairo/fast/css/text-overflow-input-expected.txt:
+        * platform/wincairo/fast/dom/HTMLMeterElement/meter-element-expected.txt:
+        * platform/wincairo/fast/dom/HTMLMeterElement/meter-element-repaint-on-update-value-expected.txt:
+        * platform/wincairo/fast/dom/HTMLMeterElement/meter-styles-changing-pseudo-expected.txt:
+        * platform/wincairo/fast/dom/HTMLMeterElement/meter-styles-expected.txt:
+        * platform/wincairo/fast/dom/HTMLProgressElement/indeterminate-progress-001-expected.txt:
+        * platform/wincairo/fast/dom/HTMLProgressElement/native-progress-bar-expected.txt:
+        * platform/wincairo/fast/dom/HTMLProgressElement/progress-bar-value-pseudo-element-expected.txt:
+        * platform/wincairo/fast/dom/HTMLProgressElement/progress-element-expected.txt:
+        * platform/wincairo/fast/dom/HTMLTextAreaElement/reset-textarea-expected.txt:
+        * platform/wincairo/fast/text/basic/generic-family-reset-expected.txt:
+        * platform/wincairo/fast/text/hyphenate-limit-before-after-expected.txt:
+        * platform/wincairo/fast/text/international/bidi-LDB-2-CSS-expected.txt:
+        * platform/wincairo/fast/text/international/bidi-LDB-2-HTML-expected.txt:
+        * platform/wincairo/fast/text/international/bidi-LDB-2-formatting-characters-expected.txt:
+
+2020-11-26  Youenn Fablet  <youenn@apple.com>
+
+        https://collab-project.github.io/videojs-record/demo/video-only.html is not working
+        https://bugs.webkit.org/show_bug.cgi?id=219258
+        <rdar://problem/69759808>
+
+        Reviewed by Eric Carlson.
+
+        * http/wpt/mediarecorder/set-srcObject-MediaStream-Blob-expected.txt: Added.
+        * http/wpt/mediarecorder/set-srcObject-MediaStream-Blob.html: Added.
+
+2020-11-22  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GLIB][GTK] Unreviewed test gardening. Updated expectations and baselines after 270164.
+
+        * platform/glib/TestExpectations:
+        * platform/gtk/TestExpectations:
+        * platform/gtk/editing/selection/simple-line-layout-caret-is-gone-expected.txt: Added.
+        * platform/gtk/imported/w3c/web-platform-tests/html/dom/idlharness.https-expected.txt: Updated after r270103.
+        * platform/gtk/imported/w3c/web-platform-tests/html/dom/idlharness.worker-expected.txt: Updated after r270103.
+
+2020-11-22  Philippe Normand  <pnormand@igalia.com>
+
+        Unreviewed GLib gardening
+
+        Skip WebSpeech-related tests on GTK and WPE because these ports
+        don't support WebSpeech yet.
+
+        * platform/glib/TestExpectations:
+        * platform/gtk/TestExpectations:
+        * platform/wpe/TestExpectations:
+
+2020-11-22  Lauro Moura  <lmoura@igalia.com>
+
+        [GStreamer] Gardening webspeech related crash
+
+        Unreviewed test gardening.
+
+        * platform/glib/TestExpectations:
+
+2020-11-22  Rob Buis  <rbuis@igalia.com>
+
+        Fix getIndexedParameter indexing crash
+        https://bugs.webkit.org/show_bug.cgi?id=218601
+
+        Reviewed by Ryosuke Niwa.
+
+        Add testcase.
+
+        * fast/canvas/webgl/getIndexedParameter-crash-expected.txt: Added.
+        * fast/canvas/webgl/getIndexedParameter-crash.html: Added.
+
+2020-11-21  Sihui Liu  <sihui_liu@apple.com>
+
+        Implement audio capture for SpeechRecognition on macOS
+        https://bugs.webkit.org/show_bug.cgi?id=218855
+        <rdar://problem/71331001>
+
+        Reviewed by Youenn Fablet.
+
+        * TestExpectations:
+        * fast/speechrecognition/start-recognition-in-removed-iframe.html: mark test as async to avoid flakiness.
+        * fast/speechrecognition/start-recognition-then-stop-expected.txt: Added.
+        * fast/speechrecognition/start-recognition-then-stop.html: Added.
+        * fast/speechrecognition/start-second-recognition-expected.txt: Added.
+        * fast/speechrecognition/start-second-recognition.html: Added.
+        * platform/wk2/TestExpectations:
+
+2020-11-21  Chris Dumez  <cdumez@apple.com>
+
+        Poor resampling quality when using AudioContext sampleRate parameter
+        https://bugs.webkit.org/show_bug.cgi?id=219201
+
+        Reviewed by Geoff Garen.
+
+        Add layout test coverage that would hit assertions in debug.
+
+        * webaudio/audiocontext-large-samplerate-expected.txt: Added.
+        * webaudio/audiocontext-large-samplerate.html: Added.
+        * webaudio/audiocontext-low-samplerate-expected.txt: Added.
+        * webaudio/audiocontext-low-samplerate.html: Added.
+
+2020-11-21  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, reverting r270141.
+
+        Caused assertions on bots
+
+        Reverted changeset:
+
+        "Poor resampling quality when using AudioContext sampleRate
+        parameter"
+        https://bugs.webkit.org/show_bug.cgi?id=219201
+        https://trac.webkit.org/changeset/270141
+
+2020-11-21  Antti Koivisto  <antti@apple.com>
+
+        [LFC][Integration] Remove ensureLineBoxes call from RenderedPosition constructor
+        https://bugs.webkit.org/show_bug.cgi?id=219164
+
+        Reviewed by Zalan Bujtas.
+
+        * accessibility/mac/attachment-element-replacement-character-expected.txt:
+        * platform/ios/fast/text/whitespace/pre-wrap-overflow-selection-expected.txt:
+
+2020-11-21  Brian Burg  <bburg@apple.com>
+
+        Web Inspector: implement Multimap.prototype.take()
+        https://bugs.webkit.org/show_bug.cgi?id=219231
+
+        Reviewed by Devin Rousso.
+
+        * inspector/unit-tests/multimap-expected.txt:
+        * inspector/unit-tests/multimap.html:
+        * inspector/unit-tests/set-utilities.html:
+
+2020-11-21  Aditya Keerthi  <akeerthi@apple.com>
+
+        Space between minute and meridiem fields in time inputs is too large
+        https://bugs.webkit.org/show_bug.cgi?id=219217
+        <rdar://problem/71637133>
+
+        Reviewed by Devin Rousso.
+
+        Rebaselined tests to match new appearance.
+
+        * platform/mac-catalina/fast/forms/time/time-input-rendering-basic-expected.txt:
+        * platform/mac-mojave/fast/forms/time/time-input-rendering-basic-expected.txt:
+        * platform/mac-wk2/fast/forms/time/time-input-rendering-basic-expected.txt:
+
+2020-11-20  Chris Dumez  <cdumez@apple.com>
+
+        Poor resampling quality when using AudioContext sampleRate parameter
+        https://bugs.webkit.org/show_bug.cgi?id=219201
+
+        Reviewed by Geoff Garen.
+
+        Add layout test coverage that would hit assertions in debug.
+
+        * webaudio/audiocontext-large-samplerate-expected.txt: Added.
+        * webaudio/audiocontext-large-samplerate.html: Added.
+        * webaudio/audiocontext-low-samplerate-expected.txt: Added.
+        * webaudio/audiocontext-low-samplerate.html: Added.
+
+2020-11-20  Chris Dumez  <cdumez@apple.com>
+
+        (r267253) [ Mac ] webaudio/AudioParam/audioparam-processing.html is flaky failing
+        https://bugs.webkit.org/show_bug.cgi?id=219228
+        <rdar://problem/71643007>
+
+        Reviewed by Geoffrey Garen.
+
+        The test was running subtests in parallel using Promise.all(), causing the output
+        lines to sometimes be out of order. We now enforce the ordering of the subtests
+        to make sure that the output is consistent.
+
+        * webaudio/AudioParam/audioparam-processing.html:
+
+2020-11-20  Alex Christensen  <achristensen@webkit.org>
+
+        Silence ApplicationCache related errors when running http/tests/inspector/network/x-frame-options.html
+        https://bugs.webkit.org/show_bug.cgi?id=218830
+
+        * http/tests/inspector/network/x-frame-options.html:
+        This makes the test output deterministic, even after trying to message a frame that has been destroyed.
+        The actual fix was the revision referred to in the bugzilla, but this was needed to make the test not print out mostly-unrelated errors.
+
+2020-11-20  Kate Cheney  <katherine_cheney@apple.com>
+
+        PCM: Persist pending ad clicks and attributions so they can survive browser restart
+        https://bugs.webkit.org/show_bug.cgi?id=219134
+        <rdar://problem/70470129>
+
+        Reviewed by John Wilander.
+        
+        Added layout test coverage. Removed 'Conversion request sent:'
+        category in the toString() method because it will always be false.
+        Sent conversions are purged from the database, so it is not a useful
+        piece of information to report. Updated naming based on standards
+        coversations.
+
+        * http/tests/privateClickMeasurement/attribution-conversion-through-cross-site-image-redirect-expected.txt:
+        * http/tests/privateClickMeasurement/attribution-conversion-through-cross-site-image-redirect.html:
+        * http/tests/privateClickMeasurement/attribution-conversion-through-image-redirect-in-new-window-expected.txt:
+        * http/tests/privateClickMeasurement/attribution-conversion-through-image-redirect-in-new-window.html:
+        * http/tests/privateClickMeasurement/attribution-conversion-through-image-redirect-with-priority-expected.txt:
+        * http/tests/privateClickMeasurement/attribution-conversion-through-image-redirect-with-priority.html:
+        * http/tests/privateClickMeasurement/attribution-conversion-through-image-redirect-without-priority-expected.txt:
+        * http/tests/privateClickMeasurement/attribution-conversion-through-image-redirect-without-priority.html:
+        * http/tests/privateClickMeasurement/conversion-disabled-in-ephemeral-session-expected.txt:
+        * http/tests/privateClickMeasurement/expired-ad-click-gets-removed-on-session-start-expected.txt: Added.
+        * http/tests/privateClickMeasurement/expired-ad-click-gets-removed-on-session-start.html: Copied from LayoutTests/http/tests/privateClickMeasurement/second-conversion-with-higher-priority.html.
+        * http/tests/privateClickMeasurement/expired-attribution-report-gets-sent-on-session-start-expected.txt: Added.
+        * http/tests/privateClickMeasurement/expired-attribution-report-gets-sent-on-session-start.html: Copied from LayoutTests/http/tests/privateClickMeasurement/send-attribution-conversion-request.html.
+        * http/tests/privateClickMeasurement/resources/conversionReport.php:
+        * http/tests/privateClickMeasurement/resources/getConversionData.php:
+        * http/tests/privateClickMeasurement/second-attribution-converted-with-higher-priority-expected.txt:
+        * http/tests/privateClickMeasurement/second-attribution-converted-with-higher-priority.html:
+        * http/tests/privateClickMeasurement/second-attribution-converted-with-lower-priority-expected.txt:
+        * http/tests/privateClickMeasurement/second-attribution-converted-with-lower-priority.html:
+        * http/tests/privateClickMeasurement/second-conversion-with-higher-priority-expected.txt:
+        * http/tests/privateClickMeasurement/second-conversion-with-higher-priority.html:
+        * http/tests/privateClickMeasurement/second-conversion-with-lower-priority-expected.txt:
+        * http/tests/privateClickMeasurement/second-conversion-with-lower-priority.html:
+        * http/tests/privateClickMeasurement/send-attribution-conversion-request-expected.txt:
+        * http/tests/privateClickMeasurement/send-attribution-conversion-request.html:
+        * http/tests/privateClickMeasurement/store-private-click-measurement-expected.txt:
+
+2020-11-20  Lauro Moura  <lmoura@igalia.com>
+
+        [GTK][WPE] Rebaseline and gardening
+
+        Unreviewed test gardening.
+
+        The meter and progress tests had to be rebaselined and split after
+        r270044.
+
+        * platform/glib/TestExpectations: Add missing entries.
+        * platform/glib/fast/dom/HTMLProgressElement/progress-element-expected.txt:
+        * platform/glib/webaudio/BiquadFilter/tail-time-peaking-expected.txt:
+        Removed. Uneeded after r269972.
+        * platform/glib/webaudio/audioworklet-addModule-failure-expected.txt:
+        Rebaseline after r270033.
+        * platform/gtk/fast/dom/HTMLMeterElement/meter-element-expected.txt: Copied from LayoutTests/platform/glib/fast/dom/HTMLMeterElement/meter-element-expected.txt.
+        * platform/gtk/fast/dom/HTMLMeterElement/meter-styles-changing-pseudo-expected.txt: Copied from LayoutTests/platform/glib/fast/dom/HTMLMeterElement/meter-styles-changing-pseudo-expected.txt.
+        * platform/gtk/fast/dom/HTMLMeterElement/meter-styles-expected.txt: Copied from LayoutTests/platform/glib/fast/dom/HTMLMeterElement/meter-styles-expected.txt.
+        * platform/gtk/fast/dom/HTMLProgressElement/progress-bar-value-pseudo-element-expected.txt:
+        * platform/gtk/imported/w3c/web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+        Rebaselined after r270023.
+        * platform/glib/TestExpectations: Remove entry after test removal.
+        * platform/wpe/fast/dom/HTMLMeterElement/meter-element-expected.txt: Renamed from LayoutTests/platform/glib/fast/dom/HTMLMeterElement/meter-element-expected.txt.
+        * platform/wpe/fast/dom/HTMLMeterElement/meter-styles-changing-pseudo-expected.txt: Renamed from LayoutTests/platform/glib/fast/dom/HTMLMeterElement/meter-styles-changing-pseudo-expected.txt.
+        * platform/wpe/fast/dom/HTMLMeterElement/meter-styles-expected.txt: Renamed from LayoutTests/platform/glib/fast/dom/HTMLMeterElement/meter-styles-expected.txt.
+        * platform/wpe/fast/dom/HTMLProgressElement/progress-bar-value-pseudo-element-expected.txt:
+        * platform/wpe/imported/w3c/web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+        Rebaselined after r270023.
+
+2020-11-20  Truitt Savell  <tsavell@apple.com>
+
+        Revert r270124. Made the test worse.
+        https://bugs.webkit.org/show_bug.cgi?id=219212
+
+        Unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
+2020-11-20  James Darpinian  <jdarpinian@chromium.org>
+
+        Update ANGLE 2020-11-12
+        https://bugs.webkit.org/show_bug.cgi?id=218877
+
+        Reviewed by Kenneth Russell.
+
+        * webgl/2.0.0/conformance2/textures/misc/tex-mipmap-levels-expected.txt: Test fixed.
+
+2020-11-20  Chris Dumez  <cdumez@apple.com>
+
+        AudioWorkletProcessor::process() may get called on non-audio worklet thread and crash
+        https://bugs.webkit.org/show_bug.cgi?id=219209
+
+        Reviewed by Geoffrey Garen.
+
+        Add layout test coverage.
+
+        * http/wpt/webaudio/the-audio-api/the-audioworklet-interface/context-already-rendering-expected.txt: Added.
+        * http/wpt/webaudio/the-audio-api/the-audioworklet-interface/context-already-rendering.html: Added.
+        * http/wpt/webaudio/the-audio-api/the-audioworklet-interface/processors/basic-processor.js: Added.
+        (BasicProcessor.prototype.process):
+        (BasicProcessor):
+
+2020-11-20  Lauro Moura  <lmoura@igalia.com>
+
+        canvas: drawImage should not raise IndexSizeError on empty sources
+        https://bugs.webkit.org/show_bug.cgi?id=219068
+
+        Reviewed by Noam Rosenthal.
+
+        Update baselines and tests with new drawImage behavior of not raising IndexSizeError on empty src rects.
+
+        * http/wpt/2dcontext/imagebitmap/drawImage-ImageBitmap-expected.txt: Updated with new drawImage behavior
+        * http/wpt/2dcontext/imagebitmap/drawImage-ImageBitmap.html:  Updated with new drawImage behavior
+        * platform/glib/imported/w3c/web-platform-tests/html/canvas/offscreen/drawing-images-to-the-canvas/2d.drawImage.zerosource-expected.txt: Renamed from LayoutTests/platform/wpe/imported/w3c/web-platform-tests/html/canvas/offscreen/drawing-images-to-the-canvas/2d.drawImage.zerosource-expected.txt.
+        * platform/gtk/imported/w3c/web-platform-tests/html/canvas/offscreen/drawing-images-to-the-canvas/2d.drawImage.zerosource-expected.txt: Removed.
+
+2020-11-20  Truitt Savell  <tsavell@apple.com>
+
+        http/tests/security/contentSecurityPolicy/1.1/plugintypes-affects-child.html is flaky failing
+        https://bugs.webkit.org/show_bug.cgi?id=219212
+
+        Unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
+2020-11-20  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][Integration] Enable inline-block
+        https://bugs.webkit.org/show_bug.cgi?id=218889
+
+        Reviewed by Antti Koivisto.
+
+        * platform/ios/fast/block/float/overhanging-tall-block-expected.txt:
+        * platform/ios/fast/css/named-images-expected.txt:
+        * platform/ios/fast/css/text-overflow-input-expected.txt:
+        * platform/ios/fast/dom/HTMLMeterElement/meter-element-repaint-on-update-value-expected.txt:
+        * platform/ios/fast/dom/HTMLProgressElement/indeterminate-progress-001-expected.txt:
+        * platform/ios/fast/dom/HTMLProgressElement/native-progress-bar-expected.txt:
+        * platform/ios/fast/forms/placeholder-pseudo-style-expected.txt:
+        * platform/ios/fast/text/international/bidi-LDB-2-CSS-expected.txt:
+        * platform/ios/svg/transforms/svg-css-transforms-clip-path-expected.txt:
+        * platform/ios/svg/transforms/svg-css-transforms-expected.txt:
+        * platform/ios/transforms/3d/general/perspective-units-expected.txt:
+        * platform/ios/transforms/svg-vs-css-expected.txt:
+        * platform/mac-catalina/fast/css/text-overflow-input-expected.txt:
+        * platform/mac-mojave/fast/css/text-overflow-input-expected.txt:
+        * platform/mac/fast/block/float/overhanging-tall-block-expected.txt:
+        * platform/mac/fast/css/named-images-expected.txt:
+        * platform/mac/fast/dom/HTMLProgressElement/indeterminate-progress-001-expected.txt:
+        * platform/mac/fast/forms/placeholder-pseudo-style-expected.txt:
+        * platform/mac/fast/text/hyphenate-limit-before-after-expected.txt:
+        * platform/mac/fast/text/international/bidi-LDB-2-CSS-expected.txt:
+
+          These are progressions where the content is subpixel taller than the computed height for the containing block:
+        * platform/mac/svg/transforms/svg-css-transforms-clip-path-expected.txt:
+        * platform/mac/svg/transforms/svg-css-transforms-expected.txt:
+        * platform/mac/transforms/3d/general/perspective-units-expected.txt:
+        * platform/mac/transforms/svg-vs-css-expected.txt:
+
+2020-11-20  Youenn Fablet  <youenn@apple.com>
+
+        Make webrtc/captureCanvas-webrtc-software-h264-*.html tests use codecs in WebProcess
+        https://bugs.webkit.org/show_bug.cgi?id=219147
+
+        Reviewed by Eric Carlson.
+
+        * webrtc/captureCanvas-webrtc-software-h264-baseline.html:
+        * webrtc/captureCanvas-webrtc-software-h264-high.html:
+
+2020-11-20  Alan Bujtas  <zalan@apple.com>
+
+        Unreviewed, reverting r270070.
+
+        broke an API test
+
+        Reverted changeset:
+
+        "[LFC][Integration] Enable inline-block"
+        https://bugs.webkit.org/show_bug.cgi?id=218889
+        https://trac.webkit.org/changeset/270070
+
+2020-11-20  Youenn Fablet  <youenn@apple.com>
+
+        Add support for RTCRtpScriptTransform
+        https://bugs.webkit.org/show_bug.cgi?id=219148
+
+        Reviewed by Eric Carlson.
+
+        * http/wpt/webrtc/routines.js: Added.
+        (createConnections):
+        * http/wpt/webrtc/script-transform.js: Added.
+        (MockRTCRtpTransformer):
+        (MockRTCRtpTransformer.prototype.start):
+        (MockRTCRtpTransformer.prototype.process):
+        * http/wpt/webrtc/sframe-transform-expected.txt: Added.
+        * http/wpt/webrtc/sframe-transform.html: Added.
+        * http/wpt/webrtc/webrtc-transform-expected.txt: Renamed from LayoutTests/webrtc/webrtc-transform-expected.txt.
+        * http/wpt/webrtc/webrtc-transform.html: Renamed from LayoutTests/webrtc/webrtc-transform.html.
+        * platform/glib/TestExpectations:
+        * webrtc/script-transform.js: Added.
+        (MockRTCRtpTransformer):
+        (MockRTCRtpTransformer.prototype.start):
+
+2020-11-20  Philippe Normand  <pnormand@igalia.com>
+
+        [MSE] Infinite loop in sample eviction when duration is NaN
+        https://bugs.webkit.org/show_bug.cgi?id=218228
+
+        Reviewed by Darin Adler.
+
+        * media/media-source/live-rewind-seek-and-evict-expected.txt: Renamed from LayoutTests/platform/glib/media/media-source/media-source-append-before-last-range-no-quota-exceeded-expected.txt.
+        * media/media-source/live-rewind-seek-and-evict.html: Added.
+        * media/media-source/media-source-append-before-last-range-no-quota-exceeded-expected.txt:
+        * media/media-source/mock-media-source.js:
+        (makeAInit):
+        * platform/mac/media/media-source/media-source-append-before-last-range-no-quota-exceeded-expected.txt: Copied from LayoutTests/media/media-source/media-source-append-before-last-range-no-quota-exceeded-expected.txt.
+
+2020-11-20  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [TextureMapper] Hidden surface removal issue for nested transform-style:perserve-3d in Snow Stack demo
+        https://bugs.webkit.org/show_bug.cgi?id=218969
+
+        Reviewed by Carlos Garcia Campos.
+
+        * platform/gtk/transforms/3d/point-mapping/3d-point-mapping-deep-expected.png: Rebaselined.
+
+2020-11-20  Chris Lord  <clord@igalia.com>
+
+        Enable font functions on OffscreenCanvas for main-thread
+        https://bugs.webkit.org/show_bug.cgi?id=219088
+
+        Reviewed by Simon Fraser.
+
+        Enable running OffscreenCanvas text tests.
+
+        * platform/glib/TestExpectations:
+
+2020-11-20  Youenn Fablet  <youenn@apple.com>
+
+        Add support for RTCPeerConnection.onicecandidateerror event
+        https://bugs.webkit.org/show_bug.cgi?id=169644
+
+        Reviewed by Alex Christensen.
+
+        * webrtc/rtcpeerconnection-error-messages-expected.txt:
+        * webrtc/stun-server-filtering.html:
+
+2020-11-19  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][Integration] Enable inline-block
+        https://bugs.webkit.org/show_bug.cgi?id=218889
+
+        Reviewed by Antti Koivisto.
+
+        * platform/ios/fast/block/float/overhanging-tall-block-expected.txt:
+        * platform/ios/fast/css/named-images-expected.txt:
+        * platform/ios/fast/css/text-overflow-input-expected.txt:
+        * platform/ios/fast/dom/HTMLMeterElement/meter-element-repaint-on-update-value-expected.txt:
+        * platform/ios/fast/dom/HTMLProgressElement/indeterminate-progress-001-expected.txt:
+        * platform/ios/fast/dom/HTMLProgressElement/native-progress-bar-expected.txt:
+        * platform/ios/fast/forms/placeholder-pseudo-style-expected.txt:
+        * platform/ios/fast/text/international/bidi-LDB-2-CSS-expected.txt:
+        * platform/ios/svg/transforms/svg-css-transforms-clip-path-expected.txt:
+        * platform/ios/svg/transforms/svg-css-transforms-expected.txt:
+        * platform/ios/transforms/3d/general/perspective-units-expected.txt:
+        * platform/ios/transforms/svg-vs-css-expected.txt:
+        * platform/mac-catalina/fast/css/text-overflow-input-expected.txt:
+        * platform/mac-mojave/fast/css/text-overflow-input-expected.txt:
+        * platform/mac/fast/block/float/overhanging-tall-block-expected.txt:
+        * platform/mac/fast/css/named-images-expected.txt:
+        * platform/mac/fast/dom/HTMLProgressElement/indeterminate-progress-001-expected.txt:
+        * platform/mac/fast/forms/placeholder-pseudo-style-expected.txt:
+        * platform/mac/fast/text/hyphenate-limit-before-after-expected.txt:
+        * platform/mac/fast/text/international/bidi-LDB-2-CSS-expected.txt:
+
+          These are progressions where the content is subpixel taller than the computed height for the containing block:
+        * platform/mac/svg/transforms/svg-css-transforms-clip-path-expected.txt:
+        * platform/mac/svg/transforms/svg-css-transforms-expected.txt:
+        * platform/mac/transforms/3d/general/perspective-units-expected.txt:
+        * platform/mac/transforms/svg-vs-css-expected.txt:
+
+2020-11-19  Aditya Keerthi  <akeerthi@apple.com>
+
+        [iOS][FCR] Add new look for progress bars
+        https://bugs.webkit.org/show_bug.cgi?id=218864
+        <rdar://problem/71334958>
+
+        Reviewed by Darin Adler and Wenson Hsieh.
+
+        Added tests to verify different states and appearances of native progress bars.
+
+        * fast/forms/ios/form-control-refresh/progress/filled-appearance-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/progress/filled-appearance.html: Added.
+        * fast/forms/ios/form-control-refresh/progress/indeterminate-appearance-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/progress/indeterminate-appearance.html: Added.
+        * fast/forms/ios/form-control-refresh/progress/rtl-appearance-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/progress/rtl-appearance.html: Added.
+        * fast/forms/ios/form-control-refresh/progress/style-height-expected.html: Added.
+        * fast/forms/ios/form-control-refresh/progress/style-height.html: Added.
+        * fast/forms/ios/form-control-refresh/progress/style-width-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/progress/style-width.html: Added.
+
+2020-11-19  Geoffrey Garen  <ggaren@apple.com>
+
+        [Mac] LayoutTest fast/mediacapturefromelement/CanvasCaptureMediaStream-webgl-events.html is a flaky timeout
+        https://bugs.webkit.org/show_bug.cgi?id=175592
+
+        Reviewed by Eric Carlson.
+
+        There were two bugs here: (1) This test was flaky; (2) WebKit's canvas
+        capture implementation was flaky. Debugging them together was a lot of
+        fun!
+
+        * fast/mediacapturefromelement/CanvasCaptureMediaStream-webgl-events-expected.txt:
+        Reflect the fact that the test draws earlier now.
+
+        * fast/mediacapturefromelement/CanvasCaptureMediaStream-webgl-events.html:
+
+        Fixed (1): Define our WebGL shader before running the script that
+        references it. Otherwise, we might try to run the shader before the
+        HTML parser has parsed it.
+
+        Improved detection of (2): Draw to the canvas immediately instead of
+        waiting for an async event. This should more precisely test whether
+        the very first canvas frame gets captured or not.
+
+        * platform/mac/TestExpectations: Unmark test as flaky.
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, some more iOS gardening after r270037.
+
+        * platform/ios-wk2/TestExpectations:
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/click/click_events_on_input-expected.txt:
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/order-of-events/mouse-events/mouseover-out-expected.txt: Removed.
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Crash under JSC::Heap::acquireAccessSlow() / JSC::Heap::releaseAccess() when starting an AudioWorklet
+        https://bugs.webkit.org/show_bug.cgi?id=219183
+        <rdar://problem/71188544>
+
+        Reviewed by Mark Lam.
+
+        Add layout test coverage.
+
+        * webaudio/worklet-crash-expected.txt: Added.
+        * webaudio/worklet-crash.html: Added.
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, skip some of the tests imported in r270037 on iOS because they are timing out.
+
+        * platform/ios-wk2/TestExpectations:
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/click/auxclick_event-expected.txt: Removed.
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/click/click_event_target_child_parent-expected.txt: Removed.
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/click/click_event_target_siblings-expected.txt: Removed.
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/mouse/layout_change_should_fire_mouseover-expected.txt: Removed.
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/order-of-events/focus-events/focus-expected.txt: Removed.
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, land iOS baselines after r270037.
+
+        * platform/ios-wk2/TestExpectations:
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/click/auxclick_event-expected.txt: Added.
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/click/click_event_target_child_parent-expected.txt: Added.
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/click/click_event_target_siblings-expected.txt: Added.
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/click/click_events_on_input-expected.txt: Added.
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/mouse/layout_change_should_fire_mouseover-expected.txt: Added.
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/order-of-events/focus-events/focus-expected.txt: Added.
+        * platform/ios-wk2/imported/w3c/web-platform-tests/uievents/order-of-events/mouse-events/mouseover-out-expected.txt: Added.
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Regression(r267865) Geolocation API's error callback should be nullable
+        https://bugs.webkit.org/show_bug.cgi?id=219165
+
+        Reviewed by Geoffrey Garen.
+
+        Update existing test to reflect behavior change.
+
+        * fast/dom/Geolocation/argument-types-expected.txt:
+        * fast/dom/Geolocation/argument-types.html:
+
+2020-11-19  Zalan Bujtas  <zalan@apple.com>
+
+        [Legacy Line Layout] Inline box's subpixel vertical top position should be enclosed
+        https://bugs.webkit.org/show_bug.cgi?id=219142
+
+        Reviewed by Antti Koivisto.
+
+        * platform/mac/fast/dom/HTMLMeterElement/meter-styles-changing-pseudo-expected.txt:
+        * platform/mac/fast/dom/HTMLProgressElement/native-progress-bar-expected.txt:
+        * platform/mac/fast/dom/HTMLProgressElement/progress-bar-value-pseudo-element-expected.txt:
+        * platform/mac/fast/dom/HTMLProgressElement/progress-element-expected.txt:
+
+2020-11-19  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [TextureMapperGL] The invert filter wrongly inverts pre-multiplied alpha color
+        https://bugs.webkit.org/show_bug.cgi?id=219144
+
+        Reviewed by Carlos Garcia Campos.
+
+        * compositing/filters/invert-transparent-expected.html: Added.
+        * compositing/filters/invert-transparent.html: Added.
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Import web-platform-tests/uievents tests from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=219131
+
+        Reviewed by Sam Weinig.
+
+        * tests-options.json:
+
+2020-11-19  Chris Dumez  <cdumez@apple.com>
+
+        Worklet.addModule() should reject promise with an AbortError when the network load fails
+        https://bugs.webkit.org/show_bug.cgi?id=219135
+
+        Reviewed by Geoffrey Garen.
+
+        Update existing tests to reflect behavior change.
+
+        * http/wpt/webaudio/audioworklet-addModule-cors.sub.https.html:
+        * webaudio/audioworklet-addModule-failure-expected.txt:
+        * webaudio/audioworklet-addModule-failure.html:
+
+2020-11-19  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r270009.
+        https://bugs.webkit.org/show_bug.cgi?id=219162
+
+        Added two broken tests on ios
+
+        Reverted changeset:
+
+        "Import web-platform-tests/compat tests from usptream"
+        https://bugs.webkit.org/show_bug.cgi?id=219126
+        https://trac.webkit.org/changeset/270009
+
+2020-11-19  Martin Robinson  <mrobinson@webkit.org>
+
+        Make scroll-padding independent of scroll-snap and have it affect scrollIntoView
+        https://bugs.webkit.org/show_bug.cgi?id=219073
+
+        Reviewed by Simon Fraser.
+
+        * TestExpectations: Mark some tests as passing.
+        * platform/mac-wk1/TestExpectations: Mark one test as failing due to WebKit1 scrollbars.
+
+2020-11-17  Sergio Villar Senin  <svillar@igalia.com>
+
+        Nullptr crash in RenderObject::parent
+        https://bugs.webkit.org/show_bug.cgi?id=218484
+        <rdar://problem/70985057>
+
+        Reviewed by Ryosuke Niwa.
+
+        Added new test case.
+
+        * fast/editing/insert-list-in-orphaned-list-item-crash-expected.txt: Added.
+        * fast/editing/insert-list-in-orphaned-list-item-crash.html: Added.
+
+2020-11-19  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GLIB] Unreviewed test gardening. Move common GTK and WPE failures to GLIB.
+
+        * platform/glib/TestExpectations:
+        * platform/gtk/TestExpectations:
+        * platform/gtk/accessibility/svg-bounds-expected.txt: Removed.
+        * platform/gtk/fast/shrink-wrap/rect-shrink-wrap-expected.txt: Removed.
+        * platform/wpe/TestExpectations:
+        * platform/wpe/imported/w3c/web-platform-tests/dom/events/EventTarget-dispatchEvent-expected.txt: Removed.
+        * platform/wpe/imported/w3c/web-platform-tests/fetch/api/request/request-keepalive-quota-expected.txt: Removed.
+        * platform/wpe/imported/w3c/web-platform-tests/resource-timing/resource-timing-level1.sub-expected.txt: Removed.
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Import web-platform-tests/worklets tests from usptream
+        https://bugs.webkit.org/show_bug.cgi?id=219121
+
+        Reviewed by Sam Weinig.
+
+        * tests-options.json:
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Import web-platform-tests/geolocation-API tests from usptream
+        https://bugs.webkit.org/show_bug.cgi?id=219128
+
+        Reviewed by Sam Weinig.
+
+        Skip tests that are timing out.
+
+        * TestExpectations:
+        * tests-options.json:
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        REGRESSION (r269598): [ Mac ] imported/w3c/web-platform-tests/html/semantics/embedded-content/the-iframe-element/iframe-network-error.sub.html is flaky failing
+        https://bugs.webkit.org/show_bug.cgi?id=219008
+        <rdar://problem/71463894>
+
+        Unreviewed, address flakiness by silencing JS CONSOLE messages.
+
+        * TestExpectations:
+
+2020-11-18  Darin Adler  <darin@apple.com>
+
+        Remove advanced plug-in feature: small plug-in blocking
+        https://bugs.webkit.org/show_bug.cgi?id=219101
+
+        Reviewed by Anders Carlsson.
+
+        * platform/mac-wk1/TestExpectations: Removed small-plugin-blocked.html.
+        * plugins/small-plugin-blocked-expected.txt: Removed.
+        * plugins/small-plugin-blocked.html: Removed.
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, unskip more webaudio tests on Rosetta.
+
+        Those tests are still failing on Apple Silicon but not with Rosetta.
+
+        * platform/mac/TestExpectationsRosetta:
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Drop outdated webaudio/convolution-mono-mono.html test
+        https://bugs.webkit.org/show_bug.cgi?id=219107
+
+        Reviewed by Geoffrey Garen.
+
+        Drop outdated webaudio/convolution-mono-mono.html test.
+
+        An updated version is already present at:
+        imported/w3c/web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolution-mono-mono.html
+
+        * platform/gtk/TestExpectations:
+        * platform/mac/TestExpectations:
+        * platform/mac/TestExpectationsRosetta:
+        * webaudio/convolution-mono-mono-expected.txt: Removed.
+        * webaudio/convolution-mono-mono.html: Removed.
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, unskip several webaudio tests on Apple Silicon.
+
+        Those tests are no longer failing or flaky on this platform.
+
+        * platform/mac/TestExpectations:
+
+2020-11-18  Aditya Keerthi  <akeerthi@apple.com>
+
+        [iOS][FCR] Add new look for radio buttons
+        https://bugs.webkit.org/show_bug.cgi?id=219046
+        <rdar://problem/71498263>
+
+        Reviewed by Wenson Hsieh.
+
+        Added tests to verify the stylability of native radio buttons and to
+        verify that different states are painted with a different appearance.
+
+        * fast/forms/ios/form-control-refresh/radio/border-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/radio/border.html: Added.
+        * fast/forms/ios/form-control-refresh/radio/checked-appearance-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/radio/checked-appearance.html: Added.
+        * fast/forms/ios/form-control-refresh/radio/disabled-appearance-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/radio/disabled-appearance.html: Added.
+        * fast/forms/ios/form-control-refresh/radio/ignored-properties-expected.html: Added.
+        * fast/forms/ios/form-control-refresh/radio/ignored-properties.html: Added.
+        * fast/forms/ios/form-control-refresh/radio/width-height-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/radio/width-height.html: Added.
+
+2020-11-18  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, relanding r269940
+        https://bugs.webkit.org/show_bug.cgi?id=219076
+
+        * js/dom/resources/webassembly-memory-normal-fail-worker.js: Added.
+        * js/dom/resources/webassembly-memory-shared-worker.js: Added.
+        (onmessage):
+        * js/dom/webassembly-memory-normal-fail-expected.txt: Added.
+        * js/dom/webassembly-memory-normal-fail.html: Added.
+        * js/dom/webassembly-memory-shared-basic-expected.txt: Added.
+        * js/dom/webassembly-memory-shared-basic.html: Added.
+        * js/dom/webassembly-memory-shared-fail-expected.txt: Added.
+        * js/dom/webassembly-memory-shared-fail.html: Added.
+        * platform/win/TestExpectations:
+        * storage/indexeddb/resources/shared-memory-structured-clone.js: Added.
+        (prepareDatabase):
+        (async startTests):
+        (testSharedWebAssemblyMemory):
+        * storage/indexeddb/shared-memory-structured-clone-expected.txt: Added.
+        * storage/indexeddb/shared-memory-structured-clone.html: Added.
+
+2020-11-18  Simon Fraser  <simon.fraser@apple.com>
+
+        Propagate wheel event handling back to the scrolling thread
+        https://bugs.webkit.org/show_bug.cgi?id=219050
+
+        Reviewed by Chris Dumez.
+
+        * fast/events/wheel/wheel-event-in-passive-region-non-cancelable-expected.txt: Added.
+        * fast/events/wheel/wheel-event-in-passive-region-non-cancelable.html: Added.
+        * platform/mac-wk1/TestExpectations:
+        * platform/win/TestExpectations:
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        [Rosetta] webaudio/BiquadFilter/tail-time-*.html tests are flaky
+        https://bugs.webkit.org/show_bug.cgi?id=219096
+
+        Reviewed by Geoffrey Garen.
+
+        * platform/mac/TestExpectationsRosetta:
+        Unskip tests as they should no longer be flaky.
+
+        * resources/testharnessreport.js:
+        (self.testRunner.add_completion_callback):
+        Strip some text from tests output that tends to cause flakiness.
+
+        * webaudio/BiquadFilter/tail-time-allpass-expected.txt:
+        * webaudio/BiquadFilter/tail-time-bandpass-expected.txt:
+        * webaudio/BiquadFilter/tail-time-highpass-expected.txt:
+        * webaudio/BiquadFilter/tail-time-highshelf-expected.txt:
+        * webaudio/BiquadFilter/tail-time-lowpass-expected.txt:
+        * webaudio/BiquadFilter/tail-time-lowshelf-expected.txt:
+        * webaudio/BiquadFilter/tail-time-notch-expected.txt:
+        * webaudio/BiquadFilter/tail-time-peaking-expected.txt:
+        Rebaseline WPT tests now that their output has been simplified.
+
+2020-11-18  Antoine Quint  <graouts@webkit.org>
+
+        Tests for the <model> element should be in a dedicated top-level directory
+        https://bugs.webkit.org/show_bug.cgi?id=219077
+
+        Reviewed by Dean Jackson.
+
+        Move the tests for the <model> element from system-preview/model to the top-level model-element directory.
+        Tests under this directory run only on macOS and iOS following where the ENABLE_MODEL_ELEMENT is defined.
+
+        * TestExpectations:
+        * model-element/model-element-expected.txt: Renamed from LayoutTests/system-preview/model/model-element-expected.txt.
+        * model-element/model-element-source-expected.txt: Renamed from LayoutTests/system-preview/model/model-element-source-expected.txt.
+        * model-element/model-element-source.html: Renamed from LayoutTests/system-preview/model/model-element-source.html.
+        * model-element/model-element.html: Renamed from LayoutTests/system-preview/model/model-element.html.
+        * platform/ios/TestExpectations:
+        * platform/mac/TestExpectations:
+
+2020-11-18  Chris Dumez  <cdumez@apple.com>
+
+        Unskip a few WebAudio tests that are no longer failing on Rosetta since r269853.
+
+        * platform/mac/TestExpectationsRosetta:
+
+2020-11-18  Truitt Savell  <tsavell@apple.com>
+
+        REGRESSION (r269774): [ Mac WK2 ] fast/lists/001.html and fast/lists/001-vertical.html are flaky crashing
+        https://bugs.webkit.org/show_bug.cgi?id=218995
+
+        Unreviewed test gardening.
+
+        * platform/mac-wk2/TestExpectations:
+
+2020-11-18  Antoine Quint  <graouts@webkit.org>
+
+        [Web Animations] Ensure we don't schedule animation udpates when there are no styles to update
+        https://bugs.webkit.org/show_bug.cgi?id=219071
+
+        Reviewed by Simon Fraser.
+
+        Add a test that creates animations with various empty keyframes parameters to check that we don't
+        schedule animation update for them.
+
+        * webanimations/scheduling-of-animation-without-keyframes-expected.txt: Added.
+        * webanimations/scheduling-of-animation-without-keyframes.html: Added.
+
+2020-11-18  Antoine Quint  <graouts@webkit.org>
+
+        Support <source> as a child of <model> to specify the current source
+        https://bugs.webkit.org/show_bug.cgi?id=219080
+
+        Reviewed by Dean Jackson.
+
+        Add a series of tests for the HTMLModelElement.currentSrc property and its relationship with <source> elements.
+
+        * system-preview/model/model-element-source-expected.txt: Added.
+        * system-preview/model/model-element-source.html: Added.
+
+2020-11-18  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r269940.
+        https://bugs.webkit.org/show_bug.cgi?id=219076
+
+        caused seemingly-infinite build time regression
+
+        Reverted changeset:
+
+        "[JSC] Implement WebAssembly.Memory with shared"
+        https://bugs.webkit.org/show_bug.cgi?id=218693
+        https://trac.webkit.org/changeset/269940
+
+2020-11-18  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Release assertion failure in Optional<WebCore::SimpleRange>::operator* via CompositeEditCommand::moveParagraphs
+        https://bugs.webkit.org/show_bug.cgi?id=218494
+
+        Reviewed by Ryosuke Niwa.
+
+        * editing/inserting/insert-list-with-body-child-crash-expected.txt: Added.
+        * editing/inserting/insert-list-with-body-child-crash.html: Added.
+
+2020-11-17  Lauro Moura  <lmoura@igalia.com>
+
+        [GLIB] Update webaudio baselines after r269853
+
+        Unreviewed test gardening.
+
+        * platform/glib/imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-connections-expected.txt: Removed.
+        * platform/glib/imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-expected.txt: Removed.
+        * platform/glib/webaudio/BiquadFilter/tail-time-peaking-expected.txt:
+
+2020-11-17  Lauro Moura  <lmoura@igalia.com>
+
+        Gardening webrtc/audio-sframe.html flaky crashes
+
+        Unreviewed test gardening.
+
+        * platform/glib/TestExpectations:
+        * platform/ios-simulator-wk2/TestExpectations:
+        * platform/mac/TestExpectations:
+
+2020-11-16  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Implement WebAssembly.Memory with shared
+        https://bugs.webkit.org/show_bug.cgi?id=218693
+
+        Reviewed by Saam Barati.
+
+        * js/dom/resources/webassembly-memory-normal-fail-worker.js: Added.
+        * js/dom/resources/webassembly-memory-shared-worker.js: Added.
+        (onmessage):
+        * js/dom/webassembly-memory-normal-fail-expected.txt: Added.
+        * js/dom/webassembly-memory-normal-fail.html: Added.
+        * js/dom/webassembly-memory-shared-basic-expected.txt: Added.
+        * js/dom/webassembly-memory-shared-basic.html: Added.
+        * js/dom/webassembly-memory-shared-fail-expected.txt: Added.
+        * js/dom/webassembly-memory-shared-fail.html: Added.
+        * platform/win/TestExpectations:
+        * storage/indexeddb/resources/shared-memory-structured-clone.js: Added.
+        (prepareDatabase):
+        (async startTests):
+        (testSharedWebAssemblyMemory):
+        * storage/indexeddb/shared-memory-structured-clone-expected.txt: Added.
+        * storage/indexeddb/shared-memory-structured-clone.html: Added.
+
+2020-11-17  Sergey Rubanov  <chi187@gmail.com>
+
+        Add support for the Wasm i32 sign-extension-ops proposal
+        https://bugs.webkit.org/show_bug.cgi?id=210302
+
+        Reviewed by Yusuke Suzuki.
+
+        * workers/wasm-references/test.js:
+
+2020-11-17  Aditya Keerthi  <akeerthi@apple.com>
+
+        [iOS][FCR] Add new look for checkboxes
+        https://bugs.webkit.org/show_bug.cgi?id=218808
+        <rdar://problem/71286037>
+
+        Reviewed by Wenson Hsieh.
+
+        Added tests to verify the stylability of native checkboxes and to verify
+        that different checkbox states are painted with a different appearance.
+
+        * fast/forms/ios/form-control-refresh/checkbox/border-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/checkbox/border.html: Added.
+        * fast/forms/ios/form-control-refresh/checkbox/checked-appearance-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/checkbox/checked-appearance.html: Added.
+        * fast/forms/ios/form-control-refresh/checkbox/ignored-properties-expected.html: Added.
+        * fast/forms/ios/form-control-refresh/checkbox/ignored-properties.html: Added.
+        * fast/forms/ios/form-control-refresh/checkbox/indeterminate-appearance-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/checkbox/indeterminate-appearance.html: Added.
+        * fast/forms/ios/form-control-refresh/checkbox/width-height-expected-mismatch.html: Added.
+        * fast/forms/ios/form-control-refresh/checkbox/width-height.html: Added.
+
+2020-11-17  Lauro Moura  <lmoura@igalia.com>
+
+        REGRESSION(r269227) [GTK] editing/selection/navigation-clears-editor-state.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=219019
+
+        Reviewed by Chris Dumez.
+
+        Apply a similar fix to what was done in
+        requestidlecallback/requestidlecallback-document-gc.html in the
+        original revision, giving the timers a spin to allow the released
+        documents to be collected.
+
+        * editing/selection/navigation-clears-editor-state.html:
+
+2020-11-17  Rob Buis  <rbuis@igalia.com>
+
+        Null check anchorNode of endingSelection start
+        https://bugs.webkit.org/show_bug.cgi?id=218492
+
+        Reviewed by Alex Christensen.
+
+        Add testcase.
+
+        * editing/deleting/delete-contenteditable-crash-expected.txt: Added.
+        * editing/deleting/delete-contenteditable-crash.html: Added.
+
+2020-11-17  Rob Buis  <rbuis@igalia.com>
+
+        Clean up title-text-property.html
+        https://bugs.webkit.org/show_bug.cgi?id=219025
+
+        Reviewed by Žan Doberšek.
+
+        Remove unused test function, it seems this was added
+        for debugging purposes.
+
+        * fast/dom/title-text-property.html:
+
+2020-11-17  Tim Horton  <timothy_horton@apple.com>
+
+        REGRESSION (r269824): YouTube media control bar sometimes flickers
+        https://bugs.webkit.org/show_bug.cgi?id=219017
+        <rdar://problem/71454799>
+
+        Reviewed by Simon Fraser.
+
+        * compositing/repaint/transparent-layer-repaint-expected.html: Added.
+        * compositing/repaint/transparent-layer-repaint.html: Added.
+        Add a test that:
+            - repaints a backingstoreful compositing layer
+            - more than once
+            - in a small enough area that we use partial repaint
+            - with partially-transparent pixels
+
+        And then ensures that the background of that layer (the non-repainted part)
+        remains the color that it should.
+
+2020-11-17  Rob Buis  <rbuis@igalia.com>
+
+        Check whether destination still can be selected
+        https://bugs.webkit.org/show_bug.cgi?id=218491
+
+        Reviewed by Ryosuke Niwa.
+
+        Add testcase.
+
+        * editing/deleting/delete-selection-crash-expected.txt: Added.
+        * editing/deleting/delete-selection-crash.html: Added.
+
+2020-11-16  Sam Weinig  <weinig@apple.com>
+
+        Standardize enums that are used by Settings in preparation for autogeneration
+        https://bugs.webkit.org/show_bug.cgi?id=218960
+
+        Reviewed by Tim Horton.
+
+        Update tests and results for change in EditingBahavior enum value "win" -> "windows".
+
+        * editing/deleting/delete-ligature-003-expected.txt:
+        * editing/deleting/delete-ligature-003.html:
+        * editing/deleting/paragraph-in-preserveNewline-expected.txt:
+        * editing/deleting/paragraph-in-preserveNewline.html:
+        * editing/deleting/smart-editing-disabled-win.html:
+        * editing/deleting/whitespace-pre-1-expected.txt:
+        * editing/deleting/whitespace-pre-1.html:
+        * editing/execCommand/query-command-state-expected.txt:
+        * editing/execCommand/query-command-state.html:
+        * editing/execCommand/query-text-alignment-expected.txt:
+        * editing/execCommand/query-text-alignment.html:
+        * editing/execCommand/remove-format-multiple-elements-win.html:
+        * editing/execCommand/toggle-compound-styles-expected.txt:
+        * editing/execCommand/toggle-compound-styles.html:
+        * editing/execCommand/toggle-link-win.html:
+        * editing/execCommand/toggle-unlink-win.html:
+        * editing/selection/5195166-1.html:
+        * editing/selection/5354455-1.html:
+        * editing/selection/click-in-margins-inside-editable-div.html:
+        * editing/selection/click-in-padding-with-multiple-line-boxes.html:
+        * editing/selection/context-menu-text-selection-lookup.html:
+        * editing/selection/context-menu-text-selection.html:
+        * editing/selection/extend-after-mouse-selection.html:
+        * editing/selection/extend-selection-after-double-click.html:
+        * editing/selection/extend-selection-enclosing-block-win.html:
+        * editing/selection/move-by-word-visually-crash-test-1.html:
+        * editing/selection/move-by-word-visually-crash-test-2.html:
+        * editing/selection/move-by-word-visually-crash-test-3.html:
+        * editing/selection/move-by-word-visually-crash-test-4.html:
+        * editing/selection/move-by-word-visually-crash-test-5.html:
+        * editing/selection/move-by-word-visually-crash-test-css-generated-content.html:
+        * editing/selection/move-by-word-visually-crash-test-textarea.html:
+        * editing/selection/move-by-word-visually-inline-block-positioned-element.html:
+        * editing/selection/move-by-word-visually-multi-line.html:
+        * editing/selection/move-by-word-visually-multi-space.html:
+        * editing/selection/move-by-word-visually-null-box.html:
+        * editing/selection/move-by-word-visually-single-space-inline-element.html:
+        * editing/selection/move-by-word-visually-single-space-one-element.html:
+        * editing/selection/move-by-word-visually-textarea.html:
+        * editing/selection/move-by-word-visually-wrong-left-right.html:
+        * editing/selection/programmatic-selection-on-mac-is-directionless-expected.txt:
+        * editing/selection/programmatic-selection-on-mac-is-directionless.html:
+        * editing/selection/rtl-move-selection-right-left.html:
+        * editing/selection/selection-extend-should-not-move-across-caret-on-mac-expected.txt:
+        * editing/selection/selection-extend-should-not-move-across-caret-on-mac.html:
+        * editing/selection/shift-click.html:
+        * editing/selection/user-select-all-with-shift-expected.txt:
+        * editing/selection/user-select-all-with-shift.html:
+        * editing/spelling/copy-paste-crash.html:
+        * editing/style/iframe-onload-crash-win.html:
+        * editing/style/make-text-writing-direction-inline-win.html:
+        * editing/style/push-down-font-styles-win.html:
+        * editing/style/push-down-implicit-styles-around-list-win.html:
+        * editing/style/toggle-style-bold-italic-expected.txt:
+        * editing/style/toggle-style-bold-italic-mixed-editability-expected.txt:
+        * editing/style/toggle-style-bold-italic-mixed-editability.html:
+        * editing/style/toggle-style-bold-italic.html:
+        * fast/events/backspace-navigates-back.html:
+        * fast/forms/selection-direction-expected.txt:
+        * fast/forms/selection-direction.html:
+
+2020-11-16  John Wilander  <wilander@apple.com>
+
+        PCM: Change attribute and JSON key names according to the W3C conversation
+        https://bugs.webkit.org/show_bug.cgi?id=218967
+
+        Reviewed by Brent Fulgham.
+
+        We've discussed extensively with Google and others on naming for the link
+        attributes and JSON key names in these issues:
+        https://github.com/privacycg/private-click-measurement/issues/30
+        https://github.com/privacycg/private-click-measurement/issues/56
+
+        This patch changes PCM accordingly.
+
+        * http/tests/contentextensions/block-private-click-measurement.html:
+        * http/tests/privateClickMeasurement/anchor-tag-attributes-reflect-expected.txt:
+        * http/tests/privateClickMeasurement/anchor-tag-attributes-reflect.html:
+        * http/tests/privateClickMeasurement/anchor-tag-attributes-validation-expected.txt:
+        * http/tests/privateClickMeasurement/anchor-tag-attributes-validation.html:
+        * http/tests/privateClickMeasurement/attribution-conversion-through-cross-site-image-redirect.html:
+        * http/tests/privateClickMeasurement/attribution-conversion-through-image-redirect-in-new-window.html:
+        * http/tests/privateClickMeasurement/attribution-conversion-through-image-redirect-with-priority.html:
+        * http/tests/privateClickMeasurement/attribution-conversion-through-image-redirect-without-priority.html:
+        * http/tests/privateClickMeasurement/clear-through-website-data-removal.html:
+        * http/tests/privateClickMeasurement/conversion-disabled-in-ephemeral-session.html:
+        * http/tests/privateClickMeasurement/expired-attributions-removed.html:
+        * http/tests/privateClickMeasurement/second-attribution-converted-with-higher-priority.html:
+        * http/tests/privateClickMeasurement/second-attribution-converted-with-lower-priority.html:
+        * http/tests/privateClickMeasurement/second-conversion-with-higher-priority.html:
+        * http/tests/privateClickMeasurement/second-conversion-with-lower-priority.html:
+        * http/tests/privateClickMeasurement/send-attribution-conversion-request-expected.txt:
+        * http/tests/privateClickMeasurement/send-attribution-conversion-request.html:
+        * http/tests/privateClickMeasurement/store-disabled-in-ephemeral-session.html:
+        * http/tests/privateClickMeasurement/store-private-click-measurement.html:
+
 2020-11-16  Antoine Quint  <graouts@webkit.org>
 
         Add an experimental <model> element

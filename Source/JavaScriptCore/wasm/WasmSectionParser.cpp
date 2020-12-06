@@ -34,6 +34,7 @@
 #include "WasmNameSectionParser.h"
 #include "WasmOps.h"
 #include "WasmSignatureInlines.h"
+#include <wtf/HexNumber.h>
 #include <wtf/Optional.h>
 
 namespace JSC { namespace Wasm {
@@ -176,13 +177,18 @@ auto SectionParser::parseFunction() -> PartialResult
     return { };
 }
 
-auto SectionParser::parseResizableLimits(uint32_t& initial, Optional<uint32_t>& maximum) -> PartialResult
+auto SectionParser::parseResizableLimits(uint32_t& initial, Optional<uint32_t>& maximum, bool& isShared, LimitsType limitsType) -> PartialResult
 {
     ASSERT(!maximum);
 
     uint8_t flags;
-    WASM_PARSER_FAIL_IF(!parseVarUInt1(flags), "can't parse resizable limits flags");
+    WASM_PARSER_FAIL_IF(!parseUInt8(flags), "can't parse resizable limits flags");
+    WASM_PARSER_FAIL_IF(flags != 0x0 && flags != 0x1 && flags != 0x3, "resizable limits flag should be 0x00, 0x01, or 0x03 but 0x", hex(flags, 2, Lowercase));
+    WASM_PARSER_FAIL_IF(flags == 0x3 && limitsType != LimitsType::Memory, "can't use shared limits for non memory");
     WASM_PARSER_FAIL_IF(!parseVarUInt32(initial), "can't parse resizable limits initial page count");
+
+    isShared = flags == 0x3;
+    WASM_PARSER_FAIL_IF(isShared && !Options::useSharedArrayBuffer(), "shared memory is not enabled");
 
     if (flags) {
         uint32_t maximumInt;
@@ -204,7 +210,8 @@ auto SectionParser::parseTableHelper(bool isImport) -> PartialResult
 
     uint32_t initial;
     Optional<uint32_t> maximum;
-    PartialResult limits = parseResizableLimits(initial, maximum);
+    bool isShared = false;
+    PartialResult limits = parseResizableLimits(initial, maximum, isShared, LimitsType::Table);
     if (UNLIKELY(!limits))
         return makeUnexpected(WTFMove(limits.error()));
     WASM_PARSER_FAIL_IF(initial > maxTableEntries, "Table's initial page count of ", initial, " is too big, maximum ", maxTableEntries);
@@ -238,10 +245,11 @@ auto SectionParser::parseMemoryHelper(bool isImport) -> PartialResult
 
     PageCount initialPageCount;
     PageCount maximumPageCount;
+    bool isShared = false;
     {
         uint32_t initial;
         Optional<uint32_t> maximum;
-        PartialResult limits = parseResizableLimits(initial, maximum);
+        PartialResult limits = parseResizableLimits(initial, maximum, isShared, LimitsType::Memory);
         if (UNLIKELY(!limits))
             return makeUnexpected(WTFMove(limits.error()));
         ASSERT(!maximum || *maximum >= initial);
@@ -257,14 +265,14 @@ auto SectionParser::parseMemoryHelper(bool isImport) -> PartialResult
     ASSERT(initialPageCount);
     ASSERT(!maximumPageCount || maximumPageCount >= initialPageCount);
 
-    m_info->memory = MemoryInformation(initialPageCount, maximumPageCount, isImport);
+    m_info->memory = MemoryInformation(initialPageCount, maximumPageCount, isShared, isImport);
     return { };
 }
 
 auto SectionParser::parseMemory() -> PartialResult
 {
-    uint8_t count;
-    WASM_PARSER_FAIL_IF(!parseVarUInt1(count), "can't parse Memory section's count");
+    uint32_t count;
+    WASM_PARSER_FAIL_IF(!parseVarUInt32(count), "can't parse Memory section's count");
 
     if (!count)
         return { };
@@ -296,7 +304,7 @@ auto SectionParser::parseGlobal() -> PartialResult
             global.initializationType = GlobalInformation::FromRefFunc;
         else
             global.initializationType = GlobalInformation::FromExpression;
-        WASM_PARSER_FAIL_IF(!isSubtype(typeForInitOpcode, global.type), "Global init_expr opcode of type ", typeForInitOpcode, " doesn't match global's type ", global.type);
+        WASM_PARSER_FAIL_IF(typeForInitOpcode != global.type, "Global init_expr opcode of type ", typeForInitOpcode, " doesn't match global's type ", global.type);
 
         m_info->globals.uncheckedAppend(WTFMove(global));
     }
@@ -506,7 +514,8 @@ auto SectionParser::parseGlobalType(GlobalInformation& global) -> PartialResult
 {
     uint8_t mutability;
     WASM_PARSER_FAIL_IF(!parseValueType(global.type), "can't get Global's value type");
-    WASM_PARSER_FAIL_IF(!parseVarUInt1(mutability), "can't get Global type's mutability");
+    WASM_PARSER_FAIL_IF(!parseUInt8(mutability), "can't get Global type's mutability");
+    WASM_PARSER_FAIL_IF(mutability != 0x0 && mutability != 0x1, "invalid Global's mutability: 0x", hex(mutability, 2, Lowercase));
     global.mutability = static_cast<GlobalInformation::Mutability>(mutability);
     return { };
 }

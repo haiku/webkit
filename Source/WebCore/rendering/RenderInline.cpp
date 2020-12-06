@@ -30,6 +30,7 @@
 #include "HitTestResult.h"
 #include "InlineElementBox.h"
 #include "InlineTextBox.h"
+#include "LayoutIntegrationLineLayout.h"
 #include "RenderBlock.h"
 #include "RenderChildIterator.h"
 #include "RenderFragmentedFlow.h"
@@ -193,6 +194,13 @@ void RenderInline::styleDidChange(StyleDifference diff, const RenderStyle* oldSt
         }
         setRenderInlineAlwaysCreatesLineBoxes(alwaysCreateLineBoxes);
     }
+
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+    if (diff >= StyleDifference::Repaint) {
+        if (auto* lineLayout = LayoutIntegration::LineLayout::containing(*this))
+            lineLayout->updateStyle(*this);
+    }
+#endif
 }
 
 void RenderInline::updateAlwaysCreateLineBoxes(bool fullLayout)
@@ -226,25 +234,6 @@ void RenderInline::updateAlwaysCreateLineBoxes(bool fullLayout)
             dirtyLineBoxes(false);
         setAlwaysCreateLineBoxes();
     }
-}
-
-LayoutRect RenderInline::localCaretRect(const InlineRunAndOffset&, CaretRectMode) const
-{
-    if (firstChild()) {
-        // This condition is possible if the RenderInline is at an editing boundary,
-        // i.e. the VisiblePosition is:
-        //   <RenderInline editingBoundary=true>|<RenderText> </RenderText></RenderInline>
-        // FIXME: need to figure out how to make this return a valid rect, note that
-        // there are no line boxes created in the above case.
-        return LayoutRect();
-    }
-
-    LayoutRect caretRect = localCaretRectForEmptyElement(horizontalBorderAndPaddingExtent(), 0);
-
-    if (InlineBox* firstBox = firstLineBox())
-        caretRect.moveBy(LayoutPoint(firstBox->topLeft()));
-
-    return caretRect;
 }
 
 void RenderInline::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
@@ -602,6 +591,11 @@ private:
 
 IntRect RenderInline::linesBoundingBox() const
 {
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+    if (auto* layout = LayoutIntegration::LineLayout::containing(*this))
+        return enclosingIntRect(layout->enclosingBorderBoxRectFor(*this));
+#endif
+
     if (!alwaysCreateLineBoxes()) {
         ASSERT(!firstLineBox());
         FloatRect floatResult;

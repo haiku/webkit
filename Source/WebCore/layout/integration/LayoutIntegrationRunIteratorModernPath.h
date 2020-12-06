@@ -117,8 +117,8 @@ public:
         auto logicalWidth = logicalRight - logicalLeft;
 
         // FIXME: These should share implementation with the line iterator.
-        auto selectionTop = LayoutUnit::fromFloatRound(line().enclosingContentRect().y());
-        auto selectionHeight = LayoutUnit::fromFloatRound(line().enclosingContentRect().height());
+        auto selectionTop = LayoutUnit::fromFloatRound(line().enclosingContentTop());
+        auto selectionHeight = LayoutUnit::fromFloatRound(line().enclosingContentBottom() - line().enclosingContentTop());
 
         LayoutRect selectionRect { logicalLeft, selectionTop, logicalWidth, selectionHeight };
 
@@ -182,6 +182,16 @@ public:
             setAtEnd();
     }
 
+    void traverseNextOnLineInLogicalOrder()
+    {
+        traverseNextOnLine();
+    }
+
+    void traversePreviousOnLineInLogicalOrder()
+    {
+        traversePreviousOnLine();
+    }
+
     bool operator==(const RunIteratorModernPath& other) const { return m_inlineContent == other.m_inlineContent && m_runIndex == other.m_runIndex; }
 
     bool atEnd() const { return m_runIndex == runs().size() || !run().hasUnderlyingLayout(); }
@@ -211,7 +221,7 @@ private:
         auto& style = run().style();
         auto expansion = run().expansion();
         auto rect = this->rect();
-        auto xPos = rect.x() - (line().rect().x() + line().horizontalAlignmentOffset());
+        auto xPos = rect.x() - (line().lineBoxLeft() + line().contentLeftOffset());
 
         auto textForRun = [&] {
             if (hyphenMode == HyphenMode::Ignore || !hasHyphen())

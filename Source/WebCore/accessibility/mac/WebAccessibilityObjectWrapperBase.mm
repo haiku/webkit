@@ -276,7 +276,7 @@ NSArray *convertToNSArray(const WebCore::AXCoreObject::AccessibilityChildrenVect
 
 @implementation WebAccessibilityObjectWrapperBase
 
-@synthesize identifier=_identifier;
+@synthesize identifier = _identifier;
 
 - (id)initWithAccessibilityObject:(AXCoreObject*)axObject
 {
@@ -601,21 +601,19 @@ static NSDictionary *dictionaryRemovingNonSupportedTypes(NSDictionary *dictionar
     }
 }
 
-#ifndef NDEBUG
 - (NSString *)innerHTML
 {
-    if (auto* element = self.axBackingObject->element())
-        return element->innerHTML();
+    if (auto* backingObject = self.axBackingObject)
+        return backingObject->innerHTML();
     return nil;
 }
 
 - (NSString *)outerHTML
 {
-    if (auto* element = self.axBackingObject->element())
-        return element->outerHTML();
+    if (auto* backingObject = self.axBackingObject)
+        return backingObject->outerHTML();
     return nil;
 }
-#endif
 
 #pragma mark Search helpers
 

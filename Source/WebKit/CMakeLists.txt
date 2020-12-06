@@ -141,6 +141,8 @@ set(WebKit_MESSAGES_IN_FILES
     GPUProcess/media/RemoteMediaPlayerManagerProxy
     GPUProcess/media/RemoteMediaPlayerProxy
     GPUProcess/media/RemoteMediaResourceManager
+    GPUProcess/media/RemoteMediaSourceProxy
+    GPUProcess/media/RemoteSourceBufferProxy
 
     GPUProcess/webrtc/LibWebRTCCodecsProxy
     GPUProcess/webrtc/RemoteAudioMediaStreamTrackRenderer
@@ -228,6 +230,7 @@ set(WebKit_MESSAGES_IN_FILES
     WebProcess/GPU/media/RemoteAudioSourceProviderManager
     WebProcess/GPU/media/RemoteCDMInstanceSession
     WebProcess/GPU/media/RemoteLegacyCDMSession
+    WebProcess/GPU/media/SourceBufferPrivateRemote
 
     WebProcess/GPU/webrtc/LibWebRTCCodecs
     WebProcess/GPU/webrtc/SampleBufferDisplayLayer

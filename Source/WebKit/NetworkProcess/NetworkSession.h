@@ -75,7 +75,6 @@ public:
     virtual void invalidateAndCancel();
     virtual void clearCredentials() { };
     virtual bool shouldLogCookieInformation() const { return false; }
-    virtual Seconds loadThrottleLatency() const { return { }; }
     virtual Vector<WebCore::SecurityOriginData> hostNamesWithAlternativeServices() const { return { }; }
     virtual void deleteAlternativeServicesForHostNames(const Vector<String>&) { }
     virtual void clearAlternativeServices(WallTime) { }
@@ -117,13 +116,15 @@ public:
     virtual void clearAppBoundSession() { }
 #endif
     void storePrivateClickMeasurement(WebCore::PrivateClickMeasurement&&);
-    void handlePrivateClickMeasurementConversion(WebCore::PrivateClickMeasurement::Conversion&&, const URL& requestURL, const WebCore::ResourceRequest& redirectRequest);
+    void handlePrivateClickMeasurementConversion(WebCore::PrivateClickMeasurement::AttributionTriggerData&&, const URL& requestURL, const WebCore::ResourceRequest& redirectRequest);
     void dumpPrivateClickMeasurement(CompletionHandler<void(String)>&&);
     void clearPrivateClickMeasurement();
     void clearPrivateClickMeasurementForRegistrableDomain(WebCore::RegistrableDomain&&);
     void setPrivateClickMeasurementOverrideTimerForTesting(bool value);
+    void markAttributedPrivateClickMeasurementsAsExpiredForTesting(CompletionHandler<void()>&&);
     void setPrivateClickMeasurementConversionURLForTesting(URL&&);
     void markPrivateClickMeasurementsAsExpiredForTesting();
+    void firePrivateClickMeasurementTimerImmediately();
 
     void addKeptAliveLoad(Ref<NetworkResourceLoader>&&);
     void removeKeptAliveLoad(NetworkResourceLoader&);

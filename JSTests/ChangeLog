@@ -1,3 +1,238 @@
+2020-11-30  Sergey Rubanov  <chi187@gmail.com>
+
+        Add support for the Wasm i64 sign-extension-ops proposal
+        https://bugs.webkit.org/show_bug.cgi?id=218990
+
+        Reviewed by Yusuke Suzuki.
+
+        * wasm/spec-tests/i64.wast.js:
+        * wasm/wasm.json:
+
+2020-11-28  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewd, annotate stress/bounds-checking-in-cold-loop.js with memoryLimited
+
+        * stress/bounds-checking-in-cold-loop.js:
+
+2020-11-27  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Use ARM atomic ops in wasm
+        https://bugs.webkit.org/show_bug.cgi?id=219281
+
+        Reviewed by Filip Pizlo.
+
+        * wasm/threads-spec-tests/atomic-signed.wast.js:
+        * wasm/threads-spec-tests/resources/atomic-signed.wast:
+
+2020-11-26  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add wasm atomics instructions
+        https://bugs.webkit.org/show_bug.cgi?id=218954
+
+        Reviewed by Filip Pizlo.
+
+        * wasm.yaml:
+        * wasm/Builder.js:
+        (const._importMemoryContinuation):
+        (export.default.Builder.prototype._registerSectionBuilders.const.section.in.WASM.description.section.switch.section.case.string_appeared_here.this.section):
+        * wasm/Builder_WebAssemblyBinary.js:
+        (const.putResizableLimits):
+        (const.emitters.Import):
+        (const.emitters.Memory):
+        * wasm/function-tests/trap-load-shared.js:
+        * wasm/function-tests/trap-store-shared.js:
+        * wasm/stress/atomic-decrement.js: Added.
+        (i.agent.start.import.string_appeared_here.then):
+        (i.async error):
+        * wasm/stress/atomic-increment.js: Added.
+        (i.agent.start.import.string_appeared_here.then):
+        (i.async error):
+        * wasm/stress/memory-fence.js: Added.
+        (async try):
+        (catch):
+        * wasm/threads-spec-tests/atomic-signed.wast.js: Added.
+        * wasm/threads-spec-tests/atomic.wast.js: Added.
+        * wasm/threads-spec-tests/memory.wast.js: Added.
+        * wasm/threads-spec-tests/resources/atomic-signed.wast: Added.
+        * wasm/wasm.json:
+
+2020-11-19  Xan López  <xan@igalia.com>
+
+        [JSC] Add support for static private class fields
+        https://bugs.webkit.org/show_bug.cgi?id=214297
+
+        Reviewed by Yusuke Suzuki.
+
+        Copy V8 tests for static private fields and add the test262
+        flag. Also add a couple more of our own tests for the sake of
+        completeness.
+
+        * stress/class-fields-static-private-harmony.js: Added, with a couple additional tests.
+        * stress/resources/harmony-support.js:
+        (assertDoesNotThrow): added.
+        * test262/config.yaml:
+
+2020-11-18  Dmitry Bezhetskov  <dbezhetskov@igalia.com>
+
+        [WASM-References] Remove subtyping rule for externref and funcref
+        https://bugs.webkit.org/show_bug.cgi?id=218885
+
+        Reviewed by Yusuke Suzuki.
+
+        Make funcref is not a subtype of externref.
+        The spec: https://webassembly.github.io/reference-types/core/
+        The PR for removing subtype from the spec:
+        https://github.com/WebAssembly/reference-types/pull/87.
+
+        * wasm/references/func_ref.js:
+        (assert.eq.instance.exports.fix.fun):
+        (assert.eq.instance.exports.fix):
+        * wasm/references/validation.js:
+
+2020-11-18  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [JSC] Reinstate String#at
+        https://bugs.webkit.org/show_bug.cgi?id=219124
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/at-method.js: Re-add tests.
+        * test262/config.yaml: Re-enable feature.
+        * test262/expectations.yaml:
+        "at/prop-desc.js" failures are due to a typo; will be fixed in https://github.com/tc39/test262/pull/2908.
+
+2020-11-17  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Improve Wasm binary test coverage
+        https://bugs.webkit.org/show_bug.cgi?id=204843
+
+        Reviewed by Darin Adler.
+
+        * wasm/function-tests/grow-memory.js:
+        (binaryShouldNotParse):
+        * wasm/spec-tests/binary-leb128.wast.js:
+        * wasm/spec-tests/binary.wast.js:
+        * wasm/wasm.json:
+
+2020-11-18  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Update test262 (2020.11.18)
+        https://bugs.webkit.org/show_bug.cgi?id=219109
+
+        Reviewed by Yusuke Suzuki.
+
+        * test262/config.yaml:
+        * test262/expectations.yaml:
+        * test262/latest-changes-summary.txt:
+        * test262/test/:
+        * test262/test262-Revision.txt:
+
+2020-11-18  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, relanding r269940
+        https://bugs.webkit.org/show_bug.cgi?id=219076
+
+        * wasm/function-tests/trap-load-shared.js: Added.
+        (wasmFrameCountFromError):
+        * wasm/function-tests/trap-store-shared.js: Added.
+        * wasm/js-api/test_memory.js:
+        (binaryShouldNotParse):
+        * wasm/stress/shared-memory-errors.js: Added.
+        (assert.throws):
+        * wasm/stress/shared-wasm-memory-buffer.js: Added.
+
+2020-11-18  Xan Lopez  <xan@igalia.com>
+
+        [JSC] Import V8 private instance fields tests
+        https://bugs.webkit.org/show_bug.cgi?id=219075
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/class-fields-private-harmony.js: Added.
+
+2020-11-18  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r269940.
+        https://bugs.webkit.org/show_bug.cgi?id=219076
+
+        caused seemingly-infinite build time regression
+
+        Reverted changeset:
+
+        "[JSC] Implement WebAssembly.Memory with shared"
+        https://bugs.webkit.org/show_bug.cgi?id=218693
+        https://trac.webkit.org/changeset/269940
+
+2020-11-16  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Implement WebAssembly.Memory with shared
+        https://bugs.webkit.org/show_bug.cgi?id=218693
+
+        Reviewed by Saam Barati.
+
+        * wasm/function-tests/trap-load-shared.js: Added.
+        (wasmFrameCountFromError):
+        * wasm/function-tests/trap-store-shared.js: Added.
+        * wasm/js-api/test_memory.js:
+        (binaryShouldNotParse):
+        * wasm/stress/shared-memory-errors.js: Added.
+        (assert.throws):
+        * wasm/stress/shared-wasm-memory-buffer.js: Added.
+
+2020-11-17  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Enable static public class fields
+        https://bugs.webkit.org/show_bug.cgi?id=219058
+
+        Reviewed by Saam Barati.
+
+        * stress/big-int-as-property-name.js:
+        * stress/class-fields-bytecode-cache.js:
+        * stress/class-fields-computed-to-property-key.js:
+        * stress/class-fields-function-name.js:
+        * stress/class-fields-harmony.js:
+        * stress/class-fields-private-use-eval.js:
+        * stress/class-fields-proxy-define-property.js:
+        * stress/class-fields-stress-instance.js:
+        * stress/class-fields-to-property-key-const-string-ftl.js:
+        * stress/class-fields-to-property-key-const-symbol-ftl.js:
+        * stress/class-fields-to-property-key-slow-object-tostring-ftl.js:
+        * stress/class-fields-to-property-key-slow-object-valueof-ftl.js:
+        * stress/class-fields-to-property-key-string-object-ftl.js:
+        * stress/class-fields-to-property-key-string-or-string-object-ftl.js:
+        * stress/class-fields-with-special-names.js:
+        * stress/generator-syntax.js:
+        * stress/method-name.js:
+        * stress/private-name-access-in-computed-property.js:
+        * test262/config.yaml:
+
+2020-11-17  Sergey Rubanov  <chi187@gmail.com>
+
+        Add support for the Wasm i32 sign-extension-ops proposal
+        https://bugs.webkit.org/show_bug.cgi?id=210302
+
+        Reviewed by Yusuke Suzuki.
+
+        * wasm/spec-tests/i32.wast.js:
+        * wasm/spec-tests/i64.wast.js:
+        * wasm/wasm.json:
+
+2020-11-17  Xan López  <xan@igalia.com>
+
+        [JSC] Add support for static public class fields
+        https://bugs.webkit.org/show_bug.cgi?id=194095
+
+        Reviewed by Yusuke Suzuki.
+
+        Enable static public fields, and import new stress tests from the
+        V8 project. Also split the support code into a separate file
+        (harmony-support.js) to avoid duplication.
+
+        * test262/config.yaml: enable static public fields.
+        * stress/class-fields-harmony.js: use the new support file.
+        * stress/class-fields-static-harmony.js: Added.
+        * stress/resources/harmony-support.js: Added.
+
 2020-11-15  Sergey Rubanov  <chi187@gmail.com>
 
         [JSC] Update wasm spec tests

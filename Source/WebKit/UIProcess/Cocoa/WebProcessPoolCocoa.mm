@@ -79,6 +79,7 @@
 #endif
 
 #if PLATFORM(MAC)
+#import "WebInspectorPreferenceObserver.h"
 #import <QuartzCore/CARemoteLayerServer.h>
 #import <pal/spi/mac/NSApplicationSPI.h>
 #else
@@ -178,6 +179,10 @@ void WebProcessPool::platformInitialize()
         });
     }
 #endif
+
+#if PLATFORM(MAC)
+    [WKWebInspectorPreferenceObserver sharedInstance];
+#endif
 }
 
 #if PLATFORM(IOS_FAMILY)
@@ -267,7 +272,8 @@ static const Vector<ASCIILiteral>& diagnosticServices()
 #if PLATFORM(IOS_FAMILY)
         "com.apple.osanalytics.osanalyticshelper"_s
 #else
-        "com.apple.analyticsd"_s
+        "com.apple.analyticsd"_s,
+        "com.apple.powerlog.plxpclogger.xpc"_s
 #endif
     });
     return services;

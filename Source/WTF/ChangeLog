@@ -1,3 +1,243 @@
+2020-11-30  Youenn Fablet  <youenn@apple.com>
+
+        Introduce an experimental flag specific to VP9 profile 2
+        https://bugs.webkit.org/show_bug.cgi?id=219350
+
+        Reviewed by Eric Carlson.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-11-28  Per Arne Vollan  <pvollan@apple.com>
+
+        [macOS] Set application information in the Networking process on behalf of the WebContent process
+        https://bugs.webkit.org/show_bug.cgi?id=218052
+        <rdar://problem/70586405>
+
+        Reviewed by Brent Fulgham.
+
+        Add define to enable this feature.
+
+        * wtf/PlatformEnableCocoa.h:
+
+2020-11-26  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WinCairo] Enable GPU process
+        https://bugs.webkit.org/show_bug.cgi?id=219294
+
+        Reviewed by Don Olmstead.
+
+        * wtf/PlatformHave.h: Turned HAVE_SYSTEM_FEATURE_FLAGS on for Windows.
+
+2020-11-26  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        [WPE][GTK] Fix build with GCC 11
+        https://bugs.webkit.org/show_bug.cgi?id=219264
+
+        Reviewed by Carlos Garcia Campos.
+
+        It's not uncommon for really old code like this to abuse volatile as if it were a
+        synchronization primitive. It's not. This code is already synchronized by use of GOnce, so
+        it can be safely removed. References:
+
+        https://gitlab.gnome.org/GNOME/glib/-/issues/600#note_877282
+        http://isvolatileusefulwiththreads.in/C++/
+
+        * wtf/glib/WTFGType.h:
+
+2020-11-21  Simon Fraser  <simon.fraser@apple.com>
+
+        Add an Experimental Features for wheel event gestures becoming non-blocking
+        https://bugs.webkit.org/show_bug.cgi?id=219236
+
+        Reviewed by Sam Weinig.
+
+        Add a feature flag for the behavior that is being added via webkit.org/b/218764,
+        which is that only the first wheel event in a gesture is cancelable.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-11-20  Geoffrey Garen  <ggaren@apple.com>
+
+        Use a Version 1 CFRunLoopSource for faster task dispatch
+        https://bugs.webkit.org/show_bug.cgi?id=202874
+
+        Reviewed by Simon Fraser.
+
+        This performance bottleneck showed up in IndexedDB. We worked around it
+        by switching to WorkQueueMessageReceiver. Now it's showing up again
+        in the GPU Process.
+
+        * wtf/RunLoop.h: Added a mach port. We use this for wake-up.
+
+        * wtf/cf/RunLoopCF.cpp:
+        (WTF::RunLoop::performWork): Use the standard declaration for a
+        Version 1 run loop source callback.
+
+        (WTF::RunLoop::RunLoop): Use a dummy mach port for wake-ups. The default
+        wake-up mechanism uses pthread APIs, which cost hundreds of microseconds
+        per invocation, even on the most modern hardware. In contrast, a mach
+        message takes about nine microseconds.
+
+        (WTF::RunLoop::~RunLoop): Free the mach port.
+
+        (WTF::RunLoop::wakeUp): Copy-pasted code to signal a mach port. The
+        message payload doesn't matter because we're just trying to achieve
+        a wakeup, kind of like calling a void() function.
+
+2020-11-20  Don Olmstead  <don.olmstead@sony.com>
+
+        Remove quota module
+        https://bugs.webkit.org/show_bug.cgi?id=219206
+
+        Reviewed by Anders Carlsson.
+
+        Remove the ENABLE_QUOTA macro.
+
+        * wtf/PlatformEnable.h:
+
+2020-11-20  Philippe Normand  <pnormand@igalia.com>
+
+        [MSE] Infinite loop in sample eviction when duration is NaN
+        https://bugs.webkit.org/show_bug.cgi?id=218228
+
+        Reviewed by Darin Adler.
+
+        * wtf/MediaTime.h: New isFinite() method, to check if the MediaTime is valid and represents
+        a finite value, eg not NaN or Infinite.
+
+2020-11-19  Ada Chan  <adachan@apple.com>
+
+        Turn on ENABLE_WEBXR for Cocoa
+        https://bugs.webkit.org/show_bug.cgi?id=219171
+
+        Reviewed by Tim Horton.
+
+        * wtf/PlatformEnableCocoa.h:
+        * wtf/PlatformUse.h:
+
+2020-11-19  Saam Barati  <sbarati@apple.com>
+
+        Use os_thread_self_restrict_rwx_is_supported instead of pthread_jit_write_protect_supported_np on Apple Internal SDK builds
+        https://bugs.webkit.org/show_bug.cgi?id=219099
+        <rdar://problem/71547048>
+
+        Reviewed by Mark Lam.
+
+        * wtf/PlatformHave.h:
+        * wtf/PlatformUse.h:
+
+2020-11-18  Yousuke Kimoto  <Yousuke.Kimoto@sony.com>
+
+        [WTF] Fix a condition to check if statvfs() succeeds in getVolumeFreeSpace()
+        https://bugs.webkit.org/show_bug.cgi?id=219138
+
+        Reviewed by Alexey Proskuryakov.
+
+        statvfs() returns Zero on success but getVolumeFreeSpace() treats a non Zero value
+        as a succes case. The condition is oppsite to the spec of statvfs().
+
+        * wtf/posix/FileSystemPOSIX.cpp:
+
+2020-11-17  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Improve Wasm binary test coverage
+        https://bugs.webkit.org/show_bug.cgi?id=204843
+
+        Reviewed by Darin Adler.
+
+        LEBDecoder should have more strict validation. One thing is that, we should reject pattern that includes ignored bits.
+        For example, in uint32_t, we can represent UINT32_MAX in 5 bytes like this.
+
+            0xff, 0xff, 0xff, 0xff, 0x0f
+            0b1111111_1111111_1111111_1111111_1111
+
+        Leading bytes has 0x80 trailing marker. And they includes each 7 bit slice. And the last byte includes 0b1111 part.
+        But we can also make it in the following form
+
+            0xff, 0xff, 0xff, 0xff, 0xff
+            0b1111111_1111111_1111111_1111111_1111
+
+        In the above case, the last byte's upper 4 bits are ignored in the result, and this is wrong in LEB128 encoding.
+        We should reject this input since the last byte includes overflown bits.
+        This patch adds this validation to WTF.
+
+        * wtf/LEBDecoder.h:
+        (WTF::LEBDecoder::maxByteLength):
+        (WTF::LEBDecoder::lastByteMask):
+        (WTF::LEBDecoder::decodeUInt):
+        (WTF::LEBDecoder::decodeInt):
+
+2020-11-18  Darin Adler  <darin@apple.com>
+
+        Remove advanced plug-in feature: small plug-in blocking
+        https://bugs.webkit.org/show_bug.cgi?id=219101
+
+        Reviewed by Anders Carlsson.
+
+        * Scripts/Preferences/WebPreferencesInternal.yaml: Removed BlockingOfSmallPluginsEnabled.
+
+2020-11-18  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, relanding r269940
+        https://bugs.webkit.org/show_bug.cgi?id=219076
+
+        * wtf/PlatformEnable.h:
+
+2020-11-18  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r269940.
+        https://bugs.webkit.org/show_bug.cgi?id=219076
+
+        caused seemingly-infinite build time regression
+
+        Reverted changeset:
+
+        "[JSC] Implement WebAssembly.Memory with shared"
+        https://bugs.webkit.org/show_bug.cgi?id=218693
+        https://trac.webkit.org/changeset/269940
+
+2020-11-17  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Build fails on internal simulator builds due to missing enum kCVPixelFormatType_AGX_420YpCbCr8BiPlanarVideoRange
+        https://bugs.webkit.org/show_bug.cgi?id=219030
+
+        Unreviewed build fix for macCatalyst.
+
+        * wtf/PlatformHave.h:
+
+2020-11-17  Kimmo Kinnunen  <kkinnunen@apple.com>
+
+        Build fails on internal simulator builds due to missing enum kCVPixelFormatType_AGX_420YpCbCr8BiPlanarVideoRange
+        https://bugs.webkit.org/show_bug.cgi?id=219030
+
+        Reviewed by Antti Koivisto.
+
+        Fix compile for simulator builds.
+        Rename HAVE_CV_AGX_420_PIXEL_FORMAT_TYPES to
+        HAVE_COREVIDEO_COMPRESSED_PIXEL_FORMAT_TYPES to better reflect what the ifdef does.
+
+        * wtf/PlatformHave.h:
+
+2020-11-17  Antoine Quint  <graouts@webkit.org>
+
+        Make <model> disabled by default everywhere
+        https://bugs.webkit.org/show_bug.cgi?id=219027
+
+        Reviewed by Devin Rousso.
+
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+
+2020-11-16  Sam Weinig  <weinig@apple.com>
+
+        Standardize enums that are used by Settings in preperation for autogeneration
+        https://bugs.webkit.org/show_bug.cgi?id=218960
+
+        Reviewed by Tim Horton.
+
+        Update enum uses in default WebPreferences values for renames and scoped syntax use.
+
+        * Scripts/Preferences/WebPreferences.yaml:
+
 2020-11-16  Antoine Quint  <graouts@webkit.org>
 
         Add an experimental <model> element
