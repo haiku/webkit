@@ -32,6 +32,7 @@
 #include <support/Locker.h>
 #include <Application.h>
 #include <Rect.h>
+#include <UrlSession.h>
 
 class BFile;
 class LauncherWindow;
@@ -49,13 +50,15 @@ public:
     virtual bool QuitRequested();
 
 private:
-	bool openSettingsFile(BFile& file, uint32 mode);
-	void newWindow(const BString& url);
+    bool openSettingsFile(BFile& file, uint32 mode);
+    void newWindow(const BString& url);
 
     int m_windowCount;
     BRect m_lastWindowFrame;
     BMessage* m_launchRefsMessage;
     bool m_initialized;
+
+    BUrlSession m_session;
 };
 
 extern const char* kApplicationSignature;

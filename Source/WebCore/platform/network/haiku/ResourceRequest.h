@@ -32,7 +32,7 @@
 #include <String.h>
 #include <Referenceable.h>
 
-class BUrlContext;
+class BUrlSession;
 class BUrlRequest;
 
 namespace WebCore {
@@ -60,7 +60,7 @@ namespace WebCore {
         {
         }
 
-        BUrlRequest* toNetworkRequest(BUrlContext*);
+        BUrlRequest* toNetworkRequest(BUrlSession*);
 
         void setCredentials(const char* username, const char* password);
         void updateFromDelegatePreservingOldProperties(const ResourceRequest& delegateProvidedRequest) { *this = delegateProvidedRequest; }

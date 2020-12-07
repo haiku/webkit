@@ -62,7 +62,7 @@ BWebView::UserData::~UserData()
 }
 
 
-BWebView::BWebView(const char* name, BUrlContext* urlContext)
+BWebView::BWebView(const char* name, BUrlSession* urlSession)
     : BView(name, B_WILL_DRAW | B_FRAME_EVENTS | B_FULL_UPDATE_ON_RESIZE
     	| B_NAVIGABLE | B_PULSE_NEEDED)
     , fLastMouseButtons(0)
@@ -71,7 +71,7 @@ BWebView::BWebView(const char* name, BUrlContext* urlContext)
     , fAutoHidePointer(false)
     , fOffscreenBitmap(nullptr)
     , fOffscreenView(nullptr)
-    , fWebPage(new BWebPage(this, urlContext))
+    , fWebPage(new BWebPage(this, urlSession))
     , fUserData(nullptr)
 {
 #if USE(TEXTURE_MAPPER)

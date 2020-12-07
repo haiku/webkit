@@ -24,7 +24,7 @@
 #include "NetworkingContext.h"
 
 #include <support/Locker.h>
-#include <UrlProtocolRoster.h>
+#include <UrlSession.h>
 #include <UrlRequest.h>
 #include <HttpRequest.h>
 #include <LocaleRoster.h>
@@ -32,17 +32,19 @@
 
 namespace WebCore {
 
-BUrlRequest* ResourceRequest::toNetworkRequest(BUrlContext* context)
+BUrlRequest* ResourceRequest::toNetworkRequest(BUrlSession* session)
 {
-    BUrlRequest* request = BUrlProtocolRoster::MakeRequest(url());
+    if (!session) {
+        m_url = WTF::aboutBlankURL();
+        return NULL;
+    }
+
+    BUrlRequest* request = session->MakeRequest(url(), nullptr);
 
     if (!request) {
         m_url = WTF::aboutBlankURL(); // This tells the ResourceLoader we failed.
         return NULL;
     }
-
-    if (context)
-        request->SetContext(context);
 
     if (timeoutInterval() > 0)
         request->SetTimeout(timeoutInterval());

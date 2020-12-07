@@ -36,8 +36,7 @@
 
 #include <Bitmap.h>
 #include <TranslationUtils.h>
-#include <UrlProtocolRoster.h>
-#include <UrlSynchronousRequest.h>
+#include <UrlSession.h>
 
 class BWebPage;
 
@@ -61,7 +60,7 @@ public:
     void notificationObjectDestroyed(Notification*) override {}
     void notificationControllerDestroyed() override {}
 
-    void requestPermission(ScriptExecutionContext*, 
+    void requestPermission(ScriptExecutionContext*,
             RefPtr<NotificationPermissionCallback>&& callback) override {
         if (callback)
             callback->handleEvent(NotificationPermission::Granted);
@@ -74,8 +73,6 @@ public:
     }
 
 private:
-    class SynchronousListener;
-
     BNotification fromDescriptor(Notification* descriptor);
 };
 

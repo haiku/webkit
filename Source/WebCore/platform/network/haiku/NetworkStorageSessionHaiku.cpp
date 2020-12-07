@@ -28,7 +28,7 @@
 #include "NetworkStorageSession.h"
 
 #include <support/Locker.h>
-#include <UrlContext.h>
+#include <UrlSession.h>
 
 #include "Cookie.h"
 #include "CookieRequestHeaderFieldProxy.h"
@@ -63,19 +63,19 @@ static std::unique_ptr<NetworkStorageSession>& defaultSession()
 }
 
 void NetworkStorageSession::setCookiesFromDOM(const URL& firstParty,
-	const SameSiteInfo& sameSiteInfo, const URL& url,
-	WTF::Optional<FrameIdentifier> frameID, WTF::Optional<PageIdentifier> pageID,
-	ShouldAskITP, const String& value, ShouldRelaxThirdPartyCookieBlocking) const
+    const SameSiteInfo& sameSiteInfo, const URL& url,
+    WTF::Optional<FrameIdentifier> frameID, WTF::Optional<PageIdentifier> pageID,
+    ShouldAskITP, const String& value, ShouldRelaxThirdPartyCookieBlocking) const
 {
-	BNetworkCookie* heapCookie
-		= new BNetworkCookie(value, BUrl(url));
+    BNetworkCookie* heapCookie
+        = new BNetworkCookie(value, BUrl(url));
 
 #if TRACE_COOKIE_JAR
-	printf("CookieJar: Add %s for %s\n", heapCookie->RawCookie(true).String(),
+    printf("CookieJar: Add %s for %s\n", heapCookie->RawCookie(true).String(),
         url.string().utf8().data());
-	printf("  from %s\n", value.utf8().data());
+    printf("  from %s\n", value.utf8().data());
 #endif
-	platformSession().GetCookieJar().AddCookie(heapCookie);
+    platformSession().GetCookieJar().AddCookie(heapCookie);
 }
 
 HTTPCookieAcceptPolicy NetworkStorageSession::cookieAcceptPolicy() const
@@ -84,39 +84,39 @@ HTTPCookieAcceptPolicy NetworkStorageSession::cookieAcceptPolicy() const
 }
 
 std::pair<String, bool> NetworkStorageSession::cookiesForDOM(const URL& firstParty,
-	const SameSiteInfo& sameSiteInfo, const URL& url,
-	WTF::Optional<FrameIdentifier> frameID, WTF::Optional<PageIdentifier> pageID,
-	IncludeSecureCookies includeSecureCookies, ShouldAskITP,
-	ShouldRelaxThirdPartyCookieBlocking) const
+    const SameSiteInfo& sameSiteInfo, const URL& url,
+    WTF::Optional<FrameIdentifier> frameID, WTF::Optional<PageIdentifier> pageID,
+    IncludeSecureCookies includeSecureCookies, ShouldAskITP,
+    ShouldRelaxThirdPartyCookieBlocking) const
 {
 #if TRACE_COOKIE_JAR
-	printf("CookieJar: Request for %s\n", url.string().utf8().data());
+    printf("CookieJar: Request for %s\n", url.string().utf8().data());
 #endif
 
-	BString result;
-	BUrl hUrl(url);
-	bool secure = false;
+    BString result;
+    BUrl hUrl(url);
+    bool secure = false;
 
-	const BNetworkCookie* c;
-	for (BNetworkCookieJar::UrlIterator it(
+    const BNetworkCookie* c;
+    for (BNetworkCookieJar::UrlIterator it(
             platformSession().GetCookieJar().GetUrlIterator(hUrl));
-		    (c = it.Next()); ) {
+            (c = it.Next()); ) {
         // filter out httpOnly cookies,as this method is used to get cookies
         // from JS code and these shouldn't be visible there.
         if(c->HttpOnly())
-			continue;
+            continue;
 
-		// filter out secure cookies if they should be
-		if (c->Secure())
-		{
-			secure = true;
+        // filter out secure cookies if they should be
+        if (c->Secure())
+        {
+            secure = true;
             if (includeSecureCookies == IncludeSecureCookies::No)
-				continue;
-		}
-		
-		result << "; " << c->RawCookie(false);
-	}
-	result.Remove(0, 2);
+                continue;
+        }
+
+        result << "; " << c->RawCookie(false);
+    }
+    result.Remove(0, 2);
 
     return {result, secure};
 }
@@ -139,9 +139,9 @@ void NetworkStorageSession::deleteCookie(const Cookie&)
 void NetworkStorageSession::deleteCookie(const URL& url, const String& cookie) const
 {
 #if TRACE_COOKIE_JAR
-	printf("CookieJar: delete cookie for %s (NOT IMPLEMENTED)\n", url.string().utf8().data());
+    printf("CookieJar: delete cookie for %s (NOT IMPLEMENTED)\n", url.string().utf8().data());
 #endif
-	notImplemented();
+    notImplemented();
 }
 
 void NetworkStorageSession::deleteAllCookies()
@@ -177,13 +177,13 @@ Vector<Cookie> NetworkStorageSession::getCookies(const URL&)
 }
 
 bool NetworkStorageSession::getRawCookies(const URL& firstParty,
-	const SameSiteInfo& sameSiteInfo, const URL& url, WTF::Optional<FrameIdentifier> frameID,
-	WTF::Optional<PageIdentifier> pageID, ShouldAskITP, ShouldRelaxThirdPartyCookieBlocking, Vector<Cookie>& rawCookies) const
+    const SameSiteInfo& sameSiteInfo, const URL& url, WTF::Optional<FrameIdentifier> frameID,
+    WTF::Optional<PageIdentifier> pageID, ShouldAskITP, ShouldRelaxThirdPartyCookieBlocking, Vector<Cookie>& rawCookies) const
 {
 #if TRACE_COOKIE_JAR
-	printf("CookieJar: get raw cookies for %s (NOT IMPLEMENTED)\n", url.string().utf8().data());
+    printf("CookieJar: get raw cookies for %s (NOT IMPLEMENTED)\n", url.string().utf8().data());
 #endif
-	notImplemented();
+    notImplemented();
 
     rawCookies.clear();
     return false; // return true when implemented
@@ -195,33 +195,33 @@ void NetworkStorageSession::flushCookieStore()
 }
 
 std::pair<String, bool> NetworkStorageSession::cookieRequestHeaderFieldValue(const URL& firstParty,
-	const SameSiteInfo& sameSiteInfo, const URL& url, WTF::Optional<FrameIdentifier> frameID,
-	WTF::Optional<PageIdentifier> pageID, IncludeSecureCookies includeSecureCookies, ShouldAskITP,
-	ShouldRelaxThirdPartyCookieBlocking) const
+    const SameSiteInfo& sameSiteInfo, const URL& url, WTF::Optional<FrameIdentifier> frameID,
+    WTF::Optional<PageIdentifier> pageID, IncludeSecureCookies includeSecureCookies, ShouldAskITP,
+    ShouldRelaxThirdPartyCookieBlocking) const
 {
 #if TRACE_COOKIE_JAR
-	printf("CookieJar: RequestHeaderField for %s\n", url.string().utf8().data());
+    printf("CookieJar: RequestHeaderField for %s\n", url.string().utf8().data());
 #endif
 
-	BString result;
-	BUrl hUrl(url);
-	bool secure = false;
+    BString result;
+    BUrl hUrl(url);
+    bool secure = false;
 
-	const BNetworkCookie* c;
-	for (BNetworkCookieJar::UrlIterator it(
-        	platformSession().GetCookieJar().GetUrlIterator(hUrl));
-		    (c = it.Next()); ) {
-		// filter out secure cookies if they should be
-		if (c->Secure())
-		{
-			secure = true;
+    const BNetworkCookie* c;
+    for (BNetworkCookieJar::UrlIterator it(
+            platformSession().GetCookieJar().GetUrlIterator(hUrl));
+            (c = it.Next()); ) {
+        // filter out secure cookies if they should be
+        if (c->Secure())
+        {
+            secure = true;
             if (includeSecureCookies == IncludeSecureCookies::No)
-				continue;
-		}
-		
-		result << "; " << c->RawCookie(false);
-	}
-	result.Remove(0, 2);
+                continue;
+        }
+
+        result << "; " << c->RawCookie(false);
+    }
+    result.Remove(0, 2);
 
     return {result, secure};
 }
@@ -236,13 +236,17 @@ std::pair<String, bool> NetworkStorageSession::cookieRequestHeaderFieldValue(
         ShouldRelaxThirdPartyCookieBlocking::No);
 }
 
-BUrlContext& NetworkStorageSession::platformSession() const
+BUrlSession& NetworkStorageSession::platformSession() const
 {
-    static BUrlContext sDefaultContext;
-    return m_context ? *m_context : sDefaultContext;
+    static BUrlSession sDefaultSession;
+    if (sDefaultSession.InitCheck() != B_OK) {
+        // TODO: Handle this somehow? or just throw std::bad_alloc?
+        abort();
+    }
+    return m_context ? *m_context : sDefaultSession;
 }
 
-void NetworkStorageSession::setPlatformSession(BUrlContext* context)
+void NetworkStorageSession::setPlatformSession(BUrlSession* context)
 {
     m_context = context;
 }
